@@ -41,3 +41,4 @@ set incsearch
 set number
 
 set wildmode=list:longest
+set scrolloff=3
