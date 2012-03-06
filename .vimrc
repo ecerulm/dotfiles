@@ -7,7 +7,8 @@ set laststatus=2
 set statusline=%t[%{strlen(&fenc)?&fenc:'none'},%{&ff}]%h%m%r%y%=%o,%c,%l/%L\ %P
 set background=dark
 let g:solarized_termcolors=256
-colorscheme solarized
+"colorscheme solarized
+colorscheme vividchalk
 filetype on           " Enable filetype detection
 filetype indent on    " Enable filetype-specific indenting
 filetype plugin on    " Enable filetype-specific plugins
@@ -38,3 +39,5 @@ map <leader>gg :topleft 100 :split Gemfile<cr>
 set hlsearch 
 set incsearch
 set number
+
+set wildmode=list:longest
