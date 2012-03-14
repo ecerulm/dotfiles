@@ -36,6 +36,16 @@ map <leader>gf :CommandTFlush<cr>\|:CommandT %%<cr>
 
 map <leader>gg :topleft 100 :split Gemfile<cr>
 
+" Indent in visual mode
+vmap > >gv 
+vmap < <gv
+vmap <Tab> >gv
+vmap <S-Tab> <gv
+
+" Tab for autocompletion in insert mode
+imap <Tab> <C-N>
+imap <S-Tab> <C-P>
+
 set hlsearch 
 set incsearch
 set number
