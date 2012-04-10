@@ -26,3 +26,4 @@ alias git_alias='mate -w ~/.zsh/git_aliases; cd ~/.dot-files; ga files/.zsh/git_
 alias proj='cd /proj/wcdma-userarea/users/ecerulm/'
 alias cleartool=/usr/atria/bin/cleartool
 alias ct=cleartool
+alias tmux='LD_LIBRARY_PATH=/home/ecerulm/local/lib tmux'
