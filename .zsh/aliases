@@ -29,3 +29,4 @@ alias ct=cleartool
 alias tmux='LD_LIBRARY_PATH=/home/ecerulm/local/lib tmux'
 alias vi='~/local/bin/vi'
 alias vim='~/local/bin/vim'
+alias tmuxinator='LD_LIBRARY_PATH=/home/ecerulm/local/lib tmuxinator'
