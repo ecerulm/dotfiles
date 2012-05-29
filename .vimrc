@@ -43,8 +43,8 @@ vmap <Tab> >gv
 vmap <S-Tab> <gv
 
 " Tab for autocompletion in insert mode
-imap <Tab> <C-N>
-imap <S-Tab> <C-P>
+"imap <Tab> <C-N>
+"imap <S-Tab> <C-P>
 
 set hlsearch 
 set incsearch
@@ -54,4 +54,4 @@ set wildmode=list:longest
 set scrolloff=3
 
 autocmd FileType ruby setlocal foldmethod=syntax foldcolumn=1 shiftwidth=2 tabstop=2 softtabstop=2 expandtab
-nnoremap ; :
+"nnoremap ; :
