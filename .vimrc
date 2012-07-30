@@ -8,7 +8,7 @@ set statusline=%t[%{strlen(&fenc)?&fenc:'none'},%{&ff}]%h%m%r%y%=%o,%c,%l/%L\ %P
 set background=dark
 let g:solarized_termcolors=256
 "colorscheme solarized
-colorscheme vividchalk
+"colorscheme vividchalk
 filetype on           " Enable filetype detection
 filetype indent on    " Enable filetype-specific indenting
 filetype plugin on    " Enable filetype-specific plugins
@@ -54,4 +54,6 @@ set wildmode=list:longest
 set scrolloff=3
 
 autocmd FileType ruby setlocal foldmethod=syntax foldcolumn=1 shiftwidth=2 tabstop=2 softtabstop=2 expandtab
+
 nnoremap ; :
+cabbr <expr> %% expand('%:p:h')
