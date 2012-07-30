@@ -8,7 +8,7 @@ set statusline=%t[%{strlen(&fenc)?&fenc:'none'},%{&ff}]%h%m%r%y%=%o,%c,%l/%L\ %P
 set background=dark
 let g:solarized_termcolors=256
 "colorscheme solarized
-colorscheme vividchalk
+"colorscheme vividchalk
 filetype on           " Enable filetype detection
 filetype indent on    " Enable filetype-specific indenting
 filetype plugin on    " Enable filetype-specific plugins
