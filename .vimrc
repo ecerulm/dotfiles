@@ -57,3 +57,8 @@ autocmd FileType ruby setlocal foldmethod=syntax foldcolumn=1 shiftwidth=2 tabst
 
 nnoremap ; :
 cabbr <expr> %% expand('%:p:h')
+
+
+autocmd FileType ruby setlocal foldmethod=syntax foldcolumn=1 shiftwidth=2 tabstop=2 softtabstop=2 expandtab
+
+set tabstop=2 softtabstop=2 shiftwidth=2 expandtab
