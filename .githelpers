@@ -13,30 +13,60 @@
 # used to split on them. A } in the commit subject or any other field will
 # break this.
 
-HASH="%C(yellow)%h%Creset"
-RELATIVE_TIME="%Cgreen(%ar)%Creset"
-AUTHOR="%C(bold blue)<%an>%Creset"
-REFS="%C(red)%d%Creset"
-SUBJECT="%s"
+
+filter1() {
+  if [[ platform == 'macosx' ]]; then
+    sed -re 's/(^[^<]*) ago)/\1)/' 
+  else
+    ruby -e 'puts $stdin.read.gsub(/(^[^<]*) ago\)/, "\\1)")'       
+  fi
+}
+
+filter2() {
+  if [[ platform == 'macosx' ]]; then
+    sed -re 's/(^[^<]*), [[:digit:]]+ .*months?)/\1)/'
+  else
+    ruby -e 'puts $stdin.read.gsub(/(^[^<]*), [[:digit:]]+ .*months?\)/, "\\1)")'
+  fi
+}
+
+platform='unknown'
+unamestr=`uname`
+if [[ "$unamestr" == 'Linux' ]]; then
+  platform='linux'
+elif [[ "$unamestr" == 'Darwin' ]]; then
+  platform='macosx'
+fi
+
+if [[ platform == 'macosx' ]]; then
+  #colorized output (because column is aware of escape codes)
+  HASH="%C(yellow)%h%Creset"
+  RELATIVE_TIME="%Cgreen(%ar)%Creset"
+  AUTHOR="%C(bold blue)<%an>%Creset"
+  REFS="%C(red)%d%Creset"
+  SUBJECT="%s"
+else 
+  # dont use colors as column in linux doesn support escape codes
+  HASH="%h"
+  RELATIVE_TIME="(%ar)"
+  AUTHOR="<%an>"
+  REFS="%d"
+  SUBJECT="%s"
+fi
+
 
 FORMAT="$HASH}$RELATIVE_TIME}$AUTHOR}$REFS $SUBJECT"
 
 show_git_head() {
-    pretty_git_log -1
-    git show -p --pretty="tformat:"
+  pretty_git_log -1
+  git show -p --pretty="tformat:"
 }
 
 pretty_git_log() {
-    git log  --graph --pretty="tformat:${FORMAT}" $* |
-        # Replace (2 years ago) with (2 years)
-	ruby -e 'puts $stdin.read.gsub(/(^[^<]*) ago\)/, "\\1)")'|       
-        #sed -re 's/(^[^<]*) ago)/\1)/' |
-        # Replace (2 years, 5 months) with (2 years)
-	ruby -e 'puts $stdin.read.gsub(/(^[^<]*), [[:digit:]]+ .*months?\)/, "\\1)")'|       
-        #sed -re 's/(^[^<]*), [[:digit:]]+ .*months?)/\1)/' |
-        # Line columns up based on } delimiter
-        column -s '}' -t |
-        # Page only if we need to
-        less -FXRS
+  git log  --graph --pretty="tformat:${FORMAT}" $* |
+  filter1 | # Replace (2 years ago) with (2 years)
+  filter2 | # Replace (2 years, 5 months) with (2 years)
+  column -s '}' -t | # Line columns up based on } delimiter
+  less -FXRS # Page only if we need to
 }
 
