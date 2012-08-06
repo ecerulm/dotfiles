@@ -1,0 +1,91 @@
+bindkey "^R" i-search-back
+setenv http_proxy "http://www-proxy.ericsson.se:8080"
+setenv HTTPS_PROXY "http://www-proxy.ericsson.se:8080"
+set history = 100000
+set savehist = (100000 merge) # Save and merge with existing saved
+set histfile = ~/.tcsh_history
+set histdup='erase'
+set tperiod=60
+alias periodic '( history -M;history -S ) &'
+set cdpath = (~ /vobs/rnc /vobs/rnc/rrt/ /vobs/rnc/rrt/ueh /vobs/rnc/rrt/ueh/uehSs /vobs/rnc/rrt/ueh/uehSs/uehUeCtxtBl)
+#set time
+set addsuffix
+set complete='enhance' #If set to enhance 1) ignores case 2) considers periord, hyphens, and underscores to be word separators / www.tcsh.org/tcsh.html/Special_shell_variables.html
+set autolist
+setenv CCASE_ISO_DATE_FMT 0
+setenv PURIFYOPTIONS "-chain-length=12 $PURIFYOPTIONS"
+alias pl "ruby ~/bin/prettylog_rrt.rb ~/rrttest.log ~/rrttest2.log;vim ~/rrttest2.log"
+alias vi vim
+#alias bash '/home/ecerulm/local/bin/bash'
+alias glimpse 'glimpse -H /vobs/rnc/rrt/ueh'
+alias glimpsettcn 'glimpse -H /vobs/ims_ttcn3/projects/TAS'
+alias invob "cat /vobs/rnc/rrt/ueh/vobfilelist.txt|grep -i" 
+alias firefox /app/firefox/3.0.5/firefox
+alias mozilla firefox
+alias netscape firefox
+#alias atestgui  /vobs/rnc/rrt/tools/prod/eei_tools/atest/atestGui/bin/atestGui.pl
+alias atestguisekix232 'ssh -f sekix232 "ExecProj 9 '/vobs/rnc/rrt/tools/prod/eei_tools/atest/atestGui/bin/atestGui.pl'"'
+#alias testalldeliveries 'ssh -qf sekix232 "gnome-terminal --window-with-profile=testalldeliveries -x """cleartool setview ecerulm_testalldeliveries"""" '
+alias testalldeliveries 'ssh -qf sekix232 "cleartool setview -exec '\''gnome-terminal --window-with-profile=testalldeliveries --working-directory=/proj/wcdma-userarea/users/ecerulm/TestAllDeliveries -e "\""bash --login"\""'\'' ecerulm_testalldeliveries"'
+
+
+alias atestgui echo "use ssh -f to connecto to the right cluster"
+alias rosert 'RoseRT /vobs/rnc/rrt/ueh/uehSs/uehUeCtxtBl/uehUeCtxtTest/model/UehUeCtxtBlTestModelRuben.rtwks &'
+alias rosertrnc 'RoseRT  /vobs/rnc/rrt/rncNode/rncSys/rncLm/rncLmUeLmU/model/RncLmUeLmUModel.rtwks &'
+alias ctxttree 'xlsvtree /vobs/rnc/rrt/ueh/uehSs/uehUeCtxtBl/uehUeCtxtBlU/uehServUeCtxtBlPkg/src/UehUeCtxtC.rtclass &'
+alias mkTestLibrary '/vobs/rnc/rrt/ueh/uehSs/uehSsPkgU/external/mkTestLibrary_libwega'
+alias ctll 'ct find /vobs/rnc/rrt/ueh -ver "lbtype(\!:1)" -print'
+alias ctlb 'ct find /vobs/rnc/rrt/ueh -ele "brtype(\!:1)" -print'
+alias lsco 'ct lsco -cview -me -r /vobs/rnc/rrt/ueh >/vobs/rnc/rrt/ueh/checkouts.txt; cat /vobs/rnc/rrt/ueh/checkouts.txt'
+alias difflbls 'ct find /vobs/rnc/sw/ueh -ver "lbtype(\!:1) && \\!lbtype(\!:2)" -print'
+alias cdpqr 'cd /proj/www_user/ecerulm/PersonalQrank'
+alias cdpurify 'cd /vobs/rnc/rrt/gen_common_ki/linux_build_ctxt/UehUeCtxtTestDriver_purify_exe/build/'
+alias firefoxpqr 'firefox /proj/www_user/ecerulm/public_html/qrank/ &'
+alias zsh '~/local/bin/zsh'
+set path = (  $path ~/local/bin ~/bin )
+#setenv EMAKE_LEDGER timestamp
+#setenv EMAKEFLAGS "--emake-priority=low --emake-historyfile=/home/ecerulm/rnc/emake/history.dat"
+#setenv EMAKEFLAGS "--emake-priority=low --emake-autodepend=1 --emake-annoupload=1 --emake-annofile=/home/ecerulm/rnc/emake/emake.xml --emake-annodetail=basic,history,waiting,registry,file,env --emake-historyfile=/home/ecerulm/rnc/emake/history.dat --emake-ledgerfile=/home/ecerulm/rnc/emake/emake.ledger"
+setenv WINEDITOR nedit
+set autolist
+setenv CCASE_ISO_DATE_FMT 0
+#set prompt = '-- %m# '
+
+set prompt_info = "-- %m# "
+if ($?RUBY_VERSION) then
+   set prompt_info = "[$RUBY_VERSION] $prompt_info"
+endif
+# plus any other information you want
+
+set prompt = "$prompt_info%. %# "
+# yours may be more colourful
+
+
+
+alias netbeans '/proj/wcdma-userarea/users/ecerulm/java/netbeans-7.0.1/bin/netbeans &'
+alias dump 'ps ax | grep javaw | grep ecerulm | awk '"'"'{print $1}'"'"' | xargs kill -QUIT' 
+
+#alias idea '/proj/wcdma-userarea/users/ecerulm/java/idea-IC-107.764/bin/idea.sh &'
+alias idea '/proj/wcdma-userarea/users/ecerulm/java/idea-IC-111.69/bin/idea.sh &'
+
+alias eclipse '/proj/wcdma-userarea/users/ecerulm/java/eclipse371/eclipse'
+
+alias rvm rvm.tcsh
+setenv M2_HOME '/proj/wcdma-userarea/users/ecerulm/java/apache-maven-3.0.3'
+#setenv PATH $PATH:$M2_HOME/bin
+setenv JDK_HOME /proj/wcdma-userarea/users/ecerulm/java/jdk1.6.0_29
+setenv JAVA_HOME $JDK_HOME
+setenv ctxt_model /vobs/rnc/rrt/ueh/uehSs/uehUeCtxtBl/uehUeCtxtTest/model/UehUeCtxtBlTestModel.rtmdl
+alias builddir 'cd $RRT_GEN_DIR_CTXT/UehUeCtxtTestDriver_solaris_exe/build/'
+
+setenv proj /proj/wcdma-userarea/users/ecerulm
+alias proj 'cd $proj'
+setenv LESS '-erX'
+alias mkTestLibrary '/bin/tcsh /vobs/rnc/struct/uehSs/uehSsPkgU/external/mkTestLibrary_libwega'
+limit descriptors 4096
+alias emake /app/emake/boost/bin/emake
+alias run_purify 'cd ; rm -rf ~/purify_exe ; cp -rf /ramdisk/users/ecerulm/ws_ecerulm_main_rsarte2/UehUeCtxtTestDriver_purify_exe/purify_exe ~ ; cd ~/purify_exe/ ; ge ./UehUeCtxtTestContC -URTS_DEBUG=quit -UEHBT 0 > kk.txt'
+alias latest_pdt 'cleartool lshistory -minor /vobs/rnc/sw/ueh/uehSs/uehUeCtxtBl/uehUeCtxtBlU/src/uehServUeCtxtBlPkg/src/UehUeCtxtC_Class.efx@@/main/dev/LATEST | grep '\''make label'\'' | grep '\'\"'UEHUECTXT_'\'' | awk '\''{ print $5}'\'' | tr -d '\'\"\'' | head -1'
+alias current_pdt 'ct catcs | grep UEHUECTXT_ | head -1 | ruby -ne '\''puts $1 if /(UEHUECTXT_\S+)/'\'''
+alias git ~/local/bin/git
+alias strace_rsarte 'ps ax | grep javaw | grep ecerulm | awk '\''{print $1}'\'' | xargs ~/local/bin/strace -f -s0 -o /ramdisk/users/ecerulm/strace.txt -e trace=file -p'
