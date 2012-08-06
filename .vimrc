@@ -3,6 +3,7 @@ call pathogen#infect()
 filetype plugin indent on
 
 syntax enable
+set shell=bash
 set laststatus=2
 set statusline=%t[%{strlen(&fenc)?&fenc:'none'},%{&ff}]%h%m%r%y%=%o,%c,%l/%L\ %P
 set background=dark
