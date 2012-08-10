@@ -15,16 +15,16 @@
 
 
 filter1() {
-  if [[ platform == 'macosx' ]]; then
-    sed -re 's/(^[^<]*) ago)/\1)/' 
+  if [[ "$platform" == 'macosx' ]]; then
+    sed -Ee 's/(^[^<]*) ago)/\1)/' 
   else
     ruby -e 'puts $stdin.read.gsub(/(^[^<]*) ago\)/, "\\1)")'       
   fi
 }
 
 filter2() {
-  if [[ platform == 'macosx' ]]; then
-    sed -re 's/(^[^<]*), [[:digit:]]+ .*months?)/\1)/'
+  if [[ "$platform" == 'macosx' ]]; then
+    sed -Ee 's/(^[^<]*), [[:digit:]]+ .*months?)/\1)/'
   else
     ruby -e 'puts $stdin.read.gsub(/(^[^<]*), [[:digit:]]+ .*months?\)/, "\\1)")'
   fi
@@ -38,7 +38,7 @@ elif [[ "$unamestr" == 'Darwin' ]]; then
   platform='macosx'
 fi
 
-if [[ platform == 'macosx' ]]; then
+if [[ "$platform" == 'macosx' ]]; then
   #colorized output (because column is aware of escape codes)
   HASH="%C(yellow)%h%Creset"
   RELATIVE_TIME="%Cgreen(%ar)%Creset"
