@@ -8,8 +8,9 @@ setopt hist_ignore_dups
 if [ $(uname -s) = 'Darwin' ]; then
   export LANG="en_US.UTF-8"
   export EDITOR='mate -w -l1'
-  export PATH="$HOME/bin:/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:/usr/X11/bin"
+  export PATH="$HOME/bin:/usr/local/share/python:/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:/usr/X11/bin"
   export MANPATH="/usr/local/share/man:/usr/X11/man:/usr/share/man"
+  export PYTHONPATH=/usr/local/lib/python:$PYTHONPATH
 else
   export PATH="$HOME/bin:/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin"
 fi
