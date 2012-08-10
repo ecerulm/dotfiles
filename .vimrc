@@ -127,8 +127,6 @@ vmap < <gv
 vmap <Tab> >gv
 vmap <S-Tab> <gv
 
-
-
 """"""""""""""""""""""""""""""""""""""""
 " MULTIPURPOSE TAB KEY
 " Indent if we're at the beginning of a line. Else, do completion
@@ -339,5 +337,3 @@ command! OpenChangedFiles :call OpenChangedFiles()
 " Insert the current time
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 command! InsertTime :normal a<c-r>=strftime('%F %H:%M:%S.0 %z')<cr>
-
-
