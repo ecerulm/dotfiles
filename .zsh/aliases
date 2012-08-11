@@ -27,6 +27,8 @@ alias proj='cd /proj/wcdma-userarea/users/ecerulm/'
 alias cleartool=/usr/atria/bin/cleartool
 alias ct=cleartool
 alias tmux='LD_LIBRARY_PATH=/home/ecerulm/local/lib tmux'
-alias vi='~/local/bin/vi'
-alias vim='~/local/bin/vim'
+if [[ `uname -s` == 'Linux' ]]; then
+  alias vi='~/local/bin/vi'
+  alias vim='~/local/bin/vim'
+fi
 alias tmuxinator='LD_LIBRARY_PATH=/home/ecerulm/local/lib tmuxinator'
