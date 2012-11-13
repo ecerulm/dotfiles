@@ -85,7 +85,9 @@ alias mkTestLibrary '/bin/tcsh /vobs/rnc/struct/uehSs/uehSsPkgU/external/mkTestL
 limit descriptors 4096
 alias emake /app/emake/boost/bin/emake
 alias run_purify 'cd ; rm -rf ~/purify_exe ; cp -rf /ramdisk/users/ecerulm/ws_ecerulm_main_rsarte2/UehUeCtxtTestDriver_purify_exe/purify_exe ~ ; cd ~/purify_exe/ ; ge ./UehUeCtxtTestContC -URTS_DEBUG=quit -UEHBT 0 > kk.txt'
-alias latest_pdt 'cleartool lshistory -minor /vobs/rnc/sw/ueh/uehSs/uehUeCtxtBl/uehUeCtxtBlU/src/uehServUeCtxtBlPkg/src/UehUeCtxtC_Class.efx@@/main/dev/LATEST | grep '\''make label'\'' | grep '\'\"'UEHUECTXT_'\'' | awk '\''{ print $5}'\'' | tr -d '\'\"\'' | head -1'
+#alias latest_pdt 'cleartool lshistory -minor /vobs/rnc/sw/ueh/uehSs/uehUeCtxtBl/uehUeCtxtBlU/src/uehServUeCtxtBlPkg/src/UehUeCtxtC_Class.efx@@/main/dev/LATEST | grep '\''make label'\'' | grep '\'\"'UEHUECTXT_'\'' | awk '\''{ print $5}'\'' | tr -d '\'\"\'' | head -1'
+alias latest_pdt /home/ecerulm/.rvm/bin/ruby-1.9.3-p0 ~/bin/latestpdt.rb UEHUECTXT
 alias current_pdt 'ct catcs | grep UEHUECTXT_ | head -1 | ruby -ne '\''puts $1 if /(UEHUECTXT_\S+)/'\'''
 alias git ~/local/bin/git
 alias strace_rsarte 'ps ax | grep javaw | grep ecerulm | awk '\''{print $1}'\'' | xargs ~/local/bin/strace -f -s0 -o /ramdisk/users/ecerulm/strace.txt -e trace=file -p'
+setenv lmuecs /vobs/rnc/rrt/struct/rncLmUe/cs
