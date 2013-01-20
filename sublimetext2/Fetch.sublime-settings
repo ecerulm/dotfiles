@@ -1,0 +1,11 @@
+{
+	"files":
+	{
+		"Makefile": "https://gist.github.com/raw/4498068/Makefile",
+		"jquery": "http://code.jquery.com/jquery.min.js"
+	},
+	"packages":
+	{
+		"html5_boilerplate": "https://github.com/h5bp/html5-boilerplate/zipball/master"
+	}
+}
