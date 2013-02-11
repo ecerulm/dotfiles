@@ -57,7 +57,7 @@ let mapleader=","
 augroup vimrcEx
   " Clear all autocmd in the group
   autocmd!
-  autocmd FileType text setlocal testwidth=78
+  autocmd FileType text setlocal textwidth=78
   " Jump to Last cursor position unless its invalid or in an event handler
   autocmd BufReadPost *
      \ if line("'\"") > 0 && line("'\"") <= line("$") |
@@ -92,6 +92,7 @@ augroup END
 :set t_Co=256 " 256 Colors
 :set background=dark
 :color grb256
+:colorscheme molokai
 
 
 """"""""""""""""""""""""""""""""""""""""
