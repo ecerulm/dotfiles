@@ -1,0 +1,22 @@
+<snippet>
+	<content><![CDATA[
+CC=g++
+# -c Do not link
+# -Wall all warning
+CPPFLAGS=-c -Wall
+all: test
+test: test.o
+	\$(CC) test.o -o \$@
+	
+test.o: test.cpp test.h
+	\$(CC) \$(CPPFLAGS) test.cpp -o \$@
+
+clean:
+	rm *.o
+	rm test
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<!-- <tabTrigger>nr</tabTrigger> -->
+	<!-- Optional: Set a scope to limit where the snippet will trigger -->
+	<!-- <scope>source.python</scope> -->
+</snippet>
