@@ -49,3 +49,5 @@
    tool = vimdiff
 [http]
 	sslVerify = false
+[core]
+	editor = vim
