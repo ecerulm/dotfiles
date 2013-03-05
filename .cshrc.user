@@ -31,6 +31,8 @@ set autolist # show a list of alternatives during Tab completion
 #clearcase
 alias difflbls 'ct find /vobs/rnc/sw/ueh -ver "lbtype(\!:1) && \\!lbtype(\!:2)" -print'
 alias views "cleartool lsview 'ecerulm*'"
+alias latest_pdt ~/bin/latestpdt.rb UEHUECTXT
+alias latestpdt latest_pdt
 
 # misc
 alias dump 'ps ax | grep javaw | grep ecerulm | awk '"'"'{print $1}'"'"' | xargs kill -QUIT' 
@@ -39,6 +41,7 @@ alias mkTestLibrary '/bin/tcsh /vobs/rnc/struct/uehSs/uehSsPkgU/external/mkTestL
 alias co 'ct lspriv -co'
 limit descriptors 8000
 setenv LESS '-erX'
-alias rsartemain44 '~/rsarte851cp1predrop_scm -data /proj/rnc_boost/users/ecerulm/ws_851_main44_ueversioning'
+alias rsartemain44 '~/rsarte851cp1predrop_cte -data /proj/rnc_boost/users/ecerulm/ws_851_main44_ueversioning'
+alias rsartetf1 '~/rsarte851tf1_scm -data /proj/rnc_boost/users/ecerulm/ws_851_main44_ueversioning'
 setenv EDITOR 'vim'
 setenv lmuecs /vobs/rnc/rrt/struct/rncLmUe/cs
