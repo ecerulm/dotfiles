@@ -44,7 +44,14 @@ alias mkTestLibrary '/bin/tcsh /vobs/rnc/struct/uehSs/uehSsPkgU/external/mkTestL
 alias co 'ct lspriv -co'
 limit descriptors 8000
 setenv LESS '-erX'
-alias rsartemain44 '~/rsarte851cp1predrop_cte -data /proj/rnc_boost/users/ecerulm/ws_851_main44_ueversioning'
-alias rsartetf1 '~/rsarte851tf1_scm -data /proj/rnc_boost/users/ecerulm/ws_851_main44_ueversioning'
+setenv http_proxy 'www-proxy.ericsson.se:8080'
+
+#RSARTE 
+alias rsarte804cp3 '/vobs/rnc/env/utils/design_tools/development_tools/bin/rsarte@@/main/ecerulm_804_cp3/LATEST'
+alias rsarte804cp4 '/vobs/rnc/env/utils/design_tools/development_tools/bin/rsarte@@/main/ecerulm_804_cp4/LATEST'
+#alias rsartemain44 '~/rsarte851cp1predrop_cte -data /proj/rnc_boost/users/ecerulm/ws_851_main44_ueversioning'
+#alias rsartetf1 '~/rsarte851tf1_scm -data /proj/rnc_boost/users/ecerulm/ws_851_main44_ueversioning'
+alias rsarte851cp1 '/vobs/rnc/env/utils/design_tools/development_tools/bin/rsarte@@/main/ecerulm_851_cp1_cte/LATEST'
+alias rsarte851tf1 '/vobs/rnc/env/utils/design_tools/development_tools/bin/rsarte@@/main/20'
 setenv EDITOR 'vim'
 setenv lmuecs /vobs/rnc/rrt/struct/rncLmUe/cs
