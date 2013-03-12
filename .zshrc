@@ -6,7 +6,8 @@ ZSH=$HOME/.oh-my-zsh
 # Optionally, if you set this to "random", it'll load a random theme each
 # time that oh-my-zsh is loaded.
 #ZSH_THEME="robbyrussell"
-ZSH_THEME="ecerulm"
+ZSH_THEME="random"
+#ZSH_THEME="bira"
 
 # Example aliases
 alias zshconfig="vim ~/.zshrc"

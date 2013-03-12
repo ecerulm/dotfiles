@@ -23,7 +23,8 @@ SAVEHIST=1000000
 setopt append_history
 setopt inc_append_history
 unsetopt autocd
-bindkey -e
+#bindkey -e
+bindkey -v
 # End of lines configured by zsh-newuser-install
 # The following lines were added by compinstall
 zstyle :compinstall filename '/Users/ben/.zshrc'
