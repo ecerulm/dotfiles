@@ -34,7 +34,7 @@ bindkey -v
 #clearcase
 alias difflbls 'ct find /vobs/rnc/sw/ueh -ver "lbtype(\!:1) && \\!lbtype(\!:2)" -print'
 alias views "cleartool lsview 'ecerulm*'"
-alias latest_pdt ~/bin/latestpdt.rb UEHUECTXT
+alias latest_pdt "~/bin/latestpdt.rb UEHUECTXT | column -t -s '|'"
 alias latestpdt latest_pdt
 
 # misc
