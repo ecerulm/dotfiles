@@ -29,6 +29,8 @@ set autolist # show a list of alternatives during Tab completion
 
 #set vi model
 bindkey -v
+bindkey '^R' i-search-back #Control-R search incrementally
+
 
 
 #clearcase
