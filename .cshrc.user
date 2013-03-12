@@ -27,6 +27,9 @@ set addsuffix #suffixes directories with / in tab completion
 set complete='enhance' #If set to enhance 1) ignores case 2) considers periord, hyphens, and underscores to be word separators / www.tcsh.org/tcsh.html/Special_shell_variables.html
 set autolist # show a list of alternatives during Tab completion
 
+#set vi model
+bindkey -v
+
 
 #clearcase
 alias difflbls 'ct find /vobs/rnc/sw/ueh -ver "lbtype(\!:1) && \\!lbtype(\!:2)" -print'
