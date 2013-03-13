@@ -23,8 +23,14 @@ SAVEHIST=1000000
 setopt append_history
 setopt inc_append_history
 unsetopt autocd
-#bindkey -e
-bindkey -v
+#bindkey -e #emacs mode
+bindkey -v  #vi mode
+
+#User Esc-v to open a vi editor for the command line / Esc to enter Command mode and then v to start the editor 
+autoload -U edit-command-line
+zle -N edit-command-line
+bindkey -M vicmd v edit-command-line
+
 # End of lines configured by zsh-newuser-install
 # The following lines were added by compinstall
 zstyle :compinstall filename '/Users/ben/.zshrc'
