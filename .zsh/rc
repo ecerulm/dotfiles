@@ -57,4 +57,4 @@ zle -N self-insert-backslash
 
 unsetopt correct_all
 
-. ~/modules
+[[ -a ~/modules ]] && . ~/modules
