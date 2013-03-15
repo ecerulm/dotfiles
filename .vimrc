@@ -37,6 +37,7 @@ set directory=~/.vim-tmp,~/.tmp,~/tmp,/var/tmp,/tmp,.
 " backspace in insert mode can delete newlines, etc
 set backspace=indent,eol,start
 set showcmd                    " display incomplete commands
+set clipboard+=unnamedplus
 syntax on                      " enable syntax highlighting
 " Enable filetype detection
 " Use the default filetype settings, so that mail gets 'tw' set to 72
@@ -83,6 +84,9 @@ augroup vimrcEx
   " to run commands there.
   autocmd! CmdwinEnter * :unmap <cr>
   autocmd! CmdwinLeave * :call MapCR()
+
+  "ctags
+  " autocmd BufWritePost * call system("ctags -R")
 augroup END
 
 
@@ -107,6 +111,7 @@ augroup END
 """"""""""""""""""""""""""""""""""""""""
 " Copy to system clipboard 
 map <leader>y "*y 
+
 " Move around splits with <c-hjkl>
 nnoremap <c-h> <c-w>h
 nnoremap <c-j> <c-w>j
@@ -127,6 +132,8 @@ vmap > >gv
 vmap < <gv
 vmap <Tab> >gv
 vmap <S-Tab> <gv
+" ctags mappings
+nnoremap <f5> :!ctags -R<CR>
 
 """"""""""""""""""""""""""""""""""""""""
 " MULTIPURPOSE TAB KEY

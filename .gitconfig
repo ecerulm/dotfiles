@@ -45,9 +45,12 @@
    ra = !git r --all
    l = "!source ~/.githelpers && pretty_git_log"
    la = !git l --all
+	ctags = !.git/hooks/ctags
 [merge] 
    tool = vimdiff
 [http]
 	sslVerify = false
 [core]
 	editor = vim
+[init]
+	templatedir = ~/.git_template
