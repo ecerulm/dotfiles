@@ -1,12 +1,5 @@
 # Application versions
-module add vim/7.3.629
-alias vi vim
-module add firefox/18.0
-alias mozilla firefox
-alias netscape firefox
-module add git
-
-
+source ~/modules
 
 #History
 set history = 100000
