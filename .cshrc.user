@@ -51,7 +51,8 @@ alias rsarte804cp3 '/vobs/rnc/env/utils/design_tools/development_tools/bin/rsart
 alias rsarte804cp4 '/vobs/rnc/env/utils/design_tools/development_tools/bin/rsarte@@/main/ecerulm_804_cp4/LATEST'
 #alias rsartemain44 '~/rsarte851cp1predrop_cte -data /proj/rnc_boost/users/ecerulm/ws_851_main44_ueversioning'
 #alias rsartetf1 '~/rsarte851tf1_scm -data /proj/rnc_boost/users/ecerulm/ws_851_main44_ueversioning'
-alias rsarte851cp1 '/vobs/rnc/env/utils/design_tools/development_tools/bin/rsarte@@/main/ecerulm_851_cp1_cte/LATEST'
+alias rsarte851cp1 '/vobs/rnc/env/utils/design_tools/development_tools/bin/rsarte@@/main/xolimil_851_cp1_cte_32/LATEST'
 alias rsarte851tf1 '/vobs/rnc/env/utils/design_tools/development_tools/bin/rsarte@@/main/20'
+alias r 'rsarte851cp1 -data /proj/rnc_boost/users/ecerulm/ws_851_ueh &'
 setenv EDITOR 'vim'
 setenv lmuecs /vobs/rnc/rrt/struct/rncLmUe/cs
