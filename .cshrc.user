@@ -44,6 +44,7 @@ alias co 'ct lspriv -co'
 limit descriptors 8000
 setenv LESS '-erX'
 setenv http_proxy 'www-proxy.ericsson.se:8080'
+setenv https_proxy $http_proxy
 
 #RSARTE 
 alias rsarte804cp3 '/vobs/rnc/env/utils/design_tools/development_tools/bin/rsarte@@/main/ecerulm_804_cp3/LATEST'
