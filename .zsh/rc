@@ -56,3 +56,5 @@ function self-insert-backslash() { LBUFFER+='\'; zle .self-insert }
 zle -N self-insert-backslash
 
 unsetopt correct_all
+
+. ~/modules
