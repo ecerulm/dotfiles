@@ -36,8 +36,11 @@ bindkey '^R' i-search-back #Control-R search incrementally
 #clearcase
 alias difflbls 'ct find /vobs/rnc/sw/ueh -ver "lbtype(\!:1) && \\!lbtype(\!:2)" -print'
 alias views "cleartool lsview 'ecerulm*'"
+alias lsviews views 
 alias latest_pdt "~/bin/latestpdt.rb UEHUECTXT | column -t -s '|'"
 alias latestpdt latest_pdt
+alias cs '~/bin/catcsallviews.sh'
+alias c 'cd /proj/rnc_boost/users/ecerulm/ws_851_ueh/UehUeCtxtTestDriver_native_exe/native_exe'
 
 # misc
 alias dump 'ps ax | grep javaw | grep ecerulm | awk '"'"'{print $1}'"'"' | xargs kill -QUIT' 
