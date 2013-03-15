@@ -41,6 +41,7 @@ alias latest_pdt "~/bin/latestpdt.rb UEHUECTXT | column -t -s '|'"
 alias latestpdt latest_pdt
 alias cs '~/bin/catcsallviews.sh'
 alias c 'cd /proj/rnc_boost/users/ecerulm/ws_851_ueh/UehUeCtxtTestDriver_native_exe/native_exe'
+alias rvm rvm.tcsh
 
 # misc
 alias dump 'ps ax | grep javaw | grep ecerulm | awk '"'"'{print $1}'"'"' | xargs kill -QUIT' 
