@@ -4,4 +4,5 @@ module add firefox/18.0
 alias mozilla firefox
 alias netscape firefox
 module add git
+module add ctags
 
