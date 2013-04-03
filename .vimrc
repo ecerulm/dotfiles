@@ -49,6 +49,7 @@ set wildmode=list:longest
 " make tab completion for files/buffers act like bash
 set wildmenu
 let mapleader=","
+set pastetoggle=<f4>
 
 
 """"""""""""""""""""""""""""""""""""""""
