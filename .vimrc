@@ -59,7 +59,7 @@ set pastetoggle=<f4>
 " CUSTOM AUTOCMDS
 """"""""""""""""""""""""""""""""""""""""
 
-augroup vimrcEx
+augroup vimrcEx " Put them in a group so we delete them easily
   " Clear all autocmd in the group
   autocmd!
   autocmd FileType text setlocal textwidth=78
@@ -91,6 +91,12 @@ augroup vimrcEx
 
   "ctags
   " autocmd BufWritePost * call system("ctags -R")
+
+  "Rainbow parentheses
+  autocmd VimEnter * RainbowParenthesesToggle
+  autocmd Syntax * RainbowParenthesesLoadRound
+  autocmd Syntax * RainbowParenthesesLoadSquare
+  autocmd Syntax * RainbowParenthesesLoadBraces
 augroup END
 
 
