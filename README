@@ -1,0 +1,6 @@
+VIM
+===
+
+To add plugins put them into .vim/bundle. 
+If they are git repos use git submodule add git:xxxxx .vim/bundle/name-of-plugin
+
