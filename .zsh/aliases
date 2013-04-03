@@ -33,6 +33,7 @@ if [[ `uname -s` == 'Linux' ]]; then
 # alias tmux='LD_LIBRARY_PATH=/home/ecerulm/local/lib tmux'
 fi
 if [[ -z '/usr/local/bin/vim' ]]; then
-  alias vi='/usr/local/bin/vim'
   alias vim='/usr/local/bin/vim'
+  alias vi=vim
 fi
+alias vi=vim
