@@ -5,8 +5,8 @@
 [color]
    ui = auto
 [alias]
-   st = status
-   ci = commit
+   st = status -sb
+   ci = commit -v
    co = checkout
    di = diff
    dc = diff --cached
@@ -45,7 +45,8 @@
    ra = !git r --all
    l = "!source ~/.githelpers && pretty_git_log"
    la = !git l --all
-	ctags = !.git/hooks/ctags
+	 ctags = !.git/hooks/ctags
+
 [merge] 
    tool = vimdiff
 [http]
