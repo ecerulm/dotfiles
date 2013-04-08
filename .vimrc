@@ -43,19 +43,23 @@ syntax on                      " enable syntax highlighting
 " Use the default filetype settings, so that mail gets 'tw' set to 72
 " 'cindent'is on in C files, etc. 
 " Also load indent files, to automatically do language-dependent indenting
-filetype plugin indent on
+" filetype plugin indent on
+filetype on
+filetype indent on
+filetype plugin on
 " use emacs-style tab completion when selecting files, etc
 set wildmode=list:longest
 " make tab completion for files/buffers act like bash
 set wildmenu
 let mapleader=","
+set pastetoggle=<f4>
 
 
 """"""""""""""""""""""""""""""""""""""""
 " CUSTOM AUTOCMDS
 """"""""""""""""""""""""""""""""""""""""
 
-augroup vimrcEx
+augroup vimrcEx " Put them in a group so we delete them easily
   " Clear all autocmd in the group
   autocmd!
   autocmd FileType text setlocal textwidth=78
@@ -87,6 +91,12 @@ augroup vimrcEx
 
   "ctags
   " autocmd BufWritePost * call system("ctags -R")
+
+  "Rainbow parentheses
+  autocmd VimEnter * RainbowParenthesesToggle
+  autocmd Syntax * RainbowParenthesesLoadRound
+  autocmd Syntax * RainbowParenthesesLoadSquare
+  autocmd Syntax * RainbowParenthesesLoadBraces
 augroup END
 
 

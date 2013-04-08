@@ -58,3 +58,5 @@ zle -N self-insert-backslash
 unsetopt correct_all
 
 [[ -a ~/modules ]] && . ~/modules
+
+export SBT_OPTS="-XX:+CMSClassUnloadingEnabled -XX:PermSize=256M -XX:MaxPermSize=512M"
