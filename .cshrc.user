@@ -57,4 +57,9 @@ alias rsarte851tf1 '/vobs/rnc/env/utils/design_tools/development_tools/bin/rsart
 alias r 'rsarte851cp1 -data /proj/rnc_boost/users/ecerulm/ws_851_ueh &'
 setenv EDITOR 'vim'
 setenv lmuecs /vobs/rnc/rrt/struct/rncLmUe/cs
+#ack
+alias ack '~/bin/ack'
+#git aliases
+alias g 'git'
+
 #limit descriptors 8000
