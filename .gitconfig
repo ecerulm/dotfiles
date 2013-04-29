@@ -46,6 +46,7 @@
    l = "!source ~/.githelpers && pretty_git_log"
    la = !git l --all
 	 ctags = !.git/hooks/ctags
+  standup = log --since=yesterday --author ruben
 
 [merge] 
    tool = vimdiff
