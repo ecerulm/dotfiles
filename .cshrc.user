@@ -46,8 +46,11 @@ setenv wstest /proj/rnc_boost/users/ecerulm/ws_851_test
 alias mkTestLibrary '/bin/tcsh /vobs/rnc/struct/uehSs/uehSsPkgU/external/mkTestLibrary_libwega'
 alias co 'ct lspriv -co'
 setenv LESS '-erX'
-setenv http_proxy 'www-proxy.ericsson.se:8080'
+setenv http_proxy 'http://www-proxy.ericsson.se:8080'
 setenv https_proxy $http_proxy
+setenv ftp_proxy $http_proxy
+setenv rsync_proxy $http_proxy
+setenv no_proxy 'localhost,127.0.0.1,*.ericsson.se,*.ericsson.com'
 set path = ($path ~/bin)
 
 #RSARTE 
