@@ -40,11 +40,17 @@ alias rvm ~/bin/rvm.tcsh
 # misc
 alias dump 'ps ax | grep javaw | grep ecerulm | awk '"'"'{print $1}'"'"' | xargs kill -QUIT' 
 setenv lmuecs /vobs/rnc/rrt/struct/rncLmUe/cs
+#setenv wsueh /proj/rnc_boost/users/ecerulm/ws_851_ueh
+setenv wsueh /ramdisk/users/ecerulm/ws_851_ueh
+setenv wstest /proj/rnc_boost/users/ecerulm/ws_851_test
 alias mkTestLibrary '/bin/tcsh /vobs/rnc/struct/uehSs/uehSsPkgU/external/mkTestLibrary_libwega'
 alias co 'ct lspriv -co'
 setenv LESS '-erX'
-setenv http_proxy 'www-proxy.ericsson.se:8080'
+setenv http_proxy 'http://www-proxy.ericsson.se:8080'
 setenv https_proxy $http_proxy
+setenv ftp_proxy $http_proxy
+setenv rsync_proxy $http_proxy
+setenv no_proxy 'localhost,127.0.0.1,*.ericsson.se,*.ericsson.com'
 set path = ($path ~/bin)
 
 #RSARTE 
@@ -54,7 +60,8 @@ alias rsarte804cp4 '/vobs/rnc/env/utils/design_tools/development_tools/bin/rsart
 #alias rsartetf1 '~/rsarte851tf1_scm -data /proj/rnc_boost/users/ecerulm/ws_851_main44_ueversioning'
 alias rsarte851cp1 '/vobs/rnc/env/utils/design_tools/development_tools/bin/rsarte@@/main/ecerulm_851_cp1_cte/LATEST'
 alias rsarte851tf1 '/vobs/rnc/env/utils/design_tools/development_tools/bin/rsarte@@/main/20'
-alias r 'rsarte851cp1 -data /proj/rnc_boost/users/ecerulm/ws_851_ueh &'
+alias r '(rsarte851cp1 -data $wsueh) &'
+alias rt '(rsarte851cp1 -data $wstest) &'
 setenv EDITOR 'vim'
 setenv lmuecs /vobs/rnc/rrt/struct/rncLmUe/cs
 #ack
