@@ -48,9 +48,11 @@ filetype on
 filetype indent on
 filetype plugin on
 " use emacs-style tab completion when selecting files, etc
-set wildmode=list:longest
-" make tab completion for files/buffers act like bash
+" set wildmode=list:longest
+" make tab completion for files/buffers act like zsh
 set wildmenu
+set wildmode=full
+
 let mapleader=","
 set pastetoggle=<f4>
 
@@ -355,3 +357,11 @@ command! OpenChangedFiles :call OpenChangedFiles()
 " Insert the current time
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 command! InsertTime :normal a<c-r>=strftime('%F %H:%M:%S.0 %z')<cr>
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+" C-p and C-n behave exactly as up and down arrows 
+" in the command history. Which will filter
+"
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+cnoremap <C-n> <Up>
+cnoremap <C-p> <Down>
