@@ -74,6 +74,7 @@ augroup vimrcEx " Put them in a group so we delete them easily
   " for ruby, autoindent with two spaces, always expand tabs
   autocmd FileType ruby,haml,eruby,yaml,html,javascript,sass,cucumber set ai sw=2 sts=2 et
   autocmd FileType ruby compiler ruby
+  autocmd FileType ruby set foldmethod=syntax
   autocmd FileType python set sw=4 sts=4 et
 
   autocmd! BufRead,BufNewFile *.sass setfiletype sass
