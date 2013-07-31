@@ -1,3 +1,3 @@
 function unpushed
-  echo (git cherry -v "@{upstream}" ^/dev/null)
+	echo -s (git cherry -v "@{upstream}" ^/dev/null)
 end
