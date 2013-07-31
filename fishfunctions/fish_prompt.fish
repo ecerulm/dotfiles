@@ -1,5 +1,5 @@
-function fish_prompt -d "Write out the left prompt"
-  # Colors 
+function fish_prompt --description 'Write out the left prompt'
+	
   set -l cyan (set_color cyan)
   set -l yellow (set_color yellow)
   set -l red (set_color -o red)
@@ -19,7 +19,7 @@ function fish_prompt -d "Write out the left prompt"
       set arrow "$red✗"
     end
 
-    if test -n unpushed
+    if not test -n unpushed
       set git_info "$git_info$normal with$magenta unpushed"
     end
 
@@ -29,4 +29,4 @@ function fish_prompt -d "Write out the left prompt"
   echo -n -s (rvm_prompt) $cwd $git_info
   echo
   echo -e $arrow $normal
-end 
+end
