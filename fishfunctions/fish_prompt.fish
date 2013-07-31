@@ -19,7 +19,7 @@ function fish_prompt --description 'Write out the left prompt'
       set arrow "$red✗"
     end
 
-    if not test -n unpushed
+    if test -n (unpushed)
       set git_info "$git_info$normal with$magenta unpushed"
     end
 
