@@ -1,5 +1,5 @@
 #!/bin/bash
-
+# Should be in ~/.githelpers and its used it gitconfig
 # Log output:
 #
 # * 51c333e    (12 days)    <Gary Bernhardt>   add vim-eunuch
