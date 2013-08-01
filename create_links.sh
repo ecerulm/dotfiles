@@ -14,17 +14,15 @@ ln -vfs ~/dotfiles/zshrc ~/.zshrc
 ln -vfs ~/dotfiles/zshenv ~/.zshenv
 ln -vfs ~/dotfiles/.vimrc ~/.vimrc
 ln -vfs ~/dotfiles/config.fish ~/.config/fish/config.fish
+ln -vfs ~/dotfiles/githelpers ~/.githelpers
+ln -vfs ~/dotfiles/ctags ~/.ctags
+ln -vfs ~/dotfiles/inputrc ~/.inputrc
 
 
 
 
-#config.fish       
-#githelpers@       
 #tmux.conf.linux@  
 #cshrc.user@       
-#inputrc@          
 #tmux.conf.macosx@ 
-#ctags@            
 #modules           
-#fishfunctions/    
 #sublimetext2/     
