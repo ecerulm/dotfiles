@@ -6,6 +6,11 @@ If they are git repos use
 
 git submodule add git:xxxxx .vim/bundle/name-of-plugin
 
+To update a submodule to the latest version go to the the vim/bundle/xxx and do
+git fetch
+git checkout master
+git merge origin/master
+
 
 on the other end 
 =================
