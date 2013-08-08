@@ -37,7 +37,11 @@ set directory=~/.vim-tmp,~/.tmp,~/tmp,/var/tmp,/tmp,.
 " backspace in insert mode can delete newlines, etc
 set backspace=indent,eol,start
 set showcmd                    " display incomplete commands
-set clipboard+=unnamedplus
+if has('unnamedplus') " http://ilessendata.blogspot.se/2012/05/vim-using-system-clipboard.html
+  set clipboard=unnamedplus
+else
+  set clipboard=unnamed
+endif
 syntax on                      " enable syntax highlighting
 " Enable filetype detection
 " Use the default filetype settings, so that mail gets 'tw' set to 72
