@@ -26,6 +26,7 @@ set numberwidth=5
 set showtabline=2              " show always the editor tabs 
 set winwidth=79
 set shell=bash
+set colorcolumn=+1 " highlight the column after the textwidth
 " Prevent vim from clobbering the scrollback buffer. See
 " http://www.shallowsky.com/linux/noaltscreen.html
 set t_ti= t_te=                "
@@ -37,6 +38,7 @@ set directory=~/.vim-tmp,~/.tmp,~/tmp,/var/tmp,/tmp,.
 " backspace in insert mode can delete newlines, etc
 set backspace=indent,eol,start
 set showcmd                    " display incomplete commands
+
 if has('unnamedplus') " http://ilessendata.blogspot.se/2012/05/vim-using-system-clipboard.html
   set clipboard=unnamedplus
 else
@@ -79,6 +81,7 @@ augroup vimrcEx " Put them in a group so we delete them easily
   autocmd FileType ruby,haml,eruby,yaml,html,javascript,sass,cucumber set ai sw=2 sts=2 et
   " autocmd FileType ruby compiler ruby
   autocmd FileType ruby set foldmethod=syntax
+  autocmd FileType ruby set textwidth=72
   autocmd FileType python set sw=4 sts=4 et
 
   autocmd! BufRead,BufNewFile *.sass setfiletype sass
