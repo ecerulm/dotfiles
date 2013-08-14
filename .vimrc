@@ -20,10 +20,10 @@ set hlsearch
 set incsearch
 set ignorecase smartcase       " make searches case-sensitive only if they contain upper case characters
 set cursorline                 " highlight current line
-set cmdheight=2                
+set cmdheight=2
 set switchbuf=useopen
 set numberwidth=5
-set showtabline=2              " show always the editor tabs 
+set showtabline=2              " show always the editor tabs
 set winwidth=79
 set shell=bash
 set colorcolumn=+1 " highlight the column after the textwidth http://stackoverflow.com/questions/1919028/how-to-show-vertical-line-to-wrap-the-line-in-vim
