@@ -79,7 +79,7 @@ set pastetoggle=<f4>
 augroup vimrcEx " Put them in a group so we delete them easily
   " Clear all autocmd in the group
   autocmd!
-  autocmd FileType text setlocal textwidth=78
+  autocmd FileType text setlocal textwidth=72
   " Jump to Last cursor position unless its invalid or in an event handler
   autocmd BufReadPost *
      \ if line("'\"") > 0 && line("'\"") <= line("$") |
