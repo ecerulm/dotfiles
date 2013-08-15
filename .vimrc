@@ -156,6 +156,12 @@ imap <c-c> <esc>
 function! MapCR()
   nnoremap <cr> :nohlsearch<cr>
 endfunction
+" Delete / remove trailing whitespace
+function! TrimWhiteSpace()
+    %s/\s\+$//e
+endfunction
+nnoremap <silent> <Leader>rts :call TrimWhiteSpace()<CR>
+
 call MapCR()
 nnoremap <leader><leader> <c-^> " Go back to buffer from vim help 
 " Indent in visual mode
