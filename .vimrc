@@ -20,12 +20,22 @@ set hlsearch
 set incsearch
 set ignorecase smartcase       " make searches case-sensitive only if they contain upper case characters
 set cursorline                 " highlight current line
-set cmdheight=2                
+set cmdheight=2
 set switchbuf=useopen
 set numberwidth=5
-set showtabline=2              " show always the editor tabs 
+set showtabline=2              " show always the editor tabs
 set winwidth=79
 set shell=bash
+set colorcolumn=+1 " highlight the column after the textwidth http://stackoverflow.com/questions/1919028/how-to-show-vertical-line-to-wrap-the-line-in-vim
+
+" Highlight unwanted spaces
+" http://vim.wikia.com/wiki/Highlight_unwanted_spaces
+" http://www.bestofvim.com/tip/trailing-whitespace/
+" highlight ExtraWhitespace ctermbg=darkgreen guibg=darkgreen
+" autocmd ColorScheme * highlight ExtraWhitespace ctermbg=darkgreen guibg=darkgreen
+" match ExtraWhitespace '\s\+$'
+
+
 " Prevent vim from clobbering the scrollback buffer. See
 " http://www.shallowsky.com/linux/noaltscreen.html
 set t_ti= t_te=                "
@@ -37,7 +47,12 @@ set directory=~/.vim-tmp,~/.tmp,~/tmp,/var/tmp,/tmp,.
 " backspace in insert mode can delete newlines, etc
 set backspace=indent,eol,start
 set showcmd                    " display incomplete commands
-set clipboard+=unnamedplus
+
+if has('unnamedplus') " http://ilessendata.blogspot.se/2012/05/vim-using-system-clipboard.html
+  set clipboard=unnamedplus
+else
+  set clipboard=unnamed
+endif
 syntax on                      " enable syntax highlighting
 " Enable filetype detection
 " Use the default filetype settings, so that mail gets 'tw' set to 72
@@ -64,7 +79,7 @@ set pastetoggle=<f4>
 augroup vimrcEx " Put them in a group so we delete them easily
   " Clear all autocmd in the group
   autocmd!
-  autocmd FileType text setlocal textwidth=78
+  autocmd FileType text setlocal textwidth=72
   " Jump to Last cursor position unless its invalid or in an event handler
   autocmd BufReadPost *
      \ if line("'\"") > 0 && line("'\"") <= line("$") |
@@ -73,8 +88,10 @@ augroup vimrcEx " Put them in a group so we delete them easily
  
   " for ruby, autoindent with two spaces, always expand tabs
   autocmd FileType ruby,haml,eruby,yaml,html,javascript,sass,cucumber set ai sw=2 sts=2 et
-  autocmd FileType ruby compiler ruby
+  " autocmd FileType ruby compiler ruby
   autocmd FileType ruby set foldmethod=syntax
+  autocmd FileType ruby set textwidth=72
+  autocmd FileType ruby let ruby_space_errors=1
   autocmd FileType python set sw=4 sts=4 et
 
   autocmd! BufRead,BufNewFile *.sass setfiletype sass
@@ -139,6 +156,12 @@ imap <c-c> <esc>
 function! MapCR()
   nnoremap <cr> :nohlsearch<cr>
 endfunction
+" Delete / remove trailing whitespace
+function! TrimWhiteSpace()
+    %s/\s\+$//e
+endfunction
+nnoremap <silent> <Leader>rts :call TrimWhiteSpace()<CR>
+
 call MapCR()
 nnoremap <leader><leader> <c-^> " Go back to buffer from vim help 
 " Indent in visual mode
