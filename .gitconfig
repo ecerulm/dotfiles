@@ -2,6 +2,7 @@
 	name = Ruben Laguna
 	email = ruben.laguna@ericsson.com
 [diff]
+  external = git_diff_wrapper
 [color]
    ui = auto
 [alias]
@@ -58,3 +59,5 @@
 	templatedir = ~/.git_template
 [push]
   #default = simple
+[pager]
+	diff = 
