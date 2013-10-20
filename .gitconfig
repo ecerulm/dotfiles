@@ -48,6 +48,7 @@
    la = !git l --all
 	 ctags = !.git/hooks/ctags
   standup = log --since=yesterday --author ruben
+	lol = log --graph --decorate --pretty=oneline --abbrev-commit --all
 
 [merge] 
    tool = vimdiff
@@ -63,3 +64,5 @@
 	diff = 
 [push]
 	default = matching
+[credential]
+	helper = osxkeychain
