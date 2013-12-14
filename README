@@ -4,16 +4,23 @@ VIM
 To add plugins put them into .vim/bundle. 
 If they are git repos use 
 
-git submodule add git:xxxxx .vim/bundle/name-of-plugin
+git submodule add git://xxxxx .vim/bundle/name-of-plugin
+git commit
 
 To update a submodule to the latest version go to the the vim/bundle/xxx and do
 git fetch
 git checkout master
 git merge origin/master
+#cd ~/dotfiles
+#git status
+#git commit # not sure about this yet but I guess we need to commit the submodule changes
+#git push
 
 
-on the other end 
+on the other dotfiles repositories 
 =================
+git pull # or git fetch etc
+# the submodules will not be downloaded / updated
 #Get the initial submodule repo
 git submodule init
 git submodule update
