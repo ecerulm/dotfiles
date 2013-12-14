@@ -40,3 +40,6 @@
 [submodule ".vim/bundle/vim-textobj-rubyblock"]
 	path = .vim/bundle/vim-textobj-rubyblock
 	url = https://github.com/nelstrom/vim-textobj-rubyblock.git
+[submodule ".vim/bundle/vim-surround"]
+	path = .vim/bundle/vim-surround
+	url = git://github.com/tpope/vim-surround.git
