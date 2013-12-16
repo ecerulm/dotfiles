@@ -44,12 +44,17 @@ alias cdrac 'cd /vobs/rnc/sw/rncNode/rncSys/rncLm/rncLmRacLmU'
 alias dump 'ps ax | grep javaw | grep ecerulm | awk '"'"'{print $1}'"'"' | xargs kill -QUIT' 
 setenv lmuecs /vobs/rnc/rrt/struct/rncLmUe/cs
 #setenv wsueh /proj/rnc_boost/users/ecerulm/ws_851_ueh
-if ( -d /local/scratch/RSARTE ) then
-  setenv wsueh /local/scratch/RSARTE/ecerulm/ws_ueh
+if ( -d /local/scratch ) then
+  setenv wsueh /local/scratch/ecerulm_ueh
+  setenv wsrac /local/scratch/ecerulm_rac
   mkdir -p $wsueh
+  mkdir -p $wsrac
 else
-  setenv wsueh /ramdisk/users/ecerulm/ws_851_ueh
+  setenv wsueh /ramdisk/users/ecerulm/ws_ueh
+  setenv wsrac /ramdisk/users/ecerulm/ws_rac
 endif
+
+
 alias c 'cd $wsueh/UehUeCtxtTestDriver_native_exe/native_exe'
 setenv wstest /proj/rnc_boost/users/ecerulm/ws_851_test
 alias mkTestLibrary '/bin/tcsh /vobs/rnc/struct/uehSs/uehSsPkgU/external/mkTestLibrary_libwega'
@@ -78,7 +83,7 @@ alias rsarte851cp1 '/vobs/rnc/env/utils/design_tools/development_tools/bin/rsart
 alias rsarte851scm '/vobs/rnc/env/utils/design_tools/development_tools/bin/rsarte@@/main/ecerulm_851_cp1_cte/ecerulm_851_cp1_scm/LATEST'
 alias rsarte851tf1 '/vobs/rnc/env/utils/design_tools/development_tools/bin/rsarte@@/main/20'
 #alias r '(rsarte851cp1 -data $wsueh) &'
-alias r '(rsarteCTE) &'
+alias r '(rsarteCTE -data $wsrac) &'
 alias rt 'r'
 #alias rt '(rsarte851cp1 -data $wstest) &'
 setenv EDITOR 'vim'
