@@ -2,8 +2,8 @@
 source ~/modules
 
 #History
-set history = 100000
-set savehist = (100000 merge) # Save and merge with existing saved
+set history = 5000
+set savehist = (5000 merge) # Save and merge with existing saved
 set histfile = ~/.tcsh_history
 set histdup='erase'
 set tperiod=60
@@ -21,30 +21,46 @@ set complete='enhance' #If set to enhance 1) ignores case 2) considers periord, 
 set autolist # show a list of alternatives during Tab completion
 
 #set vi model
-bindkey -v
+#bindkey -v
 bindkey '^R' i-search-back #Control-R search incrementally
 
 
 
 #clearcase
 alias difflbls 'ct find /vobs/rnc/sw/ueh -ver "lbtype(\!:1) && \\!lbtype(\!:2)" -print'
+alias findbr 'ct find $VOBS -ele "brtype(\!:1)" -print'
+alias mybranches 'ct catcs | grep ecerulm | grep mkbranch | awk '\''{print $NF}'\'' | sort | uniq'
+alias diffco "lsco | awk '{print $1}' | xargs -n 1 xlsvtree"
 alias views "cleartool lsview 'ecerulm*'"
 alias lsviews views 
-alias latest_pdt "~/bin/latestpdt.rb \!* | column -t -s '|'"
+alias latest_pdt "env RUBYLIB='/home/ecerulm/.rvm/rubies/ruby-1.9.3-p392/lib/' ~/bin/latestpdt.rb \!* | column -t -s '|'"
 alias latestpdt 'latest_pdt \!*'
 alias l 'latestpdt UEHUECTXT'
 alias cs '~/bin/catcsallviews.sh'
-alias c 'cd /proj/rnc_boost/users/ecerulm/ws_851_ueh/UehUeCtxtTestDriver_native_exe/native_exe'
 alias rvm ~/bin/rvm.tcsh
+alias cdrac 'cd /vobs/rnc/sw/rncNode/rncSys/rncLm/rncLmRacLmU'
 
 # misc
 alias dump 'ps ax | grep javaw | grep ecerulm | awk '"'"'{print $1}'"'"' | xargs kill -QUIT' 
 setenv lmuecs /vobs/rnc/rrt/struct/rncLmUe/cs
 #setenv wsueh /proj/rnc_boost/users/ecerulm/ws_851_ueh
-setenv wsueh /ramdisk/users/ecerulm/ws_851_ueh
+if ( -d /local/scratch/RSARTE ) then
+  setenv wsueh /local/scratch/RSARTE/ecerulm/ws_ueh
+  mkdir -p $wsueh
+else
+  setenv wsueh /ramdisk/users/ecerulm/ws_851_ueh
+endif
+alias c 'cd $wsueh/UehUeCtxtTestDriver_native_exe/native_exe'
 setenv wstest /proj/rnc_boost/users/ecerulm/ws_851_test
 alias mkTestLibrary '/bin/tcsh /vobs/rnc/struct/uehSs/uehSsPkgU/external/mkTestLibrary_libwega'
 alias co 'ct lspriv -co'
+setenv VOBS '/vobs/rnc/{3pp,sw/rlib,struct,sw/rnh/rnhSs,sw/rncNode/rncSys/rncLm/rncLmRacLmU,/build/lm/main_01/binaries_07,sw/drh}'
+setenv pbranch 'fiftyfifty_ecerulm_rac_protobuf_001'
+alias lsco 'ct lsco -s -r -cview -me  $VOBS'
+alias open_blocks 'ct catcs | grep "Rules for "| grep "created"'
+
+alias fmteambranch 'cleartool findmerge $VOBS -fver .../$pbranch/LATEST -print'
+
 setenv LESS '-erX'
 setenv http_proxy 'http://www-proxy.ericsson.se:8080'
 setenv https_proxy $http_proxy
@@ -59,9 +75,12 @@ alias rsarte804cp4 '/vobs/rnc/env/utils/design_tools/development_tools/bin/rsart
 #alias rsartemain44 '~/rsarte851cp1predrop_cte -data /proj/rnc_boost/users/ecerulm/ws_851_main44_ueversioning'
 #alias rsartetf1 '~/rsarte851tf1_scm -data /proj/rnc_boost/users/ecerulm/ws_851_main44_ueversioning'
 alias rsarte851cp1 '/vobs/rnc/env/utils/design_tools/development_tools/bin/rsarte@@/main/ecerulm_851_cp1_cte/LATEST'
+alias rsarte851scm '/vobs/rnc/env/utils/design_tools/development_tools/bin/rsarte@@/main/ecerulm_851_cp1_cte/ecerulm_851_cp1_scm/LATEST'
 alias rsarte851tf1 '/vobs/rnc/env/utils/design_tools/development_tools/bin/rsarte@@/main/20'
-alias r '(rsarte851cp1 -data $wsueh) &'
-alias rt '(rsarte851cp1 -data $wstest) &'
+#alias r '(rsarte851cp1 -data $wsueh) &'
+alias r '(rsarteCTE) &'
+alias rt 'r'
+#alias rt '(rsarte851cp1 -data $wstest) &'
 setenv EDITOR 'vim'
 setenv lmuecs /vobs/rnc/rrt/struct/rncLmUe/cs
 #ack
