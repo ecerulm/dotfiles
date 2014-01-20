@@ -43,3 +43,6 @@
 [submodule ".vim/bundle/vim-surround"]
 	path = .vim/bundle/vim-surround
 	url = git://github.com/tpope/vim-surround.git
+[submodule ".vim/bundle/oblitum-rainbow.git"]
+	path = .vim/bundle/oblitum-rainbow.git
+	url = https://github.com/oblitum/rainbow.git

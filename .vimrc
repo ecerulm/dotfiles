@@ -1,6 +1,12 @@
 " This is Ruben Laguna's .vimrc file
 " vim:set ts=2 sts=2 sw=2 expandtab:
 
+" To disable a plugin, add it's bundle name to the following list
+let g:pathogen_disabled = []
+" or alternatively rename the plugin dir from name to name~
+"call add(g:pathogen_disabled, 'rainbow_parentheses')
+"call add(g:pathogen_disabled, 'csscolor')
+
 call pathogen#infect()
 
 """"""""""""""""""""""""""""""""""""""""
@@ -121,10 +127,7 @@ augroup vimrcEx " Put them in a group so we delete them easily
   " autocmd BufWritePost * call system("ctags -R")
 
   "Rainbow parentheses
-  autocmd VimEnter * RainbowParenthesesToggle
-  autocmd Syntax * RainbowParenthesesLoadRound
-  autocmd Syntax * RainbowParenthesesLoadSquare
-  autocmd Syntax * RainbowParenthesesLoadBraces
+   au FileType c,cpp,objc,objcpp call rainbow#load()
 augroup END
 
 
