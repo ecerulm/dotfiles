@@ -11,7 +11,7 @@ call pathogen#infect()
 
 """"""""""""""""""""""""""""""""""""""""
 " BASIC EDITING CONFIGURATION
-""""""""""""""""""""""""""""""""""""""""
+"""""""""""""""""""""""""""""""""""""""" {{{
 set nocompatible               " be iMproved
 set hidden                     " allow unsaved background buffers
 set history=10000
@@ -34,6 +34,7 @@ set winwidth=79
 set shell=bash
 set colorcolumn=+1 " highlight the column after the textwidth http://stackoverflow.com/questions/1919028/how-to-show-vertical-line-to-wrap-the-line-in-vim
 
+"}}}
 " Highlight unwanted spaces
 " http://vim.wikia.com/wiki/Highlight_unwanted_spaces
 " http://www.bestofvim.com/tip/trailing-whitespace/
