@@ -27,15 +27,20 @@ bindkey '^R' i-search-back #Control-R search incrementally
 
 
 #clearcase
-alias difflbls 'ct find /vobs/rnc/sw/ueh -ver "lbtype(\!:1) && \\!lbtype(\!:2)" -print'
+setenv VOBS '/vobs/rnc/sw/{ueh,rnh,rlib,drh,rncNode}' 
+setenv DELIVERYTOKENS '/vobs/rnc/rrt/tools/prod/ki_tools/pdt/delivery_tokens/'
+alias difflbls 'ct find $VOBS -ver "lbtype(\!:1) && \\!lbtype(\!:2)" -print'
+alias brtomerge 'ct find $VOBS -ver "version(.../\!:1/LATEST) && \\!merge(.../\!:1/LATEST,/main/dev/LATEST) && \\!merge(/main/dev, .../\!:1/LATEST)" -print'
 alias findbr 'ct find $VOBS -ele "brtype(\!:1)" -print'
 alias mybranches 'ct catcs | grep ecerulm | grep mkbranch | awk '\''{print $NF}'\'' | sort | uniq'
+alias branches 'ct lstype -kind brtype -invob /vobs/rnc/sw/rnh -unsorted -fmt "%Sd %n\n"| grep ecerulm'
+
 alias diffco "lsco | awk '{print $1}' | xargs -n 1 xlsvtree"
 alias views "cleartool lsview 'ecerulm*'"
 alias lsviews views 
 alias latest_pdt "env RUBYLIB='/home/ecerulm/.rvm/rubies/ruby-1.9.3-p392/lib/' ~/bin/latestpdt.rb \!* | column -t -s '|'"
 alias latestpdt 'latest_pdt \!*'
-alias l 'latestpdt UEHUECTXT'
+alias l '~/bin/openpdtunits.sh'
 alias cs '~/bin/catcsallviews.sh'
 alias rvm ~/bin/rvm.tcsh
 alias cdrac 'cd /vobs/rnc/sw/rncNode/rncSys/rncLm/rncLmRacLmU'
@@ -45,26 +50,26 @@ alias dump 'ps ax | grep javaw | grep ecerulm | awk '"'"'{print $1}'"'"' | xargs
 setenv lmuecs /vobs/rnc/rrt/struct/rncLmUe/cs
 #setenv wsueh /proj/rnc_boost/users/ecerulm/ws_851_ueh
 if ( -d /local/scratch ) then
-  setenv wsueh /local/scratch/ecerulm_ueh
-  setenv wsrac /local/scratch/ecerulm_rac
-  mkdir -p $wsueh
-  mkdir -p $wsrac
+  setenv WS_PREFIX '/local/scratch/ecerulm'
 else
-  setenv wsueh /ramdisk/users/ecerulm/ws_ueh
-  setenv wsrac /ramdisk/users/ecerulm/ws_rac
+  setenv WS_PREFIX '/ramdisk/users/ecerulm'
 endif
+
+mkdir -p $WS_PREFIX
+foreach i ( ueh rac test nbap ranap )
+  setenv ws${i} $WS_PREFIX/ws_${i}
+end
 
 
 alias c 'cd $wsueh/UehUeCtxtTestDriver_native_exe/native_exe'
-setenv wstest /proj/rnc_boost/users/ecerulm/ws_851_test
 alias mkTestLibrary '/bin/tcsh /vobs/rnc/struct/uehSs/uehSsPkgU/external/mkTestLibrary_libwega'
-alias co 'ct lspriv -co'
-setenv VOBS '/vobs/rnc/{3pp,sw/rlib,struct,sw/rnh/rnhSs,sw/rncNode/rncSys/rncLm/rncLmRacLmU,/build/lm/main_01/binaries_07,sw/drh}'
-setenv pbranch 'fiftyfifty_ecerulm_rac_protobuf_001'
+alias co 'ct lspriv -co -s'
+setenv pbranch 'fiftyfifty_ecerulm_rac_20140123_u1serversocket'
 alias lsco 'ct lsco -s -r -cview -me  $VOBS'
 alias open_blocks 'ct catcs | grep "Rules for "| grep "created"'
 
 alias fmteambranch 'cleartool findmerge $VOBS -fver .../$pbranch/LATEST -print'
+alias fm '/home/ezivkoc/scripts/findmerge.sh'
 
 setenv LESS '-erX'
 setenv http_proxy 'http://www-proxy.ericsson.se:8080'
@@ -83,8 +88,13 @@ alias rsarte851cp1 '/vobs/rnc/env/utils/design_tools/development_tools/bin/rsart
 alias rsarte851scm '/vobs/rnc/env/utils/design_tools/development_tools/bin/rsarte@@/main/ecerulm_851_cp1_cte/ecerulm_851_cp1_scm/LATEST'
 alias rsarte851tf1 '/vobs/rnc/env/utils/design_tools/development_tools/bin/rsarte@@/main/20'
 #alias r '(rsarte851cp1 -data $wsueh) &'
-alias r '(rsarteCTE -data $wsrac) &'
-alias rt 'r'
+alias r 'rrac'
+alias rrac '(rsarteCTE -data $wsrac) &'
+alias rueh '(rsarteCTE -data $wsueh -vmargs -Xmx5G) &'
+alias rnbap '(rsarteCTE -data $wsnbap -vmargs -Xmx5G) &'
+alias rranap '(rsarteCTE -data $wsranap -vmargs -Xmx5G) &'
+#alias rtest '(rsarteCTE -data $wstest) &'
+alias rtest '(/proj/dte_rsarte/linux64/TEST/v851_cp3_tf1_cte_v20131128_1102_0036/SDP/eclipse -data $wstest) &'
 #alias rt '(rsarte851cp1 -data $wstest) &'
 setenv EDITOR 'vim'
 setenv lmuecs /vobs/rnc/rrt/struct/rncLmUe/cs
