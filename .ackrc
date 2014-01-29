@@ -1,2 +1,5 @@
 --pager=less -FRX
 --follow
+-k
+--ignore-file=ext:emx
+--ignore-file=ext:efx
