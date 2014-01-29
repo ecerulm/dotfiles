@@ -404,3 +404,7 @@ cnoremap <C-n> <Up>
 cnoremap <C-p> <Down>
 
 ":source $VIMRUNTIME/macros/matchit.vim
+
+" Folding {{{1
+set foldcolumn=3
+nnoremap <space> za
