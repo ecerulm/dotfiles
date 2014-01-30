@@ -9,7 +9,7 @@ let g:pathogen_disabled = []
 "call add(g:pathogen_disabled, 'csscolor')
 
 call pathogen#infect()
-call pathogen#helptags()
+"call pathogen#helptags() " enable this line to autoregenerate the help. To generate the helptags manually use :Helptags
 
 """"""""""""""""""""""""""""""""""""""""
 " BASIC EDITING CONFIGURATION{{{1
@@ -235,7 +235,7 @@ map <leader>n :call RenameFile()<cr>
 """"""""""""""""""""""""""""""""""""""""
 " PROMOTE VARIABLE TO RSPEC LET{{{1
 """"""""""""""""""""""""""""""""""""""""
-function PromoteToLet()
+function! PromoteToLet()
   :normal! dd
   " : exec '?^\s*it\>'
   :normal! P
@@ -409,3 +409,12 @@ cnoremap <C-p> <Down>
 " Folding {{{1
 set foldcolumn=3
 nnoremap <space> za
+
+" Text bubbling {{{1
+" Bubble single lines
+nmap <C-Up> [e
+nmap <C-Down> ]e
+
+" Bubble multiple lines
+vmap <C-Up> [egv
+vmap <C-Down> ]egv
