@@ -46,3 +46,6 @@
 [submodule ".vim/bundle/oblitum-rainbow.git"]
 	path = .vim/bundle/oblitum-rainbow.git
 	url = https://github.com/oblitum/rainbow.git
+[submodule ".vim/bundle/tabular.git"]
+	path = .vim/bundle/tabular.git
+	url = https://github.com/godlygeek/tabular.git
