@@ -9,6 +9,7 @@ let g:pathogen_disabled = []
 "call add(g:pathogen_disabled, 'csscolor')
 
 call pathogen#infect()
+call pathogen#helptags()
 
 """"""""""""""""""""""""""""""""""""""""
 " BASIC EDITING CONFIGURATION{{{1
