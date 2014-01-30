@@ -1,6 +1,9 @@
 VIM
 ===
 
+                                                                                                                                                             
+http://vimcasts.org/episodes/synchronizing-plugins-with-git-submodules-and-pathogen/  
+
 To add plugins put them into .vim/bundle. 
 If they are git repos use 
 
@@ -19,7 +22,11 @@ git merge origin/master
 
 on the other dotfiles repositories 
 =================
+git clone git@github.com:ecerulm/dotfiles.git
+cd dotfiles
+./create_links_linux.sh
 git pull # or git fetch etc
+
 # the submodules will not be downloaded / updated
 #Get the initial submodule repo
 git submodule init
