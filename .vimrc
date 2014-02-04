@@ -92,6 +92,9 @@ augroup vimrcEx " Put them in a group so we delete them easily
   " Clear all autocmd in the group {{{2
   autocmd!
 
+  " Load tabular.vim patterns {{{2
+  autocmd VimEnter * call CustomTabularPatterns()
+
   " Use textwidth 72 for all text files {{{2
   autocmd FileType text setlocal textwidth=72
   
@@ -103,7 +106,6 @@ augroup vimrcEx " Put them in a group so we delete them easily
  
   " Indent p tags {{{2 
   autocmd FileType html,eruby if g:html_indent_tags !~ '\\|p\>' | let g:html_indent_tags .= '\|p\|li\|dt\|dd' | endif
-
 
   " Leave the return key alone when in command line windows, {{{2
   " since its used to run commands there.
@@ -407,5 +409,9 @@ vmap <C-Down> ]egv
 nmap gV `[v`]
 
 " Tabular.vim {{{1
-":AddTabularPattern defines /\(\/\/.*\)\@<! \+/l0
+function! CustomTabularPatterns() 
+  if exists('g:tabular_loaded')
+    AddTabularPattern defines /\(\/\/.*\)\@<! \+/l0
+  endif
+endfunction
 :nohlsearch
