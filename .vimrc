@@ -1,5 +1,5 @@
 " This is Ruben Laguna's .vimrc file
-" vim:set ts=2 sts=2 sw=2 foldmethod=marker foldcolumn=3 expandtab:
+" vim: ts=2 sts=2 sw=2 foldmethod=marker foldcolumn=3 expandtab
 
 " Pathogen {{{1
 " To disable a plugin, add it's bundle name to the following list
@@ -163,11 +163,18 @@ nnoremap <silent> <Leader>rts :call TrimWhiteSpace()<CR>
 
 call MapCR()
 nnoremap <leader><leader> <c-^> " Go back to buffer from vim help 
-" Indent in visual mode{{{2
+" Indent {{{2
+" indent in visual mode{{{3
 vmap > >gv
 vmap < <gv
 vmap <Tab> >gv
 vmap <S-Tab> <gv
+vmap <D-[> <gv
+vmap <D-]> >gv
+" indent in normal mode {{{3
+nmap <D-[> <<
+nmap <D-]> >>
+
 " ctags mappings{{{2
 nnoremap <f5> :!ctags -R<CR>
 
