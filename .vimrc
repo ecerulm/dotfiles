@@ -139,8 +139,9 @@ augroup END
 """"""""""""""""""""""""""""""""""""""""
 :set t_Co=256 " 256 Colors
 :set background=dark
-:color grb256
+" :color grb256
 :colorscheme molokai
+" :colorscheme blackboard
 
 
 """"""""""""""""""""""""""""""""""""""""
