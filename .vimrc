@@ -127,6 +127,7 @@ augroup END
 ":set background=dark
 ":color grb256
 :colorscheme molokai
+" :colorscheme blackboard
 
 
 """"""""""""""""""""""""""""""""""""""""
