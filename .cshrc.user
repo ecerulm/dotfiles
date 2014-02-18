@@ -13,6 +13,8 @@ alias periodic '( history -M;history -S ) &'
 # paths {{{1
 set cdpath = (~ /vobs/rnc /vobs/rnc/rrt/ /vobs/rnc/rrt/ueh /vobs/rnc/rrt/ueh/uehSs /vobs/rnc/rrt/ueh/uehSs/uehUeCtxtBl)
 setenv SPPPATH '/vobs/rnc/struct/spSs/spBaseSsL/spBaseSsLU/external/'
+setenv LMPATH ''
+setenv UPPATH '/proj/rncup/MAIN'
 
 # Tab completion {{{1
 set addsuffix #suffixes directories with / in tab completion
