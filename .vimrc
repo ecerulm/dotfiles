@@ -423,3 +423,7 @@ function! CustomTabularPatterns()
   endif
 endfunction
 :nohlsearch
+
+" Gundo {{{1
+nnoremap <F5> :GundoToggle<CR>
+
