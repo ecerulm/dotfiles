@@ -52,3 +52,6 @@
 [submodule "/home/ecerulm/.vim/bundle/gundo.vim"]
 	path = /home/ecerulm/.vim/bundle/gundo.vim
 	url = http://github.com/sjl/gundo.vim.git
+[submodule ".vim/bundle/vim-exchange.vim"]
+	path = .vim/bundle/vim-exchange.vim
+	url = https://github.com/tommcdo/vim-exchange.git
