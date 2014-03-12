@@ -60,7 +60,7 @@ set showcmd                    " display incomplete commands
 
 " system clipboard {{{2
 if has('unnamedplus') " http://ilessendata.blogspot.se/2012/05/vim-using-system-clipboard.html
-  set clipboard=unnamedplus
+  set clipboard=unnamed,unnamedplus
 else
   set clipboard=unnamed
 endif
