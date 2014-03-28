@@ -13,6 +13,8 @@ alias periodic '( history -M;history -S ) &'
 # paths {{{1
 set cdpath = (~ /vobs/rnc /vobs/rnc/rrt/ /vobs/rnc/rrt/ueh /vobs/rnc/rrt/ueh/uehSs /vobs/rnc/rrt/ueh/uehSs/uehUeCtxtBl)
 setenv SPPPATH '/vobs/rnc/struct/spSs/spBaseSsL/spBaseSsLU/external/'
+setenv LMPATH ''
+setenv UPPATH '/proj/rncup/MAIN'
 
 # Tab completion {{{1
 set addsuffix #suffixes directories with / in tab completion
@@ -26,7 +28,7 @@ bindkey '^R' i-search-back #Control-R search incrementally
 
 
 #clearcase {{{1
-setenv VOBS '/vobs/rnc/sw/{ueh,rnh,rlib,drh,rncNode}' 
+setenv VOBS '/vobs/rnc/sw/{ueh,rnh,rlib,drh,roam1,roam2,rncNode}' 
 setenv DELIVERYTOKENS '/vobs/rnc/rrt/tools/prod/ki_tools/pdt/delivery_tokens/'
 alias difflbls 'ct find $VOBS -ver "lbtype(\!:1) && \\!lbtype(\!:2)" -print'
 alias brtomerge 'ct find $VOBS -ver "version(.../\!:1/LATEST) && \\!merge(.../\!:1/LATEST,/main/dev/LATEST) && \\!merge(/main/dev, .../\!:1/LATEST)" -print'
