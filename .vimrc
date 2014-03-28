@@ -116,7 +116,7 @@ augroup vimrcEx " Put them in a group so we delete them easily
   " autocmd BufWritePost * call system("ctags -R")
 
   "Rainbow parentheses {{{2
-   au FileType c,cpp,objc,objcpp call rainbow#load()
+   au FileType c,cpp,objc,objcpp,ruby call rainbow#load()
 augroup END
 
 
