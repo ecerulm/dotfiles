@@ -129,6 +129,9 @@ augroup vimrcEx " Put them in a group so we delete them easily
   "ctags
   " autocmd BufWritePost * call system("ctags -R")
 
+  " New file templates
+  :au BufNewFile Makefile r ~/.vim/skeleton.Makefile
+
   "Rainbow parentheses
    au FileType c,cpp,objc,objcpp call rainbow#load()
 augroup END
