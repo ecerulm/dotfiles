@@ -117,6 +117,9 @@ augroup vimrcEx " Put them in a group so we delete them easily
 
   "Rainbow parentheses {{{2
    au FileType c,cpp,objc,objcpp call rainbow#load()
+
+  "fugitive {{{2
+  autocmd BufReadPost fugitive://* set bufhidden=delete
 augroup END
 
 
