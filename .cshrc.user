@@ -1,7 +1,7 @@
-# Application versions
+# Application versions {{{1
 source ~/modules
 
-#History
+#History {{{1
 set history = 5000
 set savehist = (5000 merge) # Save and merge with existing saved
 set histfile = ~/.tcsh_history
@@ -10,24 +10,25 @@ set tperiod=60
 alias periodic '( history -M;history -S ) &'
 
 
-
+# paths {{{1
 set cdpath = (~ /vobs/rnc /vobs/rnc/rrt/ /vobs/rnc/rrt/ueh /vobs/rnc/rrt/ueh/uehSs /vobs/rnc/rrt/ueh/uehSs/uehUeCtxtBl)
-#set time
+setenv SPPPATH '/vobs/rnc/struct/spSs/spBaseSsL/spBaseSsLU/external/'
+setenv LMPATH ''
+setenv UPPATH '/proj/rncup/MAIN'
 
-
-# Tab completion
+# Tab completion {{{1
 set addsuffix #suffixes directories with / in tab completion
 set complete='enhance' #If set to enhance 1) ignores case 2) considers periord, hyphens, and underscores to be word separators / www.tcsh.org/tcsh.html/Special_shell_variables.html
 set autolist # show a list of alternatives during Tab completion
 
 #set vi model
-#bindkey -v
+#bindkey -v {{{1
 bindkey '^R' i-search-back #Control-R search incrementally
 
 
 
-#clearcase
-setenv VOBS '/vobs/rnc/sw/{ueh,rnh,rlib,drh,rncNode}' 
+#clearcase {{{1
+setenv VOBS '/vobs/rnc/sw/{ueh,rnh,rlib,drh,roam1,roam2,rncNode}' 
 setenv DELIVERYTOKENS '/vobs/rnc/rrt/tools/prod/ki_tools/pdt/delivery_tokens/'
 alias difflbls 'ct find $VOBS -ver "lbtype(\!:1) && \\!lbtype(\!:2)" -print'
 alias brtomerge 'ct find $VOBS -ver "version(.../\!:1/LATEST) && \\!merge(.../\!:1/LATEST,/main/dev/LATEST) && \\!merge(/main/dev, .../\!:1/LATEST)" -print'
@@ -45,22 +46,10 @@ alias cs '~/bin/catcsallviews.sh'
 alias rvm ~/bin/rvm.tcsh
 alias cdrac 'cd /vobs/rnc/sw/rncNode/rncSys/rncLm/rncLmRacLmU'
 
-# misc
-alias dump 'ps ax | grep javaw | grep ecerulm | awk '"'"'{print $1}'"'"' | xargs kill -QUIT' 
-setenv lmuecs /vobs/rnc/rrt/struct/rncLmUe/cs
-#setenv wsueh /proj/rnc_boost/users/ecerulm/ws_851_ueh
-if ( -d /local/scratch ) then
-  setenv WS_PREFIX '/local/scratch/ecerulm'
-else
-  setenv WS_PREFIX '/ramdisk/users/ecerulm'
-endif
+# misc {{{1
+setenv EDITOR 'vim'
 
-mkdir -p $WS_PREFIX
-foreach i ( ueh rac test nbap ranap )
-  setenv ws${i} $WS_PREFIX/ws_${i}
-end
-
-
+#aliases {{{1
 alias c 'cd $wsueh/UehUeCtxtTestDriver_native_exe/native_exe'
 alias mkTestLibrary '/bin/tcsh /vobs/rnc/struct/uehSs/uehSsPkgU/external/mkTestLibrary_libwega'
 alias co 'ct lspriv -co -s'
@@ -79,7 +68,8 @@ setenv rsync_proxy $http_proxy
 setenv no_proxy 'localhost,127.0.0.1,*.ericsson.se,*.ericsson.com'
 set path = ($path ~/bin)
 
-#RSARTE 
+#RSARTE {{{1
+alias dump 'ps ax | grep javaw | grep ecerulm | awk '"'"'{print $1}'"'"' | xargs kill -QUIT' 
 alias rsarte804cp3 '/vobs/rnc/env/utils/design_tools/development_tools/bin/rsarte@@/main/ecerulm_804_cp3/LATEST'
 alias rsarte804cp4 '/vobs/rnc/env/utils/design_tools/development_tools/bin/rsarte@@/main/ecerulm_804_cp4/LATEST'
 #alias rsartemain44 '~/rsarte851cp1predrop_cte -data /proj/rnc_boost/users/ecerulm/ws_851_main44_ueversioning'
@@ -96,11 +86,23 @@ alias rranap '(rsarteCTE -data $wsranap -vmargs -Xmx5G) &'
 #alias rtest '(rsarteCTE -data $wstest) &'
 alias rtest '(/proj/dte_rsarte/linux64/TEST/v851_cp3_tf1_cte_v20131128_1102_0036/SDP/eclipse -data $wstest) &'
 #alias rt '(rsarte851cp1 -data $wstest) &'
-setenv EDITOR 'vim'
 setenv lmuecs /vobs/rnc/rrt/struct/rncLmUe/cs
-#ack
+#setenv wsueh /proj/rnc_boost/users/ecerulm/ws_851_ueh
+if ( -d /local/scratch ) then
+  setenv WS_PREFIX '/local/scratch/ecerulm'
+else
+  setenv WS_PREFIX '/ramdisk/users/ecerulm'
+endif
+
+mkdir -p $WS_PREFIX
+foreach i ( ueh rac test nbap ranap )
+  setenv ws${i} $WS_PREFIX/ws_${i}
+end
+
+#ack {{{1
 alias ack '~/bin/ack'
-#git aliases
+
+#git aliases {{{1
 alias g 'git'
 
 #limit descriptors 8000

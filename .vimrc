@@ -1,5 +1,5 @@
 " This is Ruben Laguna's .vimrc file
-" vim:set ts=2 sts=2 sw=2 foldmethod=marker foldcolumn=3 expandtab:
+" vim: ts=2 sts=2 sw=2 foldmethod=marker foldcolumn=3 expandtab
 
 " Pathogen {{{1
 " To disable a plugin, add it's bundle name to the following list
@@ -35,8 +35,9 @@ set showtabline=2              " show always the editor tabs
 set winwidth=79
 set shell=bash
 set colorcolumn=+1 " highlight the column after the textwidth http://stackoverflow.com/questions/1919028/how-to-show-vertical-line-to-wrap-the-line-in-vim
+"set listchars=tab:▸\ ,eol:$
 
-" Highlight unwanted spaces {{{1
+" Highlight unwanted spaces {{{2
 " http://vim.wikia.com/wiki/Highlight_unwanted_spaces
 " http://www.bestofvim.com/tip/trailing-whitespace/
 " highlight ExtraWhitespace ctermbg=darkgreen guibg=darkgreen
@@ -44,25 +45,27 @@ set colorcolumn=+1 " highlight the column after the textwidth http://stackoverfl
 " match ExtraWhitespace '\s\+$'
 
 
-" Prevent vim from clobbering the scrollback buffer. {{{1
+" Prevent vim from clobbering the scrollback buffer. {{{2
 " See http://www.shallowsky.com/linux/noaltscreen.html
 set t_ti= t_te=                "
 set scrolloff=3                " keep more context when scrolling off the end of a buffer
-" store temporary files in central spot
+" store temporary files in central spot {{{2
 set backup
 set backupdir=~/.vim-tmp,~/.tmp,~/tmp,/var/tmp,/tmp,.
 set directory=~/.vim-tmp,~/.tmp,~/tmp,/var/tmp,/tmp,.
+"}}}
 " backspace in insert mode can delete newlines, etc
 set backspace=indent,eol,start
 set showcmd                    " display incomplete commands
 
+" system clipboard {{{2
 if has('unnamedplus') " http://ilessendata.blogspot.se/2012/05/vim-using-system-clipboard.html
-  set clipboard=unnamedplus
+  set clipboard=unnamed,unnamedplus
 else
   set clipboard=unnamed
 endif
+"}}}
 syntax on                      " enable syntax highlighting
-
 " Enable filetype detection {{{1
 " Use the default filetype settings, so that mail gets 'tw' set to 72
 " 'cindent'is on in C files, etc. 
@@ -86,54 +89,40 @@ set pastetoggle=<f4>
 """"""""""""""""""""""""""""""""""""""""
 
 augroup vimrcEx " Put them in a group so we delete them easily
-  " Clear all autocmd in the group
+  " Clear all autocmd in the group {{{2
   autocmd!
+
+  " Load tabular.vim patterns {{{2
+  autocmd VimEnter * call CustomTabularPatterns()
+
+  " Use textwidth 72 for all text files {{{2
   autocmd FileType text setlocal textwidth=72
-  " Jump to Last cursor position unless its invalid or in an event handler
+  
+  " Jump to Last cursor position unless its invalid or in an event handler  {{{2
   autocmd BufReadPost *
      \ if line("'\"") > 0 && line("'\"") <= line("$") |
      \   exe "normal g`\"" |
      \ endif
  
-  " for ruby, autoindent with two spaces, always expand tabs
-  autocmd FileType ruby,haml,eruby,yaml,html,javascript,sass,cucumber set ai sw=2 sts=2 et
-
-  " autocmd FileType ruby compiler ruby
-  autocmd FileType ruby set foldmethod=syntax
-  autocmd FileType ruby set textwidth=72
-  autocmd FileType ruby let ruby_space_errors=1
-
-  " autocmd FileType c and C++
-  autocmd FileType c let c_space_errors=1
-  autocmd FileType c set textwidth=72
-  autocmd FileType c set foldmethod=syntax
-
-  autocmd FileType python set sw=4 sts=4 et
-
-  autocmd! BufRead,BufNewFile *.sass setfiletype sass
-
-  autocmd BufRead *.mkd set ai formatoptions=tcroqn2 comments=n:&gt;
-  autocmd BufRead *.markdown set ai formatoptions=tcroqn2 comments=n:&gt;
-
-  " Indent p tags
+  " Indent p tags {{{2 
   autocmd FileType html,eruby if g:html_indent_tags !~ '\\|p\>' | let g:html_indent_tags .= '\|p\|li\|dt\|dd' | endif
 
-  " Dont't syntax highlight markdown because if often wrong
-  autocmd! FileType mkd setlocal syn=off
-
-  " Leave the return key alone when in command line windows, since its used
-  " to run commands there.
+  " Leave the return key alone when in command line windows, {{{2
+  " since its used to run commands there.
   autocmd! CmdwinEnter * :unmap <cr>
   autocmd! CmdwinLeave * :call MapCR()
 
-  "ctags
+  "ctags {{{2
   " autocmd BufWritePost * call system("ctags -R")
 
   " New file templates
   :au BufNewFile Makefile r ~/.vim/skeleton.Makefile
 
-  "Rainbow parentheses
-   au FileType c,cpp,objc,objcpp call rainbow#load()
+  "Rainbow parentheses {{{2
+   au FileType c,cpp,objc,objcpp,ruby call rainbow#load()
+
+  "fugitive {{{2
+  autocmd BufReadPost fugitive://* set bufhidden=delete
 augroup END
 
 
@@ -141,9 +130,10 @@ augroup END
 " COLOR{{{1
 """"""""""""""""""""""""""""""""""""""""
 :set t_Co=256 " 256 Colors
-:set background=dark
-:color grb256
+":set background=dark
+":color grb256
 :colorscheme molokai
+" :colorscheme blackboard
 
 
 """"""""""""""""""""""""""""""""""""""""
@@ -180,11 +170,18 @@ nnoremap <silent> <Leader>rts :call TrimWhiteSpace()<CR>
 
 call MapCR()
 nnoremap <leader><leader> <c-^> " Go back to buffer from vim help 
-" Indent in visual mode{{{2
+" Indent {{{2
+" indent in visual mode{{{3
 vmap > >gv
 vmap < <gv
 vmap <Tab> >gv
 vmap <S-Tab> <gv
+vmap <D-[> <gv
+vmap <D-]> >gv
+" indent in normal mode {{{3
+nmap <D-[> <<
+nmap <D-]> >>
+
 " ctags mappings{{{2
 nnoremap <f5> :!ctags -R<CR>
 
@@ -424,3 +421,15 @@ vmap <C-Down> ]egv
 
 "Visually select the text that was last edited/pasted
 nmap gV `[v`]
+
+" Tabular.vim {{{1
+function! CustomTabularPatterns() 
+  if exists('g:tabular_loaded')
+    AddTabularPattern defines /\(\/\/.*\)\@<! \+/l0
+  endif
+endfunction
+:nohlsearch
+
+" Gundo {{{1
+nnoremap <F5> :GundoToggle<CR>
+
