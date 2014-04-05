@@ -55,3 +55,6 @@
 [submodule ".vim/bundle/vim-exchange.vim"]
 	path = .vim/bundle/vim-exchange.vim
 	url = https://github.com/tommcdo/vim-exchange.git
+[submodule ".vim/bundle/gundo.vim"]
+	path = .vim/bundle/gundo.vim
+	url = https://github.com/sjl/gundo.vim.git
