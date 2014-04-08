@@ -129,13 +129,13 @@ augroup END
 """"""""""""""""""""""""""""""""""""""""
 " COLOR{{{1
 """"""""""""""""""""""""""""""""""""""""
-if &term == "xterm" 
+if &term == "xterm-256color"  
   :set t_Co=256 " 256 Colors
+  :colorscheme molokai
+endif
   ":set background=dark
   ":color grb256
-  :colorscheme molokai
   " :colorscheme blackboard
-endif
 
 
 """"""""""""""""""""""""""""""""""""""""
