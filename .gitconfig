@@ -1,6 +1,6 @@
 [user]
 	name = Ruben Laguna
-	email = ruben.laguna@ericsson.com
+	email = ruben.laguna@gmail.com
 [diff]
 [color]
    ui = auto
@@ -65,3 +65,6 @@
 	default = matching
 [credential]
 	helper = osxkeychain
+[filter "media"]
+	clean = git-media-clean %f
+	smudge = git-media-smudge %f
