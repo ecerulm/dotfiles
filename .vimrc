@@ -105,7 +105,7 @@ augroup vimrcEx " Put them in a group so we delete them easily
      \ endif
  
   " Indent p tags {{{2 
-  autocmd FileType html,eruby if g:html_indent_tags !~ '\\|p\>' | let g:html_indent_tags .= '\|p\|li\|dt\|dd' | endif
+  "autocmd FileType html,eruby if g:html_indent_tags !~ '\\|p\>' | let g:html_indent_tags .= '\|p\|li\|dt\|dd' | endif
 
   " Leave the return key alone when in command line windows, {{{2
   " since its used to run commands there.
