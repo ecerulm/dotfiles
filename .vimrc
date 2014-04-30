@@ -123,6 +123,8 @@ augroup vimrcEx " Put them in a group so we delete them easily
 
   "fugitive {{{2
   autocmd BufReadPost fugitive://* set bufhidden=delete
+  "gitcommit {{{2
+  autocmd FileType gitcommit au! BufEnter COMMIT_EDITMSG call setpos('.', [0,1,1,0])
 augroup END
 
 
