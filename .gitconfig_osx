@@ -1,0 +1,3 @@
+#OSX specific git config
+[credential]
+	helper = osxkeychain

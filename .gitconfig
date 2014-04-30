@@ -63,8 +63,8 @@
 [pager]
 [push]
 	default = matching
-[credential]
-	helper = osxkeychain
 [filter "media"]
 	clean = git-media-clean %f
 	smudge = git-media-smudge %f
+[include]
+  path = .gitconfig_platform_specific
