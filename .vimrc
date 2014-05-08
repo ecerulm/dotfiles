@@ -437,3 +437,6 @@ endfunction
 " Gundo {{{1
 nnoremap <F5> :GundoToggle<CR>
 
+"OmniCompletion{{{1
+inoremap <leader>, <C-X><C-O>
+
