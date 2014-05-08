@@ -67,4 +67,5 @@
 	clean = git-media-clean %f
 	smudge = git-media-smudge %f
 [include]
+  ; need to be git 1.9.2 for includes to work
   path = .gitconfig_platform_specific
