@@ -1,0 +1,20 @@
+snippet d3html
+	<!DOCTYPE html>
+	<html>
+	<head>
+	<meta charset="utf-8">
+	<!-- <script src="d3.js"></script> -->
+	<script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+	<script>
+	function draw(data) {
+	"use script";
+	//bad ass visualization code here
+	} // end of function draw(data)
+	</script>
+	</head>
+	<body>
+	<script>
+	d3.json("data/some_data.json", draw);
+	</script>
+	</body>
+	</html>
