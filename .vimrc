@@ -438,5 +438,7 @@ endfunction
 nnoremap <F5> :GundoToggle<CR>
 
 "OmniCompletion{{{1
+"<C-Space> is misinterpreted by the terminal as <C-@> :help CTRL-@
+"inoremap <C-Space> <C-x><C-o>
+"inoremap <C-@> <C-Space>
 inoremap <leader>, <C-X><C-O>
-
