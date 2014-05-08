@@ -13,9 +13,6 @@
 [submodule ".vim/bundle/vim-clojure-static"]
 	path = .vim/bundle/vim-clojure-static
 	url = git://github.com/guns/vim-clojure-static.git
-[submodule ".vim/bundle/rainbow_parentheses"]
-	path = .vim/bundle/rainbow_parentheses
-	url = https://github.com/kien/rainbow_parentheses.vim.git
 [submodule ".vim/bundle/vim-abolish"]
 	path = .vim/bundle/vim-abolish
 	url = git://github.com/tpope/vim-abolish.git
@@ -46,9 +43,6 @@
 [submodule ".vim/bundle/tabular.git"]
 	path = .vim/bundle/tabular.git
 	url = https://github.com/godlygeek/tabular.git
-[submodule "/home/ecerulm/.vim/bundle/gundo.vim"]
-	path = /home/ecerulm/.vim/bundle/gundo.vim
-	url = http://github.com/sjl/gundo.vim.git
 [submodule ".vim/bundle/vim-exchange.vim"]
 	path = .vim/bundle/vim-exchange.vim
 	url = https://github.com/tommcdo/vim-exchange.git
