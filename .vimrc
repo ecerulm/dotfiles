@@ -442,3 +442,6 @@ nnoremap <F5> :GundoToggle<CR>
 "inoremap <C-Space> <C-x><C-o>
 "inoremap <C-@> <C-Space>
 inoremap <leader>, <C-X><C-O>
+" Autoclose{{{1
+nmap <unique> <Leader>x <Plug>ToggleAutoCloseMappings
+
