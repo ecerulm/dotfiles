@@ -125,10 +125,14 @@ augroup vimrcEx " Put them in a group so we delete them easily
   autocmd BufReadPost fugitive://* set bufhidden=delete
   "gitcommit {{{2
   autocmd FileType gitcommit au! BufEnter COMMIT_EDITMSG call setpos('.', [0,1,1,0])
+
+  "Unfold on open {{{2
+  autocmd BufRead * normal zR
 augroup END
 
 
 """"""""""""""""""""""""""""""""""""""""
+
 " COLOR{{{1
 """"""""""""""""""""""""""""""""""""""""
 if &term == "xterm-256color"  
