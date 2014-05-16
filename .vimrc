@@ -452,5 +452,6 @@ nnoremap <F5> :GundoToggle<CR>
 inoremap <leader>, <C-X><C-O>
 " Autoclose{{{1
 nmap <unique> <Leader>x <Plug>ToggleAutoCloseMappings
+let g:autoclose_on = 0
 " Finish line with semicolon ; {{{1
 imap <C-j> <End>;<cr>
