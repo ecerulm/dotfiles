@@ -127,7 +127,11 @@ augroup vimrcEx " Put them in a group so we delete them easily
   autocmd FileType gitcommit au! BufEnter COMMIT_EDITMSG call setpos('.', [0,1,1,0])
 
   "Unfold on open {{{2
-  autocmd BufRead * normal zR
+  " Not clear what is the right autocmd event to use BufRead BufWinEnter
+  " autocmd BufWinEnter * normal zR "It doesn work
+  " autocmd BufWinEnter * silent! :%foldopen! "Complains about fold not found
+  autocmd BufRead * silent! :%foldopen! "Complains about fold not found
+  " autocmd BufReadPost * set foldlevel=99
 augroup END
 
 
