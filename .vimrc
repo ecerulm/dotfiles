@@ -197,6 +197,8 @@ nmap <D-]> >>
 " ctags mappings{{{2
 nnoremap <f5> :!ctags -R<CR>
 
+" ,p to select last pasted text
+nnoremap gp '[v']
 """"""""""""""""""""""""""""""""""""""""
 " MULTIPURPOSE TAB KEY{{{1
 " Indent if we're at the beginning of a line. Else, do completion
