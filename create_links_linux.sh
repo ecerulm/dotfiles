@@ -5,6 +5,7 @@ ls -A | grep "^\." | grep -v "^\.git$" | xargs -n1 -I'{}' ln -Tvfs ~/dotfiles/'{
 # Fish config files
 mkdir -p ~/.config/fish/
 ln -Tvfs ~/dotfiles/fishfunctions ~/.config/fish/functions
+ln -Tvfs ~/dotfiles/config.fish ~/.config/fish/config.fish
 
 # bin 
 mkdir -p ~/bin
