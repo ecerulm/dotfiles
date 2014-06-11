@@ -3,3 +3,4 @@
 -k
 --ignore-file=ext:emx
 --ignore-file=ext:efx
+-i
