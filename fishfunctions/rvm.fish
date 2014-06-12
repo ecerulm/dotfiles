@@ -1,7 +1,7 @@
 function rvm --description='Ruby enVironment Manager'
   # run RVM and capture the resulting environment
   set --local env_file (mktemp -t rvm.fish.XXXXXXXXXX)
-  env -u PATH bash -lc 'source ~/.rvm/scripts/rvm; rvm "$@" ; status=$?; env > "$0"; exit $status' $env_file $argv
+  env -i bash -lc 'source ~/.rvm/scripts/rvm; rvm "$@" ; status=$?; env > "$0"; exit $status' $env_file $argv
 
   # apply rvm_* and *PATH variables from the captured environment
   and eval (grep '^rvm\|^[^=]*PATH\|^GEM_HOME' $env_file | grep -v '_clr=' | sed '/^[^=]*PATH/y/:/ /; s/^/set -xg /; s/=/ /; s/$/ ;/; s/(//; s/)//')
@@ -23,7 +23,6 @@ function __handle_rvmrc_stuff --on-variable PWD
       else
         if begin; test -s ".rvmrc"; or test -s ".ruby-version"; or test -s ".ruby-gemset"; end
           eval "rvm reload"
-          eval "rvm rvmrc load"
           break
         else
           set cwd (dirname "$cwd")
