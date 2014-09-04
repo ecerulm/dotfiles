@@ -27,7 +27,13 @@ function fish_prompt --description 'Write out the left prompt'
   end
 
   #echo -e \n
-  echo -n -s (rvm_prompt) $cwd $git_info
+
+  set -l rvminfo ''
+  type rvm_prompt >/dev/null
+  if test $status -eq 0
+     set rvminfo (rvm_prompt)
+  end
+  echo -n -s $rvminfo $cwd $git_info
   echo
   echo -e $arrow $normal
 end
