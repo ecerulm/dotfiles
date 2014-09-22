@@ -1,1 +1,3 @@
-/home/ecerulm/dotfiles/README
+These are vim pluging managed by Pathogen. 
+
+Each plugin lives in its own git submodule
