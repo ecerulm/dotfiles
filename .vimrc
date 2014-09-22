@@ -405,10 +405,14 @@ endfunction
 command! OpenChangedFiles :call OpenChangedFiles()
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" InsertTime COMMAND{{{1
+" InsertTime COMMAND and mappings <F5>{{{1
 " Insert the current time
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 command! InsertTime :normal a<c-r>=strftime('%F %H:%M:%S.0 %z')<cr>
+:let b:timestr= '%F %T %Z'
+:nnoremap <F5> "=strftime(b:timestr)<cr>P
+:inoremap <F5> <C-R>=strftime(b:timestr)<cr>
+:iab <expr> dts strftime(b:timestr)
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " C-p and C-n behave exactly as up and down arrows {{{1
