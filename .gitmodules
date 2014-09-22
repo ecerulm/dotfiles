@@ -16,9 +16,6 @@
 [submodule ".vim/bundle/vim-abolish"]
 	path = .vim/bundle/vim-abolish
 	url = git://github.com/tpope/vim-abolish.git
-[submodule ".vim/bundle/snipmate.vim"]
-	path = .vim/bundle/snipmate.vim
-	url = git://github.com/msanders/snipmate.vim.git
 [submodule ".vim/bundle/argtextobj.vim"]
 	path = .vim/bundle/argtextobj.vim
 	url = git://github.com/vim-scripts/argtextobj.vim.git
@@ -55,3 +52,6 @@
 [submodule ".vim/bundle/nerdtree.vim"]
 	path = .vim/bundle/nerdtree.vim
 	url = https://github.com/scrooloose/nerdtree.git
+[submodule ".vim/bundle/ultisnips.git"]
+	path = .vim/bundle/ultisnips.git
+	url = https://github.com/SirVer/ultisnips.git
