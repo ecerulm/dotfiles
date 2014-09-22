@@ -409,10 +409,13 @@ command! OpenChangedFiles :call OpenChangedFiles()
 " Insert the current time
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 command! InsertTime :normal a<c-r>=strftime('%F %H:%M:%S.0 %z')<cr>
-:let b:timestr= '%F %T %Z'
-:nnoremap <F5> "=strftime(b:timestr)<cr>P
-:inoremap <F5> <C-R>=strftime(b:timestr)<cr>
-:iab <expr> dts strftime(b:timestr)
+function! s:Timestr()
+  return '%F %T %Z'
+endfunction
+
+"nnoremap <F5> i<C-R>=strftime(<SID>Timestr())<cr><esc>
+inoremap <F5> <C-R>=strftime(<SID>Timestr())<cr>
+iab <expr> dts strftime(<SID>Timestr())
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " C-p and C-n behave exactly as up and down arrows {{{1
