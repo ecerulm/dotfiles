@@ -39,3 +39,82 @@ elif ${3:condition}:
 else:
 	${5:pass}
 endsnippet
+
+###############
+# Def	/ imports
+###############
+
+snippet def "function with docstrings" b
+def ${1:function}(${2:args}):
+	${0:pass}
+endsnippet
+
+# doesn't expand when there is a word in front
+snippet /(^|(?<=\W))\./ "self." r
+self.
+endsnippet
+
+snippet from "from module import name" b
+from ${1:module} import ${2:Stuff}
+endsnippet
+
+#####################
+# Assertions & Tests #
+#####################
+
+snippet pdb "Set PDB breakpoint" b
+import pdb; pdb.set_trace()
+endsnippet
+
+snippet ipdb "Set IPDB breakpoint" b
+import ipdb; ipdb.set_trace()
+endsnippet
+
+snippet pudb "Set PUDB breakpoint" b
+import pudb; pudb.set_trace()
+endsnippet
+
+snippet ae "Assert equal" b
+self.assertEqual(${1:first},${2:second})
+endsnippet
+
+snippet at "Assert True" b
+self.assertTrue(${0:exp})
+endsnippet
+
+snippet af "Assert False" b
+self.assertFalse(${1:expression})
+endsnippet
+
+snippet aae "Assert almost equal" b
+self.assertAlmostEqual(${1:first},${2:second})
+endsnippet
+
+snippet ar "Assert raises" b
+self.assertRaises(${1:exception}, ${2:func}${3/.+/, /}${3:arguments})
+endsnippet
+
+snippet an "Assert is None" b
+self.assertIsNone(${0:expression})
+endsnippet
+
+snippet ann "Assert is not None" b
+self.assertIsNotNone(${0:expression})
+endsnippet
+
+snippet testcase "pyunit testcase" b
+class Test${1:Class}(${2:unittest.TestCase}):
+
+	`!p snip.rv = triple_quotes(snip)`${3:Test case docstring.}`!p snip.rv = triple_quotes(snip)`
+
+	def setUp(self):
+		${4:pass}
+
+	def tearDown(self):
+		${5:pass}
+
+	def test_${6:name}(self):
+		${7:pass}
+endsnippet
+
+# vim:ft=snippets:
