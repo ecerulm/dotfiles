@@ -59,10 +59,11 @@ set backspace=indent,eol,start
 set showcmd                    " display incomplete commands
 
 " system clipboard {{{2
-if has('unnamedplus') " http://ilessendata.blogspot.se/2012/05/vim-using-system-clipboard.html
-  set clipboard=unnamed,unnamedplus
-else
-  set clipboard=unnamed
+if has('autoselectplus') " http://ilessendata.blogspot.se/2012/05/vim-using-system-clipboard.html
+  "set clipboard=unnamed,unnamedplus
+  set clipboard=autoselectplus
+elseif has('autoselect')
+  set clipboard=autoselect
 endif
 "}}}
 syntax on                      " enable syntax highlighting
@@ -301,6 +302,7 @@ function! OpenTestAlternate()
   let new_file = AlternateForCurrentFile()
   exec ':e ' . new_file
 endfunction
+
 function! AlternateForCurrentFile()
   let current_file = expand("%")
   let new_file = current_file
