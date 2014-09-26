@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # dotfiles in the home dir
-ls -A | grep "^\." | grep -v "^\.git$" | xargs -n1 -I'{}' ln -Fvhfs ~/dotfiles/'{}' ~/'{}'
+ls -A | grep "^\." | grep -v "^\.git$" | grep -v "^\.tmux.conf." | xargs -n1 -I'{}' ln -Fvhfs ~/dotfiles/'{}' ~/'{}'
 
 # Fish config files
 mkdir -p ~/.config/fish/
@@ -15,3 +15,4 @@ ls bin | xargs -n1 -I'{}' ln -Fvhfs ~/dotfiles/bin/'{}' ~/bin/'{}'
 #create system specific symlinks
 ln -Fvhfs ~/dotfiles/.gitconfig_osx .gitconfig_platform_specific
 ln -Fvhfs ~/dotfiles/.gitconfig_osx ~/.gitconfig_platform_specific
+ln -Fvhfs ~/dotfiles/.tmux.conf.mac ~/.tmux.conf.extra
