@@ -41,4 +41,3 @@ source $ZSH/oh-my-zsh.sh
 . ~/.zsh/rc
 rvm default
 
-PATH=$PATH:$HOME/.rvm/bin # Add RVM to PATH for scripting
