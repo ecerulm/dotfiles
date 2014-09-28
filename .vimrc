@@ -35,6 +35,10 @@ set showtabline=2              " show always the editor tabs
 set winwidth=79
 set shell=bash
 set colorcolumn=+1 " highlight the column after the textwidth http://stackoverflow.com/questions/1919028/how-to-show-vertical-line-to-wrap-the-line-in-vim
+set modeline
+set modelines=5
+" set spell " could be annoying when editing code
+set spelllang=en_us
 "set listchars=tab:▸\ ,eol:$
 
 " Highlight unwanted spaces {{{2
