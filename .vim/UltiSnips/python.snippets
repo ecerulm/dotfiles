@@ -117,4 +117,31 @@ class Test${1:Class}(${2:unittest.TestCase}):
 		${7:pass}
 endsnippet
 
+snippet	alltests "alltests.py suite" b
+#!/usr/bin/env python
+# encoding: utf-8
+
+
+import unittest
+import sys
+sys.path.append('unittests')
+
+
+modules_to_test = (
+    'fooTest',
+    'barTest',
+    'bazTest',
+)
+
+
+def suite():
+    alltests = unittest.TestSuite()
+    for module in map(__import__, modules_to_test):
+        (unittest.findTestCases(module))
+    return alltests
+
+if __name__ == '__main__':
+    unittest.main(defaultTest='suite')
+endsnippet
+
 # vim:ft=snippets:
