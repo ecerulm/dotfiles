@@ -55,3 +55,6 @@
 [submodule ".vim/bundle/ultisnips.git"]
 	path = .vim/bundle/ultisnips.git
 	url = https://github.com/SirVer/ultisnips.git
+[submodule ".vim/bundle/python-mode.git"]
+	path = .vim/bundle/python-mode.git
+	url = git://github.com/klen/python-mode.git
