@@ -105,8 +105,6 @@ endsnippet
 snippet testcase "pyunit testcase" b
 class Test${1:Class}(${2:unittest.TestCase}):
 
-	`!p snip.rv = triple_quotes(snip)`${3:Test case docstring.}`!p snip.rv = triple_quotes(snip)`
-
 	def setUp(self):
 		${4:pass}
 
@@ -137,7 +135,7 @@ modules_to_test = (
 def suite():
     alltests = unittest.TestSuite()
     for module in map(__import__, modules_to_test):
-        (unittest.findTestCases(module))
+        alltests.addTests((unittest.findTestCases(module)))
     return alltests
 
 if __name__ == '__main__':
