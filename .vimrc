@@ -88,6 +88,12 @@ set wildmode=full
 let mapleader=","
 set pastetoggle=<f4>
 
+""""""""""""""""""""""""""""""""""""""""
+" Load per project .vimrc{{{1
+""""""""""""""""""""""""""""""""""""""""
+set exrc " enable per-directory .vimrc files
+set secure " disable unsafe commands in local .vimrc files
+
 
 """"""""""""""""""""""""""""""""""""""""
 " CUSTOM AUTOCMDS{{{1
