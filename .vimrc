@@ -208,8 +208,10 @@ nmap <D-]> >>
 " ctags mappings{{{2
 nnoremap <f5> :!ctags -R<CR>
 
-" ,p to select last pasted text
-nnoremap gp '[v']
+" gp to select last pasted text using the same visual mode
+" nnoremap gp '[v']
+nnoremap <expr> gp '`[' . strpart(getregtype(), 0, 1) . '`]'
+
 """"""""""""""""""""""""""""""""""""""""
 " MULTIPURPOSE TAB KEY{{{1
 " Indent if we're at the beginning of a line. Else, do completion
