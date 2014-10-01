@@ -16,6 +16,17 @@ for ${1:item} in ${2:iterable}:
 	${3:pass}
 endsnippet
 
+snippet class "add a class" b
+class ${1:MyClass}(${2:object}):
+
+    def __init__(self$4):
+		    ${5:pass}
+endsnippet
+
+snippet super "call superclass implementation" b
+super(${1:CurrentClass}, self).${2:__init__}${0}
+endsnippet
+
 ####################
 # If / Else / Elif #
 ####################
