@@ -5,8 +5,10 @@
 " To disable a plugin, add it's bundle name to the following list
 let g:pathogen_disabled = []
 " or alternatively rename the plugin dir from name to name~
-"call add(g:pathogen_disabled, 'rainbow_parentheses')
-"call add(g:pathogen_disabled, 'csscolor')
+" call add(g:pathogen_disabled, 'rainbow_parentheses')
+" call add(g:pathogen_disabled, 'csscolor')
+" call add(g:pathogen_disabled, 'python-mode.git') " MUST match plugin DIRECTORY
+" call add(g:pathogen_disabled, 'ropevim') " MUST match plugin DIRECTORY
 
 call pathogen#infect()
 "call pathogen#helptags() " enable this line to autoregenerate the help. To generate the helptags manually use :Helptags
