@@ -65,11 +65,11 @@ set backspace=indent,eol,start
 set showcmd                    " display incomplete commands
 
 " system clipboard {{{2
-if has('autoselectplus') " http://ilessendata.blogspot.se/2012/05/vim-using-system-clipboard.html
+if has('macunix')
+  set clipboard=unnamedplus,unnamed
+elseif has('autoselectplus') " http://ilessendata.blogspot.se/2012/05/vim-using-system-clipboard.html
   "set clipboard=unnamed,unnamedplus
-  set clipboard=autoselectplus
-elseif has('autoselect')
-  set clipboard=autoselect
+  set clipboard=autoselectplus,autoselect
 endif
 "}}}
 syntax on                      " enable syntax highlighting
