@@ -142,7 +142,7 @@ augroup vimrcEx " Put them in a group so we delete them easily
   "Unfold on open {{{2
   " Not clear what is the right autocmd event to use BufRead BufWinEnter
   " autocmd BufWinEnter * normal zR "It doesn work
-  autocmd BufWinEnter * silent! :%foldopen! "Complains about fold not found
+  " autocmd BufWinEnter * silent! :%foldopen! "Complains about fold not found
   " autocmd BufRead * silent! :%foldopen! "Complains about fold not found
   " autocmd BufReadPost * set foldlevel=99
 augroup END
@@ -355,7 +355,11 @@ cnoremap <C-p> <Down>
 
 " Folding {{{1
 set foldcolumn=3
+set foldlevelstart=0
 nnoremap <space> za
+
+" Refocus folds 
+nnoremap ,z zMzvzz
 
 " Text bubbling {{{1
 " Bubble single lines
