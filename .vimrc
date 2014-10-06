@@ -1,5 +1,5 @@
 " This is Ruben Laguna's .vimrc file
-" vim: ts=2 sts=2 sw=2 foldmethod=marker foldcolumn=3 expandtab
+" vim: ts=2 sts=2 sw=2 foldmethod=marker foldcolumn=3 expandtab :
 
 " Pathogen {{{1
 " To disable a plugin, add it's bundle name to the following list
