@@ -394,3 +394,7 @@ nmap <unique> <Leader>x <Plug>ToggleAutoCloseMappings
 let g:autoclose_on = 0
 " Finish line with semicolon ; {{{1
 imap <C-j> <End>;<cr>
+" Find Alternates {{{1
+" Uses the alternate.vim and open.vim plugins 
+" Finds the test alternates
+" map <C-^> :Open(alternate#FindAlternate())<cr>
