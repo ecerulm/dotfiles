@@ -208,7 +208,7 @@ nmap <D-[> <<
 nmap <D-]> >>
 
 " ctags mappings{{{2
-nnoremap <f5> :!ctags -R<CR>
+nnoremap <unique> <f5> :!ctags -R<CR>
 
 " gp to select last pasted text using the same visual mode
 " nnoremap gp '[v']
@@ -291,7 +291,7 @@ function! s:Timestr()
 endfunction
 
 "nnoremap <F5> i<C-R>=strftime(<SID>Timestr())<cr><esc>
-inoremap <F5> <C-R>=strftime(<SID>Timestr())<cr>
+" inoremap <unique> <F5> <C-R>=strftime(<SID>Timestr())<cr>
 iab <expr> dts strftime(<SID>Timestr())
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -333,7 +333,7 @@ endfunction
 :nohlsearch
 
 " Gundo {{{1
-nnoremap <F5> :GundoToggle<CR>
+nnoremap  <unique> <f6> :GundoToggle<CR>
 
 "OmniCompletion{{{1
 "<C-Space> is misinterpreted by the terminal as <C-@> :help CTRL-@
