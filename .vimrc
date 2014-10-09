@@ -352,10 +352,11 @@ imap <C-j> <End>;<cr>
 " Pytest {{{1
 nnoremap <unique><silent><Leader>f <Esc>:Pytest file<cr>
 nnoremap <unique><silent><Leader>p <Esc>:Pytest project verbose<cr>
+
 " Pymode {{{1
+let g:Pymode_lint_on_fly = 1
+let g:pymode_lint = 1
+let g:pymode_lint_cwindow = 0
 let g:pymode_lint_message = 1
 let g:pymode_lint_on_write = 1
-let g:pymode_lint = 1
 let g:pymode_lint_unmodified = 1
-let g:pymode_lint_message = 1
-let g:Pymode_lint_on_fly = 1
