@@ -215,21 +215,6 @@ nnoremap <unique> <f5> :!ctags -R<CR>
 nnoremap <expr> gp '`[' . strpart(getregtype(), 0, 1) . '`]'
 
 """"""""""""""""""""""""""""""""""""""""
-" MULTIPURPOSE TAB KEY{{{1
-" Indent if we're at the beginning of a line. Else, do completion
-""""""""""""""""""""""""""""""""""""""""
-function! InsertTabWrapper()
-  let col = col('.') - 1
-  if !col || getline('.')[col - 1] !~ '\k'
-    return "\<tab>"
-  else
-    return "\<c-p>"
-  endif
-endfunction
-inoremap <tab> <c-r>=InsertTabWrapper()<cr>
-inoremap <s-tab> <c-n>
-
-""""""""""""""""""""""""""""""""""""""""
 " ARROW KEYS ARE UNACCEPTABLE{{{1
 """"""""""""""""""""""""""""""""""""""""
 map <Left> <Nop>
