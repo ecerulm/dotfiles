@@ -1,6 +1,151 @@
 " This is Ruben Laguna's .vimrc file
 " vim: ts=2 sts=2 sw=2 foldmethod=marker foldcolumn=3 expandtab :
 
+" vim :options {{{
+
+"  1 important {{{
+set nocompatible               " be iMproved
+set pastetoggle=<f4>
+"  1 important }}}
+"  2 moving around, searching and patterns {{{
+set incsearch
+set ignorecase " make searches case-sensitive only if they contain upper case characters
+set smartcase
+"  2 moving around, searching and patterns }}}
+"  3 tags {{{
+"  3 tags }}}
+"  4 displaying text {{{
+set cmdheight=2
+set numberwidth=5
+"set listchars=tab:▸\ ,eol:$
+" No restore screen on vim exit {{{
+set t_ti= t_te=                " :help norestorescreen See http://www.shallowsky.com/linux/noaltscreen.html
+"  No retsore screen on vim exit }}}
+" Prevent vim from clobbering the scrollback buffer. {{{
+set scrolloff=3                " keep more context when scrolling off the end of a buffer
+" Prevent vim from clobbering the scrollback buffer. }}}
+"  4 displaying text }}}
+"  5 syntax, highlighting and spelling {{{
+set hlsearch 
+set cursorline                 " highlight current line
+set colorcolumn=+1 " highlight the column after the textwidth http://stackoverflow.com/questions/1919028/how-to-show-vertical-line-to-wrap-the-line-in-vim
+" set spell " could be annoying when editing code
+set spelllang=en_us
+syntax on                      " enable syntax highlighting
+
+" Enable filetype detection {{{
+" Use the default filetype settings, so that mail gets 'tw' set to 72
+" 'cindent'is on in C files, etc. 
+" Also load indent files, to automatically do language-dependent indenting
+" filetype plugin indent on
+filetype on
+filetype indent on
+filetype plugin on
+" }}} Enable filetype detection
+" COLOR{{{
+if &term == "xterm-256color"  
+  :set t_Co=256 " 256 Colors
+  :colorscheme molokai
+endif
+  ":set background=dark
+  ":color grb256
+  " :colorscheme blackboard
+" }}} COLOR
+" }}} 5 syntax, highlighting and spelling
+"  6 multiple windows {{{
+set hidden                     " allow unsaved background buffers
+set winwidth=79
+" switching between buffers {{{
+" for quickfix commands, and I suspect that Ctrl-P is also affected
+" useopen, jump to first open window that already has that buffer
+set switchbuf=useopen 
+" switching between buffers }}}
+" STATUSLINE{{{
+set laststatus=2 " status always visible
+set statusline=%<%f\ (%{&ft})\ %-4(%m%)%=%-19(%3l,%02c%03V%)%{fugitive#statusline()}	" filename filetype git
+" :set statusline=%t[%{strlen(&fenc)?&fenc:'none'},%{&ff}]%h%m%r%y%=%o,%c,%l/%L\ %P
+" }}} STATUSLINE
+" }}} 6 multiple windows
+"  7 multiple tab pages {{{
+set showtabline=2              " show always the editor tabs
+"  }}}
+"  8 terminal {{{
+"  }}}
+"  9 using the mouse {{{
+"  }}}
+" 10 GUI {{{
+"  }}}
+" 11 printing {{{
+"  }}}
+" 12 messages and info {{{
+set showcmd                    " display incomplete commands
+"  }}}
+" 13 selecting text {{{
+" system clipboard {{{
+if has('macunix')
+  set clipboard=unnamedplus,unnamed
+elseif has('autoselectplus') " http://ilessendata.blogspot.se/2012/05/vim-using-system-clipboard.html
+  "set clipboard=unnamed,unnamedplus
+  set clipboard=autoselectplus,autoselect
+endif
+" }}} system clipboard
+" }}} 13 selecting text
+" 14 editing text {{{
+set showmatch                  " show the matching paren or bracket
+set backspace=indent,eol,start " :help 'backspace' allow backspacing over autoindent, over line breaks (join lines) and over the start of insert
+
+" }}} 15 editing text
+" 15 tabs and indenting {{{
+set expandtab
+set tabstop=2
+set shiftwidth=2
+set softtabstop=2
+set autoindent
+" }}} 15 tabs and indenting
+" 16 folding {{{
+set foldcolumn=3
+set foldlevelstart=1
+"  }}}
+" 17 diff mode {{{
+"  }}}
+" 18 mapping {{{
+let mapleader=","
+" }}} 18 mapping
+" 19 reading and writing files {{{
+set modeline
+set modelines=5
+" store temporary files in central spot
+set backup
+set backupdir=~/.vim-tmp,~/.tmp,~/tmp,/var/tmp,/tmp,.
+set directory=~/.vim-tmp,~/.tmp,~/tmp,/var/tmp,/tmp,.
+" }}} 19 reading and writing files 
+" 20 the swap file {{{
+" }}}
+" 21 command line editing {{{
+set history=10000
+" use emacs-style tab completion when selecting files, etc
+" set wildmode=list:longest
+" make tab completion for files/buffers act like zsh
+set wildmenu
+set wildmode=full
+" }}} 21 command line editing
+" 22 executing external commands {{{
+set shell=bash
+"  }}}
+" 23 running make and jumping to errors {{{
+"  }}}
+" 24 language specific {{{
+"  }}}
+" 25 multi-byte characters {{{
+"  }}}
+" 26 various {{{
+" Load per project .vimrc
+set exrc " enable per-directory .vimrc files
+set secure " disable unsafe commands in local .vimrc files
+" }}} 26 various
+
+" }}} vim :options
+
 " Pathogen {{{1
 " To disable a plugin, add it's bundle name to the following list
 let g:pathogen_disabled = []
@@ -13,91 +158,7 @@ let g:pathogen_disabled = []
 call pathogen#infect()
 "call pathogen#helptags() " enable this line to autoregenerate the help. To generate the helptags manually use :Helptags
 
-""""""""""""""""""""""""""""""""""""""""
-" BASIC EDITING CONFIGURATION{{{1
-"""""""""""""""""""""""""""""""""""""""" 
-set nocompatible               " be iMproved
-set hidden                     " allow unsaved background buffers
-set history=10000
-set expandtab
-set tabstop=2
-set shiftwidth=2
-set softtabstop=2
-set autoindent
-set laststatus=2
-set showmatch                  " show the matching paren or bracket
-set hlsearch 
-set incsearch
-set ignorecase smartcase       " make searches case-sensitive only if they contain upper case characters
-set cursorline                 " highlight current line
-set cmdheight=2
-set switchbuf=useopen
-set numberwidth=5
-set showtabline=2              " show always the editor tabs
-set winwidth=79
-set shell=bash
-set colorcolumn=+1 " highlight the column after the textwidth http://stackoverflow.com/questions/1919028/how-to-show-vertical-line-to-wrap-the-line-in-vim
-set modeline
-set modelines=5
-" set spell " could be annoying when editing code
-set spelllang=en_us
-"set listchars=tab:▸\ ,eol:$
-
-" Highlight unwanted spaces {{{2
-" http://vim.wikia.com/wiki/Highlight_unwanted_spaces
-" http://www.bestofvim.com/tip/trailing-whitespace/
-" highlight ExtraWhitespace ctermbg=darkgreen guibg=darkgreen
-" autocmd ColorScheme * highlight ExtraWhitespace ctermbg=darkgreen guibg=darkgreen
-" match ExtraWhitespace '\s\+$'
-
-
-" Prevent vim from clobbering the scrollback buffer. {{{2
-" See http://www.shallowsky.com/linux/noaltscreen.html
-set t_ti= t_te=                "
-set scrolloff=3                " keep more context when scrolling off the end of a buffer
-" store temporary files in central spot {{{2
-set backup
-set backupdir=~/.vim-tmp,~/.tmp,~/tmp,/var/tmp,/tmp,.
-set directory=~/.vim-tmp,~/.tmp,~/tmp,/var/tmp,/tmp,.
-"}}}
-" backspace in insert mode can delete newlines, etc
-set backspace=indent,eol,start
-set showcmd                    " display incomplete commands
-
-" system clipboard {{{2
-if has('macunix')
-  set clipboard=unnamedplus,unnamed
-elseif has('autoselectplus') " http://ilessendata.blogspot.se/2012/05/vim-using-system-clipboard.html
-  "set clipboard=unnamed,unnamedplus
-  set clipboard=autoselectplus,autoselect
-endif
-"}}}
-syntax on                      " enable syntax highlighting
-" Enable filetype detection {{{1
-" Use the default filetype settings, so that mail gets 'tw' set to 72
-" 'cindent'is on in C files, etc. 
-" Also load indent files, to automatically do language-dependent indenting
-" filetype plugin indent on
-filetype on
-filetype indent on
-filetype plugin on
-" use emacs-style tab completion when selecting files, etc
-" set wildmode=list:longest
-" make tab completion for files/buffers act like zsh
-set wildmenu
-set wildmode=full
-
-let mapleader=","
-set pastetoggle=<f4>
-
-""""""""""""""""""""""""""""""""""""""""
-" Load per project .vimrc{{{1
-""""""""""""""""""""""""""""""""""""""""
-set exrc " enable per-directory .vimrc files
-set secure " disable unsafe commands in local .vimrc files
-
-
-""""""""""""""""""""""""""""""""""""""""
+" Pathogen }}}1
 " CUSTOM AUTOCMDS{{{1
 """"""""""""""""""""""""""""""""""""""""
 
@@ -128,15 +189,15 @@ augroup vimrcEx " Put them in a group so we delete them easily
   "ctags {{{2
   " autocmd BufWritePost * call system("ctags -R")
 
-  " New file templates
+  " New file templates {{{2
   :au BufNewFile Makefile r ~/.vim/skeleton.Makefile
 
   "Rainbow parentheses {{{2
-   au FileType c,cpp,objc,objcpp,ruby call rainbow#load()
+   au FileType c,cpp,objc,objcpp,ruby,python call rainbow#load()
 
-  "fugitive {{{2
+  "fugitive autoclose //1 //2 //3{{{2
   autocmd BufReadPost fugitive://* set bufhidden=delete
-  "gitcommit {{{2
+  " cursor in right position in git COMMIT_EDITMSG{{{2
   autocmd FileType gitcommit au! BufEnter COMMIT_EDITMSG call setpos('.', [0,1,1,0])
 
   "Unfold on open {{{2
@@ -150,27 +211,8 @@ augroup END
 
 """"""""""""""""""""""""""""""""""""""""
 
-" COLOR{{{1
-""""""""""""""""""""""""""""""""""""""""
-if &term == "xterm-256color"  
-  :set t_Co=256 " 256 Colors
-  :colorscheme molokai
-endif
-  ":set background=dark
-  ":color grb256
-  " :colorscheme blackboard
-
-
-""""""""""""""""""""""""""""""""""""""""
-" STATUSLINE{{{1
-""""""""""""""""""""""""""""""""""""""""
-:set statusline=%<%f\ (%{&ft})\ %-4(%m%)%=%-19(%3l,%02c%03V%)%{fugitive#statusline()}	" filename filetype git
-" :set statusline=%t[%{strlen(&fenc)?&fenc:'none'},%{&ff}]%h%m%r%y%=%o,%c,%l/%L\ %P
-
-
-""""""""""""""""""""""""""""""""""""""""
+" }}}1 CUSTOM AUTOCOMMANDS
 " MISC KEY MAPS{{{1
-""""""""""""""""""""""""""""""""""""""""
 " Copy to system clipboard 
 map <leader>y "*y 
 
@@ -180,27 +222,29 @@ nnoremap <c-j> <c-w>j
 nnoremap <c-k> <c-w>k
 nnoremap <c-l> <c-w>l
 " Insert a hashrocket with <c-l>{{{2
-imap <c-l> <space>=><space>
+inoremap <c-l> <space>=><space>
 " Can't be bothered to understand ESC vs <c-c> in insert mode{{{2
-imap <c-c> <esc>
+" the double <esc> avoid waiting timeoutlen ms (in case there is a Esc
+" mapping)
+imap <c-c> <esc><esc>
 " Clear the search buffer when hitting return{{{2
 function! MapCR()
   nnoremap <cr> :nohlsearch<cr>
 endfunction
+call MapCR()
 " Delete / remove trailing whitespace{{{2
 function! TrimWhiteSpace()
     %s/\s\+$//e
 endfunction
 nnoremap <silent> <Leader>rts :call TrimWhiteSpace()<CR>
 
-call MapCR()
-nnoremap <leader><leader> <c-^> " Go back to buffer from vim help 
 " Indent {{{2
 " indent in visual mode{{{3
 vmap > >gv
 vmap < <gv
 vmap <Tab> >gv
 vmap <S-Tab> <gv
+" <D-...> are Macintosh Command Key mappings see :help keycodes
 vmap <D-[> <gv
 vmap <D-]> >gv
 " indent in normal mode {{{3
@@ -210,52 +254,27 @@ nmap <D-]> >>
 " ctags mappings{{{2
 nnoremap <unique> <f5> :!ctags -R<CR>
 
-" gp to select last pasted text using the same visual mode
+" gp to select last pasted text using the same visual mode {{{2
+"Visually select the text that was last edited/pasted
 " nnoremap gp '[v']
+" nmap gV `[v`]
 nnoremap <expr> gp '`[' . strpart(getregtype(), 0, 1) . '`]'
 
 """"""""""""""""""""""""""""""""""""""""
-" ARROW KEYS ARE UNACCEPTABLE{{{1
+" disable arrow keys use hjkl {{{2
 """"""""""""""""""""""""""""""""""""""""
 map <Left> <Nop>
 map <Right> <Nop>
 map <Up> <Nop>
 map <Down> <Nop>
-
-
-""""""""""""""""""""""""""""""""""""""""
-" OPEN FILES IN DIRECTORY OF CURRENT FILE{{{1
+" }}}2 disable arrow keys use hjkl
+" open files in directory of current file{{{2
 """"""""""""""""""""""""""""""""""""""""
 cnoremap %% <C-R>=expand('%:h').'/'<cr>
 map <leader>e :edit %%
 map <leader>v :view %%
-
-
-""""""""""""""""""""""""""""""""""""""""
-" Md5 COMMAND{{{1
-" Show the MD5 of the current buffer
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-command! -range Md5 :echo system('echo '.shellescape(join(getline(<line1>, <line2>), '\n')) . '| md5')
-
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" OpenChangedFiles COMMAND{{{1
-" Open a split for each dirty file in git
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-function! OpenChangedFiles()
-  only " Close all windows, unless they're modified
-  let status = system('git status -s | grep "^ \?\(M\|A\|UU\)" | sed "s/^.\{3\}//"')
-  let filenames = split(status, "\n")
-  exec "edit " . filenames[0]
-  for filename in filenames[1:]
-    exec "sp " . filename
-  endfor
-endfunction
-command! OpenChangedFiles :call OpenChangedFiles()
-
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" InsertTime COMMAND and mappings <F5>{{{1
-" Insert the current time
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+" }}}2 open files in directory of current file
+" InsertTime COMMAND and mappings <F5>{{{2
 command! InsertTime :normal a<c-r>=strftime('%F %H:%M:%S.0 %z')<cr>
 function! s:Timestr()
   return '%F %T %Z'
@@ -264,26 +283,21 @@ endfunction
 "nnoremap <F5> i<C-R>=strftime(<SID>Timestr())<cr><esc>
 " inoremap <unique> <F5> <C-R>=strftime(<SID>Timestr())<cr>
 iab <expr> dts strftime(<SID>Timestr())
-
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" C-p and C-n behave exactly as up and down arrows {{{1
+" }}}2 InsertTime COMMAND and mappings <F5>
+" C-p and C-n for command history{{{2
+" C-p and C-n behave exactly as up and down arrows
 " in the command history. Which will filter
-"
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 cnoremap <C-n> <Up>
 cnoremap <C-p> <Down>
-
-":source $VIMRUNTIME/macros/matchit.vim
-
-" Folding {{{1
-set foldcolumn=3
-set foldlevelstart=0
+" }}}2  C-p and C-n for command history
+" Folding {{{2
+" toggle open/close fold with <space>
 nnoremap <space> za
 
 " Refocus folds 
 nnoremap ,z zMzvzz
-
-" Text bubbling {{{1
+" }}}2 Folding
+" Text bubbling <C-Up> <C-Down> {{{2
 " Bubble single lines
 nmap <C-Up> [e
 nmap <C-Down> ]e
@@ -291,39 +305,39 @@ nmap <C-Down> ]e
 " Bubble multiple lines
 vmap <C-Up> [egv
 vmap <C-Down> ]egv
+" }}}2 Text bubbling
+" Gundo {{{2
+nnoremap  <unique> <f6> :GundoToggle<CR>
 
-"Visually select the text that was last edited/pasted
-nmap gV `[v`]
+"OmniCompletion{{{2
+"<C-Space> is misinterpreted by the terminal as <C-@> :help CTRL-@
+"inoremap <C-Space> <C-x><C-o>
+"inoremap <C-@> <C-Space>
+inoremap <leader>, <C-X><C-O>
+" <C-j> Finish line with semicolon ; {{{2
+imap <C-j> <End>;<cr>
+" Find Alternates <Leader>a {{{2
+" Uses the alternate.vim and open.vim plugins 
+" Finds the test alternates
+" map <C-^> :Open(alternate#FindAlternate())<cr>
+map <Leader>a :Open(alternate#FindAlternate())<cr>
+" Pytest <Leader>f and <Leader>p {{{2
+nnoremap <unique><silent><Leader>f <Esc>:Pytest file<cr>
+nnoremap <unique><silent><Leader>p <Esc>:Pytest project verbose<cr>
 
+" Autoclose{{{2
+nmap <unique> <Leader>x <Plug>ToggleAutoCloseMappings
+let g:autoclose_on = 0 " disabled by default 
+" }}}1 MISC KEY MAPS
 " Tabular.vim {{{1
+" help tabular
 function! CustomTabularPatterns() 
   if exists('g:tabular_loaded')
     AddTabularPattern defines /\(\/\/.*\)\@<! \+/l0
   endif
 endfunction
 :nohlsearch
-
-" Gundo {{{1
-nnoremap  <unique> <f6> :GundoToggle<CR>
-
-"OmniCompletion{{{1
-"<C-Space> is misinterpreted by the terminal as <C-@> :help CTRL-@
-"inoremap <C-Space> <C-x><C-o>
-"inoremap <C-@> <C-Space>
-inoremap <leader>, <C-X><C-O>
-" Autoclose{{{1
-nmap <unique> <Leader>x <Plug>ToggleAutoCloseMappings
-let g:autoclose_on = 0
-" Finish line with semicolon ; {{{1
-imap <C-j> <End>;<cr>
-" Find Alternates {{{1
-" Uses the alternate.vim and open.vim plugins 
-" Finds the test alternates
-" map <C-^> :Open(alternate#FindAlternate())<cr>
-" Pytest {{{1
-nnoremap <unique><silent><Leader>f <Esc>:Pytest file<cr>
-nnoremap <unique><silent><Leader>p <Esc>:Pytest project verbose<cr>
-
+" }}}1 Tabular.vim
 " Pymode {{{1
 let g:Pymode_lint_on_fly = 1
 let g:pymode_lint = 1
@@ -331,3 +345,10 @@ let g:pymode_lint_cwindow = 0
 let g:pymode_lint_message = 1
 let g:pymode_lint_on_write = 1
 let g:pymode_lint_unmodified = 1
+" }}}1 Pymode
+" Learn vimscript the hard way {{{1
+" this mapping is useful for typing constants
+" just type lowercase and at the end press <c-u>
+inoremap <c-u> <Esc>viwUea
+nnoremap <c-u> gUiw
+" }}}1 Learn vimscript the hard way
