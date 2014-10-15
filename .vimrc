@@ -410,6 +410,11 @@ let g:pymode_lint_cwindow = 0
 let g:pymode_lint_message = 1
 let g:pymode_lint_on_write = 1
 let g:pymode_lint_unmodified = 1
+let g:pymode_rope_autoimport = 1
+let g:pymode_rope_autoimport_modules = ['os', 'shutil', 'datetime']
+let g:pymode_rope_complete_on_dot = 0
+let g:pymode_rope_completion = 1
+let g:pymode_rope_completion_bind = '<C-Space>'
 " }}}1 Pymode
 " Learn vimscript the hard way {{{1
 " this mapping is useful for typing constants
