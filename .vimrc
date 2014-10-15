@@ -1,5 +1,83 @@
 " This is Ruben Laguna's .vimrc file
-" vim: ts=2 sts=2 sw=2 foldmethod=marker foldcolumn=3 expandtab :
+" vim: ts=2 sts=2 sw=2 foldmethod=marker foldlevel=0 foldcolumn=3 expandtab :
+
+" Vundle {{{
+set nocompatible              " be iMproved, required
+filetype off                  " required
+
+" set the runtime path to include Vundle and initialize
+set rtp+=~/.vim/bundle/Vundle.vim
+call vundle#begin()
+" alternatively, pass a path where Vundle should install plugins
+"call vundle#begin('~/some/path/here')
+
+" let Vundle manage Vundle, required
+Plugin 'gmarik/Vundle.vim'
+
+" My Plugins {{{
+" Plugin 'compactcode/alternate.vim'
+" Plugin 'compactcode/open.vim'
+" Plugin 'scrooloose/nerdtree'
+" Plugin 'tpope/vim-obsession' " Autosave Session.vim
+" Plugin 'tpope/vim-projectionist' " alternate files, 
+" Plugin 'tpope/vim-repeat' " Make command repeatble
+" Plugin 'tpope/vim-sleuth'      " No need to set indenting, ts, etc per ftype
+Plugin 'SirVer/ultisnips'  " snippet manager like SnipMate
+Plugin 'alfredodeza/pytest.vim'
+Plugin 'godlygeek/tabular' " align text 
+Plugin 'kana/vim-textobj-fold'
+Plugin 'kana/vim-textobj-user' " helper to create your own textobj
+Plugin 'kien/ctrlp.vim'
+Plugin 'klen/python-mode'
+Plugin 'mileszs/ack.vim'
+Plugin 'oblitum/rainbow'   " rainbow parens
+Plugin 'sjl/gundo.vim'
+Plugin 'tommcdo/vim-exchange' " exchange regions of txt
+Plugin 'tpope/vim-abolish'
+Plugin 'tpope/vim-commentary'  " comment code
+Plugin 'tpope/vim-fugitive'    " git interface
+Plugin 'tpope/vim-git'         " syntax for gitcommit, gitconfig, etc
+Plugin 'tpope/vim-speeddating' " Increment dates with <C-a> <C-x>
+Plugin 'tpope/vim-surround'
+Plugin 'tpope/vim-unimpaired'
+Plugin 'vim-ruby/vim-ruby'
+Plugin 'vim-scripts/argtextobj.vim'
+" }}} MyPlugins
+
+" Plugin Examples {{{
+" The following are examples of different formats supported.
+" Keep Plugin commands between vundle#begin/end.
+" plugin on GitHub repo
+" Plugin 'tpope/vim-fugitive'
+" plugin from http://vim-scripts.org/vim/scripts.html
+" Plugin 'L9'
+" Git plugin not hosted on GitHub
+" Plugin 'git://git.wincent.com/command-t.git'
+" git repos on your local machine (i.e. when working on your own plugin)
+" Plugin 'file:///home/gmarik/path/to/plugin'
+" The sparkup vim script is in a subdirectory of this repo called vim.
+" Pass the path to set the runtimepath properly.
+" Plugin 'rstacruz/sparkup', {'rtp': 'vim/'}
+" Avoid a name conflict with L9
+" Plugin 'user/L9', {'name': 'newL9'}
+" }}} Plugin Examples
+
+" All of your Plugins must be added before the following line
+call vundle#end()            " required
+filetype plugin indent on    " required
+" To ignore plugin indent changes, instead use:
+"filetype plugin on
+"
+" Brief help {{{
+" :PluginList       - lists configured plugins
+" :PluginInstall    - installs plugins; append `!` to update or just :PluginUpdate
+" :PluginSearch foo - searches for foo; append `!` to refresh local cache
+" :PluginClean      - confirms removal of unused plugins; append `!` to auto-approve removal
+"
+" see :h vundle for more details or wiki for FAQ
+" Put your non-Plugin stuff after this line
+" }}} Brief help
+" }}} Vundle
 
 " vim :options {{{
 
@@ -146,19 +224,6 @@ set secure " disable unsafe commands in local .vimrc files
 
 " }}} vim :options
 
-" Pathogen {{{1
-" To disable a plugin, add it's bundle name to the following list
-let g:pathogen_disabled = []
-" or alternatively rename the plugin dir from name to name~
-" call add(g:pathogen_disabled, 'rainbow_parentheses')
-" call add(g:pathogen_disabled, 'csscolor')
-" call add(g:pathogen_disabled, 'python-mode.git') " MUST match plugin DIRECTORY
-" call add(g:pathogen_disabled, 'ropevim') " MUST match plugin DIRECTORY
-
-call pathogen#infect()
-"call pathogen#helptags() " enable this line to autoregenerate the help. To generate the helptags manually use :Helptags
-
-" Pathogen }}}1
 " CUSTOM AUTOCMDS{{{1
 """"""""""""""""""""""""""""""""""""""""
 

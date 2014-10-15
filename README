@@ -19,6 +19,10 @@ git merge origin/master
 #git commit # not sure about this yet but I guess we need to commit the submodule changes
 #git push
 
+To uninstall a vim plugin (remove submodule)
+============================================
+git submodule deinit .vim/bundle/<theplugin> # no traling /
+git submodule rm  .vim/bundle/theplugin
 
 on the other dotfiles repositories 
 =================
