@@ -232,6 +232,7 @@ augroup vimrcEx " Put them in a group so we delete them easily
   autocmd!
 
   " Load tabular.vim patterns {{{2
+  " afer all vim startup
   autocmd VimEnter * call CustomTabularPatterns()
 
   " Use textwidth 72 for all text files {{{2
@@ -393,6 +394,8 @@ nnoremap <unique><silent><Leader>p <Esc>:Pytest project verbose<cr>
 " Autoclose{{{2
 nmap <unique> <Leader>x <Plug>ToggleAutoCloseMappings
 let g:autoclose_on = 0 " disabled by default 
+" Autocenter after search {{{2
+nnoremap n nzz
 " }}}1 MISC KEY MAPS
 " Tabular.vim {{{1
 " help tabular
