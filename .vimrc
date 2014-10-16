@@ -430,13 +430,16 @@ let g:cycle_no_mappings = 1
 nmap  -     <Plug>CycleNext
 
 " }}} vim-cycle plugin configuration
-" Easy Align pluign configuration {{{
+" Easy Align plugin configuration {{{
     " Start interactive EasyAlign in visual mode (e.g. vip<Enter>)
     vmap <Enter> <Plug>(EasyAlign)
 
     " Start interactive EasyAlign for a motion/text object (e.g. <Leader>aip)
     " nmap <Leader>a <Plug>(EasyAlign)
 " }}} Easy Align pluign configuration
+" vim airline configuration {{{
+let g:airline_powerline_fonts = 1
+" }}} vim airline configuration
 " Configuration to run after all plugins are loaded {{{ 
 function! ConfigAfterPluginLoaded()
   " vim-cycle groups {{{
