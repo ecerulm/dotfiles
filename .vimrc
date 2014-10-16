@@ -52,6 +52,8 @@ Plugin 'camelcasemotion'        " w stops at _ and CamelCase
 Plugin 'zef/vim-cycle' 
 
 Plugin 'junegunn/vim-easy-align'  " :h easy-align
+Plugin 'bling/vim-airline'
+Plugin 'airblade/vim-gitgutter'
 " }}} MyPlugins
 
 " Plugin Examples {{{
