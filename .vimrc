@@ -44,6 +44,7 @@ Plugin 'tpope/vim-unimpaired'
 Plugin 'vim-ruby/vim-ruby'
 Plugin 'argtextobj.vim'
 Plugin 'camelcasemotion'
+Plugin 'zef/vim-cycle'
 " }}} MyPlugins
 
 " Plugin Examples {{{
@@ -434,3 +435,24 @@ let g:pymode_rope_completion_bind = '<C-Space>'
 inoremap <c-u> <Esc>viwUea
 nnoremap <c-u> gUiw
 " }}}1 Learn vimscript the hard way
+" vim-cycle plugin configuration {{{
+let g:cycle_no_mappings = 1
+nmap  -     <Plug>CycleNext
+
+" }}} vim-cycle plugin configuration
+" Configuration to run after all plugins are loaded {{{ 
+function! ConfigAfterPluginLoaded()
+  " vim-cycle groups {{{
+  call AddCycleGroup('python', ['True', 'False'])
+  call AddCycleGroup('python', ['if', 'while'])
+  call AddCycleGroup('python', ['==', '!=', '<=', '>='])
+  call AddCycleGroup('python', ['assertEqual', 'assertNotEqual'])
+  call AddCycleGroup('python', ['assertTrue', 'assertFalse'])
+  call AddCycleGroup('python', ['assertIs', 'assertIsNot'])
+  call AddCycleGroup('python', ['assertIsNone', 'assertIsNotNone'])
+  call AddCycleGroup('python', ['assertIn', 'assertNotIn'])
+  call AddCycleGroup('python', ['assertIsInstance', 'assertNotIsInstance'])
+  " }}} vim-cycle groups
+endfunction
+au VimEnter * call ConfigAfterPluginLoaded()
+" }}} Configuration to run after all plugins are loaded
