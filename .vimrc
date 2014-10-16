@@ -23,6 +23,7 @@ Plugin 'gmarik/Vundle.vim'
 " Plugin 'tpope/vim-repeat' " Make command repeatble
 " Plugin 'tpope/vim-sleuth'      " No need to set indenting, ts, etc per ftype
 Plugin 'SirVer/ultisnips'  " snippet manager like SnipMate
+" Plugin 'Shougo/unite.vim'
 Plugin 'alfredodeza/pytest.vim'
 Plugin 'godlygeek/tabular' " align text 
 Plugin 'kana/vim-textobj-fold'
@@ -41,7 +42,8 @@ Plugin 'tpope/vim-speeddating' " Increment dates with <C-a> <C-x>
 Plugin 'tpope/vim-surround'
 Plugin 'tpope/vim-unimpaired'
 Plugin 'vim-ruby/vim-ruby'
-Plugin 'vim-scripts/argtextobj.vim'
+Plugin 'argtextobj.vim'
+Plugin 'camelcasemotion'
 " }}} MyPlugins
 
 " Plugin Examples {{{
@@ -396,6 +398,13 @@ nmap <unique> <Leader>x <Plug>ToggleAutoCloseMappings
 let g:autoclose_on = 0 " disabled by default 
 " Autocenter after search {{{2
 nnoremap n nzz
+" CamelCaseMotion {{{2
+map <silent> w <Plug>CamelCaseMotion_w
+map <silent> b <Plug>CamelCaseMotion_b
+map <silent> e <Plug>CamelCaseMotion_e
+sunmap w
+sunmap b
+sunmap e
 " }}}1 MISC KEY MAPS
 " Tabular.vim {{{1
 " help tabular
