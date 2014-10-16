@@ -22,6 +22,7 @@ Plugin 'gmarik/Vundle.vim'
 " Plugin 'tpope/vim-projectionist' " alternate files, 
 " Plugin 'tpope/vim-repeat' " Make command repeatble
 " Plugin 'tpope/vim-sleuth'      " No need to set indenting, ts, etc per ftype
+Plugin 'tpope/vim-sensible' 
 Plugin 'SirVer/ultisnips'  " snippet manager like SnipMate
 " Plugin 'Shougo/unite.vim'
 Plugin 'alfredodeza/pytest.vim'
@@ -44,7 +45,11 @@ Plugin 'tpope/vim-unimpaired'
 Plugin 'vim-ruby/vim-ruby'
 Plugin 'argtextobj.vim'
 Plugin 'camelcasemotion'
-Plugin 'zef/vim-cycle'
+
+" toggle.vim / cycle.vim / switch.vim
+" I decided cycle because switch is harder to configure although it's not
+" limited to single word 
+Plugin 'zef/vim-cycle' 
 " }}} MyPlugins
 
 " Plugin Examples {{{
@@ -89,7 +94,6 @@ set nocompatible               " be iMproved
 set pastetoggle=<f4>
 "  1 important }}}
 "  2 moving around, searching and patterns {{{
-set incsearch
 set ignorecase " make searches case-sensitive only if they contain upper case characters
 set smartcase
 "  2 moving around, searching and patterns }}}
@@ -112,7 +116,6 @@ set cursorline                 " highlight current line
 set colorcolumn=+1 " highlight the column after the textwidth http://stackoverflow.com/questions/1919028/how-to-show-vertical-line-to-wrap-the-line-in-vim
 " set spell " could be annoying when editing code
 set spelllang=en_us
-syntax on                      " enable syntax highlighting
 
 " Enable filetype detection {{{
 " Use the default filetype settings, so that mail gets 'tw' set to 72
@@ -142,7 +145,6 @@ set winwidth=79
 set switchbuf=useopen 
 " switching between buffers }}}
 " STATUSLINE{{{
-set laststatus=2 " status always visible
 set statusline=%<%f\ (%{&ft})\ %-4(%m%)%=%-19(%3l,%02c%03V%)%{fugitive#statusline()}	" filename filetype git
 " :set statusline=%t[%{strlen(&fenc)?&fenc:'none'},%{&ff}]%h%m%r%y%=%o,%c,%l/%L\ %P
 " }}} STATUSLINE
@@ -159,7 +161,6 @@ set showtabline=2              " show always the editor tabs
 " 11 printing {{{
 "  }}}
 " 12 messages and info {{{
-set showcmd                    " display incomplete commands
 "  }}}
 " 13 selecting text {{{
 " system clipboard {{{
@@ -173,7 +174,6 @@ endif
 " }}} 13 selecting text
 " 14 editing text {{{
 set showmatch                  " show the matching paren or bracket
-set backspace=indent,eol,start " :help 'backspace' allow backspacing over autoindent, over line breaks (join lines) and over the start of insert
 
 " }}} 15 editing text
 " 15 tabs and indenting {{{
@@ -204,14 +204,13 @@ set directory=~/.vim-tmp,~/.tmp,~/tmp,/var/tmp,/tmp,.
 " }}}
 " 21 command line editing {{{
 set history=10000
+
 " use emacs-style tab completion when selecting files, etc
 " set wildmode=list:longest
 " make tab completion for files/buffers act like zsh
-set wildmenu
 set wildmode=full
 " }}} 21 command line editing
 " 22 executing external commands {{{
-set shell=bash
 "  }}}
 " 23 running make and jumping to errors {{{
 "  }}}
@@ -398,7 +397,7 @@ nnoremap <unique><silent><Leader>p <Esc>:Pytest project verbose<cr>
 nmap <unique> <Leader>x <Plug>ToggleAutoCloseMappings
 let g:autoclose_on = 0 " disabled by default 
 " Autocenter after search {{{2
-nnoremap n nzz
+nnoremap n nzMzvzz
 " CamelCaseMotion {{{2
 map <silent> w <Plug>CamelCaseMotion_w
 map <silent> b <Plug>CamelCaseMotion_b
@@ -433,7 +432,7 @@ let g:pymode_rope_completion_bind = '<C-Space>'
 " this mapping is useful for typing constants
 " just type lowercase and at the end press <c-u>
 inoremap <c-u> <Esc>viwUea
-nnoremap <c-u> gUiw
+" nnoremap <c-u> gUiw
 " }}}1 Learn vimscript the hard way
 " vim-cycle plugin configuration {{{
 let g:cycle_no_mappings = 1
@@ -456,3 +455,5 @@ function! ConfigAfterPluginLoaded()
 endfunction
 au VimEnter * call ConfigAfterPluginLoaded()
 " }}} Configuration to run after all plugins are loaded
+
+
