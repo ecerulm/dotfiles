@@ -20,36 +20,38 @@ Plugin 'gmarik/Vundle.vim'
 " Plugin 'scrooloose/nerdtree'
 " Plugin 'tpope/vim-obsession' " Autosave Session.vim
 " Plugin 'tpope/vim-projectionist' " alternate files, 
-" Plugin 'tpope/vim-repeat' " Make command repeatble
 " Plugin 'tpope/vim-sleuth'      " No need to set indenting, ts, etc per ftype
-Plugin 'tpope/vim-sensible' 
-Plugin 'SirVer/ultisnips'  " snippet manager like SnipMate
 " Plugin 'Shougo/unite.vim'
-Plugin 'alfredodeza/pytest.vim'
-Plugin 'godlygeek/tabular' " align text 
-Plugin 'kana/vim-textobj-fold'
-Plugin 'kana/vim-textobj-user' " helper to create your own textobj
-Plugin 'kien/ctrlp.vim'
-Plugin 'klen/python-mode'
-Plugin 'mileszs/ack.vim'
-Plugin 'oblitum/rainbow'   " rainbow parens
-Plugin 'sjl/gundo.vim'
-Plugin 'tommcdo/vim-exchange' " exchange regions of txt
+Plugin 'tpope/vim-repeat'       " Make command repeatble
+Plugin 'tpope/vim-sensible'
+Plugin 'SirVer/ultisnips'       " snippet manager like SnipMate :h UltiSnips
+Plugin 'alfredodeza/pytest.vim' " :h pytest
+Plugin 'godlygeek/tabular'      " align text
+Plugin 'kana/vim-textobj-fold'  " az and iz
+Plugin 'kana/vim-textobj-user'  " library for vim-textobj-*
+Plugin 'kien/ctrlp.vim'         " file fuzzy search
+Plugin 'klen/python-mode'       " :h python-mode
+Plugin 'mileszs/ack.vim'        " :h ack
+Plugin 'oblitum/rainbow'        " rainbow parens
+Plugin 'sjl/gundo.vim'          " <f6> show undo tree
+Plugin 'tommcdo/vim-exchange'   " exchange regions of txt cxiw X
 Plugin 'tpope/vim-abolish'
-Plugin 'tpope/vim-commentary'  " comment code
-Plugin 'tpope/vim-fugitive'    " git interface
-Plugin 'tpope/vim-git'         " syntax for gitcommit, gitconfig, etc
-Plugin 'tpope/vim-speeddating' " Increment dates with <C-a> <C-x>
-Plugin 'tpope/vim-surround'
-Plugin 'tpope/vim-unimpaired'
+Plugin 'tpope/vim-commentary'   " comment code
+Plugin 'tpope/vim-fugitive'     " git interface
+Plugin 'tpope/vim-git'          " syntax for gitcommit, gitconfig, etc
+Plugin 'tpope/vim-speeddating'  " Increment dates with <C-a> <C-x>
+Plugin 'tpope/vim-surround'     " viwS)
+Plugin 'tpope/vim-unimpaired'   " con, cor, col ]b, ]l, ]q
 Plugin 'vim-ruby/vim-ruby'
-Plugin 'argtextobj.vim'
-Plugin 'camelcasemotion'
+Plugin 'argtextobj.vim'         " daa to delete arguments
+Plugin 'camelcasemotion'        " w stops at _ and CamelCase
 
 " toggle.vim / cycle.vim / switch.vim
 " I decided cycle because switch is harder to configure although it's not
 " limited to single word 
 Plugin 'zef/vim-cycle' 
+
+Plugin 'junegunn/vim-easy-align'  " :h easy-align
 " }}} MyPlugins
 
 " Plugin Examples {{{
@@ -233,10 +235,6 @@ augroup vimrcEx " Put them in a group so we delete them easily
   " Clear all autocmd in the group {{{2
   autocmd!
 
-  " Load tabular.vim patterns {{{2
-  " afer all vim startup
-  autocmd VimEnter * call CustomTabularPatterns()
-
   " Use textwidth 72 for all text files {{{2
   autocmd FileType text setlocal textwidth=72
   
@@ -406,15 +404,6 @@ sunmap w
 sunmap b
 sunmap e
 " }}}1 MISC KEY MAPS
-" Tabular.vim {{{1
-" help tabular
-function! CustomTabularPatterns() 
-  if exists('g:tabular_loaded')
-    AddTabularPattern defines /\(\/\/.*\)\@<! \+/l0
-  endif
-endfunction
-:nohlsearch
-" }}}1 Tabular.vim
 " Pymode {{{1
 let g:Pymode_lint_on_fly = 1
 let g:pymode_lint = 1
@@ -439,6 +428,13 @@ let g:cycle_no_mappings = 1
 nmap  -     <Plug>CycleNext
 
 " }}} vim-cycle plugin configuration
+" Easy Align pluign configuration {{{
+    " Start interactive EasyAlign in visual mode (e.g. vip<Enter>)
+    vmap <Enter> <Plug>(EasyAlign)
+
+    " Start interactive EasyAlign for a motion/text object (e.g. <Leader>aip)
+    " nmap <Leader>a <Plug>(EasyAlign)
+" }}} Easy Align pluign configuration
 " Configuration to run after all plugins are loaded {{{ 
 function! ConfigAfterPluginLoaded()
   " vim-cycle groups {{{
@@ -452,6 +448,7 @@ function! ConfigAfterPluginLoaded()
   call AddCycleGroup('python', ['assertIn', 'assertNotIn'])
   call AddCycleGroup('python', ['assertIsInstance', 'assertNotIsInstance'])
   " }}} vim-cycle groups
+
 endfunction
 au VimEnter * call ConfigAfterPluginLoaded()
 " }}} Configuration to run after all plugins are loaded
