@@ -55,6 +55,7 @@ Plugin 'zef/vim-cycle'
 Plugin 'junegunn/vim-easy-align'  " :h easy-align
 Plugin 'bling/vim-airline'
 Plugin 'airblade/vim-gitgutter'
+Plugin 'Lokaltog/vim-easymotion'
 " }}} MyPlugins
 
 " Plugin Examples {{{
@@ -448,6 +449,11 @@ nmap  -     <Plug>CycleNext
 " vim airline configuration {{{
 let g:airline_powerline_fonts = 1
 " }}} vim airline configuration
+" EasyMotion configuration {{{
+" http://code.tutsplus.com/tutorials/vim-essential-plugin-easymotion--net-19223
+" :h easymotion-default-mappings
+" the mappings are the typical w,f,b,e, etc but preceded by <Leader><Leader>
+" }}} EasyMotion configuration
 " Configuration to run after all plugins are loaded {{{ 
 function! ConfigAfterPluginLoaded()
   " vim-cycle groups {{{
