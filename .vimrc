@@ -132,7 +132,7 @@ filetype indent on
 filetype plugin on
 " }}} Enable filetype detection
 " COLOR{{{
-if &term == "xterm-256color"  
+if &term == "xterm-256color" || $COLORTERM == "gnome-terminal"  
   :set t_Co=256 " 256 Colors
   :colorscheme molokai
 endif
