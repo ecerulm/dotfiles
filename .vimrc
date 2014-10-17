@@ -4,6 +4,7 @@
 " Vundle {{{
 set nocompatible              " be iMproved, required
 filetype off                  " required
+set shell=/bin/bash           " required for Vundle PluginInstall
 
 " set the runtime path to include Vundle and initialize
 set rtp+=~/.vim/bundle/Vundle.vim
@@ -215,6 +216,7 @@ set history=10000
 set wildmode=full
 " }}} 21 command line editing
 " 22 executing external commands {{{
+set shell=/bin/bash
 "  }}}
 " 23 running make and jumping to errors {{{
 "  }}}
