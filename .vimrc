@@ -454,6 +454,9 @@ let g:airline_powerline_fonts = 1
 " :h easymotion-default-mappings
 " the mappings are the typical w,f,b,e, etc but preceded by <Leader><Leader>
 " }}} EasyMotion configuration
+" :H to open help in current window {{{
+command! -nargs=1 -complete=help H :enew | :set buftype=help | :h <args>
+" }}} :H to open help in current window
 " Configuration to run after all plugins are loaded {{{ 
 function! ConfigAfterPluginLoaded()
   " vim-cycle groups {{{
