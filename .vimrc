@@ -409,17 +409,23 @@ sunmap b
 sunmap e
 " }}}1 MISC KEY MAPS
 " Pymode {{{1
-let g:Pymode_lint_on_fly = 1
-let g:pymode_lint = 1
-let g:pymode_lint_cwindow = 0
-let g:pymode_lint_message = 1
-let g:pymode_lint_on_write = 1
-let g:pymode_lint_unmodified = 1
-let g:pymode_rope_autoimport = 1
+let g:Pymode_lint_on_fly             = 1
+let g:pymode_lint                    = 1
+let g:pymode_lint_checkers           = [ 'pep8'] " :h 'g:pymode_lint_checkers'
+let g:pymode_lint_cwindow            = 0  " Don't autoopen quickfix window
+let g:pymode_lint_message            = 1
+let g:pymode_lint_on_write           = 1
+let g:pymode_lint_unmodified         = 1
+let g:pymode_rope_autoimport         = 1
 let g:pymode_rope_autoimport_modules = ['os', 'shutil', 'datetime']
-let g:pymode_rope_complete_on_dot = 0
-let g:pymode_rope_completion = 1
-let g:pymode_rope_completion_bind = '<C-Space>'
+let g:pymode_rope_complete_on_dot    = 0
+let g:pymode_rope_completion         = 1
+let g:pymode_rope_completion_bind    = '<C-Space>'
+let g:pymode_folding                 = 1
+let g:pymode_motion                  = 1
+let g:pymode_run                     = 0
+let g:pymode_doc                     = 1
+let g:pymode_doc_bind                = 'K'
 " }}}1 Pymode
 " Learn vimscript the hard way {{{1
 " this mapping is useful for typing constants
