@@ -452,7 +452,12 @@ let g:airline_powerline_fonts = 1
 " EasyMotion configuration {{{
 " http://code.tutsplus.com/tutorials/vim-essential-plugin-easymotion--net-19223
 " :h easymotion-default-mappings
-" the mappings are the typical w,f,b,e, etc but preceded by <Leader><Leader>
+"map <Leader>l <Plug>(easymotion-lineforward)
+map <Leader>j <Plug>(easymotion-j)
+map <Leader>k <Plug>(easymotion-k)
+map <Leader>h <Plug>(easymotion-linebackward)
+
+let g:EasyMotion_startofline = 0 " keep cursor colum when JK motion the mappings are the typical w,f,b,e, etc but preceded by <Leader><Leader>
 " }}} EasyMotion configuration
 " :H to open help in current window {{{
 command! -nargs=1 -complete=help H :enew | :set buftype=help | :h <args>
