@@ -19,7 +19,7 @@ Plugin 'gmarik/Vundle.vim'
 " Plugin 'compactcode/alternate.vim'
 " Plugin 'compactcode/open.vim'
 " Plugin 'scrooloose/nerdtree'
-" Plugin 'tpope/vim-obsession' " Autosave Session.vim
+Plugin 'tpope/vim-obsession' " Autosave Session.vim
 " Plugin 'tpope/vim-projectionist' " alternate files, 
 " Plugin 'tpope/vim-sleuth'      " No need to set indenting, ts, etc per ftype
 Plugin 'Shougo/unite.vim'
