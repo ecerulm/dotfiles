@@ -22,7 +22,10 @@ Plugin 'gmarik/Vundle.vim'
 " Plugin 'tpope/vim-obsession' " Autosave Session.vim
 " Plugin 'tpope/vim-projectionist' " alternate files, 
 " Plugin 'tpope/vim-sleuth'      " No need to set indenting, ts, etc per ftype
-" Plugin 'Shougo/unite.vim'
+Plugin 'Shougo/unite.vim'
+Plugin 'Shougo/unite-outline'
+Plugin 'Shougo/vimproc.vim'
+Plugin 'Shougo/neomru.vim'
 Plugin 'tpope/vim-repeat'       " Make command repeatble
 Plugin 'tpope/vim-sensible'
 Plugin 'SirVer/ultisnips'       " snippet manager like SnipMate :h UltiSnips
@@ -30,7 +33,7 @@ Plugin 'alfredodeza/pytest.vim' " :h pytest
 Plugin 'godlygeek/tabular'      " align text
 Plugin 'kana/vim-textobj-fold'  " az and iz
 Plugin 'kana/vim-textobj-user'  " library for vim-textobj-*
-Plugin 'kien/ctrlp.vim'         " file fuzzy search
+" Plugin 'kien/ctrlp.vim'         " file fuzzy search
 Plugin 'klen/python-mode'       " :h python-mode
 Plugin 'mileszs/ack.vim'        " :h ack
 Plugin 'oblitum/rainbow'        " rainbow parens
@@ -479,5 +482,27 @@ function! ConfigAfterPluginLoaded()
 endfunction
 au VimEnter * call ConfigAfterPluginLoaded()
 " }}} Configuration to run after all plugins are loaded
+" unite.vim mappings {{{
+
+let g:unite_source_history_yank_enable = 1
+call unite#filters#matcher_default#use(['matcher_fuzzy'])
+nnoremap <C-p> :<C-u>Unite -no-split -buffer-name=files   -start-insert file_rec/async:!<cr>
+" nnoremap <leader>t :<C-u>Unite -no-split -buffer-name=files   -start-insert file_rec/async:!<cr>
+" nnoremap <leader>f :<C-u>Unite -no-split -buffer-name=files   -start-insert file<cr>
+nnoremap <leader>r :<C-u>Unite -no-split -buffer-name=mru     -start-insert file_mru<cr>
+nnoremap <leader>o :<C-u>Unite -no-split -buffer-name=outline -start-insert outline<cr>
+nnoremap <leader>y :<C-u>Unite -no-split -buffer-name=yank    history/yank<cr>
+nnoremap <leader>e :<C-u>Unite -no-split -buffer-name=buffer  buffer<cr>
+
+" Custom mappings for the unite buffer
+autocmd FileType unite call s:unite_settings()
+function! s:unite_settings()
+  " Play nice with supertab
+  let b:SuperTabDisabled=1
+  " Enable navigation with control-j and control-k in insert mode
+  imap <buffer> <C-j>   <Plug>(unite_select_next_line)
+  imap <buffer> <C-k>   <Plug>(unite_select_previous_line)
+endfunction
+" }}} unite.vim mappings
 
 
