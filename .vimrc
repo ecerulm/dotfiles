@@ -202,7 +202,7 @@ set foldlevelstart=1
 " 17 diff mode {{{
 "  }}}
 " 18 mapping {{{
-let mapleader=","
+" let mapleader=","
 " }}} 18 mapping
 " 19 reading and writing files {{{
 set modeline
