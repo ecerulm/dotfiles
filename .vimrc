@@ -508,3 +508,5 @@ function! s:unite_settings()
   imap <buffer> <C-k>   <Plug>(unite_select_previous_line)
 endfunction
 " }}} unite.vim mappings
+" jk to get of insert mode
+inoremap jk <Esc>
