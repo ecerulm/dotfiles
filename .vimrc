@@ -490,6 +490,14 @@ au VimEnter * call ConfigAfterPluginLoaded()
 " unite.vim mappings {{{
 
 let g:unite_source_history_yank_enable = 1
+let g:unite_source_grep_command = 'ag'
+let g:unite_source_grep_default_opts = '--line-numbers --nocolor --nogroup --smart-case'
+let g:unite_source_grep_recursive_opt = ''
+" Using ag as recursive command.
+let g:unite_source_rec_async_command =
+          \ 'ag --follow --nocolor --nogroup --hidden -g ""'
+
+
 call unite#filters#matcher_default#use(['matcher_fuzzy'])
 nnoremap <C-p> :<C-u>Unite -no-split -buffer-name=files   -start-insert file_rec/async:!<cr>
 " nnoremap <leader>t :<C-u>Unite -no-split -buffer-name=files   -start-insert file_rec/async:!<cr>
@@ -499,6 +507,7 @@ nnoremap <leader>o :<C-u>Unite -no-split -buffer-name=outline -start-insert -aut
 nnoremap <leader>t :<C-u>Unite -no-split -buffer-name=tag     -start-insert tag<cr>
 nnoremap <leader>y :<C-u>Unite -no-split -buffer-name=yank    history/yank<cr>
 nnoremap <leader>e :<C-u>Unite -no-split -buffer-name=buffer  buffer<cr>
+nnoremap <leader>g :<C-u>Unite -no-split -buffer-name=ag  grep:.<cr>
 
 " Custom mappings for the unite buffer
 autocmd FileType unite call s:unite_settings()
