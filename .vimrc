@@ -63,6 +63,7 @@ Plugin 'junegunn/vim-easy-align'  " :h easy-align
 Plugin 'bling/vim-airline'
 Plugin 'airblade/vim-gitgutter'
 Plugin 'Lokaltog/vim-easymotion'
+Plugin 'lucapette/vim-textobj-underscore'
 " }}} MyPlugins
 
 " Plugin Examples {{{
