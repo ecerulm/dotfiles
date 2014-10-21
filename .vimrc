@@ -519,5 +519,10 @@ function! s:unite_settings()
   imap <buffer> <C-k>   <Plug>(unite_select_previous_line)
 endfunction
 " }}} unite.vim mappings
-" jk to get of insert mode
+" jk to get of insert mode {{{
 inoremap jk <Esc>
+" jk to get of insert mode }}}
+" Easy edit vimrc {{{
+nnoremap <leader>ev :tabedit $MYVIMRC<cr>
+nnoremap <leader>sv :so $MYVIMRC<cr>
+" }}}
