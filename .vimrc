@@ -308,7 +308,7 @@ inoremap <c-l> <space>=><space>
 imap <c-c> <esc><esc>
 " Clear the search buffer when hitting return{{{2
 function! MapCR()
-  nnoremap <cr> :nohlsearch<cr>
+  nnoremap <silent> <cr> :nohlsearch\|:redraw!<cr>
 endfunction
 call MapCR()
 " Delete / remove trailing whitespace{{{2
