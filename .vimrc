@@ -487,6 +487,7 @@ function! ConfigAfterPluginLoaded()
 endfunction
 au VimEnter * call ConfigAfterPluginLoaded()
 " }}} Configuration to run after all plugins are loaded
+autocmd FileType unite call s:unite_settings() " apply setting to unite buffers
 " unite.vim mappings {{{
 
 let g:unite_source_history_yank_enable = 1
@@ -510,7 +511,6 @@ nnoremap <leader>e :<C-u>Unite -no-split -buffer-name=buffer  buffer<cr>
 nnoremap <leader>g :<C-u>Unite -no-split -buffer-name=ag  grep:.<cr>
 
 " Custom mappings for the unite buffer
-autocmd FileType unite call s:unite_settings()
 function! s:unite_settings()
   " Play nice with supertab
   let b:SuperTabDisabled=1
