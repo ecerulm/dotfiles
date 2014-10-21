@@ -33,6 +33,7 @@ Plugin 'tpope/vim-repeat'       " Make command repeatble
 Plugin 'tpope/vim-sensible'
 Plugin 'SirVer/ultisnips'       " snippet manager like SnipMate :h UltiSnips
 Plugin 'alfredodeza/pytest.vim' " :h pytest
+Plugin 'alfredodeza/coveragepy.vim'
 Plugin 'godlygeek/tabular'      " align text
 Plugin 'kana/vim-textobj-fold'  " az and iz
 Plugin 'kana/vim-textobj-user'  " library for vim-textobj-*
