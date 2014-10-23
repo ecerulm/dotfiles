@@ -285,6 +285,9 @@ augroup vimrcEx " Put them in a group so we delete them easily
   " autocmd BufWinEnter * silent! :%foldopen! "Complains about fold not found
   " autocmd BufRead * silent! :%foldopen! "Complains about fold not found
   " autocmd BufReadPost * set foldlevel=99
+
+  " unite_settings for unite buffers {{{2
+  autocmd FileType unite call s:unite_settings() " apply setting to unite buffers
 augroup END
 
 
@@ -487,7 +490,6 @@ function! ConfigAfterPluginLoaded()
 endfunction
 au VimEnter * call ConfigAfterPluginLoaded()
 " }}} Configuration to run after all plugins are loaded
-autocmd FileType unite call s:unite_settings() " apply setting to unite buffers
 " unite.vim mappings {{{
 
 let g:unite_source_history_yank_enable = 1
@@ -525,4 +527,7 @@ inoremap jk <Esc>
 " Easy edit vimrc {{{
 nnoremap <leader>ev :tabedit $MYVIMRC<cr>
 nnoremap <leader>sv :so $MYVIMRC<cr>
+" }}}
+" Uppercase in insert mode with <C-u> {{{
+inoremap <C-u> <Esc>viwUea
 " }}}
