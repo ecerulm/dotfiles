@@ -288,6 +288,8 @@ augroup vimrcEx " Put them in a group so we delete them easily
 
   " unite_settings for unite buffers {{{2
   autocmd FileType unite call s:unite_settings() " apply setting to unite buffers
+  " hook after plugin are loaded {{{2
+  au VimEnter * call ConfigAfterPluginLoaded()
 augroup END
 
 
@@ -491,7 +493,6 @@ function! ConfigAfterPluginLoaded()
   inoremap <C-u> <Esc>viw~ea
   " }}}
 endfunction
-au VimEnter * call ConfigAfterPluginLoaded()
 " }}} Configuration to run after all plugins are loaded
 " unite.vim mappings {{{
 
