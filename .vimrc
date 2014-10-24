@@ -65,6 +65,7 @@ Plugin 'airblade/vim-gitgutter'
 Plugin 'Lokaltog/vim-easymotion'
 Plugin 'lucapette/vim-textobj-underscore'
 Plugin 'majutsushi/tagbar'
+Plugin 'altercation/vim-colors-solarized'
 " }}} MyPlugins
 
 " Plugin Examples {{{
@@ -142,10 +143,17 @@ filetype indent on
 filetype plugin on
 " }}} Enable filetype detection
 " COLOR{{{
+if has('gui_running')
+  set background=light
+else
+  set background=dark
+end
+
 if &term == "xterm-256color" || $COLORTERM == "gnome-terminal"  
   :set t_Co=256 " 256 Colors
-  :colorscheme molokai
 endif
+colorscheme solarized
+
   ":set background=dark
   ":color grb256
   " :colorscheme blackboard
