@@ -64,6 +64,7 @@ Plugin 'bling/vim-airline'
 Plugin 'airblade/vim-gitgutter'
 Plugin 'Lokaltog/vim-easymotion'
 Plugin 'lucapette/vim-textobj-underscore'
+Plugin 'majutsushi/tagbar'
 " }}} MyPlugins
 
 " Plugin Examples {{{
@@ -531,4 +532,7 @@ inoremap jk <Esc>
 " Easy edit vimrc {{{
 nnoremap <leader>ev :tabedit $MYVIMRC<cr>
 nnoremap <leader>sv :so $MYVIMRC<cr>
+" }}}
+" tagbar <f8> {{{
+nnoremap <f8> :TagbarToggle<cr>
 " }}}
