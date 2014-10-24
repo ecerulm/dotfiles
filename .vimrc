@@ -476,25 +476,6 @@ let g:EasyMotion_startofline = 0 " keep cursor colum when JK motion the mappings
 " :H to open help in current window {{{
 command! -nargs=1 -complete=help H :enew | :set buftype=help | :h <args>
 " }}} :H to open help in current window
-" Configuration to run after all plugins are loaded {{{ 
-function! ConfigAfterPluginLoaded()
-  " vim-cycle groups {{{
-  call AddCycleGroup('python', ['True', 'False'])
-  call AddCycleGroup('python', ['if', 'while'])
-  call AddCycleGroup('python', ['==', '!=', '<=', '>='])
-  call AddCycleGroup('python', ['assertEqual', 'assertNotEqual'])
-  call AddCycleGroup('python', ['assertTrue', 'assertFalse'])
-  call AddCycleGroup('python', ['assertIs', 'assertIsNot'])
-  call AddCycleGroup('python', ['assertIsNone', 'assertIsNotNone'])
-  call AddCycleGroup('python', ['assertIn', 'assertNotIn'])
-  call AddCycleGroup('python', ['assertIsInstance', 'assertNotIsInstance'])
-  " }}} vim-cycle groups
-
-  " Uppercase in insert mode with <C-u> {{{
-  inoremap <C-u> <Esc>viw~ea
-  " }}}
-endfunction
-" }}} Configuration to run after all plugins are loaded
 " unite.vim mappings {{{
 
 let g:unite_source_history_yank_enable = 1
@@ -536,3 +517,34 @@ nnoremap <leader>sv :so $MYVIMRC<cr>
 " tagbar <f8> {{{
 nnoremap <f8> :TagbarToggle<cr>
 " }}}
+" gitgutter {{{
+" let g:gitgutter_sign_added = 'xx'
+" let g:gitgutter_sign_modified = 'yy'
+" let g:gitgutter_sign_removed = 'zz'
+" let g:gitgutter_sign_modified_removed = 'ww'
+
+" }}}
+" Configuration to run after all plugins are loaded {{{ 
+function! ConfigAfterPluginLoaded()
+  " vim-cycle groups {{{
+  call AddCycleGroup('python', ['True', 'False'])
+  call AddCycleGroup('python', ['if', 'while'])
+  call AddCycleGroup('python', ['==', '!=', '<=', '>='])
+  call AddCycleGroup('python', ['assertEqual', 'assertNotEqual'])
+  call AddCycleGroup('python', ['assertTrue', 'assertFalse'])
+  call AddCycleGroup('python', ['assertIs', 'assertIsNot'])
+  call AddCycleGroup('python', ['assertIsNone', 'assertIsNotNone'])
+  call AddCycleGroup('python', ['assertIn', 'assertNotIn'])
+  call AddCycleGroup('python', ['assertIsInstance', 'assertNotIsInstance'])
+  " }}} vim-cycle groups
+
+  " Uppercase in insert mode with <C-u> {{{
+  inoremap <C-u> <Esc>viw~ea
+  " }}}
+  " abolish {{{
+  :Abolish iwth with
+  :Abolish teh the
+  :Abolish usmt must 
+  " }}}
+endfunction
+" }}} Configuration to run after all plugins are loaded
