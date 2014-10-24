@@ -487,6 +487,9 @@ function! ConfigAfterPluginLoaded()
   call AddCycleGroup('python', ['assertIsInstance', 'assertNotIsInstance'])
   " }}} vim-cycle groups
 
+  " Uppercase in insert mode with <C-u> {{{
+  inoremap <C-u> <Esc>viw~ea
+  " }}}
 endfunction
 au VimEnter * call ConfigAfterPluginLoaded()
 " }}} Configuration to run after all plugins are loaded
@@ -527,7 +530,4 @@ inoremap jk <Esc>
 " Easy edit vimrc {{{
 nnoremap <leader>ev :tabedit $MYVIMRC<cr>
 nnoremap <leader>sv :so $MYVIMRC<cr>
-" }}}
-" Uppercase in insert mode with <C-u> {{{
-inoremap <C-u> <Esc>viwUea
 " }}}
