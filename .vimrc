@@ -64,7 +64,7 @@ Plugin 'bling/vim-airline'
 Plugin 'airblade/vim-gitgutter'
 Plugin 'Lokaltog/vim-easymotion'
 Plugin 'lucapette/vim-textobj-underscore'
-Plugin 'majutsushi/tagbar'
+Plugin 'majutsushi/tagbar'      " ctags outline browser
 Plugin 'altercation/vim-colors-solarized'
 " }}} MyPlugins
 
@@ -430,6 +430,8 @@ map <silent> e <Plug>CamelCaseMotion_e
 sunmap w
 sunmap b
 sunmap e
+" Tagbar <f8>
+nnoremap <f8> :TagbarToggle<CR>
 " }}}1 MISC KEY MAPS
 " Pymode {{{1
 let g:Pymode_lint_on_fly             = 1
