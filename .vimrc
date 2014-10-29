@@ -452,12 +452,6 @@ let g:pymode_run                     = 0
 let g:pymode_doc                     = 1
 let g:pymode_doc_bind                = 'K'
 " }}}1 Pymode
-" Learn vimscript the hard way {{{1
-" this mapping is useful for typing constants
-" just type lowercase and at the end press <c-u>
-inoremap <c-u> <Esc>viwUea
-" nnoremap <c-u> gUiw
-" }}}1 Learn vimscript the hard way
 " vim-cycle plugin configuration {{{
 let g:cycle_no_mappings = 1
 nmap  -     <Plug>CycleNext
@@ -526,6 +520,11 @@ nnoremap <leader>sv :so $MYVIMRC<cr>
 " }}}
 " tagbar <f8> {{{
 nnoremap <f8> :TagbarToggle<cr>
+" }}} tagbar <f8>
+" Uppercase in insert mode with <C-u> {{{
+" this mapping is useful for typing constants
+" just type lowercase and at the end press <c-u>
+inoremap <C-u> <Esc>viw~ea
 " }}}
 " gitgutter {{{
 " let g:gitgutter_sign_added = 'xx'
@@ -534,6 +533,8 @@ nnoremap <f8> :TagbarToggle<cr>
 " let g:gitgutter_sign_modified_removed = 'ww'
 
 " }}}
+" Learn vimscript the hard way {{{1
+" }}}1 Learn vimscript the hard way
 " Configuration to run after all plugins are loaded {{{ 
 function! ConfigAfterPluginLoaded()
   " vim-cycle groups {{{
