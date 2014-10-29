@@ -1,4 +1,16 @@
 
+snippet patchers "insert patchers" b 
+with self.patchers_ok['os.listdir'], self.patchers_ok['os.environ'], self.patchers_ok['os.path']$0:
+endsnippet
+
+snippet property "create a property" b
+@property
+def ${1:property_name}(self):
+	$0
+	return self._$1
+endsnippet
+
+
 #! header
 snippet #! "Shebang header for python scripts" b
 #!/usr/bin/env python
