@@ -563,6 +563,7 @@ function! ConfigAfterPluginLoaded()
   :Abolish iwth with
   :Abolish teh the
   :Abolish usmt must 
+  :Abolish configuraito{n,ns} configuratio{}
   " }}}
 endfunction
 " }}} Configuration to run after all plugins are loaded
