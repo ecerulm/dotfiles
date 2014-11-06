@@ -553,8 +553,12 @@ function! ConfigAfterPluginLoaded()
   call AddCycleGroup('python', ['assertIsNone', 'assertIsNotNone'])
   call AddCycleGroup('python', ['assertIn', 'assertNotIn'])
   call AddCycleGroup('python', ['assertIsInstance', 'assertNotIsInstance'])
+  call AddCycleGroup('python', ['assert_has_calls', 'assert_any_call', 'assert_called_with', 'assert_called_once_with'])
+  call AddCycleGroup('python', ['called', 'call_count'])
+  call AddCycleGroup('python', ['return_value', 'side_effect'])
+  call AddCycleGroup('python', ['call_args', 'call_args_list'])
+  call AddCycleGroup('python', ['method_calls', 'mock_calls'])
   " }}} vim-cycle groups
-
   " Uppercase in insert mode with <C-u> {{{
   inoremap <C-u> <Esc>viw~ea
   " }}}
