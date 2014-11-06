@@ -66,6 +66,7 @@ Plugin 'Lokaltog/vim-easymotion'
 Plugin 'lucapette/vim-textobj-underscore'
 Plugin 'majutsushi/tagbar'      " ctags outline browser
 Plugin 'altercation/vim-colors-solarized'
+Plugin 'fweep/vim-tabber'       " tab renaming
 " }}} MyPlugins
 
 " Plugin Examples {{{
@@ -467,6 +468,7 @@ nmap  -     <Plug>CycleNext
 " }}} Easy Align pluign configuration
 " vim airline configuration {{{
 let g:airline_powerline_fonts = 1
+  let g:airline#extensions#tabline#enabled = 0
 " }}} vim airline configuration
 " EasyMotion configuration {{{
 " http://code.tutsplus.com/tutorials/vim-essential-plugin-easymotion--net-19223
@@ -533,6 +535,10 @@ inoremap <C-u> <Esc>viw~ea
 " let g:gitgutter_sign_removed = 'zz'
 " let g:gitgutter_sign_modified_removed = 'ww'
 
+" }}}
+" vim-tabber {{{
+set tabline=%!tabber#TabLine()
+let g:tabber_wrap_when_shifting = 1
 " }}}
 " Learn vimscript the hard way {{{1
 " }}}1 Learn vimscript the hard way
