@@ -252,8 +252,6 @@ set secure " disable unsafe commands in local .vimrc files
 " }}} vim :options
 
 " CUSTOM AUTOCMDS{{{1
-""""""""""""""""""""""""""""""""""""""""
-
 augroup vimrcEx " Put them in a group so we delete them easily
   " Clear all autocmd in the group {{{2
   autocmd!
@@ -308,8 +306,9 @@ augroup END
 
 " }}}1 CUSTOM AUTOCOMMANDS
 " MISC KEY MAPS{{{1
-" Copy to system clipboard 
+" Copy to system clipboard {{{2 
 map <leader>y "*y 
+
 
 " Move around splits with <c-hjkl>{{{2
 nnoremap <c-h> <c-w>h
