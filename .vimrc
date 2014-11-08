@@ -65,9 +65,13 @@ Plugin 'airblade/vim-gitgutter'
 Plugin 'Lokaltog/vim-easymotion'
 Plugin 'lucapette/vim-textobj-underscore'
 Plugin 'majutsushi/tagbar'      " ctags outline browser
-Plugin 'altercation/vim-colors-solarized'
 Plugin 'fweep/vim-tabber'       " tab renaming
 Plugin 'nathanaelkane/vim-indent-guides'
+
+" color themes
+Plugin 'altercation/vim-colors-solarized'
+Plugin 'rainux/vim-desert-warm-256'
+Plugin 'tomasr/molokai'
 " }}} MyPlugins
 
 " Plugin Examples {{{
@@ -154,11 +158,8 @@ end
 if &term == "xterm-256color" || $COLORTERM == "gnome-terminal"  
   :set t_Co=256 " 256 Colors
 endif
-colorscheme solarized
+colorscheme molokai
 
-  ":set background=dark
-  ":color grb256
-  " :colorscheme blackboard
 " }}} COLOR
 " }}} 5 syntax, highlighting and spelling
 "  6 multiple windows {{{
