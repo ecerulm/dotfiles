@@ -67,6 +67,7 @@ Plugin 'lucapette/vim-textobj-underscore'
 Plugin 'majutsushi/tagbar'      " ctags outline browser
 Plugin 'altercation/vim-colors-solarized'
 Plugin 'fweep/vim-tabber'       " tab renaming
+Plugin 'nathanaelkane/vim-indent-guides'
 " }}} MyPlugins
 
 " Plugin Examples {{{
