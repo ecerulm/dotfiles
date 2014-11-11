@@ -72,6 +72,7 @@ Plugin 'nathanaelkane/vim-indent-guides'
 Plugin 'altercation/vim-colors-solarized'
 Plugin 'rainux/vim-desert-warm-256'
 Plugin 'tomasr/molokai'
+Plugin 'sjl/badwolf'
 " }}} MyPlugins
 
 " Plugin Examples {{{
@@ -156,7 +157,7 @@ else
 end
 
 if &term == "xterm-256color" || $COLORTERM == "gnome-terminal"  
-  :set t_Co=256 " 256 Colors
+  set t_Co=256 " 256 Colors
 endif
 colorscheme molokai
 
