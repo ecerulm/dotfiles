@@ -3,6 +3,9 @@
 #set -gx PATH ~/bin /usr/local/bin /usr/local/sbin $BASE_PATH
 if status --is-interactive
   set PATH /usr/local/bin /usr/local/sbin $PATH
+  if test -d ~/anaconda/bin
+    set PATH ~/anaconda/bin $PATH
+  end
 end
 set -gx LC_CTYPE "en_US.UTF-8"
 set BROWSER 'open' # needed for help command to work
