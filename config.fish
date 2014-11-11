@@ -6,6 +6,9 @@ if status --is-interactive
   if test -d ~/anaconda/bin
     set PATH ~/anaconda/bin $PATH
   end
+  if test $COLORTERM = "gnome-terminal"
+    set -x TERM xterm-256color
+  end
 end
 set -gx LC_CTYPE "en_US.UTF-8"
 set BROWSER 'open' # needed for help command to work
