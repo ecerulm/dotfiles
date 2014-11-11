@@ -7,6 +7,10 @@ if status --is-interactive
     set PATH ~/anaconda/bin $PATH
     set -x OPENSSL_CONF $HOME/anaconda/ssl/openssl.cnf
   end
+  if test -d ~/.rbenv
+    set PATH ~/.rbenv/bin $PATH
+    . (rbenv init -|psub)
+  end
   if test $COLORTERM = "gnome-terminal"
     set -x TERM xterm-256color
   end
