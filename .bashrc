@@ -121,3 +121,5 @@ export PATH="$PATH:$HOME/.rvm/bin" # Add RVM to PATH for scripting
 
 # added by Anaconda 2.1.0 installer
 export PATH="/home/ecerulm/anaconda/bin:$PATH"
+
+export EDITOR=vim
