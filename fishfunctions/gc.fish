@@ -1,3 +1,3 @@
-function gc
-	git commit -v
+function gc --description 'git commit verbose'
+	git commit -v $argv
 end

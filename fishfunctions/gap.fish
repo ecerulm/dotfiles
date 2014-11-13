@@ -1,3 +1,3 @@
 function gap --description 'git add patch'
-	ga -p
+	ga -p $argv
 end
