@@ -1,8 +1,15 @@
 #!/bin/bash
-# Usage: git overwritten [--[no-]color] [<head=HEAD>] [<base=origin>]
+# Usage: git overwritten [--[no-]color] [<head=HEAD>] [<base=master>]
 #
+# git overwritten HEAD HEAD~5
 # Aggregates git blame information about original owners of lines changed or
 # removed in the '<base>...<head>' diff.
+# so if you do git overwritten HEAD master and you modified 3 lines you will find
+# which commits added those lines that you modified in that range. So it helps
+# filter the git blame output (which already provides that information). 
+#
+# Remember: List of the original (past) commits that provided the original content
+#           of the lines that you have modified in the range
 #
 # Each line of output represents a past commit, and consists of:
 # - number of lines from the commit that this diff affects
@@ -46,7 +53,7 @@ while [ "$#" -gt 0 ]; do
 done
 
 head="${head:-HEAD}"
-base="${base:-origin}"
+base="${base:-master}"
 
 [ -t 1 ] && colorize="${colorize-1}"
 
