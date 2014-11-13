@@ -156,9 +156,9 @@ else
   set background=dark
 end
 
-if &term == "xterm-256color" || $COLORTERM == "gnome-terminal"  
-  set t_Co=256 " 256 Colors
-endif
+" if &term == "xterm-256color" || $COLORTERM == "gnome-terminal"
+"   set t_Co=256 " 256 Colors
+" endif
 colorscheme molokai
 
 " }}} COLOR
