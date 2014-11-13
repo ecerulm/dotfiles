@@ -1,4 +1,5 @@
 function dotfiles
 	cd ~/dotfiles
-  s
+	s
+  gd
 end
