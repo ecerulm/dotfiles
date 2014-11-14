@@ -226,6 +226,7 @@ set modelines=5
 set backup
 set backupdir=~/.vim-tmp,~/.tmp,~/tmp,/var/tmp,/tmp,.
 set directory=~/.vim-tmp,~/.tmp,~/tmp,/var/tmp,/tmp,.
+set autoread  " automatically ead a file when it was modified outside of Vim
 " }}} 19 reading and writing files 
 " 20 the swap file {{{
 " }}}
