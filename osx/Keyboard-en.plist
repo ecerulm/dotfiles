@@ -65,6 +65,15 @@
 		<key>Strings</key>
 		<string>O Ô Ö Ò Ó Œ Ø Ō Õ</string>
 	</dict>
+  <key>Roman-Accent-q</key>
+  <dict>
+    <key>Direction</key>
+    <string>right</string>
+    <key>Keycaps</key>
+    <string>q ` ^ ⌥ ⇧ ⌘ ⎋ ⏏ ⌫ ↑ ⇡ ↖ ⇞ ⇥</string>
+    <key>Strings</key>
+    <string>q ` ^ ⌥ ⇧ ⌘ ⎋ ⏏ ⌫ ↑ ⇡ ↖ ⇞ ⇥</string>
+  </dict>  
 	<key>Roman-Accent-S</key>
 	<dict>
 		<key>Direction</key>
@@ -160,9 +169,9 @@
 		<key>Direction</key>
 		<string>left</string>
 		<key>Keycaps</key>
-		<string>n ñ ń</string>
+		<string>n ñ ń ¬</string>
 		<key>Strings</key>
-		<string>n ñ ń</string>
+		<string>n ñ ń ¬</string>
 	</dict>
 	<key>Roman-Accent-o</key>
 	<dict>
