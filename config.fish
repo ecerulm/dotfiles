@@ -11,6 +11,9 @@ if status --is-interactive
     set PATH ~/.rbenv/bin $PATH
     . (rbenv init -|psub)
   end
+  if test -d ~/bin
+    set PATH ~/bin $PATH
+  end
   if test $COLORTERM = "gnome-terminal"
     set -x TERM xterm-256color
   end
