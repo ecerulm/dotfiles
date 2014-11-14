@@ -41,13 +41,13 @@
 
   head = !git l -1
   h = !git head
-  hp = "!source ~/.githelpers && show_git_head"
+  hp = "!/bin/bash -c 'source ~/.githelpers && show_git_head'"
   r = !git l -30
   ra = !git r --all
-  l = "!source ~/.githelpers && pretty_git_log"
+  l = "!/bin/bash -c 'source ~/.githelpers && pretty_git_log'"
   la = !git l --all
   ctags = !.git/hooks/ctags
-  standup = log --since=yesterday --author ruben
+  standup = log --since=yesterday --author 'ecerulm\\|ruben\\|Ruben'
   lol = log --graph --decorate --pretty=oneline --abbrev-commit --all
   purr = pull --rebase
   ready = rebase -i @{u}
