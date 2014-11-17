@@ -160,6 +160,7 @@ end
 " if &term == "xterm-256color" || $COLORTERM == "gnome-terminal"
 "   set t_Co=256 " 256 Colors
 " endif
+set t_ut= " http://sunaku.github.io/vim-256color-bce.html bce background color erase
 colorscheme molokai
 
 " }}} COLOR
@@ -227,7 +228,7 @@ set modelines=5
 set backup
 set backupdir=~/.vim-tmp,~/.tmp,~/tmp,/var/tmp,/tmp,.
 set directory=~/.vim-tmp,~/.tmp,~/tmp,/var/tmp,/tmp,.
-set autoread  " automatically ead a file when it was modified outside of Vim
+set autoread  " automatically reload files modified outside of vim
 " }}} 19 reading and writing files 
 " 20 the swap file {{{
 " }}}
