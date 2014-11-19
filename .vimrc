@@ -68,6 +68,7 @@ Plugin 'majutsushi/tagbar'      " ctags outline browser
 Plugin 'fweep/vim-tabber'       " tab renaming
 Plugin 'nathanaelkane/vim-indent-guides'
 Plugin 'vim-scripts/DrawIt'
+Plugin 'chrisbra/NrrwRgn'
 
 " color themes
 Plugin 'altercation/vim-colors-solarized'
