@@ -241,6 +241,9 @@ set history=10000
 " set wildmode=list:longest
 " make tab completion for files/buffers act like zsh
 set wildmode=full
+
+set undofile
+set undodir=~/.vim-tmp,~/.tmp,~/tmp,/var/tmp,/tmp,.
 " }}} 21 command line editing
 " 22 executing external commands {{{
 set shell=/bin/bash
