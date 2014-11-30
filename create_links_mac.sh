@@ -16,3 +16,8 @@ ls bin | xargs -n1 -I'{}' ln -Fvhfs ~/dotfiles/bin/'{}' ~/bin/'{}'
 ln -Fvhfs ~/dotfiles/.gitconfig_osx .gitconfig_platform_specific
 ln -Fvhfs ~/dotfiles/.gitconfig_osx ~/.gitconfig_platform_specific
 ln -Fvhfs ~/dotfiles/.tmux.conf.mac ~/.tmux.conf.extra
+
+# create tmp dirs
+mkdir -p ~/.vim-tmp
+mkdir -p ~/.tmp
+mkdir -p ~/tmp
