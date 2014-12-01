@@ -139,6 +139,7 @@ set scrolloff=3                " keep more context when scrolling off the end of
 set hlsearch 
 set cursorline                 " highlight current line
 set colorcolumn=+1 " highlight the column after the textwidth http://stackoverflow.com/questions/1919028/how-to-show-vertical-line-to-wrap-the-line-in-vim
+hi ColorColumn ctermbg=lightgrey
 " set spell " could be annoying when editing code
 set spelllang=en_us
 
@@ -264,7 +265,7 @@ augroup vimrcEx " Put them in a group so we delete them easily
   autocmd!
 
   " Use textwidth 72 for all text files {{{2
-  autocmd FileType text setlocal textwidth=72
+  autocmd FileType text,rst setlocal textwidth=72
   
   " Jump to Last cursor position unless its invalid or in an event handler  {{{2
   autocmd BufReadPost *
