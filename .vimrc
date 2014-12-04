@@ -69,6 +69,8 @@ Plugin 'fweep/vim-tabber'       " tab renaming
 Plugin 'nathanaelkane/vim-indent-guides'
 Plugin 'vim-scripts/DrawIt'
 Plugin 'chrisbra/NrrwRgn'
+Plugin 'kana/vim-textobj-indent' " ai, ii aI aI
+Plugin 'visincr'
 
 " color themes
 Plugin 'altercation/vim-colors-solarized'
