@@ -421,8 +421,9 @@ nnoremap  <unique> <f6> :GundoToggle<CR>
 "inoremap <C-Space> <C-x><C-o>
 "inoremap <C-@> <C-Space>
 inoremap <leader>, <C-X><C-O>
-" <C-j> Finish line with semicolon ; {{{2
+" <C-j> or ;; Finish line with semicolon ; {{{2
 imap <C-j> <End>;<cr>
+nnoremap ;; m`A;<Esc>``
 " Find Alternates <Leader>a {{{2
 " Uses the alternate.vim and open.vim plugins 
 " Finds the test alternates
