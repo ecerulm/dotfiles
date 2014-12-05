@@ -34,6 +34,8 @@ fc-cache -vf ~/.fonts/
 mkdir -pv ~/.config/fontconfig/conf.d
 cp -v ~/dotfiles/fonts/10-powerline-symbols.conf ~/.config/fontconfig/conf.d/
 
+echo "creating systags"
+ctags -R -f ~/.vim/systags /usr/include /usr/local/include
 
 
 

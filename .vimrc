@@ -125,6 +125,7 @@ set ignorecase " make searches case-sensitive only if they contain upper case ch
 set smartcase
 "  2 moving around, searching and patterns }}}
 "  3 tags {{{
+set tags+=~/.vim/systags
 "  3 tags }}}
 "  4 displaying text {{{
 set cmdheight=2
