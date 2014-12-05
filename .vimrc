@@ -208,7 +208,7 @@ endif
 " }}} 13 selecting text
 " 14 editing text {{{
 set showmatch                  " show the matching paren or bracket
-
+set complete+=k~/.vim/keywords.txt  " Add extra completions
 " }}} 15 editing text
 " 15 tabs and indenting {{{
 set expandtab

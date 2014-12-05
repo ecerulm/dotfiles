@@ -1,0 +1,13 @@
+zctx_t
+zmq_bind
+zmq_ctx_new
+zmq_ctx_destroy
+zmq_msg_close
+zmq_msg_init
+zmq_msg_recv
+zmq_msg_send
+zmq_msg_t
+zmq_socket
+ZMQ_REP
+ZMQ_REQ
+memcpy
