@@ -1,8 +1,8 @@
 #Makefile template from 21st Century C by Ben Klemens
 P=program_name
 OBJECTS= # this a space separated list of .o files like main.o trace.o io.o
-CFLAGS = -g -Wall -O3 -std=gnu11
-LDLIBS=
+CFLAGS=-g -Wall -O3 -std=gnu11
+LDLIBS= # like -lzmq
 CC=cc
 
 # This rule just specify dependencies make knows how to link .o file together
