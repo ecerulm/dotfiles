@@ -495,7 +495,7 @@ map <Leader>h <Plug>(easymotion-linebackward)
 let g:EasyMotion_startofline = 0 " keep cursor colum when JK motion the mappings are the typical w,f,b,e, etc but preceded by <Leader><Leader>
 " }}} EasyMotion configuration
 " :H to open help in current window {{{
-command! -nargs=1 -complete=help H :enew | :set buftype=help | :h <args>
+command! -nargs=1 -complete=help H :tabnew | :set buftype=help | :h <args>
 " }}} :H to open help in current window
 " unite.vim mappings {{{
 
@@ -556,6 +556,13 @@ let g:tabber_wrap_when_shifting = 1
 " }}}
 " Learn vimscript the hard way {{{1
 " }}}1 Learn vimscript the hard way
+function! AddCurrentWordToKeywords()
+  let currentWord = expand("<cword>")
+  let keywordsFile = expand("~/.vim/keywords.txt")
+  call writefile(readfile(keywordsFile)+[ currentWord ],keywordsFile)
+endfunction
+command AddToKeywords call AddCurrentWordToKeywords()
+
 " Configuration to run after all plugins are loaded {{{ 
 function! ConfigAfterPluginLoaded()
   " vim-cycle groups {{{
