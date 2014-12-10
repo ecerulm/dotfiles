@@ -563,6 +563,10 @@ function! AddCurrentWordToKeywords()
 endfunction
 command AddToKeywords call AddCurrentWordToKeywords()
 
+" Neocomplete {{{
+source ~/.vim/neocomplete.vim
+" }}}
+
 " Configuration to run after all plugins are loaded {{{ 
 function! ConfigAfterPluginLoaded()
   " vim-cycle groups {{{
