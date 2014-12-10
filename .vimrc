@@ -122,7 +122,7 @@ set pastetoggle=<f4>
 "  1 important }}}
 "  2 moving around, searching and patterns {{{
 set ignorecase " make searches case-sensitive only if they contain upper case characters
-set smartcase
+set smartcase  " override the ignorecase option if searching for uppercase chars
 "  2 moving around, searching and patterns }}}
 "  3 tags {{{
 set tags+=~/.vim/systags
@@ -319,7 +319,7 @@ augroup END
 """"""""""""""""""""""""""""""""""""""""
 
 " }}}1 CUSTOM AUTOCOMMANDS
-" MISC KEY MAPS{{{1
+" MISC KEY MAPPINGS{{{1
 " Copy to system clipboard {{{2 
 map <leader>y "*y 
 
@@ -506,8 +506,6 @@ let g:unite_source_grep_recursive_opt = ''
 " Using ag as recursive command.
 let g:unite_source_rec_async_command =
           \ 'ag --follow --nocolor --nogroup --hidden -g ""'
-
-
 call unite#filters#matcher_default#use(['matcher_fuzzy'])
 nnoremap <C-p> :<C-u>Unite -no-split -buffer-name=files   -start-insert file_rec/async:!<cr>
 " nnoremap <leader>t :<C-u>Unite -no-split -buffer-name=files   -start-insert file_rec/async:!<cr>
