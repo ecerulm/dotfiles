@@ -542,6 +542,11 @@ nnoremap <f8> :TagbarToggle<cr>
 " just type lowercase and at the end press <c-u>
 inoremap <C-u> <Esc>viw~ea
 " }}}
+" <CR to break undo sequence {{{
+" <c-]> i_CTRL-] Trigger abbreviation without inserting a character
+" <C-G>u i_CTRL-G_u break undo sequence
+inoremap <CR> <C-]><C-G>u<CR>
+" }}}
 " gitgutter {{{
 " let g:gitgutter_sign_added = 'xx'
 " let g:gitgutter_sign_modified = 'yy'
