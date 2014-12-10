@@ -23,3 +23,6 @@ printf
 memcpy
 strlen
 sscanf
+ZMQ_PUSH
+ZMQ_PULL
+int64_t
