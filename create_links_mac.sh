@@ -21,3 +21,6 @@ ln -Fvhfs ~/dotfiles/.tmux.conf.mac ~/.tmux.conf.extra
 mkdir -p ~/.vim-tmp
 mkdir -p ~/.tmp
 mkdir -p ~/tmp
+
+echo "creating systags"
+ctags -R -f ~/.vim/systags /usr/include /usr/local/include
