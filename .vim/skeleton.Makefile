@@ -5,6 +5,10 @@ CFLAGS=-g -Wall -O3 -std=gnu11
 LDLIBS= # like -lzmq
 CC=cc
 
+# make without arguments will use the first non . target as default goal / target
+# you can define the default goal with
+#.DEFAULT_GOAL := $(P)
+
 # This rule just specify dependencies make knows how to link .o file together
 # it will implicitly use the recipe $(CC) $(LDFLAGS) first.o second.o $(LDLIBS)
 $(P): $(OBJECTS)
