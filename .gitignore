@@ -2,3 +2,4 @@
 .DS_Store
 .gitconfig_platform_specific
 Session.vim
+.vim/systags
