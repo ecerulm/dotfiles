@@ -22,5 +22,18 @@ mkdir -p ~/.vim-tmp
 mkdir -p ~/.tmp
 mkdir -p ~/tmp
 
-echo "creating systags"
-ctags -R -f ~/.vim/systags /usr/include /usr/local/include
+mkdir -pv ~/.vim-tmp
+mkdir -pv ~/.tmp
+mkdir -pv ~/tmp
+# create tmp dirs
+mkdir -p ~/.vim-tmp
+mkdir -p ~/.tmp
+mkdir -p ~/tmp
+
+# echo "creating systags"
+# ctags -R -f ~/.vim/systags /usr/include /usr/local/include
+
+echo "update the plugins"
+(cd ~/dotfiles; git submodule init; git submodule update)
+(vim -u ~/.vim/vundle.vim -N +PluginInstall +PluginClean +qall)
+

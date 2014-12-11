@@ -34,8 +34,13 @@ fc-cache -vf ~/.fonts/
 mkdir -pv ~/.config/fontconfig/conf.d
 cp -v ~/dotfiles/fonts/10-powerline-symbols.conf ~/.config/fontconfig/conf.d/
 
-echo "creating systags"
-ctags -R -f ~/.vim/systags /usr/include /usr/local/include
+# echo "creating systags"
+# ctags -R -f ~/.vim/systags /usr/include /usr/local/include
+
+echo "update the plugins"
+(cd ~/dotfiles; git submodule init; git submodule update)
+(vim -u ~/.vim/vundle.vim -N +PluginInstall +PluginClean +qall)
+
 
 
 
