@@ -11,6 +11,7 @@ let g:neocomplete#sources#syntax#min_keyword_length = 3
 " Define dictionary
 let g:neocomplete#sources#dictionary#dictionaries = {
    \ 'default' : '',
+   \ 'config' : $HOME.'/.vim/autotools.dict.txt',
    \ 'c' : $HOME.'/.vim/keywords.txt'
  \ }
 
