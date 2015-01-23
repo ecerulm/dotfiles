@@ -1,25 +1,33 @@
+snippet pyattr
+:py:attr:\`~.${1}.${2}\` ${0}
+endsnippet
+
+snippet pymeth
+:py:meth:\`~.${1}.${2}\` ${0}
+endsnippet
+
 snippet Explorer 
-:py:class:\`~.${1}Explorer\`${0}
+:py:class:\`~.${1}Explorer\` ${0}
 endsnippet
 
 snippet DiskPerfExplorer 
-:py:class:\`~.DiskPerfExplorer\`${0}
+:py:class:\`~.DiskPerfExplorer\` ${0}
 endsnippet
 
 snippet Backpack 
-:py:class:\`~.${1}Backpack\`${0}
+:py:class:\`~.${1}Backpack${2}\` ${0}
 endsnippet
 
 snippet DiskPerfBackpack 
-:py:class:\`~.DiskPerfBackpack\`${0}
+:py:class:\`~.DiskPerfBackpack${1}\` ${0}
 endsnippet
 
 snippet Basecamp 
-:py:class:\`~.${1}Basecamp\`${0}
+:py:class:\`~.${1}Basecamp\` ${0}
 endsnippet
 
 snippet pc
-:py:class:\`~.${1:ClassName}\`${0}
+:py:class:\`~.${1:ClassName}\` ${0}
 endsnippet
 
 snippet execute
@@ -27,19 +35,31 @@ snippet execute
 endsnippet
 
 snippet Explorer_
-:py:meth:\`~.${1}Explorer._${2:execute}\`${0}
+:py:meth:\`~.${1}Explorer._${2:execute}\` ${0}
 endsnippet
 
 snippet experiment_result
-:py:meth:\`~.${1}Backpack.experiment_result\`
+:py:meth:\`~.${1:Backpack}.experiment_result\`
+endsnippet
+
+snippet configure
+:py:meth:\`~.${1:Backpack}.configure\`
 endsnippet
 
 snippet failure_report
-:py:meth:\`~.${1}Backpack.failure_report\`${0}
+:py:meth:\`~.${1:Backpack}.failure_report\` ${0}
 endsnippet
 
 snippet Failed
 :py:attr:\`~.ExperimentResult.Failed\`
+endsnippet
+
+snippet InProgress
+:py:attr:\`~.ExperimentResult.InProgress\`
+endsnippet
+
+snippet NotStarted
+:py:attr:\`~.ExperimentResult.NotStarted\`
 endsnippet
 
 snippet dd
