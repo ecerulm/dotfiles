@@ -488,6 +488,11 @@ function! ConfigAfterPluginLoaded()
   :Abolish usmt must 
   :Abolish configuraito{n,ns} configuratio{}
   :Abolish itś it's
+  :Abolish thatś that's
+  :Abolish bojec{t,ts} objec{}
+  :Abolish aslo also
+  :Abolish simpel simple
+  :Abolish virutal virtual
   " }}}
 endfunction
 " }}} Configuration to run after all plugins are loaded
