@@ -121,5 +121,6 @@ snippet incsocket "includes for sockets"
 #include <netdb.h>  /* _in_addr_t require by <netint/in.h> */
 #include <sys/socket.h> /* recv, send, sendmsg, recvmsg */ 
 #include <netinet/in.h> /* sockaddr_in_t */
+#include <sys/uio.h> /* struct iovec */
 $0
 endsnippet
