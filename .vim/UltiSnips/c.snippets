@@ -122,5 +122,62 @@ snippet incsocket "includes for sockets"
 #include <sys/socket.h> /* recv, send, sendmsg, recvmsg */ 
 #include <netinet/in.h> /* sockaddr_in_t */
 #include <sys/uio.h> /* struct iovec */
+#include <stdlib.h> /* exit() */
+#include <limits.h> /* constants */
+#include <stdio.h> /* printf(), perror() */
+$0
+endsnippet
+
+snippet incall "add the usual includes"
+#include <errno.h>
+#include <string.h> /* memset, etc */
+#include <unistd.h> /* read(), write() */
+#include <stdlib.h> /* exit() */
+#include <limits.h> /* constants */
+#include <stdio.h> /* printf(), perror() */
+#include <stddef.h> /* int*_t */
+#include <stdbool.h> /* bool types true, false */
+#include <inttypes.h> /*  printf(" %" PRIu32 "\n"), my_uint32_t) */
+$0
+endsnippet
+
+snippet udpsocketsetup "get and addrinfo (dns resolve)"
+const char* hostname = 0; /* localhost */
+const char *portname = "daytime"; /* if AI_NUMERICSERV this string can conntain a number */
+struct addrinfo hints;
+memset(&hints,0,sizeof(hints));
+hints.ai_family=AF_UNSPEC;
+hints.ai_socktype=SOCK_DGRAM;
+hints.ai_protocol=0;
+hints.ai_flags=AI_ADDRCONFIG; /* AI_NUMERICSERV */
+struct addrinfo* res=0;
+int err=getaddrinfo(hostname,portname,&hints,&res);
+
+if (err!=0) {
+	perror("getaddrinfo: failed to resolve remote socket address");
+	exit(EXIT_FAILURE);
+}
+endsnippet
+
+snippet rcexit "check rc and exit"
+if (${1:rc}<0) {
+	perror("${2:functioname}");
+	exit(EXIT_FAILURE); /* stdlib.h */
+}
+$0
+endsnippet
+
+snippet elapsedtime "measure elapsed time with ms accuracy"
+/* #include <time.h> */
+clock_t start = clock();
+/* code to measure */
+clock_t stop = clock();
+double runtime_diff_ms = (stop-start) * 1000. / CLOCKS_PER_SEC;
+printf("Took %f ms\n", runtime_diff_ms);
+$0
+endsnippet
+
+snippet todo "/* TODO: todo message */"
+/* TODO: $1 */
 $0
 endsnippet
