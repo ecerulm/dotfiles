@@ -34,6 +34,7 @@ Plugin 'alfredodeza/coveragepy.vim'
 Plugin 'godlygeek/tabular'      " align text
 Plugin 'kana/vim-textobj-fold'  " az and iz
 Plugin 'kana/vim-textobj-user'  " library for vim-textobj-*
+Plugin 'kana/vim-textobj-function' " vaf, vif, daf, dif, yaf
 " Plugin 'kien/ctrlp.vim'         " file fuzzy search
 Plugin 'klen/python-mode'       " :h python-mode
 Plugin 'mileszs/ack.vim'        " :h ack
