@@ -2,6 +2,7 @@
 " vim: ts=2 sts=2 sw=2 foldmethod=marker foldlevel=0 foldcolumn=3 expandtab :
 
 source ~/.vim/vundle.vim
+runtime! ftplugin/man.vim
 
 " vim :options {{{
 
