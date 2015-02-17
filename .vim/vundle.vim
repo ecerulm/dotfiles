@@ -36,7 +36,7 @@ Plugin 'kana/vim-textobj-fold'  " az and iz
 Plugin 'kana/vim-textobj-user'  " library for vim-textobj-*
 Plugin 'kana/vim-textobj-function' " vaf, vif, daf, dif, yaf
 " Plugin 'kien/ctrlp.vim'         " file fuzzy search
-Plugin 'klen/python-mode'       " :h python-mode
+" Plugin 'klen/python-mode'       " :h python-mode
 Plugin 'mileszs/ack.vim'        " :h ack
 Plugin 'oblitum/rainbow'        " rainbow parens
 Plugin 'sjl/gundo.vim'          " <f6> show undo tree
@@ -58,7 +58,7 @@ Plugin 'camelcasemotion'        " w stops at _ and CamelCase
 Plugin 'zef/vim-cycle' 
 
 Plugin 'junegunn/vim-easy-align'  " :h easy-align
-Plugin 'bling/vim-airline'
+Plugin 'bling/vim-airline' " uses powerline symbols
 Plugin 'airblade/vim-gitgutter'
 Plugin 'Lokaltog/vim-easymotion'
 Plugin 'lucapette/vim-textobj-underscore'
