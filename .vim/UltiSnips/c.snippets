@@ -67,7 +67,7 @@ endsnippet
 
 
 # http://en.wikipedia.org/wiki/Include_guard
-snippet ifndef "#ifndef NAME_H Include Guards" b
+snippet incguard "#ifndef NAME_H Include Guards" b
 #ifndef ${1:FILENAME}_H
 #define $1_H
 ${0}
@@ -180,4 +180,40 @@ endsnippet
 snippet todo "/* TODO: todo message */"
 /* TODO: $1 */
 $0
+endsnippet
+
+snippet glibtest "Glib testcase"
+void ${1:testcasename}(dfixture *df, gconstpointer testdata) {
+	$0
+	g_test_skip("Not implemented yet");
+}
+
+endsnippet
+
+snippet exit "exit(EXIT_FAILURE)"
+exit(EXIT_FAILURE);
+endsnippet
+
+snippet perror "perror"
+if (${1:condition} == ${2:-1}) {
+	perror("${3:functionthatfailed}");
+	exit(EXIT_FAILURE);
+}
+endsnippet
+
+snippet incperror "#include <stdio.h>"
+#include <stdio.h> /* perror(), printf() */
+endsnippet
+
+snippet incprintf "#include <stdio.h>"
+#include <stdio.h> /* perror(), printf() */
+endsnippet
+snippet incshm "#include for POSIX shared memory"
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+endsnippet
+
+snippet incsizet "#include <stddef.h>"
+#include <stddef.h> /* size_t */
 endsnippet
