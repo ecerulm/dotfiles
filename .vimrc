@@ -372,7 +372,7 @@ nmap  -     <Plug>CycleNext
 " }}} Easy Align pluign configuration
 " vim airline configuration {{{
 let g:airline_powerline_fonts = 1
-  let g:airline#extensions#tabline#enabled = 0
+let g:airline#extensions#tabline#enabled = 0
 " }}} vim airline configuration
 " EasyMotion configuration {{{
 " http://code.tutsplus.com/tutorials/vim-essential-plugin-easymotion--net-19223
