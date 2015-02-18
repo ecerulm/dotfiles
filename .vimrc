@@ -88,11 +88,15 @@ set showtabline=2              " show always the editor tabs
 "  }}}
 " 13 selecting text {{{
 " system clipboard {{{
-if has('macunix')
-  set clipboard=unnamedplus,unnamed
-elseif has('autoselectplus') " http://ilessendata.blogspot.se/2012/05/vim-using-system-clipboard.html
-  "set clipboard=unnamed,unnamedplus
-  set clipboard=autoselectplus,autoselect
+" http://vimcasts.org/episodes/accessing-the-system-clipboard-from-vim/
+" http://ilessendata.blogspot.se/2012/05/vim-using-system-clipboard.html
+if has('unnamedplus') 
+  " autoselect copy visual selection to "* (no need to yank)
+  " autoselectplus copy VISUAL selection to "+ (no need to yank)
+  " unnamed  will use "* as target for yank, delete, etc
+  " unnamedplus will use "+ as target for yank, delete, etc
+  " set clipboard=autoselect,unnamed
+  set clipboard=autoselectplus,unnamedplus
 endif
 " }}} system clipboard
 " }}} 13 selecting text
