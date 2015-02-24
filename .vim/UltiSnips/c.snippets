@@ -195,7 +195,7 @@ exit(EXIT_FAILURE);
 endsnippet
 
 snippet perror "perror"
-if (${1:condition} == ${2:-1}) {
+if (${VISUAL:condition} == ${2:-1}) {
 	perror("${3:functionthatfailed}");
 	exit(EXIT_FAILURE);
 }
@@ -216,4 +216,24 @@ endsnippet
 
 snippet incsizet "#include <stddef.h>"
 #include <stddef.h> /* size_t */
+endsnippet
+
+snippet socket "int fd = socket(...)"
+int ${1:fd} = socket(AF_INET, SOCK_${2:DGRAM}, 0); /* <sys/socket.h> <sys/types.h> */
+endsnippet
+
+snippet bind "bind(fd,...)"
+struct sockaddr_in addr;
+memset(&addr, 0, sizeof(struct sockaddr_in)); /* <string.h> */
+addr.sin_family = AF_INET;
+addr.sin_addr.s_addr = INADDR_ANY;
+addr.sin_port = htons(${1:2222});
+bind(${2:fd}, (struct sockaddr *) &${2:addr}, sizeof(struct sockaddr_in));
+endsnippet
+
+snippet recvfrom "recvfrom(..., sourceaddr)"
+/* socklen_t len; */
+/* struct sockaddr_in claddr; */
+/* ssize_t numBytes; */
+numBytes = recvfrom(${1:fd}, ${2:buf}, ${3:BUF_SIZE}, 0, (struct sockaddr *) &${4:claddr}, &${5:len});
 endsnippet

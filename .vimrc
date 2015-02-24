@@ -294,7 +294,7 @@ cnoremap <C-p> <Down>
 " }}}2  C-p and C-n for command history
 " Folding {{{2
 " toggle open/close fold with <space>
-nnoremap <space> za
+" nnoremap <space> za
 
 " Refocus folds 
 nnoremap ,z zMzvzz
@@ -332,7 +332,7 @@ nnoremap <unique><silent><Leader>p <Esc>:Pytest project verbose<cr>
 nmap <unique> <Leader>x <Plug>ToggleAutoCloseMappings
 let g:autoclose_on = 0 " disabled by default 
 " Autocenter after search {{{2
-nnoremap n nzMzvzz
+" nnoremap n nzMzvzz
 " CamelCaseMotion {{{2
 map <silent> w <Plug>CamelCaseMotion_w
 map <silent> b <Plug>CamelCaseMotion_b
