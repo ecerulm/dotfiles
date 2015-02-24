@@ -31,6 +31,7 @@ set scrolloff=3                " keep more context when scrolling off the end of
 "  5 syntax, highlighting and spelling {{{
 set hlsearch 
 set cursorline                 " highlight current line
+set cursorcolumn                 " highlight current column
 set colorcolumn=+1 " highlight the column after the textwidth http://stackoverflow.com/questions/1919028/how-to-show-vertical-line-to-wrap-the-line-in-vim
 hi ColorColumn ctermbg=lightgrey
 " set spell " could be annoying when editing code
@@ -157,6 +158,10 @@ set exrc " enable per-directory .vimrc files
 set secure " disable unsafe commands in local .vimrc files
 " }}} 26 various
 
+" uncategorized yet {{{
+set ttyfast
+set lazyredraw
+" }}} uncategorized yet
 " }}} vim :options
 
 " CUSTOM AUTOCMDS{{{1
