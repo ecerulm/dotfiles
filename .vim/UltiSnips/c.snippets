@@ -237,3 +237,24 @@ snippet recvfrom "recvfrom(..., sourceaddr)"
 /* ssize_t numBytes; */
 numBytes = recvfrom(${1:fd}, ${2:buf}, ${3:BUF_SIZE}, 0, (struct sockaddr *) &${4:claddr}, &${5:len});
 endsnippet
+
+snippet getopt
+int opt;
+char *astr = NULL;
+char *cstr = NULL;
+
+while ((opt = getopt(argc,argv,":a:c:")) != -1) {
+	printf("opt =%3d (%c); optind =%d", opt, printable(opt), optind);
+	if (opt == '?' || opt == ':') 
+		printf("; optopt =%3d (%c)", optopt, printable(optopt));
+	printf("\n");
+	
+	switch (opt) {
+		case 'a': astr = optarg ;break;
+		case 'c': cstr = optarg ;break;
+		default: 
+			printf("Unexpected case\n");
+		>exit(EXIT_FAILURE);
+	}
+}
+endsnippet
