@@ -19,6 +19,7 @@ if status --is-interactive
   end
 end
 set -gx LC_CTYPE "en_US.UTF-8"
+set -gx LC_ALL "en_US.UTF-8"
 set BROWSER 'open' # needed for help command to work
 set -gx EDITOR vim
 set -gx PYTHONSTARTUP ~/.pythonrc
