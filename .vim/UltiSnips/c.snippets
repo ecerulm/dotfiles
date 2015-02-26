@@ -264,3 +264,18 @@ while ((opt = getopt(argc,argv,":a:c:")) != -1) {
 	}
 }
 endsnippet
+
+snippet ao "Surround with ACCESS_ONCE"
+ACCESS_ONCE(${VISUAL})$0
+endsnippet
+
+snippet sighandler "Signal handler <signal.h>" 
+struct sigaction ${1:sa};
+sigemptyset(&$1.sa_mask);
+$1.sa_flags = 0;
+$1.sa_handler = ${2:handler};
+if (sigaction(SIGINT, &$1, NULL) == -1) {
+	perror("sigaction");
+	exit(EXIT_FAILURE);
+}
+endsnippet
