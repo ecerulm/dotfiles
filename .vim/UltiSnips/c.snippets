@@ -201,6 +201,12 @@ if (${VISUAL:condition} == ${2:-1}) {
 }
 endsnippet
 
+snippet if "surround with if"
+if (${1:condition}) {
+	${VISUAL}
+}
+endsnippet
+
 snippet incperror "#include <stdio.h>"
 #include <stdio.h> /* perror(), printf() */
 endsnippet
