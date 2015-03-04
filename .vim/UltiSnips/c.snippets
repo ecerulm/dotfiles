@@ -246,8 +246,7 @@ endsnippet
 
 snippet getopt
 int opt;
-char *astr = NULL;
-char *cstr = NULL;
+struct args args;
 
 while ((opt = getopt(argc,argv,":a:c:")) != -1) {
 	printf("opt =%3d (%c); optind =%d", opt, printable(opt), optind);
@@ -256,11 +255,13 @@ while ((opt = getopt(argc,argv,":a:c:")) != -1) {
 	printf("\n");
 	
 	switch (opt) {
-		case 'a': astr = optarg ;break;
-		case 'c': cstr = optarg ;break;
+		case 'a': args.stringmember = optarg ;break;
+		case 'c': args.numbermember = strtol(optarg, NULL, 0);break;
+		case ':': printf("Missing argument\n"); exit(EXIT_FAILURE); break;
+		case '?': printf("Unrecognized option\n"); exit(EXIT_FAILURE); break;
 		default: 
 			printf("Unexpected case\n");
-		>exit(EXIT_FAILURE);
+      exit(EXIT_FAILURE);
 	}
 }
 endsnippet
@@ -275,6 +276,10 @@ sigemptyset(&$1.sa_mask);
 $1.sa_flags = 0;
 $1.sa_handler = ${2:handler};
 if (sigaction(SIGINT, &$1, NULL) == -1) {
+	perror("sigaction");
+	exit(EXIT_FAILURE);
+}
+if (sigaction(SIGTERM, &$1, NULL) == -1) {
 	perror("sigaction");
 	exit(EXIT_FAILURE);
 }
