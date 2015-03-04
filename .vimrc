@@ -299,7 +299,7 @@ cnoremap <C-p> <Down>
 " }}}2  C-p and C-n for command history
 " Folding {{{2
 " toggle open/close fold with <space>
-" nnoremap <space> za
+nnoremap <space> za
 
 " Refocus folds 
 nnoremap ,z zMzvzz
