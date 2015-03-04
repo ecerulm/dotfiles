@@ -195,10 +195,10 @@ exit(EXIT_FAILURE);
 endsnippet
 
 snippet perror "perror"
-if (${VISUAL:condition} == ${2:-1}) {
-	perror("${3:functionthatfailed}");
+if (rc == -1) {
+	perror("${1:functionthatfailed}");
 	exit(EXIT_FAILURE);
-}
+}$0
 endsnippet
 
 snippet if "surround with if"
