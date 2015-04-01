@@ -3,10 +3,10 @@
 #set -gx PATH ~/bin /usr/local/bin /usr/local/sbin $BASE_PATH
 if status --is-interactive
   set PATH /usr/local/bin /usr/local/sbin $PATH
-  if test -d ~/anaconda/bin
-    set PATH ~/anaconda/bin $PATH
-    set -x OPENSSL_CONF $HOME/anaconda/ssl/openssl.cnf
-  end
+  # if test -d ~/anaconda/bin
+  #   set PATH ~/anaconda/bin $PATH
+  #   set -x OPENSSL_CONF $HOME/anaconda/ssl/openssl.cnf
+  # end
   if test -d ~/.rbenv
     set PATH ~/.rbenv/bin $PATH
     . (rbenv init -|psub)
