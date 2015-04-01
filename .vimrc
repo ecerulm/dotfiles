@@ -470,6 +470,10 @@ function! AddCurrentWordToKeywords()
   call writefile(readfile(keywordsFile)+[ currentWord ],keywordsFile)
 endfunction
 command AddToKeywords call AddCurrentWordToKeywords()
+" Add keywords to keywords dictionary }}}1
+" vim-better-whitespace {{{1
+let g:better_whitespace_filetypes_blacklist=['unite']
+" vim-better-whitespace }}}1
 
 " Neocomplete {{{
 source ~/.vim/neocomplete.vim

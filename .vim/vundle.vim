@@ -52,6 +52,8 @@ Plugin 'vim-ruby/vim-ruby'
 Plugin 'argtextobj.vim'         " daa to delete arguments
 Plugin 'camelcasemotion'        " w stops at _ and CamelCase
 Plugin 'Townk/vim-autoclose'    " Auto close parens, brackets
+" Plugin 'bronson/vim-trailing-whitespace' " trailing whitespace highlighed in red and :FixWhitespace 
+Plugin 'ntpeters/vim-better-whitespace' " tailing whitespace highlighted :StripWhitespace
 
 " toggle.vim / cycle.vim / switch.vim
 " I decided cycle because switch is harder to configure although it's not
