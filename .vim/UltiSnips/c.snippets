@@ -113,6 +113,11 @@ memset(${1:void *s}, ${2:int c}, ${3:size_t len});
 $0
 endsnippet
 
+snippet config.h "include <config.h>"
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+endsnippet
 
 snippet incsocket "includes for sockets"
 #include <errno.h>
