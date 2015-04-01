@@ -5,6 +5,4 @@ setlocal foldnestmax=1
 setlocal foldlevel=0
 
 inoremap <buffer> <C-l> ->
-inoremap ( ()<Esc>i
-inoremap { {<CR>}<Esc>O
 inoremap /* /*  */<Esc>hhi

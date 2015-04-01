@@ -51,6 +51,7 @@ Plugin 'tpope/vim-unimpaired'   " con, cor, col ]b, ]l, ]q
 Plugin 'vim-ruby/vim-ruby'
 Plugin 'argtextobj.vim'         " daa to delete arguments
 Plugin 'camelcasemotion'        " w stops at _ and CamelCase
+Plugin 'Townk/vim-autoclose'    " Auto close parens, brackets
 
 " toggle.vim / cycle.vim / switch.vim
 " I decided cycle because switch is harder to configure although it's not
