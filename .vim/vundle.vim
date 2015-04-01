@@ -61,7 +61,7 @@ Plugin 'ntpeters/vim-better-whitespace' " tailing whitespace highlighted :StripW
 Plugin 'zef/vim-cycle' 
 
 Plugin 'junegunn/vim-easy-align'  " :h easy-align
-Plugin 'bling/vim-airline' " uses powerline symbols
+" Plugin 'bling/vim-airline' " uses powerline symbols
 Plugin 'airblade/vim-gitgutter'
 Plugin 'Lokaltog/vim-easymotion'
 Plugin 'lucapette/vim-textobj-underscore'
