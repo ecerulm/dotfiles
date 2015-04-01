@@ -460,6 +460,10 @@ let g:tabber_wrap_when_shifting = 1
 " }}}
 " Learn vimscript the hard way {{{1
 " }}}1 Learn vimscript the hard way
+" disable Q no Ex mode {{{1
+nnoremap Q <nop>
+" }}}1
+" Add keywords to keywords dictionary {{{1
 function! AddCurrentWordToKeywords()
   let currentWord = expand("<cword>")
   let keywordsFile = expand("~/.vim/keywords.txt")
