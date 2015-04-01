@@ -72,6 +72,7 @@ Plugin 'vim-scripts/DrawIt'
 Plugin 'chrisbra/NrrwRgn'
 Plugin 'kana/vim-textobj-indent' " ai, ii aI aI
 Plugin 'visincr'
+Plugin 'kana/vim-textobj-entire' " ae, ie
 
 " color themes
 Plugin 'altercation/vim-colors-solarized'
