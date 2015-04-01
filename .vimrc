@@ -478,6 +478,8 @@ let g:better_whitespace_filetypes_blacklist=['unite']
 " Neocomplete {{{
 source ~/.vim/neocomplete.vim
 " }}}
+" Save with :W
+command! W :
 
 " Configuration to run after all plugins are loaded {{{ 
 function! ConfigAfterPluginLoaded()
