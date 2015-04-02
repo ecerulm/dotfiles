@@ -66,13 +66,14 @@ Plugin 'nathanaelkane/vim-indent-guides'
 Plugin 'vim-scripts/DrawIt'
 Plugin 'chrisbra/NrrwRgn'
 Plugin 'visincr'
-Plugin 'kana/vim-textobj-entire' " ae, ie
+Plugin 'guns/vim-sexp'
 
 " textobj
 Plugin 'kana/vim-textobj-fold'  " az and iz
 Plugin 'kana/vim-textobj-user'  " library for vim-textobj-*
 Plugin 'kana/vim-textobj-function' " vaf, vif, daf, dif, yaf
 Plugin 'kana/vim-textobj-indent' " ai, ii aI aI
+Plugin 'kana/vim-textobj-entire' " ae, ie
 Plugin 'lucapette/vim-textobj-underscore'
 Plugin 'argtextobj.vim'         " daa to delete arguments
 Plugin 'kana/vim-textobj-syntax.git' " yiy yay
