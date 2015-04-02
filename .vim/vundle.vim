@@ -32,9 +32,6 @@ Plugin 'SirVer/ultisnips'       " snippet manager like SnipMate :h UltiSnips
 Plugin 'alfredodeza/pytest.vim' " :h pytest
 Plugin 'alfredodeza/coveragepy.vim'
 Plugin 'godlygeek/tabular'      " align text
-Plugin 'kana/vim-textobj-fold'  " az and iz
-Plugin 'kana/vim-textobj-user'  " library for vim-textobj-*
-Plugin 'kana/vim-textobj-function' " vaf, vif, daf, dif, yaf
 " Plugin 'kien/ctrlp.vim'         " file fuzzy search
 " Plugin 'klen/python-mode'       " :h python-mode
 Plugin 'mileszs/ack.vim'        " :h ack
@@ -49,7 +46,6 @@ Plugin 'tpope/vim-speeddating'  " Increment dates with <C-a> <C-x>
 Plugin 'tpope/vim-surround'     " viwS)
 Plugin 'tpope/vim-unimpaired'   " con, cor, col ]b, ]l, ]q
 Plugin 'vim-ruby/vim-ruby'
-Plugin 'argtextobj.vim'         " daa to delete arguments
 Plugin 'camelcasemotion'        " w stops at _ and CamelCase
 Plugin 'Townk/vim-autoclose'    " Auto close parens, brackets
 " Plugin 'bronson/vim-trailing-whitespace' " trailing whitespace highlighed in red and :FixWhitespace 
@@ -64,21 +60,29 @@ Plugin 'junegunn/vim-easy-align'  " :h easy-align
 " Plugin 'bling/vim-airline' " uses powerline symbols
 Plugin 'airblade/vim-gitgutter'
 Plugin 'Lokaltog/vim-easymotion'
-Plugin 'lucapette/vim-textobj-underscore'
 Plugin 'majutsushi/tagbar'      " ctags outline browser
 Plugin 'fweep/vim-tabber'       " tab renaming
 Plugin 'nathanaelkane/vim-indent-guides'
 Plugin 'vim-scripts/DrawIt'
 Plugin 'chrisbra/NrrwRgn'
-Plugin 'kana/vim-textobj-indent' " ai, ii aI aI
 Plugin 'visincr'
 Plugin 'kana/vim-textobj-entire' " ae, ie
+
+" textobj
+Plugin 'kana/vim-textobj-fold'  " az and iz
+Plugin 'kana/vim-textobj-user'  " library for vim-textobj-*
+Plugin 'kana/vim-textobj-function' " vaf, vif, daf, dif, yaf
+Plugin 'kana/vim-textobj-indent' " ai, ii aI aI
+Plugin 'lucapette/vim-textobj-underscore'
+Plugin 'argtextobj.vim'         " daa to delete arguments
+Plugin 'kana/vim-textobj-syntax.git' " yiy yay
 
 " color themes
 Plugin 'altercation/vim-colors-solarized'
 Plugin 'rainux/vim-desert-warm-256'
 Plugin 'tomasr/molokai'
 Plugin 'sjl/badwolf'
+
 " }}} MyPlugins
 
 " Plugin Examples {{{
