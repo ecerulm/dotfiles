@@ -201,10 +201,11 @@ exit(EXIT_FAILURE);
 endsnippet
 
 snippet perror "perror"
-if (rc == -1) {
-	perror("${1:functionthatfailed}");
+if (${1:rc} == -1) {
+	perror("${2:functionthatfailed}");
 	exit(EXIT_FAILURE);
-}$0
+}
+$0
 endsnippet
 
 snippet if "surround with if"
