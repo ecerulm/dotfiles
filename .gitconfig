@@ -51,6 +51,7 @@
   lol = log --graph --decorate --pretty=oneline --abbrev-commit --all
   purr = pull --rebase
   ready = rebase -i @{u}
+  rebasebranch = !git rebase -i $(git merge-base HEAD master)
 
 [merge] 
   tool = vimdiff
