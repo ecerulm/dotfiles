@@ -18,6 +18,10 @@ ln -Tvfs ~/dotfiles/.gitconfig_linux .gitconfig_platform_specific
 ln -Tvfs ~/dotfiles/.gitconfig_linux ~/.gitconfig_platform_specific
 ln -Tvfs ~/dotfiles/.tmux.conf.linux ~/.tmux.conf.extra
 
+#emacs dirs
+ln -Tvfs ~/dotfiles/emacs.d ~/.emacs.d
+
+
 # create tmp dirs
 mkdir -p ~/.vim-tmp
 mkdir -p ~/.tmp
