@@ -3,3 +3,9 @@
 .gitconfig_platform_specific
 Session.vim
 .vim/systags
+emacs.d/.recentf
+emacs.d/.smex-items
+emacs.d/auto-save-list/
+emacs.d/backups/
+emacs.d/cider-history
+emacs.d/places
