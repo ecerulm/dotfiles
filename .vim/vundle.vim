@@ -67,6 +67,8 @@ Plugin 'vim-scripts/DrawIt'
 Plugin 'chrisbra/NrrwRgn'
 Plugin 'visincr'
 Plugin 'guns/vim-sexp'
+Plugin 'danro/rename.vim'
+
 
 " textobj
 Plugin 'kana/vim-textobj-fold'  " az and iz
