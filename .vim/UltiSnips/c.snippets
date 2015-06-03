@@ -218,9 +218,28 @@ snippet incperror "#include <stdio.h>"
 #include <stdio.h> /* perror(), printf() */
 endsnippet
 
-snippet incprintf "#include <stdio.h>"
-#include <stdio.h> /* perror(), printf() */
+snippet "incf?printf" "#include <stdio.h>" r
+#include <stdio.h> /* perror(), printf(), fprintf() */
 endsnippet
+
+
+snippet incexit "#include <stdlib.h>"
+#include <stdlib.h> /* exit() */
+endsnippet
+
+snippet "incmem(set|cpy)" "#include <string.h>" r
+#include <string.h> /* memset(), memcpy() */
+endsnippet
+
+snippet incfcntl "#include for fnctl" b
+#include <unistd.h>
+#include <fcntl.h>
+endsnippet
+
+snippet incassert "#include for assert" b
+#include <assert.h> /* assert() */
+endsnippet
+
 snippet incshm "#include for POSIX shared memory"
 #include <sys/mman.h>
 #include <sys/stat.h>
