@@ -161,6 +161,7 @@ set secure " disable unsafe commands in local .vimrc files
 " uncategorized yet {{{
 set ttyfast
 set lazyredraw
+set diffopt+=vertical
 " }}} uncategorized yet
 " }}} vim :options
 
