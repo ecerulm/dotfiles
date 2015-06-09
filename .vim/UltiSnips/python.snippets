@@ -260,4 +260,25 @@ def cartesian(arrays, out=None):
             out[j*m:(j+1)*m,1:] = out[0:m,1:]
     return out
 endsnippet
+
+
+snippet printerr "print('', file=sys.stderr)"
+print('$1', file=sys.stderr)
+endsnippet
+
+snippet hexstring "string to hex bytes" w
+":".join("{:02x}".format(ord(c)) for c in ${1:result})
+endsnippet
+
+snippet writefile "with open ... write"
+with open(${1:filename}, "w") as ${2:f}:
+	f.write($3)
+endsnippet
+
+snippet openfile "with open ... read"
+with open(${1:filename}, "r") as ${2:f}:
+	f.read()
+endsnippet
 # vim:ft=snippets:
+
+
