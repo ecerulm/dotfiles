@@ -346,8 +346,11 @@ map <silent> e <Plug>CamelCaseMotion_e
 sunmap w
 sunmap b
 sunmap e
-" Tagbar <f8>
+" Tagbar <f8> {{{2
 nnoremap <f8> :TagbarToggle<CR>
+" w!! Write file as root (sudo tee trick) {{{2
+" command mode mapping, throw away the stdout
+cmap w!! w !sudo tee >/dev/null %
 " }}}1 MISC KEY MAPS
 " Pymode {{{1
 let g:Pymode_lint_on_fly             = 1
