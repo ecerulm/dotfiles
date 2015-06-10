@@ -310,3 +310,17 @@ if (sigaction(SIGTERM, &$1, NULL) == -1) {
 	exit(EXIT_FAILURE);
 }
 endsnippet
+
+snippet eq " == "
+== 
+endsnippet
+
+snippet as " = "
+= 
+endsnippet
+
+snippet mua "mu_assert()" b
+mu_assert(${1:condition}, "${2:message}");
+endsnippet
+
+
