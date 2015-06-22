@@ -18,7 +18,7 @@ ln -Fvhfs ~/dotfiles/.gitconfig_osx ~/.gitconfig_platform_specific
 ln -Fvhfs ~/dotfiles/.tmux.conf.mac ~/.tmux.conf.extra
 
 # emacs dirs
-ln -Tvfs ~/dotfiles/emacs.d ~/.emacs.d
+ln -Fvhfs ~/dotfiles/emacs.d ~/.emacs.d
 
 # create tmp dirs
 mkdir -p ~/.vim-tmp
