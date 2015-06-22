@@ -2,6 +2,11 @@ snippet inc "#include local header (inc)"
 #include "${1:`!p snip.rv = snip.basename + '.h'`}"
 endsnippet
 
+snippet "inc(uint|int)" "#include <stdint.h>" r
+#include <stdint.h> /* uint32_t, uint16_t, etc. */
+$0
+endsnippet
+
 snippet main "main() (main)"
 int main(int argc, char *argv[])
 {
@@ -84,7 +89,7 @@ snippet struct "struct name {}" b
 struct ${1:name} {
 	$0;
 };
-endsnippet	
+endsnippet
 
 snippet enum "enum name {};" b
 enum ${1:enumname} { ${2:VAL1}, ${3:VAL2}};
@@ -108,7 +113,7 @@ printf("$1\n",$2);
 $0
 endsnippet
 
-snippet	memset "memset (dest, value, size)" 
+snippet	memset "memset (dest, value, size)"
 memset(${1:void *s}, ${2:int c}, ${3:size_t len});
 $0
 endsnippet
@@ -119,19 +124,19 @@ snippet config.h "include <config.h>"
 #endif
 endsnippet
 
-snippet incsocket "includes for sockets"
-#include <errno.h>
-#include <string.h> /* memset, etc */
-#include <unistd.h> /* read(), write() */
-#include <netdb.h>  /* _in_addr_t require by <netint/in.h> */
-#include <sys/socket.h> /* recv, send, sendmsg, recvmsg */ 
-#include <netinet/in.h> /* sockaddr_in_t */
-#include <sys/uio.h> /* struct iovec */
-#include <stdlib.h> /* exit() */
-#include <limits.h> /* constants */
-#include <stdio.h> /* printf(), perror() */
-$0
-endsnippet
+# snippet incsocket "includes for sockets"
+# #include <errno.h>
+# #include <string.h> /* memset, etc */
+# #include <unistd.h> /* read(), write() */
+# #include <netdb.h>  /* _in_addr_t require by <netint/in.h> */
+# #include <sys/socket.h> /* recv, send, sendmsg, recvmsg */
+# #include <netinet/in.h> /* sockaddr_in_t */
+# #include <sys/uio.h> /* struct iovec */
+# #include <stdlib.h> /* exit() */
+# #include <limits.h> /* constants */
+# #include <stdio.h> /* printf(), perror() */
+# $0
+# endsnippet
 
 snippet incall "add the usual includes"
 #include <errno.h>
@@ -223,8 +228,9 @@ snippet "incf?printf" "#include <stdio.h>" r
 endsnippet
 
 
-snippet incexit "#include <stdlib.h>"
-#include <stdlib.h> /* exit() */
+snippet "inc(exit|free|malloc)" "#include <stdlib.h>" r
+#include <stdlib.h> /* exit(), malloc(), free() */
+$0
 endsnippet
 
 snippet "incmem(set|cpy)" "#include <string.h>" r
@@ -250,9 +256,15 @@ snippet incsizet "#include <stddef.h>"
 #include <stddef.h> /* size_t */
 endsnippet
 
+snippet "inc(socket|accept|listen)" "#include <sys/socket.h>" r
+#include <sys/socket.h> /* socket(), bind(), listen(), accept() */
+$0
+endsnippet
+
 snippet socket "int fd = socket(...)"
 int ${1:fd} = socket(AF_INET, SOCK_${2:DGRAM}, 0); /* <sys/socket.h> <sys/types.h> */
 endsnippet
+
 
 snippet bind "bind(fd,...)"
 struct sockaddr_in addr;
@@ -276,16 +288,16 @@ struct args args;
 
 while ((opt = getopt(argc,argv,":a:c:")) != -1) {
 	printf("opt =%3d (%c); optind =%d", opt, printable(opt), optind);
-	if (opt == '?' || opt == ':') 
+	if (opt == '?' || opt == ':')
 		printf("; optopt =%3d (%c)", optopt, printable(optopt));
 	printf("\n");
-	
+
 	switch (opt) {
 		case 'a': args.stringmember = optarg ;break;
 		case 'c': args.numbermember = strtol(optarg, NULL, 0);break;
 		case ':': printf("Missing argument\n"); exit(EXIT_FAILURE); break;
 		case '?': printf("Unrecognized option\n"); exit(EXIT_FAILURE); break;
-		default: 
+		default:
 			printf("Unexpected case\n");
       exit(EXIT_FAILURE);
 	}
@@ -296,7 +308,7 @@ snippet ao "Surround with ACCESS_ONCE"
 ACCESS_ONCE(${VISUAL})$0
 endsnippet
 
-snippet sighandler "Signal handler <signal.h>" 
+snippet sighandler "Signal handler <signal.h>"
 struct sigaction ${1:sa};
 sigemptyset(&$1.sa_mask);
 $1.sa_flags = 0;
@@ -312,11 +324,11 @@ if (sigaction(SIGTERM, &$1, NULL) == -1) {
 endsnippet
 
 snippet eq " == "
-== 
+==
 endsnippet
 
 snippet as " = "
-= 
+=
 endsnippet
 
 snippet mua "mu_assert()" b
@@ -324,3 +336,39 @@ mu_assert(${1:condition}, "${2:message}");
 endsnippet
 
 
+snippet terminate "terminate()" b
+#ifdef __GNUC__
+__attribute__ ((__noreturn__)) /* prevent warning if this function is called as last statement in a non-void function */
+#endif
+static void terminate(Boolean useExit3)
+{
+	char *s;
+
+	/*  Dump core if EF_DUMPCORE environment variable is defined. */
+	/*  Otherwise call exit(3) or _exit(2) dependig on the value of */
+	/*  useExit3 */
+
+	s = getenv("EF_DUMPCORE");
+	if (s != NULL && *s != '\0')
+		abort(); /* generate a coredump */
+	else if (useExit3)
+	  exit(EXIT_FAILURE); /* flushing */
+	else
+	  _exit(EXIT_FAILURE); /* no flushing */
+}
+endsnippet
+
+snippet errExit "errExit" b
+
+void
+errExit(const char *format, ...)
+{
+	va_list argList;
+
+	va_start(argList, format);
+	outputError(TRUE, errno, format, argList)
+	va_end(argList);
+
+	terminate(TRUE);
+}
+endsnippet
