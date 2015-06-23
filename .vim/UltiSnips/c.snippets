@@ -256,8 +256,16 @@ snippet incsizet "#include <stddef.h>"
 #include <stddef.h> /* size_t */
 endsnippet
 
-snippet "inc(socket|accept|listen)" "#include <sys/socket.h>" r
+snippet "inc(socket|accept|listen|send)" "#include <sys/socket.h>" r
+#include <sys/types.h>
 #include <sys/socket.h> /* socket(), bind(), listen(), accept() */
+$0
+endsnippet
+
+snippet "inc(getaddrinfo|freeaddrinfo|gai_strerror)" "#include <netdb.h>" r
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h> /* getaddrinfo(), freeaddrinfo(), gai_strerror() */
 $0
 endsnippet
 
