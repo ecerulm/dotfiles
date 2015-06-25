@@ -478,6 +478,16 @@ command AddToKeywords call AddCurrentWordToKeywords()
 " vim-better-whitespace {{{1
 let g:better_whitespace_filetypes_blacklist=['unite']
 " vim-better-whitespace }}}1
+" Test command -> Etest (projectionist) {{{1
+" you need a vim-projectionist file with some files of type: test
+" %:t just the filename (without the path)
+" :r removes the extension al well
+" "tests/*.c": {
+"   "alternate": "src/{}.c",
+"   "type": "test"
+" }
+command Test execute 'Etest '.expand("%:t:r") 
+" Test command -> Etest (projectionist) }}}1
 
 " Neocomplete {{{
 source ~/.vim/neocomplete.vim
