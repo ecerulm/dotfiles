@@ -68,6 +68,7 @@ Plugin 'chrisbra/NrrwRgn'
 Plugin 'visincr'
 Plugin 'guns/vim-sexp'
 Plugin 'danro/rename.vim'
+Plugin 'mhinz/vim-sayonara'
 
 
 " textobj
