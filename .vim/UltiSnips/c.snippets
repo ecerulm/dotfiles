@@ -7,6 +7,11 @@ snippet "inc(uint|int)" "#include <stdint.h>" r
 $0
 endsnippet
 
+snippet	"inc(hton|ntoh)" "#include " r
+#include <arpa/inet.h> /* htonl(), ntohl(), etc */
+$0
+endsnippet
+
 snippet main "main() (main)"
 int main(int argc, char *argv[])
 {
