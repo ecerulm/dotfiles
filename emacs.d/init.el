@@ -61,6 +61,9 @@
     ;; edit html tags like sexps
     tagedit
 
+    ;; expand-region
+    expand-region
+
     ;; git integration
     magit))
 
