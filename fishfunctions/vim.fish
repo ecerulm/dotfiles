@@ -1,12 +1,14 @@
 function vim
+  set VIM /usr/bin/vim
+  if test -e /Applications/MacVim.app/Contents/MacOS/Vim
+     set VIM /Applications/MacVim.app/Contents/MacOS/Vim
+  end
+
 	if test -z $argv
     # only if no arguments provided
     if test -e Session.vim
-      command vim -S Session.vim
-    else
-      command vim $argv
+      eval command $VIM -S Session.vim
     end
-  else
-      command vim $argv
   end
+  eval command $VIM $argv
 end
