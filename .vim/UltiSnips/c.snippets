@@ -352,6 +352,13 @@ snippet mua "mu_assert()" b
 mu_assert("${2:message}", ${1:condition});
 endsnippet
 
+snippet inctimerfd
+#include <sys/timerfd.h> /* timerfd_create(), timerfd_settime() */
+endsnippet
+
+snippet incepoll
+#include <sys/epoll.h> /* epoll_ctl(), epoll_wait(), EPOLL* */
+endsnippet
 
 snippet terminate "terminate()" b
 #ifdef __GNUC__
