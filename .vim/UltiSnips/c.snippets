@@ -1,3 +1,8 @@
+global !p
+def fn_underscores(filename):
+		return filename.replace(".","_").upper()
+endglobal
+
 snippet inc "#include local header (inc)"
 #include "${1:`!p snip.rv = snip.basename + '.h'`}"
 endsnippet
@@ -78,10 +83,10 @@ endsnippet
 
 # http://en.wikipedia.org/wiki/Include_guard
 snippet incguard "#ifndef NAME_H Include Guards" b
-#ifndef ${1:FILENAME}_H
-#define $1_H
-${0}
-#endif /* $1_H */
+#ifndef ${2:`!p snip.rv = fn_underscores(fn)`}
+#define $2
+${1}
+#endif /* $2 */
 endsnippet
 
 snippet typedef "typedef struct {} name" b
