@@ -67,6 +67,7 @@ Plugin 'vim-scripts/DrawIt'
 Plugin 'chrisbra/NrrwRgn'
 Plugin 'visincr'
 Plugin 'guns/vim-sexp'
+Plugin 'tpope/vim-sexp-mappings-for-regular-people'
 Plugin 'danro/rename.vim'
 Plugin 'mhinz/vim-sayonara'
 
