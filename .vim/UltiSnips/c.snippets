@@ -9,6 +9,12 @@ endsnippet
 
 snippet "inc(uint|int)" "#include <stdint.h>" r
 #include <stdint.h> /* uint32_t, uint16_t, etc. */
+#include <inttypes.h> /* printf format specifiers PRIu32, PRIu32, etc */
+$0
+endsnippet
+
+snippet incerrno "#include <errno.h>" b
+#include <errno.h> /* errno, EWOULDBLOCK, EAGAIN, etc */
 $0
 endsnippet
 
@@ -238,9 +244,13 @@ snippet "incf?printf" "#include <stdio.h>" r
 endsnippet
 
 
-snippet "inc(exit|free|malloc)" "#include <stdlib.h>" r
+snippet "inc(exit|free|malloc|abort)" "#include <stdlib.h>" r
 #include <stdlib.h> /* exit(), malloc(), free() */
 $0
+endsnippet
+
+snippet "inc(read|write)" "#include <unistd.h>" r
+#include <unistd.h> /* read(), write() */
 endsnippet
 
 snippet "incmem(set|cpy)" "#include <string.h>" r
@@ -248,7 +258,7 @@ snippet "incmem(set|cpy)" "#include <string.h>" r
 endsnippet
 
 snippet incfcntl "#include for fnctl" b
-#include <unistd.h>
+#include <unistd.h> /* read(), write() */
 #include <fcntl.h>
 endsnippet
 
