@@ -13,13 +13,20 @@ snippet "inc(uint|int)" "#include <stdint.h>" r
 $0
 endsnippet
 
+snippet "u(64|32|16|8)" "uint{64,32,16,8}_t " r
+uint`!p
+snip.rv = match.group(1)
+`_t ${1:varname} = ${2:0};
+endsnippet
+
+
 snippet incerrno "#include <errno.h>" b
 #include <errno.h> /* errno, EWOULDBLOCK, EAGAIN, etc */
 $0
 endsnippet
 
-snippet	"inc(hton|ntoh)" "#include " r
-#include <arpa/inet.h> /* htonl(), ntohl(), etc */
+snippet "inc(hton|ntoh|htonl|ntohl|htons|ntohs)" "#include <arpa/inet.h>" r
+#include <arpa/inet.h> /* htonl(), ntohl(), htons(), ntohs() */
 $0
 endsnippet
 
