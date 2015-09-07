@@ -7,7 +7,7 @@ snippet inc "#include local header (inc)"
 #include "${1:`!p snip.rv = snip.basename + '.h'`}"
 endsnippet
 
-snippet "inc(uint|int)" "#include <stdint.h>" r
+snippet "inc(uint|int|u32)" "#include <stdint.h>" rb
 #include <stdint.h> /* uint32_t, uint16_t, etc. */
 #include <inttypes.h> /* printf format specifiers PRIu32, PRIu32, etc */
 $0
@@ -176,6 +176,36 @@ snippet incall "add the usual includes"
 $0
 endsnippet
 
+snippet "inciov(ec)?" "#include <sys/uio.h>" r
+#include <sys/uio.h> /* struct iovec */
+$0
+endsnippet
+
+snippet "inc(intrin|mmx|see)" "#include <immintrin.h>" r
+#include <immintrin.h> /* All Intrinsics (x86 and AMD) https://software.intel.com/sites/landingpage/IntrinsicsGuide/ */
+$0
+endsnippet
+
+snippet "incx86" "#include <x86intrin.h>" b
+#include <x86intrin.h> /* x86 Intrinsics only https://software.intel.com/sites/landingpage/IntrinsicsGuide/ */
+$0
+endsnippet
+
+snippet "inc(syslog|log)" "#include <syslog.h>" r
+#include <syslog.h> /* syslog(), LOG_DEBUG, etc. */
+$0
+endsnippet
+
+snippet incl " #include local " b
+#include "$1.h"
+$0
+endsnippet
+
+snippet "inc(s|g)" "#include system/global" r
+#include <$1.h>
+$0
+endsnippet
+
 snippet udpsocketsetup "get and addrinfo (dns resolve)"
 const char* hostname = 0; /* localhost */
 const char *portname = "daytime"; /* if AI_NUMERICSERV this string can conntain a number */
@@ -260,6 +290,10 @@ snippet "inc(read|write)" "#include <unistd.h>" r
 #include <unistd.h> /* read(), write() */
 endsnippet
 
+snippet "incssize" "#include <sys/types.h>" b
+#include <sys/types.h> /* ssize_t, size_t, pid_t, etc. */
+endsnippet
+
 snippet "incmem(set|cpy)" "#include <string.h>" r
 #include <string.h> /* memset(), memcpy() */
 endsnippet
@@ -287,9 +321,9 @@ snippet "inc(null|sizet)" "#include <stddef.h>" r
 #include <stddef.h> /* size_t, NULL */
 endsnippet
 
-snippet "inc(socket|accept|listen|send)" "#include <sys/socket.h>" r
+snippet "inc(socket|accept|listen|send|msghdr)" "#include <sys/socket.h>" r
 #include <sys/types.h>
-#include <sys/socket.h> /* socket(), bind(), listen(), accept() */
+#include <sys/socket.h> /* socket(), bind(), listen(), accept(), struct msghdr */
 $0
 endsnippet
 
