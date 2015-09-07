@@ -10,3 +10,4 @@ emacs.d/backups/
 emacs.d/cider-history
 emacs.d/places
 emacs.d/elpa
+venv/
