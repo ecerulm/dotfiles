@@ -15,7 +15,7 @@ ls bin | xargs -n1 -I'{}' ln -Fvhfs ~/dotfiles/bin/'{}' ~/bin/'{}'
 #create system specific symlinks
 ln -Fvhfs ~/dotfiles/.gitconfig_osx .gitconfig_platform_specific
 ln -Fvhfs ~/dotfiles/.gitconfig_osx ~/.gitconfig_platform_specific
-ln -Fvhfs ~/dotfiles/.tmux.conf.mac ~/.tmux.conf.extra
+ln -Fvhfs ~/dotfiles/.tmux.conf.macosx ~/.tmux.conf.extra
 
 # emacs dirs
 ln -Fvhfs ~/dotfiles/emacs.d ~/.emacs.d
