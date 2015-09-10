@@ -1,7 +1,10 @@
 function vim
-  set VIM /usr/bin/vim
+	set VIM /usr/bin/vim
   if test -e /Applications/MacVim.app/Contents/MacOS/Vim
      set VIM /Applications/MacVim.app/Contents/MacOS/Vim
+  end
+  if test -e /usr/local/bin/vim
+     set VIM /usr/local/bin/vim
   end
 
 	if test -z $argv
