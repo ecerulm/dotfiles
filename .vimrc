@@ -517,7 +517,7 @@ function! ConfigAfterPluginLoaded()
   " Uppercase in insert mode with <C-u> {{{
   inoremap <C-u> <Esc>viw~ea
   " }}}
-  " abolish {{{
+  " abolish types  {{{
   :Abolish iwth with
   :Abolish teh the
   :Abolish usmt must 
@@ -528,6 +528,7 @@ function! ConfigAfterPluginLoaded()
   :Abolish aslo also
   :Abolish simpel simple
   :Abolish virutal virtual
+  :Abolish lable label
   " }}}
 endfunction
 " }}} Configuration to run after all plugins are loaded
