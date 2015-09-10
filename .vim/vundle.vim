@@ -59,7 +59,7 @@ Plugin 'zef/vim-cycle'
 Plugin 'junegunn/vim-easy-align'  " :h easy-align
 " Plugin 'bling/vim-airline' " uses powerline symbols
 Plugin 'airblade/vim-gitgutter'
-Plugin 'Lokaltog/vim-easymotion'
+Plugin 'easymotion/vim-easymotion'
 Plugin 'majutsushi/tagbar'      " ctags outline browser
 Plugin 'fweep/vim-tabber'       " tab renaming
 Plugin 'nathanaelkane/vim-indent-guides'
@@ -70,6 +70,9 @@ Plugin 'guns/vim-sexp'
 Plugin 'tpope/vim-sexp-mappings-for-regular-people'
 Plugin 'danro/rename.vim'
 Plugin 'mhinz/vim-sayonara'
+Plugin 'tpope/vim-fireplace'
+Plugin 'tpope/vim-salve'
+Plugin 'tpope/vim-classpath'
 
 
 " textobj
