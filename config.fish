@@ -29,3 +29,6 @@ switch (uname)
     alias pbpaste='xsel --clipboard --output'
 end
 stty -ixon  # Disable flow control
+
+# status --is-interactive; and . (pyenv init -|psub)
+# status --is-interactive; and . (pyenv virtualenv-init -|psub)
