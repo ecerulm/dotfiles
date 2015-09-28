@@ -139,6 +139,9 @@ set history=10000
 " set wildmode=list:longest
 " make tab completion for files/buffers act like zsh
 set wildmode=full
+set wildignore=*.o,*.obj,*.pyc " stuff to ignore when tab completing
+set wildignore+=.git
+set wildignore+=__pycache__
 
 set undofile
 set undodir=~/.vim-tmp,~/.tmp,~/tmp,/var/tmp,/tmp,.
