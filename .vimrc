@@ -498,6 +498,13 @@ source ~/.vim/neocomplete.vim
 " Save with :W
 command! W :
 
+" vim-test {{{
+let test#strategy = "dispatch"
+let test#python#runner = 'nose'
+
+" vim-test }}}
+
+
 " Configuration to run after all plugins are loaded {{{ 
 function! ConfigAfterPluginLoaded()
   " vim-cycle groups {{{
