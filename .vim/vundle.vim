@@ -34,6 +34,8 @@ Plugin 'alfredodeza/coveragepy.vim'
 Plugin 'godlygeek/tabular'      " align text
 " Plugin 'kien/ctrlp.vim'         " file fuzzy search
 " Plugin 'klen/python-mode'       " :h python-mode
+" Plugin 'lambdalisue/nose.vim'   " :compiler nose (depends on pip install nose_machine2
+Plugin 'ecerulm/vim-nose'
 Plugin 'mileszs/ack.vim'        " :h ack
 Plugin 'oblitum/rainbow'        " rainbow parens
 Plugin 'sjl/gundo.vim'          " <f6> show undo tree
@@ -45,6 +47,8 @@ Plugin 'tpope/vim-git'          " syntax for gitcommit, gitconfig, etc
 Plugin 'tpope/vim-speeddating'  " Increment dates with <C-a> <C-x>
 Plugin 'tpope/vim-surround'     " viwS)
 Plugin 'tpope/vim-unimpaired'   " con, cor, col ]b, ]l, ]q
+Plugin 'tpope/vim-dispatch'   " run test asynch
+Plugin 'janko-m/vim-test'
 Plugin 'vim-ruby/vim-ruby'
 Plugin 'camelcasemotion'        " w stops at _ and CamelCase
 Plugin 'Townk/vim-autoclose'    " Auto close parens, brackets
@@ -73,6 +77,7 @@ Plugin 'mhinz/vim-sayonara'
 Plugin 'tpope/vim-fireplace'
 Plugin 'tpope/vim-salve'
 Plugin 'tpope/vim-classpath'
+Plugin 'mtth/scratch.vim'
 
 
 " textobj
