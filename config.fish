@@ -30,5 +30,8 @@ switch (uname)
 end
 stty -ixon  # Disable flow control
 
-# status --is-interactive; and . (pyenv init -|psub)
+set -gx PYENV_ROOT "$HOME/.pyenv"
+set PATH $PYENV_ROOT/bin $PATH
+
+status --is-interactive; and . (pyenv init -|psub)
 # status --is-interactive; and . (pyenv virtualenv-init -|psub)
