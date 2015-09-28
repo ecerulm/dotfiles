@@ -1,4 +1,8 @@
 
+snippet basedir "basedir = os.path.abspath(...)" b
+basedir = os.path.abspath(os.path.dirname(__file__))
+endsnippet
+
 snippet patchers "insert patchers" b 
 with self.patchers_ok['os.listdir'], self.patchers_ok['os.environ'], self.patchers_ok['os.path']$0:
 endsnippet
