@@ -35,7 +35,6 @@ Plugin 'godlygeek/tabular'      " align text
 " Plugin 'kien/ctrlp.vim'         " file fuzzy search
 " Plugin 'klen/python-mode'       " :h python-mode
 " Plugin 'lambdalisue/nose.vim'   " :compiler nose (depends on pip install nose_machine2
-Plugin 'ecerulm/vim-nose'
 Plugin 'mileszs/ack.vim'        " :h ack
 Plugin 'oblitum/rainbow'        " rainbow parens
 Plugin 'sjl/gundo.vim'          " <f6> show undo tree
@@ -79,6 +78,9 @@ Plugin 'tpope/vim-salve'
 Plugin 'tpope/vim-classpath'
 Plugin 'mtth/scratch.vim'
 
+" Plugins for python py2 py3 development
+Plugin 'ecerulm/vim-nose'
+Plugin 'nvie/vim-flake8' " <F7> for running flake8, pep8
 
 " textobj
 Plugin 'kana/vim-textobj-fold'  " az and iz
