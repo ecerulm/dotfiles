@@ -52,6 +52,7 @@
   purr = pull --rebase
   ready = rebase -i @{u}
   rebasebranch = !git rebase -i $(git merge-base HEAD master)
+  fold = !sh -c '_CURRENT_BRANCH=$(git symbolic-ref --short HEAD)  && git checkout ${1-master} && git merge --no-ff ${2-$_CURRENT_BRANCH}' -
 
 [merge] 
   tool = vimdiff
