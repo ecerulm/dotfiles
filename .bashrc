@@ -120,8 +120,8 @@ fi
 export PATH="$PATH:$HOME/.rvm/bin" # Add RVM to PATH for scripting
 
 # added by Anaconda 2.1.0 installer
-if [ -d "/home/ecerulm/anaconda/bin" ]; then
-  export PATH="/home/ecerulm/anaconda/bin:$PATH"
-fi
+# if [ -d "/home/ecerulm/anaconda/bin" ]; then
+#   export PATH="/home/ecerulm/anaconda/bin:$PATH"
+# fi
 
 export EDITOR=vim
