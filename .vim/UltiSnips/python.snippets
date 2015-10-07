@@ -123,10 +123,12 @@ endsnippet
 
 
 snippet test "Add skipped test" b
-@unittest.skip("Pending")
-def test_${1:name}(self):
-	# ${2:Explain what the test case should do and the expectations}
-	self.assertTrue(False)
+def $0test_xxx_should_do_xx_when_xxx(self):
+	# Setup
+	# Exercise SUT
+	# Verify SUT state / behaviour
+	# Teardown
+	self.fail("Not implemented yet")
 
 endsnippet
 
