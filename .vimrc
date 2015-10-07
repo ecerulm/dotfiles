@@ -522,11 +522,14 @@ function! ConfigAfterPluginLoaded()
   call AddCycleGroup('python', ['return_value', 'side_effect'])
   call AddCycleGroup('python', ['call_args', 'call_args_list'])
   call AddCycleGroup('python', ['method_calls', 'mock_calls'])
+  call AddCycleGroup('python', ['start', 'stop'])
   call AddCycleGroup('c', ['EXIT_FAILURE', 'EXIT_SUCCESS'])
   " }}} vim-cycle groups
+
   " Uppercase in insert mode with <C-u> {{{
   inoremap <C-u> <Esc>viw~ea
   " }}}
+
   " abolish types  {{{
   :Abolish iwth with
   :Abolish teh the
