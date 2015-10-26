@@ -53,6 +53,15 @@
   ready = rebase -i @{u}
   rebasebranch = !git rebase -i $(git merge-base HEAD master)
   fold = !sh -c '_CURRENT_BRANCH=$(git symbolic-ref --short HEAD)  && git checkout ${1-master} && git merge --no-ff ${2-$_CURRENT_BRANCH}' -
+  undomerge = reset --merge ORIG_HEAD
+  diffbase = !git diff $(git merge-base HEAD master)
+
+  # From https://robots.thoughtbot.com/streamline-your-git-workflow-with-aliases
+  c = commit -m
+  cob = checkout -b
+  up = !git fetch origin && git rebase origin/master
+  ir = !git rebase -i origin/master
+  done = !git fetch && git rebase origin/master && git checkout master && git merge @{-1}
 
 [merge] 
   tool = vimdiff
