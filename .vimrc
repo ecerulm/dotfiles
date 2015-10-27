@@ -410,8 +410,13 @@ let g:unite_source_grep_command = 'ag'
 let g:unite_source_grep_default_opts = '--line-numbers --nocolor --nogroup --smart-case'
 let g:unite_source_grep_recursive_opt = ''
 " Using ag as recursive command.
+" let g:unite_source_rec_async_command =
+"           \ 'ag --follow --nocolor --nogroup --hidden -g ""'
+" Using ag as recursive command.
 let g:unite_source_rec_async_command =
-          \ 'ag --follow --nocolor --nogroup --hidden -g ""'
+\ ['ag', '--follow', '--nocolor', '--nogroup',
+\  '--hidden', '-g', '']
+<
 call unite#filters#matcher_default#use(['matcher_fuzzy'])
 nnoremap <C-p> :<C-u>Unite -no-split -buffer-name=files   -start-insert file_rec/async:!<cr>
 " nnoremap <leader>t :<C-u>Unite -no-split -buffer-name=files   -start-insert file_rec/async:!<cr>
