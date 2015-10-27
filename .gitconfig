@@ -70,7 +70,7 @@
   sslVerify = false
 [core]
   editor = vim
-	excludesfile = /home/ecerulm/.gitignore
+	excludesfile = ~/.gitignore
 [init]
   templatedir = ~/.git_template
 [push]
