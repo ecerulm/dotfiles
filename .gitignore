@@ -11,10 +11,11 @@ emacs.d/cider-history
 emacs.d/places
 emacs.d/elpa
 venv/
-__pycache__
+__pycache__/
 *.pyc
 .tox
 *.egg-info/
 .cache/
 .eggs/
 emacs.d/url/
+.git
