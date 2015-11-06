@@ -73,11 +73,9 @@
 	excludesfile = ~/.gitignore
 [init]
   templatedir = ~/.git_template
-[push]
-  #default = simple
 [pager]
 [push]
-  default = matching
+  default = upstream
 [filter "media"]
   clean = git-media-clean %f
   smudge = git-media-smudge %f
