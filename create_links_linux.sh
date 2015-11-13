@@ -34,7 +34,7 @@ mkdir -pv ~/tmp
 #Install powerline fonts
 mkdir -pv ~/.fonts
 cp -v ~/dotfiles/fonts/PowerlineSymbols.otf ~/.fonts
-fc-cache -vf ~/.fonts/
+fc-cache -vf ~/.fonts/ || true
 mkdir -pv ~/.config/fontconfig/conf.d
 cp -v ~/dotfiles/fonts/10-powerline-symbols.conf ~/.config/fontconfig/conf.d/
 
