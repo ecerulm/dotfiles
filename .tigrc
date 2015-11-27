@@ -1,1 +1,2 @@
 bind generic 9 !git reset --hard %(commit)
+bind generic R !git revert %(commit)
