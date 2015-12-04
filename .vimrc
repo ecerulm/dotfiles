@@ -214,6 +214,9 @@ augroup vimrcEx " Put them in a group so we delete them easily
 
   " unite_settings for unite buffers {{{2
   autocmd FileType unite call s:unite_settings() " apply setting to unite buffers
+  " autopep8 <f3> {{{2
+  autocmd FileType python map <buffer> <F3> :call Autopep8()<CR>
+
   " hook after plugin are loaded {{{2
   au VimEnter * call ConfigAfterPluginLoaded()
 augroup END
@@ -550,3 +553,9 @@ function! ConfigAfterPluginLoaded()
   " }}}
 endfunction
 " }}} Configuration to run after all plugins are loaded
+"
+"
+
+" Autopep8 disable the <F8> mapping since it's taken by the the ToggleBar {{{
+let no_autopep8_maps=1
+" Autopep8 }}}
