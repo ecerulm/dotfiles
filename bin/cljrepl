@@ -1,0 +1,5 @@
+#!/bin/bash
+
+breakchars="(){}[],^%$#@\"\";:''|\\"
+CLOJURECP=$CLASSPATH:$HOME/bin/clojure-1.7.0.jar
+rlwrap --remember -c -b "$breakchars" -f "$HOME"/.clj_completions java -cp $CLOJURECP clojure.main "$@"
