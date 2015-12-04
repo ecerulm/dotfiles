@@ -285,6 +285,43 @@ snippet openfile "with open ... read"
 with open(${1:filename}, "r") as ${2:f}:
 	f.read()
 endsnippet
+
+
+snippet argparse "argparse verbose levels"
+import argparse
+import logging
+
+log_levels_map = {
+        "DEBUG": logging.DEBUG,
+        "INFO": logging.INFO,
+        "WARNING": logging.WARNING,
+        "ERROR": logging.ERROR,
+        "CRITICAL": logging.CRITICAL,
+        }
+
+parser = argparse.ArgumentParser(description="A test program")
+parser.add_argument('-v', '--verbose', action='count' )
+parser.add_argument('--log-level', choices=log_levels_map)
+args = parser.parse_args()
+
+print args
+level = logging.WARNING
+if args.log_level:
+    level = log_levels_map[args.log_level]
+if args.verbose:
+    levels = [logging.WARNING, logging.INFO, logging.DEBUG]
+    level = levels[min(len(levels)-1,args.verbose)] # capped to the number of levels
+
+logging.basicConfig(level=level,
+                    format="%(asctime)s %(levelname)s %(message)s")
+
+logging.debug("a debug message")
+logging.info("a info message")
+logging.warning("a warning message")
+logging.error("a error message")
+logging.critical("a critical message")
+endsnippet
+
 # vim:ft=snippets:
 
 
