@@ -108,25 +108,25 @@
 
 ;; Sets up exec-path-from-shell so that Emacs will use the correct
 ;; environment variables
-(load "shell-integration.el")
+;;(load "shell-integration.el")
 
 ;; These customizations make it easier for you to navigate files,
 ;; switch buffers, and choose options from the minibuffer.
-(load "navigation.el")
+;;(load "navigation.el")
 
 ;; These customizations change the way emacs looks and disable/enable
 ;; some user interface elements
-(load "ui.el")
+;;(load "ui.el")
 
 ;; These customizations make editing a bit nicer.
 (load "editing.el")
 
 ;; Hard-to-categorize customizations
-(load "misc.el")
+;;(load "misc.el")
 
 ;; For editing lisps
 (load "elisp-editing.el")
 
 ;; Langauage-specific
 (load "setup-clojure.el")
-(load "setup-js.el")
+;;(load "setup-js.el")
