@@ -17,3 +17,4 @@ __pycache__
 *.egg-info/
 .cache/
 .eggs/
+emacs.d/url/
