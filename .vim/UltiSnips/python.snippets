@@ -322,6 +322,83 @@ logging.error("a error message")
 logging.critical("a critical message")
 endsnippet
 
+
+
+snippet tk "Tkinter windows and mainloop"
+root = tk.Tk()
+mylabel = tk.Label(root, text="I am a label widget")
+mylabel.pack()
+root.mainloop()
+endsnippet
+
+snippet tktoplevel "Tkinter Toplevel"
+top = tk.Toplevel()  # Top level window at the same level as root
+top.title("About this application")
+
+msg = tk.Message(top, text="my about message")
+msg.pack()
+button = tk.Button(top, text="Dismissin", command=top.destroy)
+button.pack()
+endsnippet
+
+snippet tkcheckbutton "Tkinter checkbutton"
+var = tk.IntVar()
+c = tk.Checkbutton(root, text="Expand", variable=var, command=afunction) # def afunction(self, event): print var.get()
+c.pack()
+endsnippet
+
+snippet tklabelframe "Tkinter LabelFrame"
+group = tk.LabelFrame(root, text="Group", padx=5, pady=5)
+group.pack(padx=10,pady=10)
+endsnippet
+
+snippet tklistbox "Tkinter listbox"
+listbox = tk.Listbox(root)
+listbox.pack()
+listbox.insert(tk.END, "a list entry")
+for item in ["one", "two", "three"]:
+	listbox.insert(tk.END, item)
+endsnippet
+
+snippet tkscrollbar "Tkinter scrollbar"
+frame = tk.Frame(root)
+scrollbar = tk.Scrollbar(frame, orient=tk.VERTICAL)
+listbox = tk.Listbox(frame, yscrollcommand=scrollbar.set)
+scrollbar.config(command=listbox.yview)
+scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+listbox.insert(tk.END, "a list entry")
+for item in range(100):
+	listbox.insert(tk.END, "item%d" % item)
+
+listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=1)
+frame.pack()
+endsnippet
+
+snippet tkmenu "Tkinter add a menubar"
+menubar = tk.Menu(root)
+
+# create a pulldown menu, and add it to the menu bar
+filemenu = tk.Menu(menubar, tearoff=0)
+filemenu.add_command(label="Open", command=hello)
+filemenu.add_command(label="Save", command=hello)
+filemenu.add_separator()
+filemenu.add_command(label="Exit", command=root.quit)
+menubar.add_cascade(label="File", menu=filemenu)
+
+# create more pulldown menus
+editmenu = tk.Menu(menubar, tearoff=0)
+editmenu.add_command(label="Cut", command=hello)
+editmenu.add_command(label="Copy", command=hello)
+editmenu.add_command(label="Paste", command=hello)
+menubar.add_cascade(label="Edit", menu=editmenu)
+
+helpmenu = tk.Menu(menubar, tearoff=0)
+helpmenu.add_command(label="About", command=hello)
+menubar.add_cascade(label="Help", menu=helpmenu)
+
+root.config(menu=menubar)
+endsnippet
 # vim:ft=snippets:
 
 
