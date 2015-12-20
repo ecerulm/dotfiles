@@ -399,6 +399,27 @@ menubar.add_cascade(label="Help", menu=helpmenu)
 
 root.config(menu=menubar)
 endsnippet
+
+snippet "tk(combobox|optionmenu)" "Tkinter combobox" r
+OPTIONS= ["egg", "bunny", "chicken"]
+variable = tk.StringVar(root)
+variable.set(OPTIONS[0])  # default value
+
+w = apply(tk.OptionMenu, (root, variable) + tuple(OPTIONS))
+# w = tk.OptionMenu(root, variable, "egg", "bunny", "chicken")
+w.pack()
+endsnippet
+
+snippet "tk(slider|scale)" "Tkinter slider/scale" r
+w = tk.Scale(root, from_=0, to=100, orient=tk.HORIZONTAL)
+w.pack()
+
+def callback():
+	print w.get()
+
+b = tk.Button(root, text="Get", command=callback)
+b.pack()
+endsnippet
 # vim:ft=snippets:
 
 
