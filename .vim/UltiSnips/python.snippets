@@ -420,6 +420,20 @@ def callback():
 b = tk.Button(root, text="Get", command=callback)
 b.pack()
 endsnippet
+
+snippet flask "Flask app" b
+
+from flask import Flask
+app = Flask(__name__)
+
+@app.route('/')
+def hello():
+    return "Hello world!"
+
+if __name__ == '__main__':
+    app.run()
+endsnippet
+
 # vim:ft=snippets:
 
 
