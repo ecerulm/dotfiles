@@ -19,3 +19,4 @@ __pycache__/
 .eggs/
 emacs.d/url/
 .git
+.eggs/ 
