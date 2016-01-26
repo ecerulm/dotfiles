@@ -437,3 +437,21 @@ endsnippet
 # vim:ft=snippets:
 
 
+snippet argparse "argparse common"
+parser = argparse.ArgumentParser(description='What the program does')
+parser.add_argument('infile', nargs='?', type=argparse.FileType('r'), default=sys.stdin)
+parser.add_argument('outfile', nargs='?', type=argparse.FileType('w'), default=sys.stdout)
+parser.add_argument('-v', '--verbose',
+                    help="Be verbose", dest='loglevel', action='store_const',
+                    const=logging.INFO)
+parser.add_argument('-d', '--debug',
+                    help="Prints lots of debugging statements",
+                    dest='loglevel', action='store_const', const=logging.DEBUG,
+                    default=logging.WARNING)
+args = parser.parse_args()
+logging.basicConfig(level=args.loglevel)
+endsnippet
+
+snippet envget
+os.environ.get('${0:ENVVAR}', '${1:defaulvalue}')
+endsnippet
