@@ -452,6 +452,6 @@ args = parser.parse_args()
 logging.basicConfig(level=args.loglevel)
 endsnippet
 
-snippet envget
-os.environ.get('${0:ENVVAR}', '${1:defaulvalue}')
+snippet "(envget|getenv)" "os.environ.get" rw
+os.environ.get('${1:ENVVAR}') or 'default'$0
 endsnippet
