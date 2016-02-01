@@ -11,6 +11,106 @@ snippet d3blank
 </html>
 endsnippet
 
+snippet d3line
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+
+svg {
+  font: 10px sans-serif;
+}
+
+.line {
+  fill: none;
+  stroke: #3366ff;
+  stroke-width: 2px;
+  stroke-opacity: 0.1;
+}
+</style>
+<script src="//d3js.org/d3.v3.min.js" charset="utf-8"></script>
+</head>
+<body>
+<script>
+// http://bost.ocks.org/mike/path/
+var n = 40;
+var random = d3.random.normal(0, 0.2); // mean, deviation
+var data = d3.range(n).map(random);
+
+var margin = {top: 20, right: 20, bottom: 20, left: 40},
+		width = 960 - margin.left - margin.right,
+		height = 500 - margin.top - margin.bottom;
+
+var x = d3.scale.linear()
+	.domain([1, n - 2])
+	.range([0, width]); // 1 to n -2 because we are clipping the first and last out of view
+var y = d3.scale.linear()
+	.domain([-1, 1])
+	.range([height, 0]);
+
+var line = d3.svg.line()
+	.interpolate("basis")
+	.x(function(d, i){return x(i); }) // x is just the index position
+	.y(function(d, i){ return y(d); }); // here d is each of the random normal values
+
+
+var svg = d3.select("body")
+	.append("svg")
+		.attr("width", width + margin.left + margin.right)
+	.attr("height", height + margin.top + margin.bottom)
+	.append("g")
+		.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+svg.append("defs")
+	.append("clipPath")
+		.attr("id", "clip")
+	.append("rect")
+		.attr("width", width)
+		.attr("height", height);
+
+var path = svg.append("g")
+		.attr("clip-path", "url(#clip)")
+	.append("path")
+		.datum(data) // this is n random values
+		.attr("class", "line")
+		.attr("d", line);
+
+function tick() {
+	data.push(random()); // push a new value at the end
+
+	path
+		.attr("d", line) // redraw
+		.attr("transform", null) // clear the transform
+	.transition()
+		.duration(500)
+		.ease("linear")
+		.attr("transform", "translate(" + x(0) + ",0)")
+		.each("end", tick);
+
+	data.shift() // remove from the front
+}
+
+tick(); // this will repeat at the end of each transition, so it runs continously
+
+
+</script>
+</body>
+</html>
+
+endsnippet
+
+snippet html
+<html>
+	<head>
+		<title>$1</title>
+	</head>
+	<body>
+		<h1>$2</h1>
+	</body>
+</html>
+endsnippet
+
 snippet bootstrap
 <!DOCTYPE html>
 <html lang="en">
