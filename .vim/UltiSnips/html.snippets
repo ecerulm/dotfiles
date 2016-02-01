@@ -160,3 +160,76 @@ snippet socketio
 	</body>
 </html>
 endsnippet
+
+snippet block
+{% block ${1:blockname} %}
+${0:<div></div>}
+{% endblock %}
+endsnippet
+
+snippet h1
+<h1>${0:text}</h1>
+endsnippet
+
+snippet urlfor "jinja2 urlfor" w
+{{ url_for('${1:static}', filename='${0:filename.css}') }}
+endsnippet
+
+snippet jumbotron
+<div class="jumbotron">
+  <h1>Traffic Generator</h1>
+	<p>...</p>
+	<p><a class="btn btn-primary btn-lg" href="#" role="button">DO NOT PRESS THE BUTTON</a></p>
+</div>
+endsnippet
+
+snippet container
+<div class="container">
+	$0
+</div>
+endsnippet
+
+snippet div.panel-heading
+<div class="panel-heading">$0</div>
+endsnippet
+
+snippet for
+{% for ${1:user} in ${2:users} %}
+$0
+{% endfor %}
+endsnippet
+
+snippet div.row
+<div class="row">
+$0
+</div> <!-- div.row -->
+endsnippet
+
+snippet div.panel
+<div class="panel panel-${1:default}">
+	<div class="panel-heading">
+		<h3 class="panel-title">${2:Panel title}</h3>
+	</div>
+	<div class="panel-body">
+		$0
+	</div>
+</div>
+endsnippet
+
+snippet div.navbar
+<div class="navbar navbar-inverse navbar-fixed-top">
+	<div class="container">
+		<div class="navbar-header">
+			<button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+				<span class="icon-bar"></span>
+				<span class="icon-bar"></span>
+				<span class="icon-bar"></span>
+			</button>
+		</div>
+	</div>
+</div>
+endsnippet
+
+snippet icon "bootstrap glyphicon" w
+<span class="glyphicon glyphicon-${1:phone}"></span>$0
+endsnippet

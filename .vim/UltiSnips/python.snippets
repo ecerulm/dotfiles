@@ -434,7 +434,33 @@ if __name__ == '__main__':
     app.run()
 endsnippet
 
-# vim:ft=snippets:
+snippet tkgui
+
+import Tkinter as tk
+class App(object):
+	def __init__(self, root):
+		frame = tk.Frame(root)
+		frame.pack()  #  no options takes full container
+
+		self.button1 = tk.Button(root, text="Button1", command=root.quit)
+		self.button1.pack(side=tk.LEFT)
+		self.button2 = tk.Button(root, text="Button2", command=root.quit)
+		self.button2.pack(side=tk.LEFT)
+		self.button3 = tk.Button(root, text="Button3", command=root.quit)
+		self.button3.pack(side=tk.LEFT)
+
+root = tk.Tk()
+
+app = App(root)
+
+root.mainloop()
+#root.destroy()  # optional 
+endsnippet
+
+
+snippet basedir
+os.path.abspath(os.path.dirname(__file__))
+endsnippet
 
 
 snippet argparse "argparse common"
