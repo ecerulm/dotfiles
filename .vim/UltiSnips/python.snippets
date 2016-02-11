@@ -481,3 +481,39 @@ endsnippet
 snippet "(envget|getenv)" "os.environ.get" rw
 os.environ.get('${1:ENVVAR}') or 'default'$0
 endsnippet
+
+snippet socket
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+endsnippet
+
+snippet tcpserver
+conn,addr = s.accept()  # will block until we get a connection
+import socket
+import time
+import threading
+
+HOST = "0.0.0.0"
+PORT = 5006
+
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+s.bind((HOST, PORT))
+s.listen(100)
+
+def sendloop(conn):
+	print("Started thread",threading.current_thread().name)
+		while True:
+			conn.send("Hola\n")
+			time.sleep(1)
+
+while True:
+		conn, addr = s.accept()
+		myThread = threading.Thread(target=sendloop, args=(conn,))
+		myThread.daemon = True
+		myThread.start()
+endsnippet
+
+
+snippet thread
+threading.Thread(target=${1:myfunc}, args=(,))
+endsnippet
