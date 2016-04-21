@@ -38,3 +38,4 @@ set PATH $PYENV_ROOT/bin $PATH
 
 status --is-interactive; and . (pyenv init -|psub)
 status --is-interactive; and . (pyenv virtualenv-init -|psub)
+status --is-interactive; and . (opam config env|psub)
