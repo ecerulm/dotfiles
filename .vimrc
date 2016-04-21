@@ -198,6 +198,7 @@ augroup vimrcEx " Put them in a group so we delete them easily
   :au BufNewFile setup.py r ~/.vim/skeleton.setup.py
   :au BufNewFile tox.ini r ~/.vim/skeleton.tox.ini
   :au BufNewFile config.py r ~/.vim/skeleton.config.py
+  :au BufNewFile ansible.cfg r ~/.vim/skeleton.ansible.cfg
 
   "Rainbow parentheses {{{2
    au FileType c,cpp,objc,objcpp,ruby,python call rainbow#load()
