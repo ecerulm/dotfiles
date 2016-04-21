@@ -562,3 +562,10 @@ endfunction
 " Autopep8 disable the <F8> mapping since it's taken by the the ToggleBar {{{
 let no_autopep8_maps=1
 " Autopep8 }}}
+"
+
+
+" Work in UTF-8 {{{
+set encoding=utf-8
+set fileencoding=utf-8
+" Work in UTF-8 }}}
