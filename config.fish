@@ -14,6 +14,9 @@ if status --is-interactive
   if test -d ~/bin
     set PATH ~/bin $PATH
   end
+  if test -d ~/.local/bin
+    set PATH ~/.local/bin $PATH
+  end
   if test $COLORTERM = "gnome-terminal"
     set -x TERM xterm-256color
   end
