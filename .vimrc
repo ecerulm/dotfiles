@@ -22,7 +22,7 @@ set cmdheight=2
 set numberwidth=5
 "set listchars=tab:▸\ ,eol:$
 " No restore screen on vim exit {{{
-set t_ti= t_te=                " :help norestorescreen See http://www.shallowsky.com/linux/noaltscreen.html
+"set t_ti= t_te=                " :help norestorescreen See http://www.shallowsky.com/linux/noaltscreen.html
 "  No retsore screen on vim exit }}}
 " Prevent vim from clobbering the scrollback buffer. {{{
 set scrolloff=3                " keep more context when scrolling off the end of a buffer
