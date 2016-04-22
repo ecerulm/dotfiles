@@ -1,0 +1,59 @@
+snippet heat "OpenStack Heat Template (HOT)" b
+heat_template_version: 2015-04-30
+
+resources:
+  kafka_network:
+    type: OS::Neutron::Net
+
+  kafka_subnet:
+    type: OS::Neutron::Subnet
+    properties:
+      network_id: { get_resource: kafka_network }
+      cidr: "192.168.1.0/24"
+      ip_version: 4
+
+  router:
+    type: OS::Neutron::Router
+    properties:
+      external_gateway_info: { network: net04_ext }
+
+  kafka_subnet_router_interface:
+    type: OS::Neutron::RouterInterface
+    properties:
+      router_id: { get_resource: router }
+      subnet: {get_resource: kafka_subnet }
+
+  zookeeper1_port:
+    type: OS::Neutron::Port
+    properties:
+       network: { get_resource: kafka_network }
+
+  zookeeper1_floating_ip:
+    type: OS::Neutron::FloatingIP
+    properties:
+      floating_network: "net04_ext"
+
+  zookeepter1_floating_ip_assoc:
+    type: OS::Neutron::FloatingIPAssociation
+    properties:
+      floatingip_id: { get_resource: zookeeper1_floating_ip }
+      port_id: { get_resource: zookeeper1_port }
+
+
+  zookeeper1:
+    type: OS::Nova::Server
+    properties:
+      key_name: quantum
+      flavor: m1.small
+      image: ubuntu1504
+      user_data_format: RAW
+      networks:
+        - port: { get_resource: zookeeper1_port }
+
+outputs:
+  zookeeper1_external_ip:
+    description: zookeeper1 external IP address
+    value: { get_attr: [zookeeper1_floating_ip, floating_ip_address] }
+
+
+endsnippet

@@ -19,6 +19,21 @@ snippet meta "<meta content=....>" b
 <meta charset="utf-8" />
 endsnippet
 
+
+snippet d3parsewidth
+parseInt(d3.select("$1").style("${2:width}"))
+endsnippet
+
+snippet d3parseheight
+parseInt(d3.select("$1").style("${2:height}"))
+endsnippet
+
+snippet	d3scale
+var ${1:xscale} = d3.scale.linear()
+	.domain([0, ${2:1}])
+	.range([0, ${3:width_in_pixels}])
+endsnippet
+
 snippet d3line
 <!DOCTYPE html>
 <html>
