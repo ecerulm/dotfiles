@@ -118,6 +118,8 @@ if ! shopt -oq posix; then
 fi
 
 export PATH="$PATH:$HOME/.rvm/bin" # Add RVM to PATH for scripting
+export PATH="$HOME/.local/bin:$PATH" # Add RVM to PATH for scripting
+
 
 # added by Anaconda 2.1.0 installer
 # if [ -d "/home/ecerulm/anaconda/bin" ]; then
