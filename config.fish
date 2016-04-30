@@ -20,6 +20,10 @@ if status --is-interactive
   if test $COLORTERM = "gnome-terminal"
     set -x TERM xterm-256color
   end
+  if test -d ~/.pyenv
+    . (pyenv init -|psub)
+    . (pyenv virtualenv-init -|psub)
+  end
 end
 set -gx LC_CTYPE "en_US.UTF-8"
 set -gx LC_ALL "en_US.UTF-8"
@@ -36,6 +40,4 @@ stty -ixon  # Disable flow control
 set -gx PYENV_ROOT "$HOME/.pyenv"
 set PATH $PYENV_ROOT/bin $PATH
 
-status --is-interactive; and . (pyenv init -|psub)
-status --is-interactive; and . (pyenv virtualenv-init -|psub)
 status --is-interactive; and . (opam config env|psub)
