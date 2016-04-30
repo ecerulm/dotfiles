@@ -20,13 +20,18 @@ if status --is-interactive
   if test $COLORTERM = "gnome-terminal"
     set -x TERM xterm-256color
   end
-  if test -d ~/.pyenv
+
+  # If pyenv in the PATH
+  type pyenv >/dev/null ^/dev/null # Check if pyenv available
+  if test $status -eq 0
     . (pyenv init -|psub)
     . (pyenv virtualenv-init -|psub)
   end
+
+  # If opam in the path
   type opam >/dev/null ^/dev/null
   if test $status -eq 0
-    status --is-interactive; and . (opam config env|psub)
+    . (opam config env|psub)
   end
 
 end
