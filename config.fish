@@ -24,6 +24,11 @@ if status --is-interactive
     . (pyenv init -|psub)
     . (pyenv virtualenv-init -|psub)
   end
+  type opam >/dev/null ^/dev/null
+  if test $status -eq 0
+    status --is-interactive; and . (opam config env|psub)
+  end
+
 end
 set -gx LC_CTYPE "en_US.UTF-8"
 set -gx LC_ALL "en_US.UTF-8"
@@ -40,4 +45,3 @@ stty -ixon  # Disable flow control
 set -gx PYENV_ROOT "$HOME/.pyenv"
 set PATH $PYENV_ROOT/bin $PATH
 
-status --is-interactive; and . (opam config env|psub)
