@@ -1,3 +1,3 @@
 function ls --description 'List contents of directory'
-	command ls -FG $argv
+	command ls -FG --color=auto $argv
 end
