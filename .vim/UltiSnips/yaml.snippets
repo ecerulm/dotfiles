@@ -89,3 +89,15 @@ ${1:param_name}:
 	label: Network ID
 	description:  (openstack uuid) of the network to which the instance will be attached
 endsnippet
+
+snippet hsecuritygroup
+${1:ssh}_security_group:
+	type: OS::Neutron::SecurityGroup
+	properties:
+		description: Allow $1
+		name: $1-security-group
+		rules:
+			- protocol: tcp
+				port_range_min: ${2:22}
+				port_range_max: ${3:22}
+endsnippet
