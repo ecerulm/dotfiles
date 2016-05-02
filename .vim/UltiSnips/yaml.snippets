@@ -57,3 +57,35 @@ outputs:
 
 
 endsnippet
+
+snippet server
+${1:server_name}:
+	type: OS::Nova::Server
+	properties:
+		key_name: ${2:key_name}
+		flavor: ${3:m1.small}
+		image: ${4:ubuntu1504}
+		user_data_format: RAW
+		networks:
+			- port: { get_resource: zookeeper1_port }
+$1_port:
+type: OS::Neutron::Port
+properties:
+ network: { get_resource: kafka_network }
+
+endsnippet
+
+snippet hrg
+${1:rg_name}:
+	type: OS::Heat::ResourceGroup
+	properties:
+		count: 3
+		resource_def: {type: ${2:mongodb_node}.yaml}
+endsnippet
+
+snippet hparam
+${1:param_name}:
+	type: string
+	label: Network ID
+	description:  (openstack uuid) of the network to which the instance will be attached
+endsnippet
