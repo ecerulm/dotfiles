@@ -27,7 +27,16 @@ set numberwidth=5
 " Prevent vim from clobbering the scrollback buffer. {{{
 set scrolloff=3                " keep more context when scrolling off the end of a buffer
 " Prevent vim from clobbering the scrollback buffer. }}}
+set sidescroll=1
+" wrapping text {{{
+set nowrap
+set breakindent
+set breakindentopt=sbr
+set showbreak=↪>\
+" wrapping text }}}
+
 "  4 displaying text }}}
+
 "  5 syntax, highlighting and spelling {{{
 set hlsearch 
 set cursorline                 " highlight current line
@@ -60,7 +69,8 @@ set t_ut= " http://sunaku.github.io/vim-256color-bce.html bce background color e
 colorscheme molokai
 
 " }}} COLOR
-" }}} 5 syntax, highlighting and spelling
+"  5 syntax, highlighting and spelling }}}
+"
 "  6 multiple windows {{{
 set hidden                     " allow unsaved background buffers
 set winwidth=79
