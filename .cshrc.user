@@ -86,6 +86,7 @@ alias rranap '(rsarteCTE -data $wsranap -vmargs -Xmx5G) &'
 #alias rtest '(rsarteCTE -data $wstest) &'
 alias rtest '(/proj/dte_rsarte/linux64/TEST/v851_cp3_tf1_cte_v20131128_1102_0036/SDP/eclipse -data $wstest) &'
 #alias rt '(rsarte851cp1 -data $wstest) &'
+alias ls 'ls --color'
 setenv lmuecs /vobs/rnc/rrt/struct/rncLmUe/cs
 #setenv wsueh /proj/rnc_boost/users/ecerulm/ws_851_ueh
 if ( -d /local/scratch ) then
@@ -106,3 +107,6 @@ alias ack '~/bin/ack'
 alias g 'git'
 
 #limit descriptors 8000
+
+# Set ls colors
+eval `dircolors` # you can change to `dircolors pathtocolorscheme` see http://linux-sxs.org/housekeeping/lscolors.html and j
