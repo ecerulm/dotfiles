@@ -32,7 +32,7 @@ set sidescroll=1
 set nowrap
 set breakindent
 set breakindentopt=sbr
-set showbreak=↪>\
+let &showbreak="\u21aa "
 " wrapping text }}}
 
 "  4 displaying text }}}
