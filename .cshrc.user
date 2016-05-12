@@ -108,8 +108,10 @@ alias g 'git'
 
 #limit descriptors 8000
 
-# Set ls colors
 # set locale
 setenv LC_ALL "en_US.utf-8"
 setenv LANG "en_US.utf-8"
+
+# Set ls colors 
 eval `dircolors` # you can change to `dircolors pathtocolorscheme` see http://linux-sxs.org/housekeeping/lscolors.html and j
+setenv PATH $HOME/.local/bin:$PATH
