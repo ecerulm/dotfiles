@@ -21,6 +21,9 @@ ln -Tvfs ~/dotfiles/.tmux.conf.linux ~/.tmux.conf.extra
 #emacs dirs
 ln -Tvfs ~/dotfiles/emacs.d ~/.emacs.d
 
+#dircolors
+ln -Tvfs ~/dotfiles/.dircolors ~/.dircolors
+
 
 # create tmp dirs
 mkdir -p ~/.vim-tmp

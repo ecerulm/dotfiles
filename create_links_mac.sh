@@ -20,6 +20,9 @@ ln -Fvhfs ~/dotfiles/.tmux.conf.macosx ~/.tmux.conf.extra
 # emacs dirs
 ln -Fvhfs ~/dotfiles/emacs.d ~/.emacs.d
 
+# dircolors
+ln -Fvhfs ~/dotfiles/.dircolors ~/.dircolors
+
 # create tmp dirs
 mkdir -p ~/.vim-tmp
 mkdir -p ~/.tmp
