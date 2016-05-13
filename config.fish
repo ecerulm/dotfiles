@@ -21,9 +21,13 @@ if status --is-interactive
     set -x TERM xterm-256color
   end
 
+  if test -d ~/miniconda2
+    set PATH ~/miniconda2/bin $PATH
+  end
   # If pyenv in the PATH
-  type pyenv >/dev/null ^/dev/null # Check if pyenv available
-  if test $status -eq 0
+  if test -d ~/.pyenv
+    set -gx PYENV_ROOT "$HOME/.pyenv"
+    set PATH $PYENV_ROOT/bin $PATH
     . (pyenv init -|psub)
     . (pyenv virtualenv-init -|psub)
   end
@@ -47,6 +51,4 @@ switch (uname)
 end
 stty -ixon  # Disable flow control
 
-set -gx PYENV_ROOT "$HOME/.pyenv"
-set PATH $PYENV_ROOT/bin $PATH
 
