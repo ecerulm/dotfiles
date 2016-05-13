@@ -6,6 +6,11 @@ function vim
   if test -e /usr/local/bin/vim
      set VIM /usr/local/bin/vim
   end
+  if test -e ~/.local/bin/vim
+     set VIM $HOME/.local/bin/vim
+  end
+
+  set VIM vim
 
 	if test -z $argv
     # only if no arguments provided
