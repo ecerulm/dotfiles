@@ -75,7 +75,7 @@
   templatedir = ~/.git_template
 [pager]
 [push]
-  default = upstream
+	default = simple
 [filter "media"]
   clean = git-media-clean %f
   smudge = git-media-smudge %f
