@@ -8,6 +8,9 @@ mkdir -p ~/.config/fish/
 ln -Fvhfs ~/dotfiles/fishfunctions ~/.config/fish/functions
 ln -Fvhfs ~/dotfiles/config.fish ~/.config/fish/config.fish
 
+mkdir -p ~/.config/qtile/
+ln -Fvhfs ~/dotfiles/qtile/config.py ~/.config/qtile/config.fish
+
 #bin 
 mkdir -p ~/bin
 ls bin | xargs -n1 -I'{}' ln -Fvhfs ~/dotfiles/bin/'{}' ~/bin/'{}'
