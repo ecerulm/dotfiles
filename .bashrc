@@ -127,3 +127,4 @@ export PATH="$HOME/.local/bin:$PATH"
 # fi
 
 export EDITOR=vim
+alias vi=vim
