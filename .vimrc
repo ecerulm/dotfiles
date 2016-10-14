@@ -574,8 +574,25 @@ let no_autopep8_maps=1
 " Autopep8 }}}
 "
 
-
 " Work in UTF-8 {{{
 set encoding=utf-8
 set fileencoding=utf-8
 " Work in UTF-8 }}}
+
+
+
+" tslime.v {{{
+let g:tslime_always_current_session = 1
+let g:tslime_always_current_window = 1
+
+vmap <C-c><C-c> <Plug>SendSelectionToTmux
+
+" <C-c><C-c> sends the paragraph (selected with vip) to the other pane in
+" the current window
+nmap <C-c><C-c> <Plug>NormalModeSendToTmux
+
+" To send your own commands to the other pane use
+" :nmap ,t :Tmux textthatwillbesenttootherpane<CR>
+
+" tslime.v }}}
+"

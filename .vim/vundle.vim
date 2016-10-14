@@ -17,7 +17,7 @@ Plugin 'gmarik/Vundle.vim'
 " Plugin 'compactcode/open.vim'
 " Plugin 'scrooloose/nerdtree'
 Plugin 'tpope/vim-obsession' " Autosave Session.vim
-Plugin 'tpope/vim-projectionist' " alternate files, 
+Plugin 'tpope/vim-projectionist' " alternate files,
 " Plugin 'tpope/vim-sleuth'      " No need to set indenting, ts, etc per ftype
 Plugin 'Shougo/unite.vim'
 Plugin 'Shougo/unite-outline'
@@ -51,13 +51,14 @@ Plugin 'janko-m/vim-test'
 Plugin 'vim-ruby/vim-ruby'
 Plugin 'camelcasemotion'        " w stops at _ and CamelCase
 Plugin 'Townk/vim-autoclose'    " Auto close parens, brackets
-" Plugin 'bronson/vim-trailing-whitespace' " trailing whitespace highlighed in red and :FixWhitespace 
+" Plugin 'bronson/vim-trailing-whitespace' " trailing whitespace highlighed in red and :FixWhitespace
 Plugin 'ntpeters/vim-better-whitespace' " tailing whitespace highlighted :StripWhitespace
+Plugin 'jgdavey/tslime.vim'
 
 " toggle.vim / cycle.vim / switch.vim
 " I decided cycle because switch is harder to configure although it's not
-" limited to single word 
-Plugin 'zef/vim-cycle' 
+" limited to single word
+Plugin 'zef/vim-cycle'
 
 Plugin 'junegunn/vim-easy-align'  " :h easy-align
 " Plugin 'bling/vim-airline' " uses powerline symbols
