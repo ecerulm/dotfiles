@@ -595,8 +595,16 @@ nmap <C-c><C-c> <Plug>NormalModeSendToTmux
 " :nmap ,t :Tmux textthatwillbesenttootherpane<CR>
 
 " tslime.v }}}
+
+" gx configuration {{{
 :let g:netrw_browsex_viewer= "xdg-open"
 " Use whole "words" when opening URLs.
 " This avoids cutting off parameters (after '?') and anchors (after '#').
 " See http://vi.stackexchange.com/q/2801/1631
 let g:netrw_gx="<cWORD>"
+" gx configuration }}}
+
+
+" GIFL google i'm feeling lucky URL grabber {{{
+let g:LuckyOutputFormat='html'
+" GIFL google i'm feeling lucky URL grabber }}}
