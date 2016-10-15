@@ -549,3 +549,52 @@ from logging.config import fileConfig
 logger = logging.getLogger()
 fileConfig('logging_config.ini', disable_existing_loggers=False)
 endsnippet
+
+snippet futureimports "from __future__ import ..." b
+from __future__ import division  # no need to convert to float
+from __future__ import print_function
+from __future__ import unicode_literals
+from future_builtins import *
+endsnippet
+
+snippet qtimports "from PyQt4.Qcore ..." b
+import sys
+import time
+from PyQt4.QtCore import (QTime, QTimer, Qt)
+from PyQt4.QtCore import pyqtSignal as Signal
+from PyQt4.QtGui import (QApplication, QLabel, QDialog, QLineEdit, QTextBrowser, QVBoxLayout)
+endsnippet
+
+
+snippet "(q|qt)dialog" "user-defined QDialog" br
+class Form(QDialog):
+
+	def __init__(self, parent=None):
+		super(Form, self).__init__(parent)
+		self.browser = QTextBrowser()  # https://goo.gl/HveSbk
+		self.lineedit = QLineEdit("Type an expression and press Enter")  # https://goo.gl/u4Miw2
+		self.lineedit.selectAll()
+		layout = QVBoxLayout()  # https://goo.gl/URzGCk
+		layout.addWidget(self.browser)
+		layout.addWidget(self.lineedit)
+		self.setLayout(layout)
+		self.lineedit.setFocus()
+		self.lineedit.returnPressed.connect(self.updateUi)
+		self.setWindowTitle("Calculate")
+
+
+	def updateUi(self):
+		try:
+			text = unicode(self.lineedit.text())
+			self.browser.append("{0} = <b>{1}</b>".format(text, eval(text)))
+		except:
+			self.browser.append("<font color=red>{0} is invalid!</font>".format(text))
+endsnippet
+
+snippet qtapplication "ifmain QTapplication" b
+if __name__ == "__main__":
+	app = QApplication(sys.argv)  # https://goo.gl/uNiCXp
+	form = Form()
+	form.show()
+	app.exec_()
+endsnippet
