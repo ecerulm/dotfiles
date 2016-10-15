@@ -38,7 +38,11 @@ if status --is-interactive
     . (opam config env|psub)
   end
 
-end
+  if test -e ~/.config/fish/apikeys
+    . ~/.config/fish/apikeys
+  end
+
+end # is interactive
 set -gx LC_CTYPE "en_US.UTF-8"
 set -gx LC_ALL "en_US.UTF-8"
 set BROWSER 'open' # needed for help command to work
