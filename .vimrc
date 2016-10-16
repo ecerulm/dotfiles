@@ -38,7 +38,7 @@ let &showbreak="\u21aa "
 "  4 displaying text }}}
 
 "  5 syntax, highlighting and spelling {{{
-set hlsearch 
+set hlsearch
 set cursorline                 " highlight current line
 set cursorcolumn                 " highlight current column
 set colorcolumn=+1 " highlight the column after the textwidth http://stackoverflow.com/questions/1919028/how-to-show-vertical-line-to-wrap-the-line-in-vim
@@ -48,7 +48,7 @@ set spelllang=en_us
 
 " Enable filetype detection {{{
 " Use the default filetype settings, so that mail gets 'tw' set to 72
-" 'cindent'is on in C files, etc. 
+" 'cindent'is on in C files, etc.
 " Also load indent files, to automatically do language-dependent indenting
 " filetype plugin indent on
 filetype on
@@ -77,7 +77,7 @@ set winwidth=79
 " switching between buffers {{{
 " for quickfix commands, and I suspect that Ctrl-P is also affected
 " useopen, jump to first open window that already has that buffer
-set switchbuf=useopen 
+set switchbuf=useopen
 " switching between buffers }}}
 " STATUSLINE{{{
 set statusline=%<%f\ (%{&ft})\ %-4(%m%)%=%-19(%3l,%02c%03V%)%{fugitive#statusline()}	" filename filetype git
@@ -101,7 +101,7 @@ set showtabline=2              " show always the editor tabs
 " system clipboard {{{
 " http://vimcasts.org/episodes/accessing-the-system-clipboard-from-vim/
 " http://ilessendata.blogspot.se/2012/05/vim-using-system-clipboard.html
-if has('unnamedplus') 
+if has('unnamedplus')
   " autoselect copy visual selection to "* (no need to yank)
   " autoselectplus copy VISUAL selection to "+ (no need to yank)
   " unnamed  will use "* as target for yank, delete, etc
@@ -139,7 +139,7 @@ set backup
 set backupdir=~/.vim-tmp,~/.tmp,~/tmp,/var/tmp,/tmp,.
 set directory=~/.vim-tmp,~/.tmp,~/tmp,/var/tmp,/tmp,.
 set autoread  " automatically reload files modified outside of vim
-" }}} 19 reading and writing files 
+" }}} 19 reading and writing files
 " 20 the swap file {{{
 " }}}
 " 21 command line editing {{{
@@ -185,14 +185,14 @@ augroup vimrcEx " Put them in a group so we delete them easily
 
   " Use textwidth 72 for all text files {{{2
   autocmd FileType text,rst setlocal textwidth=72
-  
+
   " Jump to Last cursor position unless its invalid or in an event handler  {{{2
   autocmd BufReadPost *
      \ if line("'\"") > 0 && line("'\"") <= line("$") |
      \   exe "normal g`\"" |
      \ endif
- 
-  " Indent p tags {{{2 
+
+  " Indent p tags {{{2
   "autocmd FileType html,eruby if g:html_indent_tags !~ '\\|p\>' | let g:html_indent_tags .= '\|p\|li\|dt\|dd' | endif
 
   " Leave the return key alone when in command line windows, {{{2
@@ -239,8 +239,8 @@ augroup END
 
 " }}}1 CUSTOM AUTOCOMMANDS
 " MISC KEY MAPPINGS{{{1
-" Copy to system clipboard {{{2 
-map <leader>y "*y 
+" Copy to system clipboard {{{2
+map <leader>y "*y
 
 
 " Move around splits with <c-hjkl>{{{2
@@ -321,7 +321,7 @@ cnoremap <C-p> <Down>
 " toggle open/close fold with <space>
 nnoremap <space> za
 
-" Refocus folds 
+" Refocus folds
 nnoremap ,z zMzvzz
 " }}}2 Folding
 " Text bubbling <C-Up> <C-Down> {{{2
@@ -345,7 +345,7 @@ inoremap <leader>, <C-X><C-O>
 imap <C-j> <End>;<cr>
 nnoremap ;; m`A;<Esc>``
 " Find Alternates <Leader>a {{{2
-" Uses the alternate.vim and open.vim plugins 
+" Uses the alternate.vim and open.vim plugins
 " Finds the test alternates
 " map <C-^> :Open(alternate#FindAlternate())<cr>
 map <Leader>a :Open(alternate#FindAlternate())<cr>
@@ -355,7 +355,7 @@ nnoremap <unique><silent><Leader>p <Esc>:Pytest project verbose<cr>
 
 " Autoclose{{{2
 nmap <unique> <Leader>x <Plug>ToggleAutoCloseMappings
-let g:autoclose_on = 0 " disabled by default 
+let g:autoclose_on = 0 " disabled by default
 " Autocenter after search {{{2
 " nnoremap n nzMzvzz
 " CamelCaseMotion {{{2
@@ -510,7 +510,7 @@ let g:better_whitespace_filetypes_blacklist=['unite']
 "   "alternate": "src/{}.c",
 "   "type": "test"
 " }
-command Test execute 'Etest '.expand("%:t:r") 
+command Test execute 'Etest '.expand("%:t:r")
 " Test command -> Etest (projectionist) }}}1
 
 " Neocomplete {{{
@@ -526,7 +526,7 @@ let test#python#runner = 'nose'
 " vim-test }}}
 
 
-" Configuration to run after all plugins are loaded {{{ 
+" Configuration to run after all plugins are loaded {{{
 function! ConfigAfterPluginLoaded()
   " vim-cycle groups {{{
   call AddCycleGroup('python', ['True', 'False'])
@@ -554,7 +554,7 @@ function! ConfigAfterPluginLoaded()
   " abolish types  {{{
   :Abolish iwth with
   :Abolish teh the
-  :Abolish usmt must 
+  :Abolish usmt must
   :Abolish configuraito{n,ns} configuratio{}
   :Abolish itś it's
   :Abolish thatś that's
