@@ -595,4 +595,8 @@ nmap <C-c><C-c> <Plug>NormalModeSendToTmux
 " :nmap ,t :Tmux textthatwillbesenttootherpane<CR>
 
 " tslime.v }}}
-"
+:let g:netrw_browsex_viewer= "xdg-open"
+" Use whole "words" when opening URLs.
+" This avoids cutting off parameters (after '?') and anchors (after '#').
+" See http://vi.stackexchange.com/q/2801/1631
+let g:netrw_gx="<cWORD>"
