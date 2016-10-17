@@ -62,6 +62,7 @@
   up = !git fetch origin && git rebase origin/master
   ir = !git rebase -i origin/master
   done = !git fetch && git rebase origin/master && git checkout master && git merge @{-1}
+	god = log --graph --oneline --decorate
 
 [merge] 
   tool = vimdiff
@@ -71,6 +72,8 @@
 [core]
   editor = vim
 	excludesfile = ~/.gitignore
+	autocrlf = input
+	safecrlf = warn
 [init]
   templatedir = ~/.git_template
 [pager]
@@ -85,3 +88,4 @@
 [diff]
 	mnemonicprefix = true
 	renames = copies
+	tool = vimdiff
