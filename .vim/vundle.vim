@@ -80,7 +80,7 @@ Plugin 'tpope/vim-classpath'
 Plugin 'mtth/scratch.vim'
 
 " Plugins for python py2 py3 development
-Plugin 'ecerulm/vim-nose'
+Plugin 'ecerulm/vim-nose' "  :compiler nose
 Plugin 'nvie/vim-flake8' " <F7> for running flake8, pep8
 Plugin 'tell-k/vim-autopep8' " <F8> for running autopep8
 
