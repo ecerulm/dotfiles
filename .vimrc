@@ -606,5 +606,5 @@ let g:netrw_gx="<cWORD>"
 
 
 " GIFL google i'm feeling lucky URL grabber {{{
-let g:LuckyOutputFormat='html'
+let g:LuckyOutputFormat='markdown'
 " GIFL google i'm feeling lucky URL grabber }}}

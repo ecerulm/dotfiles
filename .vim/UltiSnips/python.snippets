@@ -591,10 +591,38 @@ class Form(QDialog):
 			self.browser.append("<font color=red>{0} is invalid!</font>".format(text))
 endsnippet
 
-snippet qtapplication "ifmain QTapplication" b
+snippet "(qtapp|qtapplication)" "ifmain QTapplication" br
 if __name__ == "__main__":
 	app = QApplication(sys.argv)  # https://goo.gl/uNiCXp
-	form = Form()
+	form = Form()  # where Form is a user-defined type derived from QForm
 	form.show()
 	app.exec_()
+endsnippet
+
+
+snippet "(q|qt)dialog" "class Form(QDialog)" br
+class Form(QDialog):
+
+		def __init__(self, parent=None):
+				super(Form, self).__init__(parent)
+				self.browser = QTextBrowser()
+				self.lineedit = QLineEdit("Type an expression and press Enter")
+				self.lineedit.selectAll()
+				layout = QVBoxLayout()
+				layout.addWidget(self.browser)
+				layout.addWidget(self.lineedit)
+				self.setLayout(layout)
+				self.lineedit.setFocus()
+				self.lineedit.returnPressed.connect(self.updateUi)
+				self.setWindowTitle("Calculate")
+
+
+		def updateUi(self):
+				try:
+						text = unicode(self.lineedit.text())
+						self.browser.append("{0} = <b>{1}</b>".format(text,
+																eval(text)))
+				except:
+						self.browser.append("<font color=red>{0} is invalid!</font>"
+																.format(text))
 endsnippet
