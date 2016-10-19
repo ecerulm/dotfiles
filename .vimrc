@@ -608,3 +608,5 @@ let g:netrw_gx="<cWORD>"
 " GIFL google i'm feeling lucky URL grabber {{{
 let g:LuckyOutputFormat='markdown'
 " GIFL google i'm feeling lucky URL grabber }}}
+
+let g:GetLatestVimScripts_allowautoinstall = 1
