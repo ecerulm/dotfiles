@@ -9,8 +9,8 @@ mkdir -p ~/.config/fish/
 ln -Tvfs ~/dotfiles/fishfunctions ~/.config/fish/functions
 ln -Tvfs ~/dotfiles/config.fish ~/.config/fish/config.fish
 
-mkdir -p ~/.config/qtile/
-ln -Tvfs ~/dotfiles/qtile/config.py ~/.config/qtile/config.fish
+mkdir -p ~/.config/
+ln -Tvfs ~/dotfiles/qtile ~/.config/qtile
 
 # bin 
 mkdir -p ~/bin
