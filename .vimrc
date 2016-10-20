@@ -610,3 +610,6 @@ let g:LuckyOutputFormat='markdown'
 " GIFL google i'm feeling lucky URL grabber }}}
 
 let g:GetLatestVimScripts_allowautoinstall = 1
+
+
+" All plugins are loaded after .vimrc see :h initialization
