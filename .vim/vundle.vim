@@ -52,7 +52,7 @@ Plugin 'Townk/vim-autoclose'    " Auto close parens, brackets
 " Plugin 'bronson/vim-trailing-whitespace' " trailing whitespace highlighed in red and :FixWhitespace
 Plugin 'ntpeters/vim-better-whitespace' " tailing whitespace highlighted :StripWhitespace
 Plugin 'jgdavey/tslime.vim'
-Plugin 'mutewinter/GIFL' " Google I'm feeling Lucky URL Grabber <Leader>gifliw
+" Plugin 'mutewinter/GIFL' " Google I'm feeling Lucky URL Grabber <Leader>gifliw
 
 " toggle.vim / cycle.vim / switch.vim
 " I decided cycle because switch is harder to configure although it's not
