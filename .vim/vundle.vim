@@ -17,7 +17,6 @@ Plugin 'gmarik/Vundle.vim'
 " Plugin 'compactcode/open.vim'
 " Plugin 'scrooloose/nerdtree'
 Plugin 'tpope/vim-obsession' " Autosave Session.vim
-Plugin 'tpope/vim-projectionist' " alternate files,
 " Plugin 'tpope/vim-sleuth'      " No need to set indenting, ts, etc per ftype
 Plugin 'Shougo/unite.vim'
 Plugin 'Shougo/unite-outline'
@@ -46,7 +45,6 @@ Plugin 'tpope/vim-git'          " syntax for gitcommit, gitconfig, etc
 Plugin 'tpope/vim-speeddating'  " Increment dates with <C-a> <C-x>
 Plugin 'tpope/vim-surround'     " viwS)
 Plugin 'tpope/vim-unimpaired'   " con, cor, col ]b, ]l, ]q
-Plugin 'tpope/vim-dispatch'   " run test asynch
 Plugin 'janko-m/vim-test'
 Plugin 'vim-ruby/vim-ruby'
 Plugin 'camelcasemotion'        " w stops at _ and CamelCase
@@ -75,8 +73,6 @@ Plugin 'guns/vim-sexp'
 Plugin 'tpope/vim-sexp-mappings-for-regular-people'
 Plugin 'danro/rename.vim'
 Plugin 'mhinz/vim-sayonara'
-Plugin 'tpope/vim-fireplace'
-Plugin 'tpope/vim-salve'
 Plugin 'tpope/vim-classpath'
 Plugin 'mtth/scratch.vim'
 Plugin 'MattesGroeger/vim-bookmarks'
@@ -87,6 +83,12 @@ Plugin 'ecerulm/vim-nose' "  :compiler nose
 Plugin 'nvie/vim-flake8' " <F7> for running flake8, pep8
 Plugin 'tell-k/vim-autopep8' " <F8> for running autopep8
 Plugin 'lambdalisue/vim-pyenv'
+
+" Plugins for Clojure development
+Plugin 'tpope/vim-salve'         " autoconnect fireplace.vim to the REPL
+Plugin 'tpope/vim-projectionist' " alternate files,
+Plugin 'tpope/vim-dispatch'   " run test asynch
+Plugin 'tpope/vim-fireplace'  " REPL
 
 " textobj
 Plugin 'kana/vim-textobj-fold'  " az and iz
