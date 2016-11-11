@@ -342,8 +342,13 @@ nnoremap  <unique> <f6> :GundoToggle<CR>
 "inoremap <C-@> <C-Space>
 inoremap <leader>, <C-X><C-O>
 " <C-j> or ;; Finish line with semicolon ; {{{2
-imap <C-j> <End>;<cr>
+" <C-j> conflicts with UltiSnips <c-j> I need to find a new mapping for this
+" maybe <c-;>  although I think that mapping is not possible for some reason
+" imap <C-j> <End>;<cr>
 nnoremap ;; m`A;<Esc>``
+" m` : marks the current position
+" A; : adds ; at the end of the line
+" `` : return to position
 " Find Alternates <Leader>a {{{2
 " Uses the alternate.vim and open.vim plugins
 " Finds the test alternates
@@ -610,6 +615,16 @@ let g:LuckyOutputFormat='markdown'
 " GIFL google i'm feeling lucky URL grabber }}}
 
 let g:GetLatestVimScripts_allowautoinstall = 1
+
+" UltiSnips configuration {{{
+let g:UltiSnipsUsePythonVersion = 2
+let g:UltiSnipsSnippetsDir = "~/.vim/UltiSnips"
+let g:UltiSnipsExpandTrigger="<c-j>"
+let g:UltiSnipsJumpForwardTrigger="<c-j>"
+let g:UltiSnipsJumpBackwardTrigger="<c-k>"
+" let g:UltiSnipsJumpForwardTrigger="<nop>"
+" let g:UltiSnipsJumpBackwardTrigger="<nop>"
+" UltiSnips configuration }}}
 
 
 " All plugins are loaded after .vimrc see :h initialization
