@@ -565,6 +565,7 @@ endsnippet
 snippet qtimports "from PyQt4.Qcore ..." b
 import sys
 import time
+from PyQt4 import QtCore, QtGui, uic
 from PyQt4.QtCore import (QTime, QTimer, Qt)
 from PyQt4.QtCore import pyqtSignal as Signal
 from PyQt4.QtGui import (QApplication, QLabel, QDialog, QLineEdit, QTextBrowser, QVBoxLayout)
@@ -631,6 +632,24 @@ class Interface(base_class, form_class):
 $0
 endsnippet
 
+snippet "qtconnect" "connect signal and slot"
+QtCore.QObject.connect(self.${1:sourceObject}, QtCore.SIGNAL("${2:clicked}()"), self.${3:my_handler})
+endsnippet
+
 snippet "qtbutton"
 TODO
+endsnippet
+
+snippet currentfile "path relative to current module"
+os.path.join(os.path.dirname(__file__), '$0')
+endsnippet
+
+snippet qtaction "QAction"
+${1:file_new_action} = QtGui.QAction(QIcon("images/filenew.png"), "&New", self)
+$1.setShortcut(QKeySequence.New)
+helpText = "Create a new image"
+$1.setToolTip(helpText)
+$1.setStatusTip(helpText)
+self.connect($1, SIGNAL("triggered()"), self.${2:my_handler})
+fileMenu.addAction($1)
 endsnippet
