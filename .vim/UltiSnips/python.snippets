@@ -568,6 +568,7 @@ import time
 from PyQt4.QtCore import (QTime, QTimer, Qt)
 from PyQt4.QtCore import pyqtSignal as Signal
 from PyQt4.QtGui import (QApplication, QLabel, QDialog, QLineEdit, QTextBrowser, QVBoxLayout)
+
 endsnippet
 
 
@@ -606,4 +607,30 @@ class Form(QDialog):
 				except:
 						self.browser.append("<font color=red>{0} is invalid!</font>"
 																.format(text))
+endsnippet
+
+snippet "qtuifile" "Load UI file from Qt Designer"
+ui_filename = '${1:test.ui}' # use designer-qt to create the ui file
+form_class, base_class = uic.loadUiType(ui_filename)
+
+class Interface(base_class, form_class):
+	def __init__(self):
+		super(base_class, self).__init__()
+		self.setupUi(self)
+		self.setObjectName('myTopLevelWindowName')
+		# self.setDockNestingEnabled(True)
+		self.connect_interface()
+
+
+	def connect_interface(self):
+		# connect the button with objectName "nextButton" to a handler
+		QtCore.QObject.connect(self.nextButton, QtCore.SIGNAL("clicked()"), self.my_handler)
+
+	def my_handler(self):
+		print("nextButton was clicked")
+$0
+endsnippet
+
+snippet "qtbutton"
+TODO
 endsnippet
