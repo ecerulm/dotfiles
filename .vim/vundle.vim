@@ -82,7 +82,7 @@ Plugin 'Valloric/YouCompleteMe'
 Plugin 'ecerulm/vim-nose' "  :compiler nose
 Plugin 'nvie/vim-flake8' " <F7> for running flake8, pep8
 Plugin 'tell-k/vim-autopep8' " <F8> for running autopep8
-Plugin 'lambdalisue/vim-pyenv'
+" Plugin 'lambdalisue/vim-pyenv'
 
 " Plugins for Clojure development
 Plugin 'tpope/vim-salve'         " autoconnect fireplace.vim to the REPL
