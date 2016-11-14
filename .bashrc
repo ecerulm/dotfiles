@@ -128,6 +128,7 @@ export PATH="$HOME/.local/bin:$PATH"
 
 export EDITOR=vim
 alias vi=vim
+alias tmux="tmux -2"
 
 PYENV_ROOT="$HOME/.pyenv"
 
