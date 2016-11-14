@@ -1,0 +1,10 @@
+snippet header
+#!/bin/bash
+set -euxo pipefail
+# e : fail as soon as a command fails, don't continue
+# u : fail if nonexisting variable can't be expanded
+# x : echo each line as it's executed
+# -o pipefail: fail if a command in a pipe returns status != 0
+
+
+endsnippet
