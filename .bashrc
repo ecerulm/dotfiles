@@ -129,6 +129,7 @@ export PATH="$HOME/.local/bin:$PATH"
 export EDITOR=vim
 alias vi=vim
 alias tmux="tmux -2"
+alias pbcopy='xsel -b'
 
 PYENV_ROOT="$HOME/.pyenv"
 
