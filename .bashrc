@@ -140,3 +140,7 @@ if [ -d $PYENV_ROOT ]; then
   eval "$(pyenv init -)"
   eval "$(pyenv virtualenv-init -)"
 fi
+
+if [ -f ~/.credentials.bash ]; then
+  . ~/.credentials.bash
+fi
