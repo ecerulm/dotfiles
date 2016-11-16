@@ -8,3 +8,22 @@ set -euxo pipefail
 
 
 endsnippet
+
+snippet iffileexists "if [ -f xxxx]; then; done"
+if [ -f ${1:$filename} ]; then
+$0
+fi
+endsnippet
+
+snippet iffilenotexists "if [ ! -f xxxx]; then; done"
+if [ ! -f ${1:$filename} ]; then
+$0
+fi
+endsnippet
+
+snippet ifvarempty "check if variable is empty or unset"
+if [ -z "${${1:var}-}" ]; then
+echo "Must provide $1 environment variable"
+exit 1
+fi
+endsnippet
