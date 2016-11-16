@@ -50,7 +50,5 @@ cp -v ~/dotfiles/fonts/10-powerline-symbols.conf ~/.config/fontconfig/conf.d/
 echo "update the plugins"
 (cd ~/dotfiles; git submodule init; git submodule update)
 (vim -u ~/.vim/vundle.vim -N +PluginInstall +PluginClean +qall)
-
-
-
+(cd ~/.vim/bundle/YouCompleteMe && ./install.py --all)
 
