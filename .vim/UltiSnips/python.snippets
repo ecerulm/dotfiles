@@ -577,6 +577,9 @@ endsnippet
 snippet "(qtapp|qtapplication)" "ifmain QTapplication" br
 if __name__ == "__main__":
 	app = QApplication(sys.argv)  # https://goo.gl/uNiCXp
+	app.setOrganizationName("Ruben Laguna")
+	app.setOrganizationName("rubenlaguna.com")
+	app.setApplicationName("MyApp")
 	form = Form()  # where Form is a user-defined type derived from QForm
 	form.show()
 	app.exec_()
@@ -652,4 +655,19 @@ $1.setToolTip(helpText)
 $1.setStatusTip(helpText)
 self.connect($1, SIGNAL("triggered()"), self.${2:my_handler})
 fileMenu.addAction($1)
+endsnippet
+
+snippet qtsettings "Qt Settings"
+settings = QSettings()
+self.recentFiles = setting.value("RecentFiles").toStringList()
+self.restoreGeometry(settings.value("Geometry").toByteArray())
+endsnippet
+
+snippet qttask "Qt Single shot timer"
+QTimer.singleShot(0, ${1:mycallable})
+$0
+endsnippet
+
+snippet qtsetshortcut "myAction.setShortcut(...)" !b
+${1:self.actionQuit}.setShortcuts([QKeySequence.Quit,"Ctrl+Q"])
 endsnippet
