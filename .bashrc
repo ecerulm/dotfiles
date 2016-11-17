@@ -130,6 +130,7 @@ export EDITOR=vim
 alias vi=vim
 alias tmux="tmux -2"
 alias pbcopy='xsel -b'
+alias pyenvreq='sudo apt-get install -y make build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev libncursesw5-dev xz-utils '
 
 PYENV_ROOT="$HOME/.pyenv"
 
