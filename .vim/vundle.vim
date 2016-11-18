@@ -90,6 +90,9 @@ Plugin 'tpope/vim-projectionist' " alternate files,
 Plugin 'tpope/vim-dispatch'   " run test asynch
 Plugin 'tpope/vim-fireplace'  " REPL
 
+" Plugins for R development
+Plugin 'jalvesaq/Nvim-R'
+
 " textobj
 Plugin 'kana/vim-textobj-fold'  " az and iz
 Plugin 'kana/vim-textobj-user'  " library for vim-textobj-*
