@@ -658,7 +658,7 @@ fileMenu.addAction($1)
 endsnippet
 
 snippet qtsettings "Qt Settings"
-settings = QSettings()
+settings = QSettings() # pyqt.sourceforge.net/Docs/PyQt4/pyqt_qsettings.html
 self.recentFiles = setting.value("RecentFiles").toStringList()
 self.restoreGeometry(settings.value("Geometry").toByteArray())
 endsnippet
