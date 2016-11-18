@@ -1,4 +1,4 @@
-# vim: set tabstop=2 noexpantab:
+# vim: set tabstop=2 noexpandtab:
 snippet header
 #!/bin/bash
 set -euxo pipefail
@@ -72,4 +72,11 @@ if [[ -n \$1 ]]; then
 	echo "Last line of file specified as non-opt/last argument:"
 	tail -1 \$1
 fi
+endsnippet
+
+snippet function "function myfunc()" !b
+function ${1:myfuncname} {
+# Access parameters \$1, \$2, ${\$1:mydefaultvalue}
+$0
+}
 endsnippet
