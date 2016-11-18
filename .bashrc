@@ -143,6 +143,14 @@ if [ -d $PYENV_ROOT ]; then
   eval "$(pyenv virtualenv-init -)"
 fi
 
+RENV_ROOT="$HOME/.Renv"
+if [ -d "$RENV_ROOT" ]; then
+  export RENV_ROOT
+  export PATH="$RENV_ROOT/bin:$PATH"
+
+  eval "$(Renv init -)"
+fi
+
 if [ -f ~/.credentials.bash ]; then
   . ~/.credentials.bash
 fi
