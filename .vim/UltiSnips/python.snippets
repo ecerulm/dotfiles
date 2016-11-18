@@ -1,4 +1,3 @@
-
 snippet basedir "basedir = os.path.abspath(...)" b
 basedir = os.path.abspath(os.path.dirname(__file__))
 endsnippet
@@ -671,3 +670,33 @@ endsnippet
 snippet qtsetshortcut "myAction.setShortcut(...)" !b
 ${1:self.actionQuit}.setShortcuts([QKeySequence.Quit,"Ctrl+Q"])
 endsnippet
+
+snippet qtrecentfilemenu "dynamic file menu" !b
+def updateFileMenu(self):
+	# Call self.updateFileMenu() on the widget constructor so the actions
+	# are create and the keyboard shortcuts works even if they are not shown
+	# You need to connect the SIGNAL("aboutToShow()") of the File Menu
+	# so that the File gets repopulated every time is going to be shown
+	#   self.fileMenu.aboutToShow.connect(self.updateFileMenu)
+	self.fileMenu.clear()
+	self.addActions(self.fileMenu, self.fileMenuActions[:-1])
+	current = (QString(self.filename)
+	           if self.filename is not None else None)
+	recentFiles = []
+	for fname in self.recentFiles:
+		if fname != current and QFile.exists(fname):
+			recentFiles.append(fname)
+	if recentFiles:
+		self.fileMenu.addSeparator()
+		for i, fname in enumerate(recentFiles):
+			action = QAction(QIcon(":/icon.png"),
+			                "&{0} {1}".format(i + 1, QFileInfo(fname).fileName()), self)
+			action.setData(QVariant(fname))
+			action.triggered.connect(self.loadFile)
+			self.fileMenu.addAction(action)
+	self.fileMenu.addSeparator()
+	self.fileMenu.addAction(self.fileMenuActions[-1])
+
+endsnippet
+
+# vim: set noexpandtab tabstop=2 :
