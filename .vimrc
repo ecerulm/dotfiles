@@ -552,8 +552,9 @@ function! ConfigAfterPluginLoaded()
   call AddCycleGroup('c', ['EXIT_FAILURE', 'EXIT_SUCCESS'])
   " }}} vim-cycle groups
 
-  " Uppercase in insert mode with <C-u> {{{
+  " Uppercase with <c-u> {{{
   inoremap <C-u> <Esc>viw~ea
+  nnoremap <c-u> g~iW
   " }}}
 
   " abolish types  {{{
