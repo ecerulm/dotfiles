@@ -46,4 +46,5 @@ mkdir -p ~/tmp
 echo "update the plugins"
 (cd ~/dotfiles; git submodule init; git submodule update)
 (vim -u ~/.vim/vundle.vim -N +PluginInstall +PluginClean +qall)
-(cd ~/.vim/bundle/YouCompleteMe && ./install.py --all)
+(cd ~/.vim/bundle/vimproc.vim && make)
+(cd ~/.vim/bundle/YouCompleteMe && ./install.py --clang-completer) # python is implied
