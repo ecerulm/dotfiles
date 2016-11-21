@@ -9,8 +9,10 @@ ln -Fvhfs ~/dotfiles/fishfunctions ~/.config/fish/functions
 ln -Fvhfs ~/dotfiles/config.fish ~/.config/fish/config.fish
 
 # don't copy qtile config in mac it doesn't make sense in macosx
+#mkdir -p ~/.config/
+#ln -Fvhfs ~/dotfiles/qtile ~/.config/qtile
 
-#bin 
+#bin
 mkdir -p ~/bin
 ls bin | xargs -n1 -I'{}' ln -Fvhfs ~/dotfiles/bin/'{}' ~/bin/'{}'
 
@@ -44,4 +46,4 @@ mkdir -p ~/tmp
 echo "update the plugins"
 (cd ~/dotfiles; git submodule init; git submodule update)
 (vim -u ~/.vim/vundle.vim -N +PluginInstall +PluginClean +qall)
-
+(cd ~/.vim/bundle/YouCompleteMe && ./install.py --all)

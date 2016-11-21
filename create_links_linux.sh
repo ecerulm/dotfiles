@@ -1,6 +1,6 @@
 #!/bin/bash
 # dotfiles in the home dir
-set -e 
+set -e
 
 ls -A | grep "^\." | grep -v "^\.git$" | grep -v "^\.tmux.conf." | xargs -n1 -I'{}' ln -Tvfs ~/dotfiles/'{}' ~/'{}'
 
@@ -12,7 +12,7 @@ ln -Tvfs ~/dotfiles/config.fish ~/.config/fish/config.fish
 mkdir -p ~/.config/
 ln -Tvfs ~/dotfiles/qtile ~/.config/qtile
 
-# bin 
+# bin
 mkdir -p ~/bin
 ls bin | xargs -n1 -I'{}' ln -Tvfs ~/dotfiles/bin/'{}' ~/bin/'{}'
 
@@ -51,4 +51,3 @@ echo "update the plugins"
 (cd ~/dotfiles; git submodule init; git submodule update)
 (vim -u ~/.vim/vundle.vim -N +PluginInstall +PluginClean +qall)
 (cd ~/.vim/bundle/YouCompleteMe && ./install.py --all)
-
