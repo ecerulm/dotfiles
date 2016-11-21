@@ -80,3 +80,10 @@ function ${1:myfuncname} {
 $0
 }
 endsnippet
+
+
+snippet ifexeinpath "check if command in path" !b
+if [ $(command -v "${1:exe}") ]; then # or $(type -P "$1")
+	$0
+fi
+endsnippet
