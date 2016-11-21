@@ -2,6 +2,7 @@
 # dotfiles in the home dir
 set -e
 
+# just link all the .xxx files in this dir to ~/.xxx
 ls -A | grep "^\." | grep -v "^\.git$" | grep -v "^\.tmux.conf." | xargs -n1 -I'{}' ln -Tvfs ~/dotfiles/'{}' ~/'{}'
 
 # Fish config files
