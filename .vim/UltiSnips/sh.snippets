@@ -87,3 +87,14 @@ if [ $(command -v "${1:exe}") ]; then # or $(type -P "$1")
 	$0
 fi
 endsnippet
+
+snippet heredoc "echo <<HEREDOC" !b
+cat <<HEREDOC
+${1:Some multiline message here like explained in http://www.tldp.org/LDP/abs/html/here-docs.html}
+HEREDOC
+endsnippet
+
+snippet curfile "get path to current file" !b
+DIR=\$(dirname "\$(readlink -f "\$0")") # directory where the script lives
+$0
+endsnippet
