@@ -470,11 +470,6 @@ nnoremap <leader>sv :so $MYVIMRC<cr>
 " tagbar <f8> {{{
 nnoremap <f8> :TagbarToggle<cr>
 " }}} tagbar <f8>
-" Uppercase in insert mode with <C-u> {{{
-" this mapping is useful for typing constants
-" just type lowercase and at the end press <c-u>
-inoremap <C-u> <Esc>viw~ea
-" }}}
 " <CR to break undo sequence {{{
 " <c-]> i_CTRL-] Trigger abbreviation without inserting a character
 " <C-G>u i_CTRL-G_u break undo sequence
@@ -553,8 +548,8 @@ function! ConfigAfterPluginLoaded()
   " }}} vim-cycle groups
 
   " Uppercase with <c-u> {{{
-  inoremap <C-u> <Esc>viw~ea
-  nnoremap <c-u> g~iW
+  inoremap <C-u> <Esc>viW~Ea
+  nnoremap <c-u> g~iWE
   " }}}
 
   " abolish types  {{{
