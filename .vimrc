@@ -622,5 +622,8 @@ let g:UltiSnipsJumpBackwardTrigger="<c-k>"
 " let g:UltiSnipsJumpBackwardTrigger="<nop>"
 " UltiSnips configuration }}}
 
+" YouCompleteMe configuration {{{
+let g:ycm_server_keep_logfiles = 1
+" YouCompleteMe configuration }}}
 
 " All plugins are loaded after .vimrc see :h initialization
