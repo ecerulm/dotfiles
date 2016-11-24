@@ -24,8 +24,8 @@ endsnippet
 
 snippet ifvarempty "check if variable is empty or unset"
 if [ -z "${${1:var}-}" ]; then
-echo "Must provide $1 environment variable"
-exit 1
+	echo "Must provide $1 environment variable"
+	exit 1
 fi
 endsnippet
 
