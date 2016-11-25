@@ -150,6 +150,8 @@ function port2process {
 }
 alias port=port2process
 
+alias dockerrmall="docker rm \$(docker ps -qa)"
+
 
 PYENV_ROOT="$HOME/.pyenv"
 
