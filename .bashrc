@@ -143,6 +143,13 @@ alias gd="git d"
 alias gc="git commit -v"
 alias gau="git a" # git add -u
 
+function port2process {
+  # Access parameters $1, $2, ${$1:mydefaultvalue}
+  sudo netstat -nlp | grep ${1:-5001}
+  sudo lsof -i :${1:-5001} | grep LISTEN
+}
+alias port=port2process
+
 
 PYENV_ROOT="$HOME/.pyenv"
 
