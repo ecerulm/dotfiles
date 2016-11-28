@@ -142,6 +142,7 @@ alias gdc="git dc"
 alias gd="git d"
 alias gc="git commit -v"
 alias gau="git a" # git add -u
+alias gap="git a -p"
 
 function port2process {
   # Access parameters $1, $2, ${$1:mydefaultvalue}
