@@ -625,5 +625,14 @@ let g:UltiSnipsJumpBackwardTrigger="<c-k>"
 " YouCompleteMe configuration {{{
 let g:ycm_server_keep_logfiles = 1
 " YouCompleteMe configuration }}}
+" Nvim-R {{{
+" from :help Nvim-R-Tmux
+let R_in_buffer = 0 " :help R_in_buffer . If you do not want to run R in 
+                    " Neovim built in terminal emulator. R will start in an
+                    " external emulator and tmux will be used to send commands
+                    " to R
+let R_applescript = 0
+let R_tmux_split = 1
+" Nvim-R }}}
 
 " All plugins are loaded after .vimrc see :h initialization
