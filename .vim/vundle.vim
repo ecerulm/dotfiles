@@ -74,7 +74,7 @@ Plugin 'tpope/vim-sexp-mappings-for-regular-people'
 Plugin 'danro/rename.vim'
 Plugin 'mhinz/vim-sayonara'
 Plugin 'tpope/vim-classpath'
-Plugin 'mtth/scratch.vim'
+Plugin 'mtth/scratch.vim' " :Scratch and gs in normal and visual mode
 Plugin 'MattesGroeger/vim-bookmarks'
 Plugin 'Valloric/YouCompleteMe'
 
