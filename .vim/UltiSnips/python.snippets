@@ -120,6 +120,12 @@ finally:
 	${5:pass}
 endsnippet
 
+snippet exception "class MyException(Exception):" !b
+class ${1:MyException}(Exception):
+	def __init__(self, *args):
+		self.status_code = status_code
+		super($1, self).__init__(*args)
+endsnippet
 
 #####################
 # Assertions & Tests #
