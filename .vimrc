@@ -186,6 +186,8 @@ augroup vimrcEx " Put them in a group so we delete them easily
   " Use textwidth 72 for all text files {{{2
   autocmd FileType text,rst setlocal textwidth=72
 
+  autocmd BufReadPost .Rprofile set filetype=r
+
   " Jump to Last cursor position unless its invalid or in an event handler  {{{2
   autocmd BufReadPost *
      \ if line("'\"") > 0 && line("'\"") <= line("$") |
