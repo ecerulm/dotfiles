@@ -1,6 +1,11 @@
 #!/bin/bash
 # dotfiles in the home dir
-set -e
+set -euxo pipefail
+# e : fail as soon as a command fails, don't continue
+# u : fail if nonexisting variable can't be expanded
+# x : echo each line as it's executed
+# -o pipefail: fail if a command in a pipe returns status != 0
+
 
 # just link all the .xxx files in this dir to ~/.xxx
 ls -A | grep "^\." | grep -v "^\.git$" | grep -v "^\.tmux.conf." | xargs -n1 -I'{}' ln -Tvfs ~/dotfiles/'{}' ~/'{}'
