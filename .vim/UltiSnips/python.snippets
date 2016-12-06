@@ -485,6 +485,23 @@ if __name__ == '__main__':
     app.run()
 endsnippet
 
+snippet flaskimport "from flask import ..." !b
+from flask import (Flask, request, session, g, redirect,
+                   url_for, abort,render_template, flash)
+endsnippet
+
+snippet flaskroute "@app.route()..." !b
+@app.route('/${1:login})', methods=[${2:'GET', 'POST'}])
+def ${3:login}():
+	return redirect(url_for("main"))
+endsnippet
+
+snippet ifnoattr "if not hasattr(...):" !b
+if not hasattr(${1:obj}, '${2:attr_name}'):
+	$1.$2 = ${3:init_var_here}
+
+endsnippet
+
 snippet tkgui
 
 import Tkinter as tk
