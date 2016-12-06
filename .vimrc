@@ -637,5 +637,15 @@ let R_in_buffer = 0 " :help R_in_buffer . If you do not want to run R in
 let R_applescript = 0
 let R_tmux_split = 1
 " Nvim-R }}}
+" vim-bookmarks {{{
+" mm - Add / remove a bookmark
+" mi - Add / remove / edit an annotation at the current line
+" ma - Show all bookmarks
+" mc - Clear bookmarks in current buffer only
+" mx - Clear bookmarks in all buvffers
+
+
+
+" vim-bookmarks }}}
 
 " All plugins are loaded after .vimrc see :h initialization
