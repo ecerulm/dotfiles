@@ -308,6 +308,35 @@ class ${1:MyContextManager}:
 		return True  # True the exception has been handled, None the exception will be propagated
 endsnippet
 
+snippet decorator "Add a @decorator" !b
+def ${1:decorator_name}(f):
+	@functools.wraps(f)
+	def wrapped(*args), **kwargs):
+		# do work before original function
+
+		result = f(*args, **kwargs)
+
+		# do work after original function
+		# modify reuslt if necessary
+		return result
+	return wrapped
+endsnippet
+
+snippet decoratorargs "Add a @decorator(args)" !b
+def ${1:decorator_name}(${2:args}):
+	def decorator(f):
+		@functools.wraps(f)
+		def wrapped(*args), **kwargs):
+			# do work before original function
+
+			result = f(*args, **kwargs)
+
+			# do work after original function
+			# modify reuslt if necessary
+			return result
+		return wrapped
+	return decorator
+endsnippet
 
 snippet argparse "argparse verbose levels"
 import argparse
