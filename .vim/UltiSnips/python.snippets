@@ -41,8 +41,12 @@ class ${1:MyClass}(${2:object}):
 		${5:pass}
 endsnippet
 
-snippet super "call superclass implementation" b
+snippet super2 "call superclass implementation (py2)" b
 super(${1:CurrentClass}, self).${2:__init__}(${0})
+endsnippet
+
+snippet super3 "call superclass implementation (py3)" b
+super().${1:__init__}(${0})
 endsnippet
 
 snippet init "def __init__(self):"
