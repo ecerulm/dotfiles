@@ -34,6 +34,10 @@ snippet incioctl "#include <sys/ioctl.h>" b
 #include <sys/ioctl.h>
 endsnippet
 
+snippet incisatty "#include <unistd.h" !b
+#include <unistd.h> /* isatty() */
+endsnippet
+
 snippet main "main() (main)"
 int main(int argc, char *argv[])
 {
@@ -284,6 +288,10 @@ snippet "incf?printf" "#include <stdio.h>" r
 #include <stdio.h> /* perror(), printf(), fprintf() */
 endsnippet
 
+snippet incstdout "#include <stdio.h" !b
+#include <stdio.h> /* FILE* stdout (stream) */
+endsnippet
+
 
 snippet "inc(exit|free|malloc|abort)" "#include <stdlib.h>" r
 #include <stdlib.h> /* exit(), malloc(), free() */
@@ -516,4 +524,13 @@ void hexDump (char *desc, void *addr, int len) {
 }
 
 /*  hexDump ("a description", &my_str, sizeof (my_str)); */
+endsnippet
+
+snippet checkterminal "if (isatty(fileno(stdout)))" !b
+if(isatty(fileno(stdout))) { /* stdout from <stdio.h> and isatty from <unistd.h> */
+	printf("stdout is a terminal\n");
+	printf("ttyname: %s\n", ttyname(fileno(stdout)));
+} else {
+	printf("stdout is a NOT terminal\n");
+}
 endsnippet
