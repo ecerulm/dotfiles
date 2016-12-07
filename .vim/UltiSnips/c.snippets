@@ -1,6 +1,11 @@
 global !p
 def fn_underscores(filename):
-		return filename.replace(".","_").upper()
+	return filename.replace(".","_").upper()
+
+def expand(snip):
+	if snip.tabstop != 1:
+		return
+	vim.eval('feedkeys("\<C-R>=UltiSnips#ExpandSnippet()\<CR>")')
 endglobal
 
 snippet inc "#include local header (inc)"
@@ -292,14 +297,44 @@ snippet incstdout "#include <stdio.h" !b
 #include <stdio.h> /* FILE* stdout (stream) */
 endsnippet
 
-
-snippet "inc(exit|free|malloc|abort)" "#include <stdlib.h>" r
+snippet incstdlib "#include <stdlib.h>" !b
 #include <stdlib.h> /* exit(), malloc(), free() */
 $0
 endsnippet
 
-snippet "inc(read|write)" "#include <unistd.h>" r
+post_jump "expand(snip)"
+snippet incexit "#include <stdlib.h>" !b
+incstdlib$1
+endsnippet
+
+
+post_jump "expand(snip)"
+snippet incfree "#include <stdlib.h>" !b
+incstdlib$1
+endsnippet
+
+post_jump "expand(snip)"
+snippet incmalloc "#include <stdlib.h>" !b
+incstdlib$1
+endsnippet
+
+post_jump "expand(snip)"
+snippet incabort "#include <stdlib.h>" !b
+incstdlib$1
+endsnippet
+
+snippet "incunistd" "#include <unistd.h>" r
 #include <unistd.h> /* read(), write() */
+endsnippet
+
+post_jump "expand(snip)"
+snippet incread "#include <unistd.h>" !b
+incunistd$1
+endsnippet
+
+post_jump "expand(snip)"
+snippet incwrite "#include <unistd.h>" !b
+incunistd$1
 endsnippet
 
 snippet "incssize" "#include <sys/types.h>" b
