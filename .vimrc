@@ -205,6 +205,9 @@ augroup vimrcEx " Put them in a group so we delete them easily
   "ctags {{{2
   " autocmd BufWritePost * call system("ctags -R")
 
+  " Nvim-R add rtags
+  :au FileType r set tags+=rtags
+
   " New file templates {{{2
   :au BufNewFile Makefile r ~/.vim/skeleton.Makefile
   :au BufNewFile setup.py r ~/.vim/skeleton.setup.py
@@ -629,14 +632,18 @@ let g:UltiSnipsJumpBackwardTrigger="<c-k>"
 " YouCompleteMe configuration {{{
 let g:ycm_server_keep_logfiles = 1
 " YouCompleteMe configuration }}}
+
 " Nvim-R {{{
+" nvimr
 " from :help Nvim-R-Tmux
-let R_in_buffer = 0 " :help R_in_buffer . If you do not want to run R in 
+let R_in_buffer = 0 " :help R_in_buffer . If you do not want to run R in
                     " Neovim built in terminal emulator. R will start in an
                     " external emulator and tmux will be used to send commands
                     " to R
 let R_applescript = 0
 let R_tmux_split = 1
+let R_nvim_wd = 1 " R working directory same as vim working directory, don't try to match buffer dir "
+
 " Nvim-R }}}
 " vim-bookmarks {{{
 " mm - Add / remove a bookmark
