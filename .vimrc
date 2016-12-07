@@ -452,6 +452,7 @@ nnoremap <leader>y :<C-u>Unite -no-split -buffer-name=yank    history/yank<cr>
 nnoremap <leader>e :<C-u>Unite -no-split -buffer-name=buffer  buffer<cr>
 nnoremap <leader>g :<C-u>Unite -no-split -buffer-name=ag  grep:.<cr>
 nnoremap <silent> <leader>o  :<C-u>Unite outline<CR>
+nnoremap <leader>l :<C-u>Unite -no-split resume<cr>
 
 " Custom mappings for the unite buffer
 function! s:unite_settings()
