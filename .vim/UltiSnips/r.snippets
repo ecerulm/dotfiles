@@ -1,3 +1,18 @@
 snippet print "print(cat())" !b
 print(cat($0))
 endsnippet
+
+snippet section1 "# Section One ----" !b
+# ${1:Section One} ----------------
+$0
+endsnippet
+
+snippet section2 "# Section Two ----" !b
+## ${1:Section Two} ----------------
+$0
+endsnippet
+
+snippet section3 "# Section Three  ----" !b
+### ${1:Section Three} ---------------
+$0
+endsnippet
