@@ -20,4 +20,12 @@ snippet vis "${VISUAL}" i
 \$\{VISUAL${1:${2:default}${3:/transform/}}\}
 endsnippet
 
+snippet alias "alias for another snippet" !b
+`!p snip.rv = 'post_jump "expand(snip)"'`
+`!p snip.rv = "snippet"` ${1:Tab_trigger} "${2:Description}" ${3:!b}
+${4:othersniptrigger}`!p snip.rv = "$1"`
+`!p snip.rv = "endsnippet"`
+$0
+endsnippet
+
 # vim:ft=snippets:
