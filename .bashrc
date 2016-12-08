@@ -149,6 +149,10 @@ function gl {
   git l
 }
 
+function rtags {
+  Rscript -e 'rtags(path="./", recursive=TRUE, ofile="RTAGS")' -e 'etags2ctags("RTAGS", "rtags")' -e 'unlink("RTAGS")'
+}
+
 function dotfiles {
   cd ~/dotfiles
   s
