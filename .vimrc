@@ -206,18 +206,18 @@ augroup vimrcEx " Put them in a group so we delete them easily
   " autocmd BufWritePost * call system("ctags -R")
 
   " Nvim-R add rtags
-  :au FileType r set tags+=rtags
+  au FileType r set tags+=rtags,~/.cache/Nvim-R/Rtags,~/.cache/Nvim-R/RsrcTags
 
   " New file templates {{{2
-  :au BufNewFile Makefile r ~/.vim/skeleton.Makefile
-  :au BufNewFile setup.py r ~/.vim/skeleton.setup.py
-  :au BufNewFile tox.ini r ~/.vim/skeleton.tox.ini
-  :au BufNewFile config.py r ~/.vim/skeleton.config.py
-  :au BufNewFile ansible.cfg r ~/.vim/skeleton.ansible.cfg
-  :au BufNewFile docker-compose.yml r ~/.vim/skeleton.docker-compose.yml
+  au BufNewFile Makefile r ~/.vim/skeleton.Makefile
+  au BufNewFile setup.py r ~/.vim/skeleton.setup.py
+  au BufNewFile tox.ini r ~/.vim/skeleton.tox.ini
+  au BufNewFile config.py r ~/.vim/skeleton.config.py
+  au BufNewFile ansible.cfg r ~/.vim/skeleton.ansible.cfg
+  au BufNewFile docker-compose.yml r ~/.vim/skeleton.docker-compose.yml
 
   "Rainbow parentheses {{{2
-   au FileType c,cpp,objc,objcpp,ruby,python call rainbow#load()
+  au FileType c,cpp,objc,objcpp,ruby,python call rainbow#load()
 
   "fugitive autoclose //1 //2 //3{{{2
   autocmd BufReadPost fugitive://* set bufhidden=delete
