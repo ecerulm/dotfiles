@@ -645,6 +645,8 @@ let R_tmux_split = 1
 let R_nvim_wd = 1 " R working directory same as vim working directory, don't try to match buffer dir "
 
 command RStart let oldft=&ft | set ft=r | exe 'set ft='.oldft | normal <LocalLeader>rf
+command Rtags :!Rscript -e 'rtags(path="./", recursive=TRUE, ofile="RTAGS")' -e 'etags2ctags("RTAGS", "rtags")' -e 'unlink("RTAGS")'
+
 
 " Nvim-R }}}
 " vim-bookmarks {{{
