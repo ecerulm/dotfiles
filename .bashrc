@@ -158,6 +158,11 @@ function dotfiles {
   s
 }
 
+function globalrtags {
+  ctags --languages=C,Fortran,Java,Tcl -R -f ~/.cache/Nvim-R/RsrcTags ~/.Renv/versions/3.3.1/   # index the R interpreter source code (.c file, etc)
+  Rscript -e 'rtags(path="~/.Renv/versions/3.3.1/", recursive=TRUE, ofile="~/.cache/Nvim-R/RTAGS")' -e 'etags2ctags("~/.cache/Nvim-R/RTAGS", "~/.cache/Nvim-R/Rtags")'
+}
+
 function port2process {
   # Access parameters $1, $2, ${$1:mydefaultvalue}
   sudo netstat -nlp | grep ${1:-5001}
