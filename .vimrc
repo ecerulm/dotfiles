@@ -448,7 +448,7 @@ call unite#filters#matcher_default#use(['matcher_fuzzy'])
 nnoremap <C-p> :<C-u>Unite -no-split -buffer-name=files   -start-insert file_rec/async:!<cr>
 " nnoremap <leader>t :<C-u>Unite -no-split -buffer-name=files   -start-insert file_rec/async:!<cr>
 " nnoremap <leader>f :<C-u>Unite -no-split -buffer-name=files   -start-insert file<cr>
-nnoremap <leader>r :<C-u>Unite -no-split -buffer-name=mru     -start-insert file_mru<cr>
+nnoremap <leader>r :<C-u>Unite -no-split -buffer-name=mru                                file_mru<cr>j
 nnoremap <leader>o :<C-u>Unite -no-split -buffer-name=outline -start-insert -auto-preview outline<cr>
 nnoremap <leader>t :<C-u>Unite -no-split -buffer-name=tag     -start-insert tag<cr>
 nnoremap <leader>y :<C-u>Unite -no-split -buffer-name=yank    history/yank<cr>
