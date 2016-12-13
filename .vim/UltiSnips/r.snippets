@@ -32,3 +32,9 @@ snippet quit "if (!interactive()) q()"
 if (!interactive()) q()
 $0
 endsnippet
+
+snippet viewdf "summary();tabplot();View()" !b
+summary(${1:df})
+tabplot::tableplot($1)
+View($1)
+endsnippet
