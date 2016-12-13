@@ -54,7 +54,7 @@
   rebasebranch = !git rebase -i $(git merge-base HEAD master)
   fold = !sh -c '_CURRENT_BRANCH=$(git symbolic-ref --short HEAD)  && git checkout ${1-master} && git merge --no-ff ${2-$_CURRENT_BRANCH}' -
   undomerge = reset --merge ORIG_HEAD
-  diffbase = !git diff $(git merge-base HEAD master)
+  diffbase = !cd ${GIT_PREFIX:-.} && git diff $(git merge-base HEAD ${1-origin/master}) ${1-origin/master}
   pristine = !sh -c 'git reset --hard $1 && git clean -qdfx && git status' -
 
   # From https://robots.thoughtbot.com/streamline-your-git-workflow-with-aliases
