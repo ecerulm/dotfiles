@@ -74,3 +74,10 @@ snippet curfile "get current directory" !b
 scriptDir <- utils::getSrcDirectory(function(x) {x})
 pathToFile <- file.path(scriptDir, "filename.txt")
 endsnippet
+
+snippet dplyr "df <- df %>%" !b
+df <- df %>%
+	dplyr::mutate(newvar=othervar*2) %>%
+	identity()
+endsnippet
+
