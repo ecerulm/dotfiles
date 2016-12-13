@@ -38,3 +38,39 @@ summary(${1:df})
 tabplot::tableplot($1)
 View($1)
 endsnippet
+
+snippet splitdf "base::split(df, df$column)"
+base::split(${1:df}, $1\$${2:columnname})  # list with one element per unique value in $2 use [['colvalue']]
+endsnippet
+
+snippet svgplot "svg();p <- ggplot(); print(p); dev.off()" !b
+svg(file.path(${1:outputDir}, ${2:"filename.svg"}))
+p <- ggplot($0)
+print(p) # render the plot
+dev.off()
+endsnippet
+
+snippet xts "as.xts(df, order.by="
+as.xts(${1:df}[['${2:colname}']], order.by=$1[['${3:timestamp}']])
+endsnippet
+
+snippet xts2dt "xts to data.table"
+data.table(timestamp=index(${1:xtsobj}), coredata($1), key='timestamp')
+endsnippet
+
+snippet markdown "render markdown with knitr" !b
+library(rmarkdown)
+
+renderMyDocument <- function() {
+	scriptDir <- utils::getSrcDirectory(function(x) {x}) # get this file directory by defining a dummy function and getting it's dir
+	# https://www.rstudio.com/wp-content/uploads/2016/03/rmarkdown-cheatsheet-2.0.pdf
+	rmarkdown::render(file.path(scriptDir, "filename.Rmd"), params=list(user="ecerulm"))
+}
+renderMyDocument()
+endsnippet
+
+
+snippet curfile "get current directory" !b
+scriptDir <- utils::getSrcDirectory(function(x) {x})
+pathToFile <- file.path(scriptDir, "filename.txt")
+endsnippet
