@@ -589,7 +589,7 @@ set fileencoding=utf-8
 
 
 
-" tslime.v {{{
+" tslime.vim for clojure development {{{
 let g:tslime_always_current_session = 1
 let g:tslime_always_current_window = 1
 
@@ -602,7 +602,18 @@ nmap <C-c><C-c> <Plug>NormalModeSendToTmux
 " To send your own commands to the other pane use
 " :nmap ,t :Tmux textthatwillbesenttootherpane<CR>
 
-" tslime.v }}}
+" tslime.vim }}}
+
+
+" vim-slime for clojure development {{{
+let g:slime_target = "tmux"
+let g:slime_paste_file = "$HOME/.slime_paste"
+let g:slime_default_config = {"socket_name": "default", "target_pane": ":.2"}
+let g:slime_dont_ask_default = 1
+" Send to pane number 2 in this window. SlimeConfif of C-c v  to change it
+" C-c C-c sends the actual like to the tmux pane
+"
+" vim-slime }}}
 
 " gx configuration {{{
 :let g:netrw_browsex_viewer= "xdg-open"

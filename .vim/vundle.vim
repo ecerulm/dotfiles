@@ -51,7 +51,7 @@ Plugin 'camelcasemotion'        " w stops at _ and CamelCase
 Plugin 'Townk/vim-autoclose'    " Auto close parens, brackets
 " Plugin 'bronson/vim-trailing-whitespace' " trailing whitespace highlighed in red and :FixWhitespace
 Plugin 'ntpeters/vim-better-whitespace' " tailing whitespace highlighted :StripWhitespace
-Plugin 'jgdavey/tslime.vim'
+" Plugin 'jgdavey/tslime.vim'
 " Plugin 'mutewinter/GIFL' " Google I'm feeling Lucky URL Grabber <Leader>gifliw
 
 " toggle.vim / cycle.vim / switch.vim
@@ -87,8 +87,9 @@ Plugin 'tell-k/vim-autopep8' " <F8> for running autopep8
 " Plugins for Clojure development
 Plugin 'tpope/vim-salve'         " autoconnect fireplace.vim to the REPL
 Plugin 'tpope/vim-projectionist' " alternate files,
-Plugin 'tpope/vim-dispatch'   " run test asynch
-Plugin 'tpope/vim-fireplace'  " REPL
+Plugin 'tpope/vim-dispatch'      " run test asynch
+Plugin 'tpope/vim-fireplace'     " REPL
+Plugin 'jpalardy/vim-slime'      " send text to tmux pane
 
 " Plugins for R development
 Plugin 'jalvesaq/Nvim-R'
