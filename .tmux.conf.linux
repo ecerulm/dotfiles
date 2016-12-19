@@ -1,3 +1,5 @@
 # http://unix.stackexchange.com/questions/15715/getting-tmux-to-copy-a-buffer-to-the-clipboard
-bind C-c run-shell "tmux save-buffer - | xsel -i"
-bind C-v run-shell "xsel -o | tmux load-buffer - ; tmux paste-buffer"
+# bind C-c run-shell "tmux save-buffer - | xsel -i"
+# bind C-v run-shell "xsel -o | tmux load-buffer - ; tmux paste-buffer"
+
+# Now that you use the tmux plugin tmux-yank there is no need for custom configuration for linux and mac

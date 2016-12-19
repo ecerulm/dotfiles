@@ -172,6 +172,10 @@ alias port=port2process
 
 alias dockerrmall="docker rm \$(docker ps -qa)"
 
+function tpminstall {
+  git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
+}
+
 
 PYENV_ROOT="$HOME/.pyenv"
 
