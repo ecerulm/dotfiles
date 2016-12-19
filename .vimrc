@@ -642,6 +642,7 @@ let g:UltiSnipsJumpBackwardTrigger="<c-k>"
 
 " YouCompleteMe configuration {{{
 let g:ycm_server_keep_logfiles = 1
+let g:ycm_use_ultisnips_completer = 1
 " YouCompleteMe configuration }}}
 
 " Nvim-R {{{
