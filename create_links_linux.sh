@@ -26,6 +26,7 @@ ls bin | xargs -n1 -I'{}' ln -Tvfs ~/dotfiles/bin/'{}' ~/bin/'{}'
 ln -Tvfs ~/dotfiles/.gitconfig_linux .gitconfig_platform_specific
 ln -Tvfs ~/dotfiles/.gitconfig_linux ~/.gitconfig_platform_specific
 ln -Tvfs ~/dotfiles/.tmux.conf.linux ~/.tmux.conf.extra
+ln -Tvfs ~/dotfiles/.bashrc.linux ~/.bashrc.extra
 
 #emacs dirs
 ln -Tvfs ~/dotfiles/emacs.d ~/.emacs.d
