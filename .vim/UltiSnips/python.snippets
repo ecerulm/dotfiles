@@ -1,5 +1,20 @@
+global !p
+def fn_underscores(filename):
+	return filename.replace(".","_").upper()
+
+def expand(snip):
+	if snip.tabstop != 1:
+		return
+	vim.eval('feedkeys("\<C-R>=UltiSnips#ExpandSnippet()\<CR>")')
+endglobal
+
 snippet basedir "basedir = os.path.abspath(...)" b
 basedir = os.path.abspath(os.path.dirname(__file__))
+endsnippet
+
+post_jump "expand(snip)"
+snippet curfile "current file path" !b
+basedir$1
 endsnippet
 
 snippet patchers "insert patchers" b 
@@ -342,43 +357,6 @@ def ${1:decorator_name}(${2:args}):
 	return decorator
 endsnippet
 
-snippet argparse "argparse verbose levels"
-import argparse
-import logging
-
-log_levels_map = {
-        "DEBUG": logging.DEBUG,
-        "INFO": logging.INFO,
-        "WARNING": logging.WARNING,
-        "ERROR": logging.ERROR,
-        "CRITICAL": logging.CRITICAL,
-        }
-
-parser = argparse.ArgumentParser(description="A test program")
-parser.add_argument('-v', '--verbose', action='count' )
-parser.add_argument('--log-level', choices=log_levels_map)
-args = parser.parse_args()
-
-print args
-level = logging.WARNING
-if args.log_level:
-    level = log_levels_map[args.log_level]
-if args.verbose:
-    levels = [logging.WARNING, logging.INFO, logging.DEBUG]
-    level = levels[min(len(levels)-1,args.verbose)] # capped to the number of levels
-
-logging.basicConfig(level=level,
-                    format="%(asctime)s %(levelname)s %(message)s")
-
-logging.debug("a debug message")
-logging.info("a info message")
-logging.warning("a warning message")
-logging.error("a error message")
-logging.critical("a critical message")
-endsnippet
-
-
-
 snippet tk "Tkinter windows and mainloop"
 root = tk.Tk()
 mylabel = tk.Label(root, text="I am a label widget")
@@ -527,11 +505,6 @@ app = App(root)
 
 root.mainloop()
 #root.destroy()  # optional 
-endsnippet
-
-
-snippet basedir
-os.path.abspath(os.path.dirname(__file__))
 endsnippet
 
 
