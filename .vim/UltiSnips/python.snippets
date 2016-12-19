@@ -771,4 +771,15 @@ def updateFileMenu(self):
 
 endsnippet
 
+snippet decorator
+def ${1:decorator_name}(f):
+	functools.wrap(f)
+	def wrapped(*args, **kwargs):
+		# code called before invoking the original function
+		$2
+		result = f(*args, **kwargs)
+		# code called after invoking the original funcion
+		return result
+	return wrapped
+endsnippet
 # vim: set noexpandtab tabstop=2 :
