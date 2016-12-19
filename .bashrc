@@ -198,3 +198,7 @@ fi
 if [ -f ~/.credentials.bash ]; then
   . ~/.credentials.bash
 fi
+
+if [ -f ~/.bashrc.extra ]; then
+  . ~/.bashrc.extra
+fi
