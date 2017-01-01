@@ -1,0 +1,26 @@
+snippet function "function()" !b
+function ${1:functionname}($2) {
+	$0
+}
+endsnippet
+
+snippet p5forwidth "for (var x =0,..." !b
+for (var x = 0; x < width; x++) {
+	$0
+}
+endsnippet
+
+snippet p5forheight "for (var y =0,..." !b
+for (var y = 0; y < height; y++) {
+	$0
+}
+endsnippet
+
+snippet p5pixels "pixels[i + 0] =" !b
+var i = x + y * width * 4;
+pixels[i + 0] = 255;
+pixels[i + 1] = 0;
+pixels[i + 2] = 0;
+pixels[i + 3] = 255;
+
+endsnippet
