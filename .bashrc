@@ -138,6 +138,9 @@ alias pyenvinstall27osx="env CONFIGURE_OPTS='' pyenv install 2.7.12"
 alias pyenvinstall35="env CONFIGURE_OPTS='--enable-shared' pyenv install 3.5.2"
 alias pyenvansible="pyenv virtualenv 2.7.12 venv-ansible; pyenv shell venv-ansible && pip install ansible"
 alias ansible="~/.pyenv/versions/venv-ansible/bin/ansible"
+function contextinstall {
+  sudo apt-get install -y rsync ruby zip curl ghostscript graphicsmagick mupdf inkscape pstoedit
+}
 alias leininstall="sudo apt-get install -y openjdk-8-jdk openjfx && wget https://raw.githubusercontent.com/technomancy/leiningen/stable/bin/lein -O ~/.local/bin/lein && chmod a+x ~/.local/bin/lein && lein"
 alias dockerip="docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'"
 alias dockerips="docker inspect -f '{{.Name}} - {{.NetworkSettings.IPAddress }}' \$(docker ps -aq)"
