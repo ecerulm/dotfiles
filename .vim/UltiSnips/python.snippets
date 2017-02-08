@@ -33,7 +33,7 @@ len(${VISUAL})
 endsnippet
 
 #! header
-snippet #! "Shebang header for python scripts" b
+snippet header "Shebang header for python scripts" b
 #!/usr/bin/env python
 # encoding: utf-8
 $0
@@ -754,5 +754,27 @@ def ${1:decorator_name}(f):
 		# code called after invoking the original funcion
 		return result
 	return wrapped
+endsnippet
+
+snippet loadenv "Read .env" !b
+if os.path.exist('.env'):
+	print('Importing environment from .env...')
+	for line in open('.venv'):
+		var = line.strip().split('=')
+		if len(var) == 2:
+			os.environ[var[0]] = var[1]]
+endsnippet
+
+snippet envvar "os.getenv()" w
+os.getenv('${1:VAR_NAME}') or 'default'
+endsnippet
+
+snippet docstring "docstring" !b
+"""Form a complex number.
+
+Keyword arguments:
+real -- the real part (default 0.0)
+imag -- the imaginary part (default 0.0)
+"""
 endsnippet
 # vim: set noexpandtab tabstop=2 :
