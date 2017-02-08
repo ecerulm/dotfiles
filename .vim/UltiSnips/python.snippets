@@ -777,4 +777,15 @@ real -- the real part (default 0.0)
 imag -- the imaginary part (default 0.0)
 """
 endsnippet
+
+
+
+## scikit-learn
+
+snippet sksplit "train_test_split" !b
+from sklearn.cross_validation import train_test_split
+X_train, X_test, y_train, y_test = train_test_split(${1:digits.data}, ${2:digits.target})
+$0
+endsnippet
+
 # vim: set noexpandtab tabstop=2 :
