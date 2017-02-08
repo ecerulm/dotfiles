@@ -2,3 +2,8 @@ function vim {
   # Access parameters $1, $2, ${$1:mydefaultvalue}	"$@"
   mvim -v "$@"
 }
+
+function jupyterserver {
+  cd ~/Dropbox/JupyterNotebooks
+  ~/.pyenv/versions/venv-jupyter/bin/jupyter notebook
+}
