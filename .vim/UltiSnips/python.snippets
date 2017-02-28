@@ -779,6 +779,23 @@ imag -- the imaginary part (default 0.0)
 endsnippet
 
 
+##
+
+snippet generator "generator" !b
+def my_generator():
+   yield x
+endsnippet
+
+
+snippet issequence "isinstance(obj, collections.Sequence)" !b
+if isinstance(${1:obj}, collections.Sequence):
+	$0
+endsnippet
+
+snippet foreach "for x in iterable" !b
+for ${1:x} in ${2:iterable}:
+	$0
+endsnippet
 
 ## scikit-learn
 
@@ -788,4 +805,52 @@ X_train, X_test, y_train, y_test = train_test_split(${1:digits.data}, ${2:digits
 $0
 endsnippet
 
+snippet sklinearclassifier "LinearSVM" !b
+from sklearn.svm import LinearSVC
+svm = LinearSVC(C=0.1)
+svm.fit(X_train, y_train) # X_train numpy array shape rowsxcols
+svm.predict(X_train)
+svm.score(X_train, y_train) # how close are predictions and labels
+svm.score(X_test, y_test) # how close are predictions and labels
+endsnippet
+
+snippet skdigits "Load Digits dataset" !b
+from sklearn.datasets import load_digits
+digits = load_digits() # the digits dataset
+digits.keys() # has images, data, target_names/label names, a textual DESCRiption, target/label
+print(digits.DESCR)
+print(digits.images.shape)
+print(digits.data.shape)
+print(digits.target.shape)
+print(digits.target_names)
+endsnippet
+ 
+snippet skrandomforestclassifier "RandomForestClassifier" !b
+from sklearn.ensemble import RandomForestClassifier
+
+rf = RandomForestClassifier(n_estimators=50)
+rf.fit(X_train, y_train)
+rf.predict(X_test)
+print(rf.score(X_train, y_train))
+print(rf.score(X_score, y_score))
+endsnippet
+
+
+## Hash functions
+
+snippet sha1 "SHA1 hash"
+import hashlib
+m = hashlib.sha1()
+m.update("xxxx")
+m.update("yyy")
+result = m.digest()
+endsnippet
+
+snippet epoch "seconds since epoch" !b
+int(time.time())
+endsnippet
+
+snippet randomstr "random string"
+''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(16))
+endsnippet
 # vim: set noexpandtab tabstop=2 :
