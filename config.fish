@@ -32,6 +32,12 @@ if status --is-interactive
     . (pyenv virtualenv-init -|psub)
   end
 
+  if test -d ~/local/stow/go1.8
+    set -gx GOROOT "$HOME/local/stow/go1.8"
+    set PATH $GOROOT/bin $PATH
+    set -gx GOPATH "$HOME/go"
+  end
+
   # If opam in the path
   type opam >/dev/null ^/dev/null
   if test $status -eq 0
@@ -53,6 +59,8 @@ switch (uname)
     alias pbcopy='xsel --clipboard --input'
     alias pbpaste='xsel --clipboard --output'
 end
+
+
 stty -ixon  # Disable flow control
 
 
