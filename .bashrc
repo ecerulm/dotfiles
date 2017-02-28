@@ -194,6 +194,13 @@ if [ -d "$RENV_ROOT" ]; then
   eval "$(Renv init -)"
 fi
 
+GOROOT="$HOME/local/stow/go1.8"
+if [ -d "$GOROOT" ]; then
+  export GOROOT
+  export PATH="$GOROOT/bin:$PATH"
+fi
+export GOPATH="$HOME/go"
+
 if [ -f ~/.credentials.bash ]; then
   . ~/.credentials.bash
 fi
