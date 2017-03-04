@@ -27,3 +27,20 @@ snippet minipage "begin{minipage}" !b
 $0
 \end{minipage}
 endsnippet
+
+
+snippet article "documentclass{article}" !b
+\documentclass[11pt,a4paper,fleqn,draft]{article}
+\usepackage{amsmath,amssymb}
+\usepackage[charter]{mathdesign}  % sets the math font to Charter
+\usepackage{fontspec}
+\setmainfont{Charis STL}
+
+\begin{document}
+\title{${1:Title of the document}}
+\author{Rubén Laguna}
+\date{${2:`date +%Y-%m-%d`}}
+
+$0
+\end{document}
+endsnippet

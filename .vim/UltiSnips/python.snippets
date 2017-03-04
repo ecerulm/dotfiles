@@ -527,6 +527,15 @@ snippet "(envget|getenv)" "os.environ.get" rw
 os.environ.get('${1:ENVVAR}') or 'default'$0
 endsnippet
 
+snippet envfile "load environment file .env" !b
+if os.path.exists('.env'):
+	print('Importing environment from .env')
+	for line in open('.env'):
+		var = line.strip().split('=')
+		if len(var) == 2:
+			os.environ[var[0]] = var[1]
+endsnippet
+
 snippet socket
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 endsnippet
@@ -758,11 +767,11 @@ endsnippet
 
 snippet loadenv "Read .env" !b
 if os.path.exist('.env'):
-	print('Importing environment from .env...')
-	for line in open('.venv'):
-		var = line.strip().split('=')
-		if len(var) == 2:
-			os.environ[var[0]] = var[1]]
+print('Importing environment from .env...')
+for line in open('.venv'):
+	var = line.strip().split('=')
+	if len(var) == 2:
+		os.environ[var[0]] = var[1]]
 endsnippet
 
 snippet envvar "os.getenv()" w
@@ -852,5 +861,23 @@ endsnippet
 
 snippet randomstr "random string"
 ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(16))
+endsnippet
+
+snippet colorlog "colored logger" !b
+import colorlog
+
+handler = colorlog.StreamHandler()
+handler.setFormatter(colorlog.ColoredFormatter())
+
+logger = colorlog.getLogger()
+logger.setLevel(colorlog.colorlog.logging.DEBUG)
+logger.addHandler(handler)
+
+
+logger.debug('debug message')
+logger.info('info message')
+logger.warning('warning message')
+logger.error('error message')
+logger.critical('critical message')
 endsnippet
 # vim: set noexpandtab tabstop=2 :

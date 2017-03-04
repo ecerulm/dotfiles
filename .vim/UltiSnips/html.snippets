@@ -124,6 +124,7 @@ tick(); // this will repeat at the end of each transition, so it runs continousl
 endsnippet
 
 snippet html
+<!DOCTYPE html>
 <html>
 	<head>
 		<title>$1</title>
@@ -288,3 +289,22 @@ snippet p5jsblank "" !b
 	</body>
 </html>
 endsnippet
+
+# ReactJS
+snippet reactblank "reactJS index.html" !b
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Hello React</title>
+		<meta charset="utf-8"/>
+	</head>
+	<body>
+		<div id="app">
+		</div>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/react/15.4.2/react.js" crossorigin="anonymous"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/react/15.4.2/react-dom.js" crossorigin="anonymous"></script>
+		<script src="./script.js" charset="utf-8"></script>
+	</body>
+</html>
+endsnippet
+

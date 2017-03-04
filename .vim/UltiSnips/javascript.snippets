@@ -1,4 +1,4 @@
-snippet function "function()" !b
+snippet function "function()"
 function ${1:functionname}($2) {
 	$0
 }
@@ -23,4 +23,34 @@ pixels[i + 1] = 0;
 pixels[i + 2] = 0;
 pixels[i + 3] = 255;
 
+endsnippet
+
+
+# ReactJS
+snippet render "ReactDOM.render()" !b
+ReactDOM.render(
+	React.createElement(${1:ComponentClass}, {${2:prop1: "prop1value"}})
+	document.getElementById("${2:app}")
+);
+endsnippet
+
+snippet reactclass "React.createClass(...)" !b
+var ${1:ComponentName} = React.createClass({
+	displayName: "Name for debugging purposes",
+	propTypes: {
+		name: React.PropTypes.string,
+	},
+	getDefaultProps: function() {
+		return {
+			name: "defaultValue",
+		};
+	},
+	render: function() {
+		return React.createElement("h1", null, "I'm so custom " + this.props.name + " text");
+	},
+});
+endsnippet
+
+snippet reactelem "React.createElement(...)" 
+React.createElement("${1:htmltag}", ${2:null}, "I'm so custom " + this.props.name);
 endsnippet
