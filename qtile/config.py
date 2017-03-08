@@ -51,6 +51,12 @@ keys = [
         lazy.layout.shuffle_up()
     ),
 
+    Key(
+        [mod, "shift"], "h",
+        lazy.layout.client_to_next()
+
+    ),
+
     # Switch window focus to other pane(s) of stack
     Key(
         [mod], "space",
