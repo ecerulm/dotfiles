@@ -207,7 +207,6 @@ if [ -d "$GOROOT" ]; then
   export GOROOT
   export PATH="$GOROOT/bin:$PATH"
 fi
-export GOPATH="$HOME/go"
 
 if [ -f ~/.credentials.bash ]; then
   . ~/.credentials.bash
