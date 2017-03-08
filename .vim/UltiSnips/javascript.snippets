@@ -51,6 +51,17 @@ var ${1:ComponentName} = React.createClass({
 });
 endsnippet
 
-snippet reactelem "React.createElement(...)" 
+snippet reactelem "React.createElement(...)"
 React.createElement("${1:htmltag}", ${2:null}, "I'm so custom " + this.props.name);
+endsnippet
+
+snippet p5js "setup and draw" !b
+function setup() {
+	createCanvas(300, 400);
+}
+
+function draw() {
+	background(0);
+  $0
+}
 endsnippet
