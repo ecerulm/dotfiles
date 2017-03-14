@@ -23,3 +23,36 @@ endsnippet
 snippet waitgroup "var wg sync.WaitGroup" !b
 var wg sync.WaitGroup
 endsnippet
+
+snippet pipeline "make a pipeline function" !b
+func pipelinefunc(nums ... int) <-chan int {
+	out := make(chan int)
+	go func() {
+	  for n := range nums {
+			out <- n
+		}
+		close(out)
+	}
+	return out
+}
+
+endsnippet
+
+
+snippet forchan "for n := range ch {}" !b
+for ${1:elem} := range ${2:ch"} {
+	$0
+}
+endsnippet
+
+snippet forarray "for i, elem := range" !b
+for ${1:elem} := range ${2:ch"} {
+	$0
+}
+endsnippet
+
+snippet formap "for k,v := range myMap" !b
+for k, v := range ${2:myMap"} {
+	$0
+}
+endsnippet
