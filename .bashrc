@@ -202,7 +202,7 @@ if [ -d "$RENV_ROOT" ]; then
   eval "$(Renv init -)"
 fi
 
-GOROOT="$HOME/local/stow/go1.8"
+GOROOT="$HOME/.local/stow/go1.8"
 if [ -d "$GOROOT" ]; then
   export GOROOT
   export PATH="$GOROOT/bin:$PATH"
