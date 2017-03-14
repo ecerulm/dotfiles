@@ -9,3 +9,17 @@ func main() {
 	fmt.Println("Hello world")
 }
 endsnippet
+
+snippet for "for i:= 0" !b
+for i := 0; i < ${1:100}; i++ {
+	$0
+}
+endsnippet
+
+snippet print "fmt.Printf"
+fmt.Printf("$0")
+endsnippet
+
+snippet waitgroup "var wg sync.WaitGroup" !b
+var wg sync.WaitGroup
+endsnippet
