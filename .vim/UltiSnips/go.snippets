@@ -28,25 +28,45 @@ snippet pipeline "make a pipeline function" !b
 func pipelinefunc(nums ... int) <-chan int {
 	out := make(chan int)
 	go func() {
-	  for n := range nums {
+	  defer close(out)
+		for i, n := range nums {
 			out <- n
 		}
-		close(out)
 	}
 	return out
 }
 
 endsnippet
 
+snippet ctxtimeout "context.WithTimeout" !b
+timeout, err := time.ParseDuration("10s")
+ctx, err := context.WithTimeout(context.Background(), timeout) // access ctx.Done()
+endsnippet
+
+snippet goroutinefunc "make a func that returns a channel" !b
+func ${1:funcname}() <-chan ${2:int} {
+	out := make(chan $2)
+	go func() {
+		defer close(out)
+		for {
+			select {
+			case $0:
+			}
+		}
+	}()
+	return out
+}
+endsnippet
+
 
 snippet forchan "for n := range ch {}" !b
-for ${1:elem} := range ${2:ch"} {
+for ${1:elem} := range ${2:ch} {
 	$0
 }
 endsnippet
 
 snippet forarray "for i, elem := range" !b
-for ${1:elem} := range ${2:ch"} {
+for _, ${1:elem} := range ${2:myArray} {
 	$0
 }
 endsnippet
@@ -54,5 +74,35 @@ endsnippet
 snippet formap "for k,v := range myMap" !b
 for k, v := range ${2:myMap"} {
 	$0
+}
+endsnippet
+
+snippet println "fmt.Println()"
+fmt.Println($0)
+endsnippet
+
+snippet ticker "time.NewTicker" !b
+ticker := time.NewTicker(5 * time.Second)
+endsnippet
+
+snippet sleeprandom "time.Sleep(rand.Intn(5) * time.Second)" !b
+time.Sleep(time.Duration(rand.Intn(5) + 1) * time.Second)
+endsnippet
+
+snippet first "repeat query to multiple, get first response" !b
+func First(queryString string, servers ...string) string {
+	out := make(chan string)
+	for _,server := range servers {
+		go func(server string){ out <- search(queryString, server) }(server)
+	}
+	return <-out
+}
+endsnippet
+
+snippet forselect "for { select {} }" !b
+for {
+	select {
+	case $0:
+	}
 }
 endsnippet
