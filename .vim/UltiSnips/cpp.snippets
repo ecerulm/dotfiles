@@ -8,6 +8,10 @@ snippet incpair "#include <utility>" !b
 #include <utility>
 endsnippet
 
+snippet inctuple "#include <tuple>" !b
+#include <tuple>
+endsnippet
+
 snippet isbaseof "Description" !b
 std::is_base_of<A, B>::value
 endsnippet
@@ -32,4 +36,16 @@ template <typename T, typename U>
 struct MyStruct<T,U> {
 	$0
 }
+endsnippet
+
+snippet cout "std::cout << ... " !b
+std::cout << "$0" << std::endl;
+endsnippet
+
+snippet deleteimplicts "delete copy constructor, etc" !b
+${1:ClassName}() = delete;  // delete default constructor
+$1(const $1& other) = delete;  // copy constructor
+$1& operator=(const $1& other) = delete;  // delete copy assigment operator
+$1($1&& other) = delete;  // delete move constructor
+$1& operator=($1&&) = delete;  // delete move assigment operator
 endsnippet
