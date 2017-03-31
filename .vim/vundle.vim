@@ -91,6 +91,10 @@ Plugin 'tpope/vim-dispatch'      " run test asynch
 Plugin 'tpope/vim-fireplace'     " REPL
 Plugin 'jpalardy/vim-slime'      " send text to tmux pane
 
+
+" Plugins for Golang development
+Plugin 'fatih/vim-go'
+
 " Plugins for R development
 Plugin 'jalvesaq/Nvim-R'
 
