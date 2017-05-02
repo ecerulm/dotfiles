@@ -1,7 +1,7 @@
-function vim {
-  # Access parameters $1, $2, ${$1:mydefaultvalue}	"$@"
-  mvim -v "$@"
-}
+# function vim {
+#   # Access parameters $1, $2, ${$1:mydefaultvalue}	"$@"
+#   mvim -v "$@"
+# }
 
 function jupyterserver {
   cd ~/Dropbox/JupyterNotebooks
