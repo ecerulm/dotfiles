@@ -12,3 +12,7 @@ function jupyter {
   # Access parameters $1, $2, ${$1:mydefaultvalue}	"$@"
   ~/.pyenv/versions/venv-jupyter/bin/jupyter "$@"
 }
+
+function ls {
+  command ls -G
+}
