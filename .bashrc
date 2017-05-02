@@ -183,6 +183,10 @@ function tpminstall {
   git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
 }
 
+function selfsignedcert {
+  openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 3650 -nodes -sha256 -subj '/CN=localhost'
+}
+
 
 PYENV_ROOT="$HOME/.pyenv"
 
