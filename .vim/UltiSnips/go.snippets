@@ -138,3 +138,11 @@ endsnippet
 snippet printf "fmt.Printf()" !b
 fmt.Printf("%s\n", data)
 endsnippet
+
+snippet handler "func xxxx(w http.ResponseWriter, req *http.Request)" !b
+func ${1:handler}(w http.ResponseWriter, req *http.Request) {
+	w.Header.Set("Content-Type", "text/plain")
+	w.Write([]byte("This is an example server"))
+	$0
+}
+endsnippet
