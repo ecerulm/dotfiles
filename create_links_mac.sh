@@ -45,7 +45,11 @@ mkdir -p ~/tmp
 # ctags -R -f ~/.vim/systags /usr/include /usr/local/include
 
 echo "update the plugins"
+echo "submodule update"
 (cd ~/dotfiles; git submodule init; git submodule update)
+echo "Install vim plugins"
 (vim -u ~/.vim/vundle.vim -N +PluginInstall +PluginClean +qall)
+echo "install vimproc"
 (cd ~/.vim/bundle/vimproc.vim && make)
+echo "install YouCompleteMe"
 (cd ~/.vim/bundle/YouCompleteMe && ./install.py --clang-completer) # python is implied
