@@ -110,3 +110,31 @@ endsnippet
 snippet infiniteloop "for {}" !b
 for {}
 endsnippet
+
+snippet gofunc "go func() {for{select{}}}" !b
+go func() {
+	for {
+		select {
+		case $0:
+		}
+	}
+}()
+endsnippet
+
+snippet broadcast "copy from one channel to several" !b
+go func() {
+	for {
+		msg := <-ch // input
+		for _, out := range cs {
+			out <- msg // this blocks you could run this in yet another goroutine
+		}
+	}
+}()
+endsnippet
+
+snippet parsejson "json.Unmarshal(data, &dest)" !b
+ok := json.Unmarshall(${1:data}, ${2:dest})
+if !ok {
+	${3:panic(fmt.Errorf("Unparseable"))}
+}
+endsnippet
