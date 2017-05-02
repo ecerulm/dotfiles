@@ -16,10 +16,6 @@ for i := 0; i < ${1:100}; i++ {
 }
 endsnippet
 
-snippet print "fmt.Printf"
-fmt.Printf("$0")
-endsnippet
-
 snippet waitgroup "var wg sync.WaitGroup" !b
 var wg sync.WaitGroup
 endsnippet
@@ -137,4 +133,8 @@ ok := json.Unmarshall(${1:data}, ${2:dest})
 if !ok {
 	${3:panic(fmt.Errorf("Unparseable"))}
 }
+endsnippet
+
+snippet printf "fmt.Printf()" !b
+fmt.Printf("%s\n", data)
 endsnippet
