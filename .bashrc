@@ -187,6 +187,14 @@ function selfsignedcert {
   openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 3650 -nodes -sha256 -subj '/CN=localhost'
 }
 
+pyenvsetupjupytervenv() ( 
+set -euxo pipefail
+pyenv virtualenv 2.7.12 venv-jupyter
+pyenv shell venv-jupyter
+pip install -U pip
+pip install jupyter numpy scikit-learn matplotlib pandas scipy
+)
+
 
 PYENV_ROOT="$HOME/.pyenv"
 
