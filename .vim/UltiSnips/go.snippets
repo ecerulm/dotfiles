@@ -141,8 +141,41 @@ endsnippet
 
 snippet handler "func xxxx(w http.ResponseWriter, req *http.Request)" !b
 func ${1:handler}(w http.ResponseWriter, req *http.Request) {
-	w.Header.Set("Content-Type", "text/plain")
+	w.Header().Set("Content-Type", "text/plain")
 	w.Write([]byte("This is an example server"))
 	$0
 }
 endsnippet
+
+snippet signal "os.Notify(ch, os.Interrupt)" !b
+// import "os" "os/signal"
+quit := make(chan os.Signal)
+signal.Notify(quit, os.Interrupt)
+endsnippet
+
+snippet httpclient "var httpClient = &http.Client{...}" !b
+// import "net/http"
+var httpClient  = &http.Client{
+	Timeout: time.Second * 3,
+	Transport: &http.Transport{
+		TLSClientConfig: &tls.Config{
+			Rand: zeroSource{}, //TODO: Only for reproducible output during development
+			InsecureSkipVerify: true, //TODO: Only for development, don't use in production
+		},
+	},
+}
+endsnippet
+
+snippet pipe "r,w := io.Pipe()" !b
+//import "io" "io/ioutil"
+r, w := io.Pipe()
+
+go func() {
+defer w.Close()
+// code that writes to w w.Write(...)
+}()
+
+buf, err := ioutil.ReadAll(r) // code that reads from r (here or in goroutine)
+
+endsnippet
+
