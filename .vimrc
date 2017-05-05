@@ -101,13 +101,18 @@ set showtabline=2              " show always the editor tabs
 " system clipboard {{{
 " http://vimcasts.org/episodes/accessing-the-system-clipboard-from-vim/
 " http://ilessendata.blogspot.se/2012/05/vim-using-system-clipboard.html
-if has('unnamedplus')
-  " autoselect copy visual selection to "* (no need to yank)
-  " autoselectplus copy VISUAL selection to "+ (no need to yank)
-  " unnamed  will use "* as target for yank, delete, etc
-  " unnamedplus will use "+ as target for yank, delete, etc
-  " set clipboard=autoselect,unnamed
-  set clipboard=autoselectplus,unnamedplus
+if has('clipboard')
+  set clipboard=unnamed " copy to the system clipboard
+
+  if has('unnamedplus') "  Only available if +X11 is enabled so make sure to compile with X11 support
+    " autoselect copy visual selection to "* (no need to yank)
+    " autoselectplus copy VISUAL selection to "+ (no need to yank)
+    " unnamed  will use "* as target for yank, delete, etc
+    " unnamedplus will use "+ as target for yank, delete, etc
+    " set clipboard=autoselect,unnamed
+    " set clipboard=autoselectplus,unnamedplus
+    set clipboard+=unnamedplus
+  endif
 endif
 " }}} system clipboard
 " }}} 13 selecting text
