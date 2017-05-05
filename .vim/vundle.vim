@@ -76,7 +76,7 @@ Plugin 'mhinz/vim-sayonara'
 Plugin 'tpope/vim-classpath'
 Plugin 'mtth/scratch.vim' " :Scratch and gs in normal and visual mode
 Plugin 'MattesGroeger/vim-bookmarks'
-Plugin 'Valloric/YouCompleteMe'
+" Plugin 'Valloric/YouCompleteMe'
 
 " Plugins for python py2 py3 development
 Plugin 'ecerulm/vim-nose' "  :compiler nose
