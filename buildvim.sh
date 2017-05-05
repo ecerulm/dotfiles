@@ -14,20 +14,28 @@ set -euxo pipefail
 #  --enable-luainterp \
 
 
-make distclean
+# Make sure that you don't have pyenv running, for some reason you will get
+# problems (with UltiSnips for example), everythin will compile but somehow the
+# python will not be able to load the modules from the pythonx and python2 dirs
+
+# make distclean
 git clean -dfx
 ./configure \
-  --prefix=$HOME/.local/ \
+  --prefix=$HOME/.local/stow/vim \
   --with-features=huge \
   --with-compiledby="RubenLaguna" \
   --enable-cscope \
   --enable-pythoninterp=yes  \
-  --with-python-config-dir=/Users/ecerulm/.pyenv/versions/2.7.12/lib/python2.7/config \
+  --with-python-config-dir=/usr/lib/python2.7/config \
   --enable-fail-if-missing \
   --enable-multibyte \
   --enable-pythoninterp=yes  \
-  --enable-gui=auto 
+  --enable-rubyinterp \
+  --enable-luainterp=yes \
+  --with-lua-prefix=/usr/local \
+  --enable-gui=auto
 make
-make install prefix=$HOME/.local/stow/vim
+# make install prefix=$HOME/.local/stow/vim
+make install
 vim --version
 
