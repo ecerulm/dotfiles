@@ -5,6 +5,7 @@
 
 
 # Now that we use the tmux plugin tmux-yank there is no need for custom configuration for linux and mac
+# regarding the pbcopy, etc but you need to install reattach-to-user-namespace. brew install reattach-to-user-namespace
 
 
 
