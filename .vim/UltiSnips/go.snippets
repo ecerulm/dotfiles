@@ -179,3 +179,18 @@ buf, err := ioutil.ReadAll(r) // code that reads from r (here or in goroutine)
 
 endsnippet
 
+
+snippet httperrorresponse "http.Error(w, messge, httpstatuscode" !b
+http.Error(w, "${0:error message sent on the body of response}", ${1:http.StatusBadRequest})
+endsnippet
+
+snippet reader2buf "b, err := ioutil.ReadAll(r)" !b
+var b, err = ioutil.ReadAll(r) // import "io/ioutil"
+if err != nil {
+	//log.Fatal(err)
+}
+endsnippet
+
+snippet xml "`xml:...`"
+\`xml:"$0"\`
+endsnippet
