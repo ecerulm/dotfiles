@@ -14,5 +14,5 @@ function jupyter {
 }
 
 function ls {
-  command ls -G
+  command ls -G "$@"
 }
