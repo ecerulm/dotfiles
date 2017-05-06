@@ -515,6 +515,9 @@ function! AddCurrentWordToKeywords()
 endfunction
 command AddToKeywords call AddCurrentWordToKeywords()
 " Add keywords to keywords dictionary }}}1
+" Set dictionary {{{1
+set dictionary+=/usr/share/dict/words
+" Set dictionary }}}1
 " vim-better-whitespace {{{1
 let g:better_whitespace_filetypes_blacklist=['unite']
 " vim-better-whitespace }}}1
