@@ -118,6 +118,53 @@ Related vim help:
  * |compl-omni|
  * |complete-functions|
 
+
+
+==============================================================================
+Folding *CheatsheetFolding*
+
+|zi| disable all folding
+|za| toggle fold (open/close fole). <Space> is mapped to za
+zA toggle all folds (open all thaw were closed and close the open ones)
+|zc| close a fold
+zo open a fold
+|zM| close all folds
+|zR| will open all folds
+zO will open alll fold inside the current fold recursively
+zC will close folds recusively
+|zv| open the fold necesarry to reveal the cursor
+zm close one foldlevel
+zr open a foldlevel
+zj navigate to next fold
+zk navigate to previous fold
+zMzv close all fold except the current one
+zMzvzz Refocus, like previous but center view
+
+Writing a custom folding expression / function
+http://vimcasts.org/episodes/writing-a-custom-fold-expression/
+> set foldcolumn=3 "numer of characters in the gutter to show fold bars"
+> set foldmethod=marker "you need to add {{{1 {{{2 etc to the file
+> set foldmethod=indent "fold based on indentation"
+> set foldmethod=expr  "fold based on |'foldexpr'|, set 'foldexpr' to a func
+>                      " that returns ">1", "=", ">3", etc|
+
+Manual folds
+You need to set |foldmethod| to manual
+> set fdm=manual
+then do a visual selection like Vjjj<Esc>  the you can use |zf| to create a
+fold (using the current visual selection) that you can open via |zo| and close
+with |zc|
+THe folds will be lost when the buffer is closed but you can save them with
+|:mkview| and recovered with |:loadview|
+
+
+Related help
+* |folding|
+* |'foldlevel'|
+* |'foldmethod'|
+* |'foldcolumn'|
+
+
 ==============================================================================
 Troubleshooting Vim *CheatsheetTroubleshooting*
 
@@ -129,6 +176,14 @@ To see from which file an options was set use |:set-verbose| see also
 |:verbose|
 :verbose set shiftwidth cindent?
 
+==============================================================================
+Plugins *CheatsheetPlugings*
+
+
+* unite.vim
+* Tabular
+* EasyAlign
+
 
 ==============================================================================
 Miscellaneous *CheatsheetMisc*
@@ -136,7 +191,7 @@ Miscellaneous *CheatsheetMisc*
 Create a new command with
 >  :command :helptags ~/.vim/doc | :help Cheatsheet
 
-The above creates a new command :Cheatsheet that will run :helptags and then 
+The above creates a new command :Cheatsheet that will run :helptags and then
 :help
 
 
