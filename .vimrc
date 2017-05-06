@@ -13,6 +13,7 @@ set pastetoggle=<f4>
 "  2 moving around, searching and patterns {{{
 set ignorecase " make searches case-sensitive only if they contain upper case characters
 set smartcase  " override the ignorecase option if searching for uppercase chars
+set infercase  " for insert mode completion
 "  2 moving around, searching and patterns }}}
 "  3 tags {{{
 set tags+=~/.vim/systags
@@ -240,6 +241,9 @@ augroup vimrcEx " Put them in a group so we delete them easily
   autocmd FileType unite call s:unite_settings() " apply setting to unite buffers
   " autopep8 <f3> {{{2
   autocmd FileType python map <buffer> <F3> :call Autopep8()<CR>
+
+  " autogenerate tags files (for vim help files after saving them)
+  autocmd BufWritePost ~/.vim/doc/* :helptags ~/.vim/doc
 
   " hook after plugin are loaded {{{2
   au VimEnter * call ConfigAfterPluginLoaded()
@@ -524,20 +528,17 @@ let g:better_whitespace_filetypes_blacklist=['unite']
 " }
 command Test execute 'Etest '.expand("%:t:r")
 " Test command -> Etest (projectionist) }}}1
-
 " Neocomplete {{{
 source ~/.vim/neocomplete.vim
 " }}}
-" Save with :W
+" Save with :W {{{
 command! W :
-
+" Save with :W }}}
 " vim-test {{{
 let test#strategy = "dispatch"
 let test#python#runner = 'nose'
 
 " vim-test }}}
-
-
 " Configuration to run after all plugins are loaded {{{
 function! ConfigAfterPluginLoaded()
   " vim-cycle groups {{{
@@ -579,21 +580,13 @@ function! ConfigAfterPluginLoaded()
   " }}}
 endfunction
 " }}} Configuration to run after all plugins are loaded
-"
-"
-
 " Autopep8 disable the <F8> mapping since it's taken by the the ToggleBar {{{
 let no_autopep8_maps=1
 " Autopep8 }}}
-"
-
 " Work in UTF-8 {{{
 set encoding=utf-8
 set fileencoding=utf-8
 " Work in UTF-8 }}}
-
-
-
 " tslime.vim for clojure development {{{
 let g:tslime_always_current_session = 1
 let g:tslime_always_current_window = 1
@@ -608,8 +601,6 @@ nmap <C-c><C-c> <Plug>NormalModeSendToTmux
 " :nmap ,t :Tmux textthatwillbesenttootherpane<CR>
 
 " tslime.vim }}}
-
-
 " vim-slime for clojure development {{{
 let g:slime_target = "tmux"
 let g:slime_paste_file = "$HOME/.slime_paste"
@@ -619,7 +610,6 @@ let g:slime_dont_ask_default = 1
 " C-c C-c sends the actual like to the tmux pane
 "
 " vim-slime }}}
-
 " gx configuration {{{
 :let g:netrw_browsex_viewer= "xdg-open"
 " Use whole "words" when opening URLs.
@@ -627,14 +617,10 @@ let g:slime_dont_ask_default = 1
 " See http://vi.stackexchange.com/q/2801/1631
 let g:netrw_gx="<cWORD>"
 " gx configuration }}}
-
-
 " GIFL google i'm feeling lucky URL grabber {{{
 let g:LuckyOutputFormat='markdown'
 " GIFL google i'm feeling lucky URL grabber }}}
-
 let g:GetLatestVimScripts_allowautoinstall = 1
-
 " UltiSnips configuration {{{
 let g:UltiSnipsUsePythonVersion = 2
 let g:UltiSnipsSnippetsDir = "~/.vim/UltiSnips"
@@ -644,12 +630,10 @@ let g:UltiSnipsJumpBackwardTrigger="<c-k>"
 " let g:UltiSnipsJumpForwardTrigger="<nop>"
 " let g:UltiSnipsJumpBackwardTrigger="<nop>"
 " UltiSnips configuration }}}
-
 " YouCompleteMe configuration {{{
 let g:ycm_server_keep_logfiles = 1
 let g:ycm_use_ultisnips_completer = 1
 " YouCompleteMe configuration }}}
-
 " Nvim-R {{{
 " nvimr
 " from :help Nvim-R-Tmux
@@ -676,5 +660,8 @@ command Rtags :!Rscript -e 'rtags(path="./", recursive=TRUE, ofile="RTAGS")' -e 
 
 
 " vim-bookmarks }}}
+" command :Cheatsheet with the the ecerulm personal notes  about vim usage {{{
+:command Cheatsheet :helptags ~/.vim/doc | :help Cheatsheet
+" command to enable :help Cheatsheet }}}
 
 " All plugins are loaded after .vimrc see :h initialization

@@ -47,9 +47,11 @@ mkdir -p ~/tmp
 echo "update the plugins"
 echo "submodule update"
 (cd ~/dotfiles; git submodule init; git submodule update)
+echo "Generate help tags for ~/.vim/doc"
+(vim -u NONE -N "+helptags ~/.vim/doc" "+qall")
 echo "Install vim plugins"
 (vim -u ~/.vim/vundle.vim -N +PluginInstall +PluginClean +qall)
 echo "install vimproc"
 (cd ~/.vim/bundle/vimproc.vim && make)
-echo "install YouCompleteMe"
-(cd ~/.vim/bundle/YouCompleteMe && ./install.py --clang-completer) # python is implied
+# echo "install YouCompleteMe"
+# (cd ~/.vim/bundle/YouCompleteMe && ./install.py --clang-completer) # python is implied

@@ -3,6 +3,7 @@
 .gitconfig_platform_specific
 Session.vim
 .vim/systags
+.vim/doc/tags
 emacs.d/.recentf
 emacs.d/.smex-items
 emacs.d/auto-save-list/

@@ -1,0 +1,143 @@
+" vim: filetype=help foldmethod=marker foldmarker=<<<,>>> modifiable noreadonly
+*cheatsheet.txt* cheatsheet for this specific Vim configuration RubenLaguna
+
+==============================================================================
+Editing this file                                              *CheatsheeEdit*
+How to edit this help file, :set ma , to set it as modifiable |'ma'|
+
+To see the "source code" of this file :set filetype=text |'filetype'|
+
+To open this file you can :help cheatshee.txt, if it doesn't work is because
+you need to build the helptags first :helptags ~/.vim/doc see |helptags|
+
+:e $VIMRUNTIME/syntax/help.vim
+:help write-local-help " |write-local-help|
+
+How to insert a line full of ===== : in INSERT mode <C-o>78i=<Esc>
+
+Related help topics
+* |write-local-help|
+* |help-tags|
+
+==============================================================================
+Navigate Help *CheatsheetHelp*
+
+http://vim.wikia.com/wiki/Learn_to_use_help
+
+Follow help links, put cursor in link and press Ctrl-]
+Go back , Ctrl-O
+
+Type :help help
+Search all the help files with :helpgrep |helpgrep|
+	:helpgrep \csearch.\{,12}file
+where \c means case insensitive, the pattern looks for "search", then 12
+character followe by "file"
+To navigate the matches use :cnext |:cnext|, :cprev |:cprev|, :cnfile |:cnfile|,
+:cpfile |:cpfile|, :cfirst |:cfirst| and even :cc |:cc|
+
+ * :h :r          Ex command :r
+ * :h r           normal mode
+ * :h v_r         visual mode
+ * :h i_CTRL-Wr   insert mode
+ * :h c_CTRL-R    ex command line
+ * :h /\r         search pattern
+ * :h 'ro'        option
+ * :h -r          vim argument
+
+================================================================================
+Completion  *CheatsheetCompletion* *CheatsheetAutocompletion*
+
+See Practical Vim chapter on autocompletion
+https://www.safaribooksonline.com/library/view/practical-vim-2nd/9781680501629/f_0157.xhtml#chp.auto.completion
+
+The Supertab, YouCompleteMe, VimCompleteMe, neocomplete, etc are for complete
+as you type, without having to trigger the completion with a keystroke. If you
+don't  mind to type |i_CTRL-N| or |i_CTRL-X_CTRL-N|
+
+Autocompletion is triggered from |Insert-Mode with either |i_CTRL-N| or |i_CTRL-P|
+both trigger generic keyword autocompletion.
+
+
+Types of completion
+* CTRL-N    Generic keywords |compl-generic|
+* CTRL-X CTRL-N Current buffer keywords |compl-current| |i_CTRL-X_CTRL-N|
+* CTRL-X CTRL-I Included file keywords |compl-keyword|
+* CTRL-X CTRL-] tags file keywords |compl-tag|
+* CTRL-X CTRL-K Dictionary lookup  |compl-dictionary|
+* CTRL-X CTRL-L whole line completion |compl-whole-line|
+* CTRL-X CTRL-F Filename completion |compl-filename|
+* CTRL-X CTRL-O Omnicompletion |compl-omni|
+
+Once the completion is invoked a popup will appear you can navigate with
+CTRL-N and CTRL-P (which will modify the buffer) or with <Down> and <Up>
+(which will select entries in the popup without modifying the document).
+
+You need to CTRL-E will terminate the completion, dimisses the popup and
+restores the text to the partial text that was typed before autocompletion was
+invoked.
+
+To invoke the autocompletion just to see the proposals and refine by typing
+use CTRL-N CTRL-P the CTRL-N selects the first completion and CTRL-P bring
+back to the partial text so you can continue typing there. This works for the
+other types of completions as well CTRL-X CTRL-N CTRL-P for example.
+
+The Generic keyword autocompletion |compl-generic| merges several sources ,
+which sources are used is controlled by the option |'complete'|
+>     :set complete=.,w,b,u,t,k~/.vim/keywords.txt
+>
+When we use autocomplete to expand a word if we invoke autocomplete a second
+time it will insert the word that followed the original completion, that
+allows to autocomplete not just words but parts of sentences incrrementally.
+
+The file autocompletion |compl-filename| exapnds paths relative to the
+_current directory_ not relative to the file currently being edited. Use
+|:pwd| to see what is the curren directory and |:cd|  and |:cd-| to change
+directories before doing the CTRL-X CTRL-L. In the future maybe the |'path'|
+option will be used.
+
+Omni-completion is triggred by CTRL-X CTRL-O (see |compl-omni|) the
+functionality is filetype dependent see |compl-omni-filetypes| (see the
+specific help for each filetype |ft-c-omni|, |ft-php-omni|,
+|ft-php-omni|, etc). You can figure out how to write your own omni-completion
+plugins by reading the |complete-functions|
+>
+
+Related vim help:
+ * |'infercase'|
+ * |ins-completion|
+ * |popupmenu-completion|
+ * |compl-current|
+ * |compl-keyword|
+ * |include|
+ * |compl-tag|
+ * |compl-dictionary|
+ * |dictionary|
+ * |compl-whole-line|
+ * |compl-filename|
+ * |:cd| and |:cd-|
+ * |compl-omni|
+ * |complete-functions|
+
+==============================================================================
+Troubleshooting Vim *CheatsheetTroubleshooting*
+
+|:messages|  show error messages from vim from previous commands
+|:set| buftype
+|:echo| &buftype
+
+To see from which file an options was set use |:set-verbose| see also
+|:verbose|
+:verbose set shiftwidth cindent?
+
+
+==============================================================================
+Miscellaneous *CheatsheetMisc*
+
+Create a new command with
+>  :command :helptags ~/.vim/doc | :help Cheatsheet
+
+The above creates a new command :Cheatsheet that will run :helptags and then 
+:help
+
+
+
