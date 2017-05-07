@@ -11,5 +11,6 @@ if !exists('b:RubenGoSettings')
   nmap <leader>b :<C-u>call <SID>build_go_files()<CR>
   nmap <leader>r <Plug>(go-run)
   nmap <leader>t <Plug>(go-test)
+  nmap <leader>c <Plug>(go-coverage-toggle)
   let b:RubenGoSettings=1
 endif

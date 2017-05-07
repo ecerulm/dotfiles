@@ -2,7 +2,7 @@
 *cheatsheet.txt* cheatsheet for this specific Vim configuration RubenLaguna
 
 ==============================================================================
-Editing this file                     *CheatsheeEdit* {{{1
+Editing this file                     *CheatsheetEdit* {{{1
 
 http://vim.wikia.com/wiki/Add_your_note_files_to_Vim_help
 http://vim.wikia.com/wiki/VimTip482
@@ -201,7 +201,7 @@ Plugins *CheatsheetPlugings* {{{1
 * |vim-go|
 
 
-vim-go plugin for Golang development *CheatsheetGo*{{{2
+vim-go plugin for Golang development *CheatsheetGo* {{{2
 
 See vim-go-tutorial at
 https://github.com/fatih/vim-go-tutorial/blob/master/README.md
@@ -252,6 +252,27 @@ vim-go provides autocompletion direclty via CTRL-X CTRL-O (if you want as you
 type completion without having to trigger it with a chord you need
 YouCompleteMe, Supertab, neocomplete, etc.)
 
+|:GoCoverage| and |:GoCoverageClear| and |:GoCoverageClear| and
+|:GoCoverageBrowser| . The test must pass to get coverage
+The <leader>c will run |:GoCoverageToggle|
+
+The command |:GoImport|  allows to add a import line at the top of the file
+without having to jump there
+> :GoImport strings
+> :GoImportAs str strings
+To remove an import statement use |:GoDrop|
+> :GoDrop string
+>
+But we have the goimports tool, we can instruct vim-go to run goimports to
+"format" the code (instead of using "gofmt")
+> let g:go_fmt_command = "goimports"
+
+Running goimports on save may be slow so you can revert
+> let g:go_fmt_command = "gofmt"
+and run goimports on demands with |:GoImports| (note the extra s)
+
+vim-go provides the |text-objects| af and if, so you can do vaf , vif , daf,
+dif, yif, yaf, etc.
 
 ==============================================================================
 Unite.vim keyboard shortcuts *CheatsheetUnite* {{{1
@@ -295,5 +316,10 @@ Vim script / VimScript variable scopes: http://learnvimscriptthehardway.stevelos
 * |a:var|  is the |function-argument| scope
 * |g:var| is the  |global-variable| scope  |g:var| |g:|
 *
+
+|mapleader|  the default leader is \ , but it's more convenient to change it
+to the "," although that will prevent from searching backwards
+> let mapleader = ','
+>
 
 
