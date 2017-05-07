@@ -1,8 +1,12 @@
-" vim: filetype=help foldmethod=marker foldmarker=<<<,>>> modifiable noreadonly
+" vim: filetype=help foldmethod=marker modifiable noreadonly
 *cheatsheet.txt* cheatsheet for this specific Vim configuration RubenLaguna
 
 ==============================================================================
-Editing this file                                              *CheatsheeEdit*
+Editing this file                     *CheatsheeEdit* {{{1
+
+http://vim.wikia.com/wiki/Add_your_note_files_to_Vim_help
+http://vim.wikia.com/wiki/VimTip482
+
 How to edit this help file, :set ma , to set it as modifiable |'ma'|
 
 To see the "source code" of this file :set filetype=text |'filetype'|
@@ -20,7 +24,7 @@ Related help topics
 * |help-tags|
 
 ==============================================================================
-Navigate Help *CheatsheetHelp*
+Navigate Help *CheatsheetHelp* {{{1
 
 http://vim.wikia.com/wiki/Learn_to_use_help
 
@@ -45,7 +49,7 @@ To navigate the matches use :cnext |:cnext|, :cprev |:cprev|, :cnfile |:cnfile|,
  * :h -r          vim argument
 
 ================================================================================
-Completion  *CheatsheetCompletion* *CheatsheetAutocompletion*
+Completion  *CheatsheetCompletion* *CheatsheetAutocompletion* {{{1
 
 See Practical Vim chapter on autocompletion
 https://www.safaribooksonline.com/library/view/practical-vim-2nd/9781680501629/f_0157.xhtml#chp.auto.completion
@@ -118,10 +122,8 @@ Related vim help:
  * |compl-omni|
  * |complete-functions|
 
-
-
 ==============================================================================
-Folding *CheatsheetFolding*
+Folding *CheatsheetFolding* *CheatsheetFold* {{{1
 
 |zi| disable all folding
 |za| toggle fold (open/close fole). <Space> is mapped to za
@@ -130,7 +132,7 @@ zA toggle all folds (open all thaw were closed and close the open ones)
 zo open a fold
 |zM| close all folds
 |zR| will open all folds
-zO will open alll fold inside the current fold recursively
+zO will open all fold inside the current fold recursively
 zC will close folds recusively
 |zv| open the fold necesarry to reveal the cursor
 zm close one foldlevel
@@ -143,7 +145,7 @@ zMzvzz Refocus, like previous but center view
 Writing a custom folding expression / function
 http://vimcasts.org/episodes/writing-a-custom-fold-expression/
 > set foldcolumn=3 "numer of characters in the gutter to show fold bars"
-> set foldmethod=marker "you need to add {{{1 {{{2 etc to the file
+> set foldmethod=marker "you need to add \{\{{1 \{\{{2 etc to the file
 > set foldmethod=indent "fold based on indentation"
 > set foldmethod=expr  "fold based on |'foldexpr'|, set 'foldexpr' to a func
 >                      " that returns ">1", "=", ">3", etc|
@@ -166,7 +168,7 @@ Related help
 
 
 ==============================================================================
-Troubleshooting Vim *CheatsheetTroubleshooting*
+Troubleshooting Vim *CheatsheetTroubleshooting* {{{1
 
 |:messages|  show error messages from vim from previous commands
 |:set| buftype
@@ -177,7 +179,7 @@ To see from which file an options was set use |:set-verbose| see also
 :verbose set shiftwidth cindent?
 
 ==============================================================================
-Plugins *CheatsheetPlugings*
+Plugins *CheatsheetPlugings* {{{1
 
 
 * unite.vim
@@ -186,7 +188,7 @@ Plugins *CheatsheetPlugings*
 
 
 ==============================================================================
-Miscellaneous *CheatsheetMisc*
+Miscellaneous *CheatsheetMisc* {{{1
 
 Create a new command with
 >  :command :helptags ~/.vim/doc | :help Cheatsheet
