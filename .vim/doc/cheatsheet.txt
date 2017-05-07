@@ -103,8 +103,20 @@ Omni-completion is triggred by CTRL-X CTRL-O (see |compl-omni|) the
 functionality is filetype dependent see |compl-omni-filetypes| (see the
 specific help for each filetype |ft-c-omni|, |ft-php-omni|,
 |ft-php-omni|, etc). You can figure out how to write your own omni-completion
-plugins by reading the |complete-functions|
+plugins by reading the |complete-functions| (|omnifunc| and |completefunc|)
 >
+as an example of how a new complete is implemented look at the |vim-go|
+see ˜/.vim/autoload/go/complete.vim which implements the function
+> function! go#complete#Complete(findstart, base) abort
+which follows the conventions of |complete-functions|.
+It really uses s:gocodeAutocomplete() to generate the completions that it
+stores in g:gocomplete_completions.
+g:gocodeAutocomplete calls gocode autocomplete --in=tempfilename -f=vim fullpath_to_buffer.go offset
+expand('%:p')
+It uses |tempname()| to generate a temporary filename
+the offset is calculated using |line()| and |col()|, but to account for utf-8
+encoding it does
+
 
 Related vim help:
  * |'infercase'|
@@ -120,7 +132,8 @@ Related vim help:
  * |compl-filename|
  * |:cd| and |:cd-|
  * |compl-omni|
- * |complete-functions|
+ * |complete-functions| (|omnifunc| and |completefunc|)
+ * |CompleteDone| autocommand event
 
 ==============================================================================
 Folding *CheatsheetFolding* *CheatsheetFold* {{{1
@@ -185,8 +198,84 @@ Plugins *CheatsheetPlugings* {{{1
 * unite.vim
 * Tabular
 * EasyAlign
+* |vim-go|
 
 
+vim-go plugin for Golang development *CheatsheetGo*{{{2
+
+See vim-go-tutorial at
+https://github.com/fatih/vim-go-tutorial/blob/master/README.md
+
+
+First do |:GoInstallBinaries| or |:GoUpdateBinaries| so that guru, gofmt,
+gorename, godef, goimports, etc are installedi.
+
+|:GoRun| to run small scripts
+|:GoBuild| this compiles the filed instead of running it. No binaries pollute
+the dir, it cds into the source pkg , parses errors into quickfix, uses
+|dispatch| plugin or vim 8 async api in the future
+
+The |:GoBuild| works better with |autowrite|
+> set autowrite
+
+
+Many commands like |:GoBuild|, |:GoRun|, |:GoInstall|, |:GoTest| use the
+|quickfix| window, so it makes sense to add some mappings for quick |:cnext|
+and |:cprevious|
+> map <C-n> :cnext<CR>
+> map <C-m> :cprevious<CR>
+> nnoremap <leader>a :cclose<CR>
+
+To load specific settings for Go files you can use
+> autocmd FileType go nmap <leader>b <Plug>(go-build)
+> autocmd FileType go nmap <leader>r <Plug>(go-run)
+> autocmd FileType go nmap <leader>t <Plug>(go-test)
+but I put everything in ~/.vim/ftplugin/go/go.vim
+
+
+The vim-go uses both |location-list| (one for Build errors, another for Tests,
+etc)  and |quickfix|. But we can make vim-go to only use quickfix with
+> let g:go_list_type = "quickfix"
+
+
+|:GoTest| runs synchronously but there is timeout of 10s 
+> let g:go_test_timeout = '10s'
+
+
+|:GoTestFunc| only tests the function that is under the cursor. The errors
+will open in a |quickfix|  window.
+
+|:GoTestCompile| builds the test file without running it, in case it takes
+long to run and you only want to how if your changes compiles.
+
+vim-go provides autocompletion direclty via CTRL-X CTRL-O (if you want as you
+type completion without having to trigger it with a chord you need
+YouCompleteMe, Supertab, neocomplete, etc.)
+
+
+==============================================================================
+Unite.vim keyboard shortcuts *CheatsheetUnite* {{{1
+
+The |unite.vim| are buffer so you can CTRL-^ to go back where you came from
+
+<Leader> is \
+
+In normal mode:
+CTRL-P open the file browser
+<Leader>mru to open a list of the Most Recently Used filed
+<Leader>o   Outline
+<Leader>t   Tags
+<Leader>y   Yank. We don't have it configured properly I guess we need another
+            plugin called https://github.com/Shougo/neoyank.vim
+<Leader>e   Open buffers, you have to wait for the timeout (see |timeout|,
+            |ttimeout|, |ttimeoutlen|) because it needs to distinguish
+            between <Leader>e and <Leader>ev (open vimrc file)
+<Leader>g   Grep
+<Leader>l   Resume |:UniteResume|
+
+
+Related Help:
+* How to add new sources |unite-create-source|
 ==============================================================================
 Miscellaneous *CheatsheetMisc* {{{1
 
@@ -196,5 +285,15 @@ Create a new command with
 The above creates a new command :Cheatsheet that will run :helptags and then
 :help
 
+|expand()| allows to get
+* expand('%:p')  full path of current buffer
+
+
+
+Vim script / VimScript variable scopes: http://learnvimscriptthehardway.stevelosh.com/chapters/20.html
+* scopes are explained in |internal-variables|
+* |a:var|  is the |function-argument| scope
+* |g:var| is the  |global-variable| scope  |g:var| |g:|
+*
 
 
