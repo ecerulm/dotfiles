@@ -683,5 +683,15 @@ set autowrite
 let g:go_test_timeout = '10s'
 let g:go_fmt_command = "goimports"
 
+" if you don't want the errors from goimports to pop on the quickfix list
+" let g:go_fmt_fail_silently = 1
+
+
+" let g:go_snippet_case_type = "camelcase"
+" let g:go_snippet_case_type = "snakecase"
+
+" if you don't like that the text-objects af and if  include the function doc
+" let g:go_textobj_include_function_doc = 0
+
 " Vim-go settings vimgo }}}1
 " All plugins are loaded after .vimrc see :h initialization

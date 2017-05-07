@@ -107,6 +107,7 @@ Plugin 'kana/vim-textobj-entire' " ae, ie
 Plugin 'lucapette/vim-textobj-underscore'
 Plugin 'argtextobj.vim'         " daa to delete arguments
 Plugin 'kana/vim-textobj-syntax.git' " yiy yay
+Plugin 'AndrewRadev/splitjoin.vim'
 
 " color themes
 Plugin 'altercation/vim-colors-solarized'

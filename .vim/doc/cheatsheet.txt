@@ -272,7 +272,23 @@ Running goimports on save may be slow so you can revert
 and run goimports on demands with |:GoImports| (note the extra s)
 
 vim-go provides the |text-objects| af and if, so you can do vaf , vif , daf,
-dif, yif, yaf, etc.
+dif, yif, yaf, etc. This text objects include the comments (documentation) if
+you don't like that you can use the setting:
+> let g:go_textobj_include_function_doc = 0
+
+See more about the text-objects at https://medium.com/@farslan/treating-go-types-as-objects-in-vim-ed6b3fad9287#.45q2rtqgf
+
+the |gS| and |gJ| from the splitjoin.vim can be used to split expression
+althought is not really a go-aware plugin.
+
+There are some go related *UltiSnips* snippets
+https://github.com/fatih/vim-go/blob/master/gosnippets/UltiSnips/go.snippets
+
+* fn -> fmt.Println
+* ff -> fmt.Printf()
+* ln -> log.Println()
+* lf -> log.Printf()
+* errp -> if err != nil
 
 ==============================================================================
 Unite.vim keyboard shortcuts *CheatsheetUnite* {{{1
