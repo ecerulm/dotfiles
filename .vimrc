@@ -442,6 +442,8 @@ command! -nargs=1 -complete=help H :tabnew | :set buftype=help | :h <args>
 " unite.vim mappings {{{
 
 let g:unite_source_history_yank_enable = 1
+" TODO: change from ag to rg --targets, (or any of the alternatives ripgrep,
+" sift, ack, ucg, pt, 
 let g:unite_source_grep_command = 'ag'
 let g:unite_source_grep_default_opts = '--line-numbers --nocolor --nogroup --smart-case'
 let g:unite_source_grep_recursive_opt = ''
@@ -667,4 +669,18 @@ command Rtags :!Rscript -e 'rtags(path="./", recursive=TRUE, ofile="RTAGS")' -e 
 :command Cheatsheet :helptags ~/.vim/doc | :help Cheatsheet
 " command to enable :help Cheatsheet }}}
 
+" Vim-go settings vimgo {{{1
+" See :help CheatsheetGo
+" autowrite so that the buffers gets saved automatically at :GoBuild
+set autowrite
+" map <C-n> :cnext<CR>
+" map <C-p> :cprevious<CR>
+" nnoremap <leader>a :cclose<CR>
+
+" if you don't want vim-go to use location-list instead of quickfix
+" let g:go_list_type = "quickfix"
+
+let g:go_test_timeout = '10s'
+
+" Vim-go settings vimgo }}}1
 " All plugins are loaded after .vimrc see :h initialization
