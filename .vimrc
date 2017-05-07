@@ -67,6 +67,9 @@ end
 "   set t_Co=256 " 256 Colors
 " endif
 set t_ut= " http://sunaku.github.io/vim-256color-bce.html bce background color erase
+
+let g:rehash256 = 1
+let g:molokai_original = 1
 colorscheme molokai
 
 " }}} COLOR
@@ -671,6 +674,7 @@ command Rtags :!Rscript -e 'rtags(path="./", recursive=TRUE, ofile="RTAGS")' -e 
 
 " Vim-go settings vimgo {{{1
 " See :help CheatsheetGo
+" shee :help go-settings
 " autowrite so that the buffers gets saved automatically at :GoBuild
 set autowrite
 " map <C-n> :cnext<CR>
@@ -692,6 +696,47 @@ let g:go_fmt_command = "goimports"
 
 " if you don't like that the text-objects af and if  include the function doc
 " let g:go_textobj_include_function_doc = 0
+
+" syntax highlight can slow down vim
+" let g:go_highlight_types = 1
+" let g:go_highlight_fields = 1
+" let g:go_highlight_functions = 1
+" let g:go_highlight_methods = 1
+" let g:go_highlight_operators = 1
+" let g:go_highlight_extra_types = 1
+" let g:go_highlight_build_constraints = 1
+" let g:go_highlight_generate_tags = 1
+
+" Since metalinter is fast you want to run it on save
+let g:go_metalinter_enabled = ['vet', 'golint', 'errcheck']
+let g:go_metalinter_autosave = 1
+let g:go_metalinter_autosave_enabled = ['vet', 'golint']
+let g:go_metalinter_deadline = "5s"
+
+" the Go to definiton commands gd / CTRL-] use guru by default
+" it can be slow  change g:go_def_mode to use godef tool instead of guru
+" let g:go_def_mode = 'godef'
+
+" To control what is shown by :GoDecls and :GoDeclsDir
+" let g:go_decls_includes = "func,type"
+" let g:go_decls_includes = "func"
+
+" g:go_auto_type_info will show info about id in the status line on the
+" CursorHold event , controlled by 'updatetime'
+let g:go_auto_type_info = 1
+" set updatetime=100
+
+let g:go_auto_sameids = 1
+
+
+" A lot of commands :GoCallees, etc depend on guru and sometimes they know to
+" now the scope see :help :GoGuruScope
+" let g:go_guru_scope = ["github.com/fatih/vim-go-tutorial"]
+" let g:go_guru_scope = ["..."]
+" let g:go_guru_scope = ["github.com/...", "golang.org/x/tools"]
+" let g:go_guru_scope = ["encoding/...", "-encoding/xml"]
+" let g:go_guru_tags = "mycustomtag"
+
 
 " Vim-go settings vimgo }}}1
 " All plugins are loaded after .vimrc see :h initialization

@@ -206,6 +206,8 @@ vim-go plugin for Golang development *CheatsheetGo* {{{2
 See vim-go-tutorial at
 https://github.com/fatih/vim-go-tutorial/blob/master/README.md
 
+To learn about the configuration settings of |vim-go| :help |go-settings|
+
 
 First do |:GoInstallBinaries| or |:GoUpdateBinaries| so that guru, gofmt,
 gorename, godef, goimports, etc are installedi.
@@ -290,6 +292,79 @@ https://github.com/fatih/vim-go/blob/master/gosnippets/UltiSnips/go.snippets
 * lf -> log.Printf()
 * errp -> if err != nil
 
+
+Syntax highlighting can slow down vim so you can have total control of what is 
+syntax highlighted
+> let g:go_highlight_types = 1
+> let g:go_highlight_types = 1
+> let g:go_highlight_fields = 1
+> let g:go_highlight_functions = 1
+> let g:go_highlight_methods = 1
+> let g:go_highlight_operators = 1
+> let g:go_highlight_extra_types = 1
+> let g:go_highlight_build_constraints = 1
+> let g:go_highlight_generate_tags = 1
+>
+To change the |textwidth| and |tabstop| for all go files 
+> autocmd BufNewFile,BufRead *.go setlocal noexpandtab tabstop=4 shiftwidth=4 
+
+
+There are several commans to check the code |:GoLint| , |:GoVet| and
+|:GoMetalinter| , metalinter is the obvious choice because it runs the other
+two and present the results in an uniform way. (golint, go vet and errcheck)
+> let g:go_metalinter_enabled = ['vet', 'golint', 'errcheck']
+>
+>
+To navigate to the alternatefile (test) use |:GoAlternate|
+
+Navigation  *CheatsheetGoNav* *CheatsheetGoCommands*
+
+*  |:GoAlternate| to go to test file 
+*  |:GoDef| Go to definition there is the gd and CTRL-]
+*  |:GoDefPop| Go to previous definition CTRL-T
+*  |:GoDefStack| and |:GoDefStackClear| to navigate to all previous
+   definitions
+*  |:GoDecls| and |:GoDeclsDir| are not enabled unless you have ctrlp.vim
+   plugin
+* ]] jumps to next function
+* [[ jumps to previous function
+* |:GoDoc| show documentation for the identifier under cursor, it uses 
+  gogetdoc tool, you can use |K| in normal mode to trigger :GoDoc
+* install go-explorer to do documentattion exploring :GoDoc doesn't allow to 
+  explore documentation (no links among pages)
+* To know what a function acceps and returns use |:GoInfo| or the mapping
+  <leader>i
+* The g:go_auto_type_info is enabled so when the |CursorHold|  event triggers
+  (after keeping the cursor in the same oposition for |'updatetime'| ms ) then
+  :GoInfo will be called and shown under the |status-line|
+* To highlight an identifier use |:GoSameIds| and |:GoSameIdsClear|
+* Use |:GoFiles|  to  show all the files that make a package
+* Use |:GoDeps| to show all the dependencies
+* |:GoDescribe| is similar to |:GoInfo|
+* |:GoImplements|  tells you what interfaces the identifier is implementing
+* |:GoImpl| m *MyType io.ReadWriterCloser will generate method stubs for type
+  *MyType that will panic 
+* |:GoWhicherrs| will tells what kind of values can an error type have
+  (constants, concrete types) so you can do type discrimination when handling 
+  the error.
+* |:GoChannelPeers|  on a expression like ch <- n will populate the |quickfix| window
+  with information about where the channel was allocated, and points where the
+  channel is being used to send or received
+* |:GoCallees| shows possible call targets of a selected function call (who)
+* |:GoCallers|
+* |:GoCallstack|
+* All the commands that rely on guru (like :GoDecribe, :GoImplements,
+  GoWhicherrs, GoChannelPeers, :goCallees, :GoCallers, :GoCallstack) rely on
+  the guru scope that can be set with |:GoGuruScope| and 
+  > let g:go_guru_scope
+* |:GoRename|  uses the gorename tool. put the cursor on top of what you want
+  to rename as :GoRename newname
+* Extract a function/method with |:GoFreevars| which relies on the gofreevars
+  tool. Do a visual selection :GoFreevars it will show you all the variables
+  that need to be converted into parameters of the function
+* |:GoGenerate|  will call go generate 
+
+
 ==============================================================================
 Unite.vim keyboard shortcuts *CheatsheetUnite* {{{1
 
@@ -338,4 +413,13 @@ to the "," although that will prevent from searching backwards
 > let mapleader = ','
 >
 
+To execute command per filetype 
+|filetype-plugins|	Documentation for the filetype plugins and information
+			about how to avoid that mappings cause problems.
+|load-plugins|		When the global plugins are loaded during startup.
+|ftplugin-overrule|	Overruling the settings from a global plugin.
+|write-plugin|		How to write a plugin script.
+|plugin-details|	For more information about using plugins or when your
+			plugin doesn't work.
+|new-filetype|		How to detect a new file type.
 
