@@ -416,7 +416,21 @@ Navigation  *CheatsheetGoNav* *CheatsheetGoCommands*
 * |:GoGenerate|  will call go generate 
 
 
+vim-unimpaired *CheatsheetUnimpaired* {{{2
+
+The official help is :help |unimpaired|
+
+]b  |:bprevious| previous buffer
+[b  |:bnext| next buffer
+[q  |:cprevious|  next entry in |quickfix-window|
+]q  |:cnext|  next entry in |quickfix-window|
+[l  |:lprevious| previous entry in |location-list-window|
+]l  |:lnext| next entry in |location-list-window|
+
+
+
 ==============================================================================
+
 Unite.vim keyboard shortcuts *CheatsheetUnite* {{{1
 
 The |unite.vim| are buffer so you can CTRL-^ to go back where you came from
@@ -439,6 +453,16 @@ CTRL-P open the file browser
 
 Related Help:
 * How to add new sources |unite-create-source|
+*
+
+
+
+==============================================================================
+XML editing *CheatsheetXml*
+
+* https://www.pinkjuice.com/howto/vimxml/setup.xml
+
+
 ==============================================================================
 Miscellaneous *CheatsheetMisc* {{{1
 
