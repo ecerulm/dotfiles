@@ -48,6 +48,57 @@ To navigate the matches use :cnext |:cnext|, :cprev |:cprev|, :cnfile |:cnfile|,
  * :h 'ro'        option
  * :h -r          vim argument
 
+==============================================================================
+Commands *CheatsheetCommands*
+
+|operator| plus |motion|
+
+gUaw : uppercase word
+gUap : uppercase whole paragraph
+gUgU: uppercase line
+gUU: uppercase line
+dap: delete a paragraph
+>>: indent line
+>ap : indent paragraph
+gcap: comment whole paragraph
+gcG: comment from here to the end of the file
+yie: yank complete file
+yae: yank complete file
+=ae: autoindent whole file
+zz: center text on the middle line
+J: join lines
+|K|: search documentation
+ga: show unicode value of character under cursor
+
+
+
+Related Help:
+
+* to create your own operators |:map-operator|
+* to create your custom motions |omap-info|
+
+
+insert mode tricks *CheatsheetInsert*
+
+* <C-h> delete back one character
+* <C-w> delete back one word
+* <C-u> delete back to start of line
+* <C-[> equivalent to <Esc> go back to Normal mode. See |i_CTRL-[|
+* <C-o> switch to Insert Normal mode. (go back to insert after one normal
+  command) Se |i_CTRL-O|
+* <C-o>zz center text on the middle line without leaving insert
+* <C-r>0 paster from last yanked text. See |registers|  and |quote0|
+  and |i_CTRL-R|. This is susceptible to changes due to |'autoindent'| or
+  |'textwidth'| . Use <C-r><C-p>0 to paste literally |i_CTRL-R_CTRL-P|
+* To insert back-of-the-envelope calculations do <C-r>=20*40<cr> . You can
+  evaluate any vimscript expression including function calls
+* <C-v><Tab> insert a literal tab regardless of |'expandtab'|
+* <C-v>u00bf insert unicode U+00bf ¿. See |i_CTRL-V_digit|
+* <C-v>189 insert character by decimal code ½
+* <C-k>12 to insert ½ . Or any |digraph| . See list with |:digraph| or
+  |digraph-table|
+*
+>
 ================================================================================
 Completion  *CheatsheetCompletion* *CheatsheetAutocompletion* {{{1
 
@@ -423,3 +474,11 @@ To execute command per filetype
 			plugin doesn't work.
 |new-filetype|		How to detect a new file type.
 
+
+See |Operator-pending-mode|
+
+
+To insert special characters use
+* |i_CTRL-V|  like i<C-v><Tab> will insert a literal tab (ignoring |'expandtab'|)
+* Using the |digraphs| . Use |:digraphs| to show the available digraphs. To
+  insert use |i_digraphs| in insert mode <C-k>12 -> ½

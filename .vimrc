@@ -671,7 +671,6 @@ command Rtags :!Rscript -e 'rtags(path="./", recursive=TRUE, ofile="RTAGS")' -e 
 " command :Cheatsheet with the the ecerulm personal notes  about vim usage {{{
 :command Cheatsheet :helptags ~/.vim/doc | :help Cheatsheet
 " command to enable :help Cheatsheet }}}
-
 " Vim-go settings vimgo {{{1
 " See :help CheatsheetGo
 " shee :help go-settings
@@ -739,4 +738,11 @@ let g:go_auto_sameids = 1
 
 
 " Vim-go settings vimgo }}}1
+" Miscellaneous {{{1
+
+" so that CTRL-A in mormal mode doesn't treat numbers with a leading zero as
+" octal
+set nrformats-=octal
+
+" Miscellaneous }}}1
 " All plugins are loaded after .vimrc see :h initialization
