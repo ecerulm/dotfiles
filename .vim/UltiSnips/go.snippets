@@ -1,3 +1,8 @@
+# the vim-go plugins also contribute snippets to the go filetype from
+# ~/.vim/bundle/vim-go/gosnippets/UltiSnips/go.snippets
+# put the cursor over the filename and type gf to go to that file
+
+
 snippet main "hello world program" !b
 package main
 
@@ -24,7 +29,7 @@ snippet pipeline "make a pipeline function" !b
 func pipelinefunc(nums ... int) <-chan int {
 	out := make(chan int)
 	go func() {
-	  defer close(out)
+		defer close(out)
 		for i, n := range nums {
 			out <- n
 		}
@@ -194,26 +199,3 @@ endsnippet
 snippet xml "`xml:...`"
 \`xml:"$0"\`
 endsnippet
-
-# snippet fn "fmt.Println()" !b
-# fmt.Println($0)
-# endsnippet
-
-# snippet ff "fmt.Printf()" !b
-# fmt.Printf($0)
-# endsnippet
-
-# snippet ln "log.Println()" !b
-# log.Println($0)
-# endsnippet
-
-# snippet lf "log.Printf()" !b
-# log.Printf($0)
-# endsnippet
-
-# snippet errp "if err != nil {panic()}" !b
-# if err != nil {
-# 	panic($0)
-# }
-# endsnippet
-
