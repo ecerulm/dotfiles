@@ -196,6 +196,8 @@ augroup vimrcEx " Put them in a group so we delete them easily
   autocmd FileType text,rst setlocal textwidth=72
 
   autocmd BufReadPost .Rprofile set filetype=r
+  " autoformat XML on save {{{2
+  autocmd FileType xml exe ":silent %!xmllint  --format --recover - 2>/dev/null"
 
   " Jump to Last cursor position unless its invalid or in an event handler  {{{2
   autocmd BufReadPost *
@@ -672,8 +674,10 @@ command Rtags :!Rscript -e 'rtags(path="./", recursive=TRUE, ofile="RTAGS")' -e 
 :command Cheatsheet :helptags ~/.vim/doc | :help Cheatsheet
 " command to enable :help Cheatsheet }}}
 " Vim-go settings vimgo {{{1
+
 " See :help CheatsheetGo
-" shee :help go-settings
+" see :help go-settings
+
 " autowrite so that the buffers gets saved automatically at :GoBuild
 set autowrite
 " map <C-n> :cnext<CR>
@@ -687,7 +691,9 @@ let g:go_test_timeout = '10s'
 let g:go_fmt_command = "goimports"
 
 " if you don't want the errors from goimports to pop on the quickfix list
-" let g:go_fmt_fail_silently = 1
+" see :help 'g:go_fmt_fail_silently', don't show a location list if the 
+" build fail (only when is run as part of the autoformat on save)
+let g:go_fmt_fail_silently = 1
 
 
 " let g:go_snippet_case_type = "camelcase"
@@ -706,9 +712,18 @@ let g:go_fmt_command = "goimports"
 " let g:go_highlight_build_constraints = 1
 " let g:go_highlight_generate_tags = 1
 
-" Since metalinter is fast you want to run it on save
+" see  :help 'g:go_jump_to_error' when we do <leader>b, <leader>t, etc
+let g:go_jump_to_error = 1
+
+
+" should vaf include the documentation of function or not
+let g:go_textobj_include_function_doc = 1
+
 let g:go_metalinter_enabled = ['vet', 'golint', 'errcheck']
-let g:go_metalinter_autosave = 1
+
+" Since metalinter is fast you want to run it on save
+" but it's distracting
+let g:go_metalinter_autosave = 0
 let g:go_metalinter_autosave_enabled = ['vet', 'golint']
 let g:go_metalinter_deadline = "5s"
 
@@ -722,10 +737,10 @@ let g:go_metalinter_deadline = "5s"
 
 " g:go_auto_type_info will show info about id in the status line on the
 " CursorHold event , controlled by 'updatetime'
-let g:go_auto_type_info = 1
+" let g:go_auto_type_info = 1
 " set updatetime=100
 
-let g:go_auto_sameids = 1
+" let g:go_auto_sameids = 1
 
 
 " A lot of commands :GoCallees, etc depend on guru and sometimes they know to
