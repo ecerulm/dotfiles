@@ -2,6 +2,16 @@
 # ~/.vim/bundle/vim-go/gosnippets/UltiSnips/go.snippets
 # put the cursor over the filename and type gf to go to that file
 
+# What does the !b means for ultisnips :help UltiSnips-snippet-options
+# b   Beginning of line
+# i   In-word expansion
+# w   Word boundary
+# r   Regular expression
+# t   Do not expand tabs
+# s   Remove whitespace immediately before the cursor at the end of a line
+# m   Trim all whitespaces from right side of snippet lines. Useful when
+# e   Context snippets
+# A   Snippet will be triggered automatically, when condition matches.
 
 snippet main "hello world program" !b
 package main
@@ -199,3 +209,71 @@ endsnippet
 snippet xml "`xml:...`"
 \`xml:"$0"\`
 endsnippet
+
+snippet xmldecoder "parse xml in streaming fashion" !b
+dec := xml.NewDecoder(${1:reader})
+for {
+	tok, err := dec.Token()
+	if err == io.EOF {
+		break;
+	} else if err != nil {
+		fmt.Panicf("xml: %s", err)
+	}
+	switch elem := tok.(type) {
+	case xml.StartElement:
+		// elem.Name.Local
+		panic()
+	case xml.StopElement:
+		panic()
+	case xml.CharData:
+		panic()
+	}
+}
+endsnippet
+
+snippet toktype "xml type discrimination" !b
+switch tok.(type) {
+case xml.StartElement:
+	panic("StartElement Not implemented")
+case xml.EndElement:
+	panic("EndElement Not implemented")
+case xml.CharData:
+	panic("CharData Not implemented")
+case xml.Comment:   // XML comment of the form <!--comment-->
+	panic("Comment Not implemented")
+case xml.ProcInst:  // XML processing instruction of the form <?target inst?>
+	panic("ProcInst Not implemented")
+case xml.Directive: // XML directive of the form <!text>
+	panic("Directive Not implemented")
+default:
+	panic("Unrecognized Token type")
+}
+endsnippet
+
+snippet perr "propagate error" !b
+if err != nil {
+	return fmt.Errorf("$0: %v", err)
+}
+endsnippet
+
+
+snippet pni "panic not implemented" !b
+panic("Not implemented")
+endsnippet
+
+snippet openfile "open file as a ReaderWriter" !b
+f, err := os.Open("/tmp/dat")
+if err != nil {
+	// panic(fmt.Errorf("can't open file: %v", err))
+}
+endsnippet
+
+snippet errf "fmt.Errorf(...)" w
+fmt.Errorf("$0: %v", err)
+endsnippet
+
+snippet defer "defer func(){}()" !b
+defer func(){$0}()
+endsnippet
+
+
