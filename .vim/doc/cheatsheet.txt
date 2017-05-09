@@ -1,6 +1,23 @@
 " vim: filetype=help foldmethod=marker modifiable noreadonly
 *cheatsheet.txt* cheatsheet for this specific Vim configuration RubenLaguna
 
+
+
+*CheatsheetOverview* *CheatsheetToc*
+
+
+1. Editing this file |CheatsheetEdit|
+2. Navigate Help |CheatsheetHelp|
+3. Commands, operators and motions |CheatsheetCommands|
+4. Completion / Autocompletion / Omnicompletion |CheatsheetCompletion|
+5. Folding |CheatsheetFolding|
+6. Troubleshooting vim / vimscript |CheatsheetTroubleshooting|
+7. Vim plugins |CheatsheetPlugings|
+8. Unite.vim |CheatsheetUnite|
+9. XML editing |CheatsheetXml|
+10. Miscellaneous |CheatsheetMisc|
+
+
 ==============================================================================
 Editing this file                     *CheatsheetEdit* {{{1
 
@@ -49,7 +66,7 @@ To navigate the matches use :cnext |:cnext|, :cprev |:cprev|, :cnfile |:cnfile|,
  * :h -r          vim argument
 
 ==============================================================================
-Commands *CheatsheetCommands*
+Commands, operators and motions  *CheatsheetCommands* *CheatsheetOperators* *CheatsheetMotion*
 
 |operator| plus |motion|
 
@@ -69,6 +86,9 @@ zz: center text on the middle line
 J: join lines
 |K|: search documentation
 ga: show unicode value of character under cursor
+g; and g, next and previous in change list :help |changelist| which is similar
+          to the |jumplist|
+
 
 
 
@@ -252,7 +272,8 @@ Plugins *CheatsheetPlugings* {{{1
 * |vim-go|
 
 
-vim-go plugin for Golang development *CheatsheetGo* {{{2
+vim-go plugin for Golang development *CheatsheetGo*  *CheatsheetVimGo*
+*CheatsheetVimgo* {{{2
 
 See vim-go-tutorial at
 https://github.com/fatih/vim-go-tutorial/blob/master/README.md
@@ -291,7 +312,7 @@ etc)  and |quickfix|. But we can make vim-go to only use quickfix with
 > let g:go_list_type = "quickfix"
 
 
-|:GoTest| runs synchronously but there is timeout of 10s 
+|:GoTest| runs synchronously but there is timeout of 10s
 > let g:go_test_timeout = '10s'
 
 
@@ -344,7 +365,7 @@ https://github.com/fatih/vim-go/blob/master/gosnippets/UltiSnips/go.snippets
 * errp -> if err != nil
 
 
-Syntax highlighting can slow down vim so you can have total control of what is 
+Syntax highlighting can slow down vim so you can have total control of what is
 syntax highlighted
 > let g:go_highlight_types = 1
 > let g:go_highlight_types = 1
@@ -356,8 +377,8 @@ syntax highlighted
 > let g:go_highlight_build_constraints = 1
 > let g:go_highlight_generate_tags = 1
 >
-To change the |textwidth| and |tabstop| for all go files 
-> autocmd BufNewFile,BufRead *.go setlocal noexpandtab tabstop=4 shiftwidth=4 
+To change the |textwidth| and |tabstop| for all go files
+> autocmd BufNewFile,BufRead *.go setlocal noexpandtab tabstop=4 shiftwidth=4
 
 
 There are several commans to check the code |:GoLint| , |:GoVet| and
@@ -370,7 +391,7 @@ To navigate to the alternatefile (test) use |:GoAlternate|
 
 Navigation  *CheatsheetGoNav* *CheatsheetGoCommands*
 
-*  |:GoAlternate| to go to test file 
+*  |:GoAlternate| to go to test file
 *  |:GoDef| Go to definition there is the gd and CTRL-]
 *  |:GoDefPop| Go to previous definition CTRL-T
 *  |:GoDefStack| and |:GoDefStackClear| to navigate to all previous
@@ -379,9 +400,9 @@ Navigation  *CheatsheetGoNav* *CheatsheetGoCommands*
    plugin
 * ]] jumps to next function
 * [[ jumps to previous function
-* |:GoDoc| show documentation for the identifier under cursor, it uses 
+* |:GoDoc| show documentation for the identifier under cursor, it uses
   gogetdoc tool, you can use |K| in normal mode to trigger :GoDoc
-* install go-explorer to do documentattion exploring :GoDoc doesn't allow to 
+* install go-explorer to do documentattion exploring :GoDoc doesn't allow to
   explore documentation (no links among pages)
 * To know what a function acceps and returns use |:GoInfo| or the mapping
   <leader>i
@@ -394,9 +415,9 @@ Navigation  *CheatsheetGoNav* *CheatsheetGoCommands*
 * |:GoDescribe| is similar to |:GoInfo|
 * |:GoImplements|  tells you what interfaces the identifier is implementing
 * |:GoImpl| m *MyType io.ReadWriterCloser will generate method stubs for type
-  *MyType that will panic 
+  *MyType that will panic
 * |:GoWhicherrs| will tells what kind of values can an error type have
-  (constants, concrete types) so you can do type discrimination when handling 
+  (constants, concrete types) so you can do type discrimination when handling
   the error.
 * |:GoChannelPeers|  on a expression like ch <- n will populate the |quickfix| window
   with information about where the channel was allocated, and points where the
@@ -406,14 +427,14 @@ Navigation  *CheatsheetGoNav* *CheatsheetGoCommands*
 * |:GoCallstack|
 * All the commands that rely on guru (like :GoDecribe, :GoImplements,
   GoWhicherrs, GoChannelPeers, :goCallees, :GoCallers, :GoCallstack) rely on
-  the guru scope that can be set with |:GoGuruScope| and 
+  the guru scope that can be set with |:GoGuruScope| and
   > let g:go_guru_scope
 * |:GoRename|  uses the gorename tool. put the cursor on top of what you want
   to rename as :GoRename newname
 * Extract a function/method with |:GoFreevars| which relies on the gofreevars
   tool. Do a visual selection :GoFreevars it will show you all the variables
   that need to be converted into parameters of the function
-* |:GoGenerate|  will call go generate 
+* |:GoGenerate|  will call go generate
 
 
 vim-unimpaired *CheatsheetUnimpaired* {{{2
@@ -488,7 +509,7 @@ to the "," although that will prevent from searching backwards
 > let mapleader = ','
 >
 
-To execute command per filetype 
+To execute command per filetype
 |filetype-plugins|	Documentation for the filetype plugins and information
 			about how to avoid that mappings cause problems.
 |load-plugins|		When the global plugins are loaded during startup.
@@ -506,3 +527,42 @@ To insert special characters use
 * |i_CTRL-V|  like i<C-v><Tab> will insert a literal tab (ignoring |'expandtab'|)
 * Using the |digraphs| . Use |:digraphs| to show the available digraphs. To
   insert use |i_digraphs| in insert mode <C-k>12 -> ½
+
+
+==============================================================================
+Navigation shortcuts *CheatsheetNavigation*
+
+g; next in |changelist|
+g, previous in |changelist|
+<C-o> previous in |jumplist|
+<C-i> next in |jumplist|
+[q previous in |quickfix-window| thanks to |unimpaired|
+]q next in |quickfix-window| thanks to |unimpaired|
+[Q first entry in |quickfix-window|
+
+Related help
+* |changelist|
+* |jumplist|
+* |quickfix|
+* |quickfix-window|
+* |location-list|
+* |location-list-window| (|:lmake|, |:lgrep|)
+*
+
+==============================================================================
+Window management *CheatsheetWindow*
+
+windows, panes, tabs, 
+
+
+<C-w>w     switch to window to the right or below |CTRL-W_w|
+<C-w><C-w> switch to another window
+<C-w>p     switch to previous (last used) window |CTRL-W_p| |CTRL-W_CTRL-P|
+<C-w><C-p> switch to previous (last used) window |CTRL-W_p| |CTRL-W_CTRL-P|
+<C-w>x
+<C-w><C-x>  Exchange current window with next one (or previously used one)
+            see |CTRL-W_x| |CTRL-W_CTRL-X|
+
+Related help
+* |window-move-cursor|
+* |window-moving|
