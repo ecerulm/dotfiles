@@ -13,6 +13,7 @@ if !exists('b:RubenGoSettings')
   nmap <leader>t <Plug>(go-test)
   nmap <leader>c <Plug>(go-coverage-toggle)
   nmap <leader>i <Plug>(go-info)
+  nmap <leader>l <Plug>(go-metalinter)
 
   command! -bang A call go#alternate#Switch(<bang>0, 'edit')
   command! -bang AV call go#alternate#Switch(<bang>0, 'vsplit')
