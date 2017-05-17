@@ -77,6 +77,7 @@ Plugin 'tpope/vim-classpath'
 Plugin 'mtth/scratch.vim' " :Scratch and gs in normal and visual mode
 Plugin 'MattesGroeger/vim-bookmarks'
 " Plugin 'Valloric/YouCompleteMe'
+Plugin 'nelstrom/vim-visual-star-search' " select in visual press * to search
 
 " Plugins for python py2 py3 development
 Plugin 'ecerulm/vim-nose' "  :compiler nose
