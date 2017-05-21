@@ -116,7 +116,7 @@ insert mode tricks *CheatsheetInsert*
 * <C-v>u00bf insert unicode U+00bf ¿. See |i_CTRL-V_digit|
 * <C-v>189 insert character by decimal code ½
 * <C-k>12 to insert ½ . Or any |digraph| . See list with |:digraph| or
-  |digraph-table|
+  |digraph-table| the rules to guess the digraphs are in |digraph-defaults|
 *
 >
 ================================================================================
