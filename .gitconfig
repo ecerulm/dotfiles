@@ -70,7 +70,7 @@
   tool = vimdiff
 	stat = true
 [http]
-  sslVerify = false
+	sslVerify = true
 [core]
   editor = vim
 	excludesfile = ~/.gitignore
@@ -91,3 +91,5 @@
 	mnemonicprefix = true
 	renames = copies
 	tool = vimdiff
+[http "https://gopkg.in"]
+	followRedirects = true
