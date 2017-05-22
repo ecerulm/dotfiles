@@ -13,6 +13,10 @@
 # e   Context snippets
 # A   Snippet will be triggered automatically, when condition matches.
 
+global !p
+from ultisnips_helpers import *
+endglobal
+
 snippet main "hello world program" !b
 package main
 
@@ -162,6 +166,11 @@ func ${1:handler}(w http.ResponseWriter, req *http.Request) {
 }
 endsnippet
 
+post_jump "expand(snip)"
+snippet httphandler "func xxxx(w http.ResponseWriter, req *http.Request" !b
+handler$1
+endsnippet
+
 snippet signal "os.Notify(ch, os.Interrupt)" !b
 // import "os" "os/signal"
 quit := make(chan os.Signal)
@@ -232,7 +241,7 @@ for {
 endsnippet
 
 snippet toktype "xml type discrimination" !b
-switch tok.(type) {
+switch elem := tok.(type) {
 case xml.StartElement:
 	panic("StartElement Not implemented")
 case xml.EndElement:
@@ -276,4 +285,69 @@ snippet defer "defer func(){}()" !b
 defer func(){$0}()
 endsnippet
 
+snippet parseinside "func parseInsideXXX" !b
+func parseInside${1:ElemName}(p *Parser) stateFn {
+	for {
+		tok, err := (p.XMLDecoder).Token()
+		if err != nil {
+			log.Println("ERROR: ", err)
+			return nil
+		}
 
+		switch elem := tok.(type) {
+		case xml.StartElement:
+			if name := elem.Name.Local; name != "partner" {
+				log.Println("ERROR: <%s> not allowed inside <partners>", name)
+				return nil
+			}
+			return parseInsidePartner
+		case xml.EndElement:
+			if name := elem.Name.Local; name != "$1" {
+				log.Println("ERROR: </%s> not allowed inside <$1>", name)
+				return nil
+			}
+			return parseInsideDb
+		case xml.CharData:
+		case xml.Comment: // XML comment of the form <!--comment-->
+		case xml.ProcInst: // XML processing instruction of the form <?target inst?>
+		case xml.Directive: // XML directive of the form <!text>
+		default:
+			panic("Unrecognized Token type")
+		}
+	}
+	panic("should not reach here")
+}
+
+endsnippet
+
+snippet createfile "Create a file" !b
+f, err := os.Create("./test.txt")
+if err != nil {
+	panic("TODO: handle this error")
+}
+w := bufio.NewWriter(f)
+n, err := w.WriteString("sss")
+endsnippet
+
+snippet test "func Test(t *testing.T)" !b
+func Test(t *testing.T) {
+	t.Errorf("Implement this test")
+}
+
+endsnippet
+
+snippet cli "Add urfave/cli code" !b
+app := cli.NewApp()
+app.Name = "MyAppName"
+app.Usage = "the one line that appear next to the appname"
+app.Action = func(c *cli.Context) error {
+	fmt.Println("Hello friend!")
+	return nil
+}
+app.Run(os.Args)
+
+endsnippet
+
+snippet filereader "buffered reader to *os.File" w
+bufio.NewReader(${1:f})
+endsnippet

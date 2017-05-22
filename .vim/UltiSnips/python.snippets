@@ -1,11 +1,5 @@
 global !p
-def fn_underscores(filename):
-	return filename.replace(".","_").upper()
-
-def expand(snip):
-	if snip.tabstop != 1:
-		return
-	vim.eval('feedkeys("\<C-R>=UltiSnips#ExpandSnippet()\<CR>")')
+from ultisnips_helpers import *
 endglobal
 
 snippet basedir "basedir = os.path.abspath(...)" b
