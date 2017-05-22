@@ -253,6 +253,10 @@ augroup vimrcEx " Put them in a group so we delete them easily
 
   " hook after plugin are loaded {{{2
   au VimEnter * call ConfigAfterPluginLoaded()
+
+  " Disable syntax highlighting for big files {{{2
+  autocmd BufWinEnter * if line2byte(line("$") + 1) > 1000000 | syntax clear | endif
+  " autocmd BufReadPre * if getfsize(expand("%")) > 10000000 | syntax sync clear | endif
 augroup END
 
 
