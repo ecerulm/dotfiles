@@ -450,10 +450,12 @@ let g:EasyMotion_startofline = 0 " keep cursor colum when JK motion the mappings
 command! -nargs=1 -complete=help H :tabnew | :set buftype=help | :h <args>
 " }}} :H to open help in current window
 " unite.vim mappings {{{
+" unitemappings
 
 let g:unite_source_history_yank_enable = 1
-" TODO: change from ag to rg --targets, (or any of the alternatives ripgrep,
+" TODO: change from ag to rg --files, or sift --targets, (or any of the alternatives ripgrep,
 " sift, ack, ucg, pt, 
+" let g:unite_source_grep_command = 'ag'
 let g:unite_source_grep_command = 'ag'
 let g:unite_source_grep_default_opts = '--line-numbers --nocolor --nogroup --smart-case'
 let g:unite_source_grep_recursive_opt = ''
@@ -461,17 +463,19 @@ let g:unite_source_grep_recursive_opt = ''
 " let g:unite_source_rec_async_command =
 "           \ 'ag --follow --nocolor --nogroup --hidden -g ""'
 " Using ag as recursive command.
-let g:unite_source_rec_async_command =
-\ ['ag', '--follow', '--nocolor', '--nogroup',
-\  '--hidden', '-g', '']
-<
+" let g:unite_source_rec_async_command =
+" \ ['ag', '--follow', '--nocolor', '--nogroup',
+" \  '--hidden', '-g', '']
+
+let g:unite_source_rec_async_command = ['rg','--files']
+
 call unite#filters#matcher_default#use(['matcher_fuzzy'])
 nnoremap <C-p> :<C-u>Unite -no-split -buffer-name=files   -start-insert file_rec/async:!<cr>
-" nnoremap <leader>t :<C-u>Unite -no-split -buffer-name=files   -start-insert file_rec/async:!<cr>
+" We already have <C-p>  no need for <leader>t nnoremap <leader>t :<C-u>Unite -no-split -buffer-name=files   -start-insert file_rec/async:!<cr>
 " nnoremap <leader>f :<C-u>Unite -no-split -buffer-name=files   -start-insert file<cr>
 nnoremap <leader>mru :<C-u>Unite -no-split -buffer-name=mru   file_mru<cr>j
 nnoremap <leader>o :<C-u>Unite -no-split -buffer-name=outline -start-insert -auto-preview outline<cr>
-nnoremap <leader>t :<C-u>Unite -no-split -buffer-name=tag     -start-insert tag<cr>
+nnoremap <leader>ut :<C-u>Unite -no-split -buffer-name=tag     -start-insert tag<cr>
 nnoremap <leader>y :<C-u>Unite -no-split -buffer-name=yank    history/yank<cr>
 nnoremap <leader>e :<C-u>Unite -no-split -buffer-name=buffer  buffer<cr>
 nnoremap <leader>g :<C-u>Unite -no-split -buffer-name=ag      grep:.<cr>
