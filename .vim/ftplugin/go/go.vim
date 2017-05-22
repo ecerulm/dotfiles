@@ -19,5 +19,7 @@ if !exists('b:RubenGoSettings')
   command! -bang AV call go#alternate#Switch(<bang>0, 'vsplit')
   command! -bang AS call go#alternate#Switch(<bang>0, 'split')
   command! -bang AT call go#alternate#Switch(<bang>0, 'tabe')
+
+  " setlocal foldmethod=syntax
   let b:RubenGoSettings=1
 endif
