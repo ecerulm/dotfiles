@@ -224,7 +224,7 @@ zr open a foldlevel
 zj navigate to next fold
 zk navigate to previous fold
 zMzv close all fold except the current one
-zMzvzz Refocus, like previous but center view
+zMzvzz Refocus, you have it mapped to <leader>z like previous but center view *CheatsheetFocus*
 
 Writing a custom folding expression / function
 http://vimcasts.org/episodes/writing-a-custom-fold-expression/
@@ -355,7 +355,7 @@ See more about the text-objects at https://medium.com/@farslan/treating-go-types
 the |gS| and |gJ| from the splitjoin.vim can be used to split expression
 althought is not really a go-aware plugin.
 
-There are some go related *UltiSnips* snippets
+There are some go related *CheatsheetUltiSnips* snippets |UltiSnips|
 https://github.com/fatih/vim-go/blob/master/gosnippets/UltiSnips/go.snippets
 
 * fn -> fmt.Println
@@ -459,7 +459,7 @@ The |unite.vim| are buffer so you can CTRL-^ to go back where you came from
 <Leader> is \
 
 In normal mode:
-CTRL-P open the file browser
+CTRL-P      open the file browser
 <Leader>mru to open a list of the Most Recently Used filed
 <Leader>o   Outline
 <Leader>t   Tags
@@ -528,6 +528,9 @@ To insert special characters use
 * Using the |digraphs| . Use |:digraphs| to show the available digraphs. To
   insert use |i_digraphs| in insert mode <C-k>12 -> ½
 
+
+*CheatsheetMoveLines*
+,ev
 
 ==============================================================================
 Navigation shortcuts *CheatsheetNavigation*
