@@ -134,6 +134,7 @@ set autoindent
 " 16 folding {{{
 set foldcolumn=3
 set foldlevelstart=1
+set foldnestmax=1
 "  }}}
 " 17 diff mode {{{
 "  }}}
