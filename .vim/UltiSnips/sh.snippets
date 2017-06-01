@@ -98,3 +98,18 @@ snippet curfile "get path to current file" !b
 DIR=\$(dirname "\$(readlink -f "\$0")") # directory where the script lives
 $0
 endsnippet
+
+snippet mktemp "temp dir that deletes on exit" !b
+MYTMPDIR=\`mktemp -d\`
+function cleanup {
+	rm -rf $MYTMPDIR # I guess we should check that $MYTMPDIR is not empty
+}
+trap cleanup EXIT
+endsnippet
+
+snippet args "check script arguments" !b
+if [[ $# -ne 1 ]]; then
+	echo "Usage $0 <path to directory>"
+	exit 1
+fi
+endsnippet
