@@ -116,7 +116,7 @@ insert mode tricks *CheatsheetInsert*
 * <C-v>u00bf insert unicode U+00bf ¿. See |i_CTRL-V_digit|
 * <C-v>189 insert character by decimal code ½
 * <C-k>12 to insert ½ . Or any |digraph| . See list with |:digraph| or
-  |digraph-table| the rules to guess the digraphs are in |digraph-defaults|
+  |digraph-table|
 *
 >
 ================================================================================
@@ -462,7 +462,7 @@ In normal mode:
 CTRL-P      open the file browser
 <Leader>mru to open a list of the Most Recently Used filed
 <Leader>o   Outline
-<Leader>t   Tags
+<Leader>ut   Tags 
 <Leader>y   Yank. We don't have it configured properly I guess we need another
             plugin called https://github.com/Shougo/neoyank.vim
 <Leader>e   Open buffers, you have to wait for the timeout (see |timeout|,
