@@ -208,6 +208,11 @@ snippet httperrorresponse "http.Error(w, messge, httpstatuscode" !b
 http.Error(w, "${0:error message sent on the body of response}", ${1:http.StatusBadRequest})
 endsnippet
 
+post_jump "expand(snip)"
+snippet httperror "http.Error(w,..." !b
+httperrorresponse$1
+endsnippet
+
 snippet reader2buf "b, err := ioutil.ReadAll(r)" !b
 var b, err = ioutil.ReadAll(r) // import "io/ioutil"
 if err != nil {
@@ -350,4 +355,108 @@ endsnippet
 
 snippet filereader "buffered reader to *os.File" w
 bufio.NewReader(${1:f})
+endsnippet
+
+snippet listen "ListenAndServe"
+srv := &http.Server{
+	Addr: ":8080",
+	Handler: http.DefaultServeMux,
+}
+
+go func() {
+	<- quit // chan struct{} channel, closing or sending to it from any other goroutine will shutdown the http server
+
+	log.Println("Shutting down...")
+	if err := srv.Shutdown(context.Background()); err != nil {
+		log.Fatalf("FATAL: Can't shutdown: %v", err)
+	}
+}()
+
+if err := srv.ListenAndServe(); err != http.ErrServerClosed {
+	log.Fatalf("FATAL: HTTP server failed: %v", err)
+}
+log.Println("HTTP server gracefully closed.")
+endsnippet
+
+snippet quitchannel "quit channel ENTER/Ctrl-C" !b
+var quit = make(chan struct{})
+
+func init() {
+	var intsignal = make(chan os.Signal)
+		signal.Notify(intsignal, os.Interrupt) // Ctrl-C
+	go func() {
+		<- intsignal // wait until Ctrl-C
+		log.Println("Ctrl-C was pressed. Shutting down")
+		close(quit)
+	}()
+	go func() {
+		bufio.NewReader(os.Stdin).ReadByte() // wait for ENTER
+		log.Println("ENTER was pressed, shutting down")
+		close(quit)
+	}()
+}
+
+endsnippet
+
+snippet parseint "strconv.ParseInt(..." !b
+if s, err := strconv.ParseUint(v, 10, 64); err == nil {
+	fmt.Printf("%T, %v\n", s, s)
+}
+endsnippet
+
+snippet parseint2 "var, err := strconv.ParseUint(..." !b
+${1:varname}, err := strconv.ParseUint(${2:strvalue}, 10, 64)
+if err != nil {
+	log.Fatalf("cannot parse %s into int: %v", $2, err)
+}
+
+endsnippet
+
+snippet parsefloat "strconv.ParseFloat(...)" !b
+if v, err := strconv.ParseFloat(v, 64); err == nil {
+	fmt.Printf("%T, %v\n", v, v)
+}
+endsnippet
+
+snippet parsefloat2 "strconv.ParseFloat" !b
+${1:varname}, err = strconv.ParseFloat(${2:strvalue}, 64)
+if err != nil {
+	log.Fatal("Can't convert %v to float64: %v", $2, err)
+}
+
+endsnippet
+
+snippet servemux "var sm = http.NewServeMux()" !b
+var sm = http.NewServeMux()
+endsnippet
+
+snippet parsecsv "csv.NewReader(..." !b
+r := csv.NewReader(f)
+for {
+	record,err := r.Read()
+	if err == io.EOF {
+		break
+	}
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(record)
+}
+endsnippet
+
+snippet xmlencoder "output xml" !b
+xml.NewEncoder(os.Stdout).Encode(v)
+endsnippet
+
+
+snippet viper "viper config file" !b
+viper.SetDefault("HttpPort", 8081)
+viper.SetConfigName("rls")
+viper.AddConfigPath("/usr/local/etc/rls")
+viper.AddConfigPath("/etc/rls")
+viper.AddConfigPath(".")
+err := viper.ReadInConfig()
+if err != nil {
+	panic(fmt.Errorf("Fatal error config file: %s \n", err))
+}
 endsnippet
