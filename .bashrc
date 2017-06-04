@@ -191,13 +191,19 @@ function selfsignedcert {
   openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 3650 -nodes -sha256 -subj '/CN=localhost'
 }
 
-pyenvsetupjupytervenv() ( 
+pyenvsetupjupytervenv() {
 set -euxo pipefail
 pyenv virtualenv 2.7.12 venv-jupyter
 pyenv shell venv-jupyter
 pip install -U pip
 pip install jupyter numpy scikit-learn matplotlib pandas scipy
-)
+}
+
+jupyternotebookserver() {
+pyenv shell venv-jupyter
+cd ~/Dropbox/JupyterNotebooks/
+jupyter-notebook
+}
 
 
 PYENV_ROOT="$HOME/.pyenv"
@@ -205,6 +211,7 @@ PYENV_ROOT="$HOME/.pyenv"
 if [ -d $PYENV_ROOT ]; then
   export PYENV_ROOT
   export PATH="$PYENV_ROOT/bin:$PATH"
+  export PYENV_VIRTUALENV_DISABLE_PROMPT=1
 
   eval "$(pyenv init -)"
   eval "$(pyenv virtualenv-init -)"
