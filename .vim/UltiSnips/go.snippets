@@ -96,6 +96,11 @@ snippet println "fmt.Println()"
 fmt.Println($0)
 endsnippet
 
+snippet printf "fmt.Printf()" !b
+fmt.Printf("$1\n", $2)
+$0
+endsnippet
+
 snippet ticker "time.NewTicker" !b
 ticker := time.NewTicker(5 * time.Second)
 endsnippet
