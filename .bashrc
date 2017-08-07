@@ -140,6 +140,7 @@ alias pyenvupdate="cd ~/.pyenv && git pull && cd plugins/pyenv-virtualenv && git
 alias pyenvinstall27="env CONFIGURE_OPTS='--enable-shared' pyenv install 2.7.12"
 alias pyenvinstall27osx="env CONFIGURE_OPTS='' pyenv install 2.7.12"
 alias pyenvinstall35="env CONFIGURE_OPTS='--enable-shared' pyenv install 3.5.2"
+alias pyenvinstall36="env CONFIGURE_OPTS='--enable-shared' pyenv install 3.6.1"
 alias pyenvansible="pyenv virtualenv 2.7.12 venv-ansible; pyenv shell venv-ansible && pip install ansible"
 alias ansible="~/.pyenv/versions/venv-ansible/bin/ansible"
 function contextinstall {
