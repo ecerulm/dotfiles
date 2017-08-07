@@ -32,11 +32,28 @@ if status --is-interactive
     . (pyenv virtualenv-init -|psub)
   end
 
-  if test -d ~/local/stow/go1.8
-    set -gx GOROOT "$HOME/local/stow/go1.8"
-    set PATH $GOROOT/bin $PATH
-    set -gx GOPATH "$HOME/go"
+  if test -d /usr/local/share/scala-2.12.2/
+    set -gx SCALA_HOME /usr/local/share/scala-2.12.2
+    set PATH $SCALA_HOME/bin $PATH
   end
+
+  if test -d /usr/local/sbt/
+    set -gx SBT_HOME /usr/local/sbt
+    set PATH $SBT_HOME/bin $PATH
+  end
+
+  if test -d /usr/local/spark-2.1.1-bin-hadoop2.7/
+    set -gx SPARK_HOME /usr/local/spark-2.1.1-bin-hadoop2.7
+    set PATH $SPARK_HOME/bin $PATH
+  end
+
+  set -gx GOPATH ~/go
+  set PATH (go env GOPATH)/bin $PATH
+  # if test -d ~/local/stow/go1.8
+  #   set -gx GOROOT "$HOME/local/stow/go1.8"
+  #   set -gx GOPATH "$HOME/go"
+  #   set PATH $GOROOT/bin $GOPATH/bin $PATH
+  # end
 
   # If opam in the path
   type opam >/dev/null ^/dev/null
