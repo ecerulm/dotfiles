@@ -465,3 +465,23 @@ if err != nil {
 	panic(fmt.Errorf("Fatal error config file: %s \n", err))
 }
 endsnippet
+
+snippet queryparam "req.URL.Query().Get(...)" !b
+paramvalue := req.URL.Query().Get("paramname")
+endsnippet
+
+snippet testhandler "func TestHandler(){}" !b
+func TestHomePageHandler(t *testing.T) {
+  assert := assert.New(t) // github.com/strechr/testify/assert
+	res := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/", nil)
+	my_app.HomePageHandler(res, req)
+
+	if res.Code != 200 {
+		t.Fatalf("Expected 200 but got %d", res.Code)
+	}
+	assert.Equal(res.Code, 200)
+
+}
+
+endsnippet
