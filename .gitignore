@@ -22,3 +22,5 @@ emacs.d/url/
 .git
 .eggs/
 .lein/self-installs
+emacs.d/ido.last
+emacs.d/projectile-bookmarks.eld
