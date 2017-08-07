@@ -14,9 +14,13 @@ if status --is-interactive
   if test -d ~/bin
     set PATH ~/bin $PATH
   end
-  if test -d ~/.local/bin
-    set PATH ~/.local/bin $PATH
+
+  for BINDIR in ~/.local/bin ~/.local/sbin
+    if test -d $BINDIR
+      set PATH $BINDIR $PATH
+    end
   end
+
   if test $COLORTERM = "gnome-terminal"
     set -x TERM xterm-256color
   end
