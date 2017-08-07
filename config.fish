@@ -47,6 +47,13 @@ if status --is-interactive
     set PATH $SPARK_HOME/bin $PATH
   end
 
+  for HADOOP_HOME in "/usr/local/Cellar/hadoop/2.8.0" "/usr/local/hadoop-2.8.0"
+    if test -d $HADOOP_HOME
+      set -gx HADOOP_HOME $HADOOP_HOME
+      break
+    end
+  end
+
   set -gx GOPATH ~/go
   set PATH (go env GOPATH)/bin $PATH
   # if test -d ~/local/stow/go1.8
