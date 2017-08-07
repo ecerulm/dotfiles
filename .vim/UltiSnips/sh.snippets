@@ -22,6 +22,12 @@ $0
 fi
 endsnippet
 
+snippet ifdirexists "if [ -d  xxxx]; then; done" !b
+if [ -d "\$${1:dirname}" ]; then
+	$0
+fi
+endsnippet
+
 snippet ifvarempty "check if variable is empty or unset"
 if [ -z "${${1:var}-}" ]; then
 	echo "Must provide $1 environment variable"
@@ -112,4 +118,10 @@ if [[ $# -ne 1 ]]; then
 	echo "Usage $0 <path to directory>"
 	exit 1
 fi
+endsnippet
+
+snippet for "for x in yy" !b
+for ${1:VARNAME} in ${2:'a' 'b' 'c'}; do
+	$0
+done
 endsnippet
