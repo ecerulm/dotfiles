@@ -632,6 +632,50 @@ if __name__ == "__main__":
 	app.exec_()
 endsnippet
 
+snippet qt5app "Qt5 Application" !b
+import math
+
+from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import *
+
+
+class Form(QDialog):
+
+	def __init__(self, parent=None):
+		super(Form, self).__init__(parent)
+		self.browser = QTextBrowser()
+		self.lineedit = QLineEdit("Type an expression and press Enter")
+		self.lineedit.selectAll()
+		layout = QVBoxLayout()
+		layout.addWidget(self.browser)
+		layout.addWidget(self.lineedit)
+		self.setLayout(layout)
+		self.lineedit.setFocus()
+		self.lineedit.returnPressed.connect(self.updateUi)
+		self.setWindowTitle("Calculate")
+
+
+	def updateUi(self):
+		try:
+			text = self.lineedit.text()
+			self.browser.append("{} = <b>{}</b>".format(text,
+								eval(text)))
+		except:
+			self.browser.append("<font color=red>{} is invalid!</font>"
+								.format(text))
+
+if __name__ == '__main__':
+
+	import sys
+
+	app = QApplication(sys.argv)
+	calc = Form()
+	calc.show()
+	sys.exit(app.exec_())
+
+
+endsnippet
+
 
 snippet "(q|qt)dialog" "class Form(QDialog)" br
 class Form(QDialog):
@@ -875,3 +919,4 @@ logger.error('error message')
 logger.critical('critical message')
 endsnippet
 # vim: set noexpandtab tabstop=2 :
+
