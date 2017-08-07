@@ -122,7 +122,13 @@ fi
 export GOPATH="$HOME/go"
 
 export PATH="$PATH:$HOME/.rvm/bin" # Add RVM to PATH for scripting
-export PATH="$HOME/.local/bin:$PATH"
+
+for BINDIR in $HOME/.local/bin $HOME/.local/sbin; do
+  if [ -d "$BINDIR" ]; then
+    export PATH="$BINDIR:$PATH"
+  fi
+done
+
 export PATH="$GOPATH/bin:$PATH"
 
 # added by Anaconda 2.1.0 installer
