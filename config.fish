@@ -51,10 +51,28 @@ if status --is-interactive
     set PATH $SPARK_HOME/bin $PATH
   end
 
-  for HADOOP_HOME in "/usr/local/Cellar/hadoop/2.8.0" "/usr/local/hadoop-2.8.0"
+  for HADOOP_HOME in "/Users/ecerulm/.local/stow/hadoop-2.8.1/" "/usr/local/Cellar/hadoop/2.8.0" "/usr/local/hadoop-2.8.0"
     if test -d $HADOOP_HOME
       set -gx HADOOP_HOME $HADOOP_HOME
+
+      set HADOOP_MAPRED_HOME $HADOOP_HOME/share/hadoop/mapreduce/
+
+      if test -d $HADOOP_MAPRED_HOME
+        set -gx HADOOP_MAPRED_HOME $HADOOP_MAPRED_HOME
+      end
       break
+    end
+  end
+
+  for HIVE_HOME in "/Users/ecerulm/.local/stow/apache-hive-2.3.0-bin/"
+    if test -d $HIVE_HOME
+      set -gx HIVE_HOME $HIVE_HOME
+    end
+  end
+
+  for HBASE_HOME in "/Users/ecerulm/.local/stow/hadoop-2.8.1/"
+    if test -d $HBASE_HOME
+      set -gx HBASE_HOME $HBASE_HOME
     end
   end
 
