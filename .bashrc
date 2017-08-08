@@ -246,8 +246,7 @@ if [ -f ~/.bashrc.extra ]; then
   . ~/.bashrc.extra
 fi
 
-for HADOOP_HOME in '/usr/local/Cellar/hadoop/2.8.0/' '/usr/local/hadoop-2.8.1'; do
-  echo "Try $HADOOP_HOME as HADOOP_HOME"
+for HADOOP_HOME in '/Users/ecerulm/.local/stow/hadoop-2.8.1'  '/usr/local/Cellar/hadoop/2.8.0' '/usr/local/hadoop-2.8.1'; do
   if [ -d "$HADOOP_HOME" ]; then
     export HADOOP_HOME
     break
