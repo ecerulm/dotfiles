@@ -104,6 +104,8 @@ switch (uname)
   case Linux
     alias pbcopy='xsel --clipboard --input'
     alias pbpaste='xsel --clipboard --output'
+  # case Darwin
+  #   set -gx JAVA_HOME (/usr/libexec/java_home -v 1.8)
 end
 
 
