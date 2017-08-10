@@ -54,12 +54,13 @@ if status --is-interactive
   for HADOOP_HOME in "/Users/ecerulm/.local/stow/hadoop-2.8.1/" "/usr/local/Cellar/hadoop/2.8.0" "/usr/local/hadoop-2.8.0"
     if test -d $HADOOP_HOME
       set -gx HADOOP_HOME $HADOOP_HOME
-
-      set HADOOP_MAPRED_HOME $HADOOP_HOME/share/hadoop/mapreduce/
-
-      if test -d $HADOOP_MAPRED_HOME
-        set -gx HADOOP_MAPRED_HOME $HADOOP_MAPRED_HOME
-      end
+      set -gx HADOOP_PREFIX $HADOOP_HOME
+      set -gx HADOOP_MAPRED_HOME $HADOOP_HOME
+      set -gx HADOOP_COMMON_HOME $HADOOP_HOME
+      set -gx HADOOP_HDFS_HOME $HADOOP_HOME
+      set -gx YARN_HOME $HADOOP_HOME
+      set -gx HADOOP_CONF_DIR $HADOOP_HOME/etc/hadoop
+      set -gx YARN_CONF_DIR $HADOOP_CONF_DIR
       break
     end
   end
@@ -67,6 +68,7 @@ if status --is-interactive
   for HIVE_HOME in "/Users/ecerulm/.local/stow/apache-hive-2.3.0-bin/"
     if test -d $HIVE_HOME
       set -gx HIVE_HOME $HIVE_HOME
+      break
     end
   end
 
