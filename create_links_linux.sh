@@ -15,6 +15,9 @@ mkdir -p ~/.config/fish/
 ln -Tvfs ~/dotfiles/fishfunctions ~/.config/fish/functions
 ln -Tvfs ~/dotfiles/config.fish ~/.config/fish/config.fish
 
+# NeoVim config files
+ln -Tvfs ~/dotfiles/neovim ~/.config/nvim
+
 mkdir -p ~/.config/
 ln -Tvfs ~/dotfiles/qtile ~/.config/qtile
 

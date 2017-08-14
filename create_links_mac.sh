@@ -8,6 +8,9 @@ mkdir -p ~/.config/fish/
 ln -Fvhfs ~/dotfiles/fishfunctions ~/.config/fish/functions
 ln -Fvhfs ~/dotfiles/config.fish ~/.config/fish/config.fish
 
+# NeoVim config files
+ln -Fvhfs ~/dotfiles/neovim ~/.config/nvim
+
 # don't copy qtile config in mac it doesn't make sense in macosx
 #mkdir -p ~/.config/
 #ln -Fvhfs ~/dotfiles/qtile ~/.config/qtile
