@@ -125,3 +125,14 @@ for ${1:VARNAME} in ${2:'a' 'b' 'c'}; do
 	$0
 done
 endsnippet
+
+snippet funcdebug "function debug() {}" !b
+function debug() {
+	[ -n "$debug" ] && echo "$0 debug: $@"
+}
+$0
+endsnippet
+
+snippet debug "debug echo" !b
+debug "Using HOME=${HOME}"
+endsnippet
