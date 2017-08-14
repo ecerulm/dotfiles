@@ -16,3 +16,7 @@ function jupyter {
 function ls {
   command ls -G "$@"
 }
+
+function installpythonprereq {
+  brew install openssl readline xz
+}
