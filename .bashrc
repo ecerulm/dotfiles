@@ -250,10 +250,54 @@ if [ -f ~/.bashrc.extra ]; then
   . ~/.bashrc.extra
 fi
 
-for HADOOP_HOME in '/Users/ecerulm/.local/stow/hadoop-2.8.1'  '/usr/local/Cellar/hadoop/2.8.0' '/usr/local/hadoop-2.8.1'; do
+for HADOOP_HOME in "$HOME/.local/stow/hadoop-2.8.1"  '/usr/local/Cellar/hadoop/2.8.0' '/usr/local/hadoop-2.8.1'; do
+  debug "Checking HADOOP_HOME=$HADOOP_HOME"
   if [ -d "$HADOOP_HOME" ]; then
+    debug "Setting HADOOP_HOME=$HADOOP_HOME"
     export HADOOP_HOME
+    export HADOOP_PREFIX=$HADOOP_HOME
+    export HADOOP_MAPRED_HOME=$HADOOP_HOME
+    export HADOOP_COMMON_HOME=$HADOOP_HOME
+    export HADOOP_HDFS_HOME=$HADOOP_HOME
+    export HADOOP_YARN_HOME=$HADOOP_HOME
+    export YARN_HOME==$HADOOP_HOME
+    export HADOOP_CONF_DIR=$HADOOP_HOME/etc/hadoop
+    export YARN_CONF_DIR=$HADOOP_CONF_DIR
+    export PATH="$HADOOP_HOME/sbin:$HADOOP_HOME/bin:$PATH"
     break
   fi
 done
+
+for HIVE_HOME in "$HOME/.local/stow/apache-hive-2.3.0-bin/"; do
+  debug "Checking for HIVE_HOME=${HIVE_HOME}"
+  if [ -d "$HIVE_HOME" ]; then
+    debug "Setting  HIVE_HOME=${HIVE_HOME}"
+    export HIVE_HOME
+    export PATH="$HIVE_HOME/sbin:$PATH"
+    break
+  fi
+done
+
+function hadoopdl {
+# Access parameters $1, $2, ${$1:mydefaultvalue}	"$@"
+  if [ ! -f "hadoop-2.8.1.tar.gz" ]; then
+    curl -O http://apache.mirrors.spacedump.net/hadoop/common/hadoop-2.8.1/hadoop-2.8.1.tar.gz
+    curl -O https://dist.apache.org/repos/dist/release/hadoop/common/hadoop-2.8.1/hadoop-2.8.1.tar.gz.asc
+    curl https://dist.apache.org/repos/dist/release/hadoop/common/KEYS >HADOOP-KEYS
+    gpg --import HADOOP-KEYS
+    gpg --verify hadoop-2.8.1.tar.gz.asc
+  fi
+}
+
+function hivedl {
+  if [ ! -f "hive-2.3.0-bin.tar.gz" ]; then
+    curl -O http://apache.mirrors.spacedump.net/hive/hive-2.3.0/apache-hive-2.3.0-bin.tar.gz
+  fi
+}
+
+function clouderaquickstart {
+  # docker pull cloudera/quickstart:latest
+  #docker run --hostname=quickstart.cloudera --privileged=true -t -i cloudera/quickstart /usr/bin/docker-quickstart
+  docker run --hostname=quickstart.cloudera --privileged=true -t -i -v $HOME/clouderaquickstart:/src --publish-all=true -p 8888 cloudera/quickstart /usr/bin/docker-quickstart
+}
 
