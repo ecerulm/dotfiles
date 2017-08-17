@@ -306,3 +306,8 @@ function download {
 # Access parameters $1, $2, ${$1:mydefaultvalue}	"$@"
 wget -c -t 0 -T 20 $1
 }
+
+function jsonoverview {
+# Access parameters $1, $2, ${$1:mydefaultvalue}	"$@"
+jq -f ~/bin/jsonoverview.jq "$@"
+}
