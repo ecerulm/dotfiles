@@ -301,3 +301,8 @@ function clouderaquickstart {
   docker run --hostname=quickstart.cloudera --privileged=true -t -i -v $HOME/clouderaquickstart:/src --publish-all=true -p 8888 cloudera/quickstart /usr/bin/docker-quickstart
 }
 
+
+function download {
+# Access parameters $1, $2, ${$1:mydefaultvalue}	"$@"
+wget -c -t 0 -T 20 $1
+}
