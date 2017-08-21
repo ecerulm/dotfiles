@@ -41,9 +41,14 @@ if status --is-interactive
     set PATH $SCALA_HOME/bin $PATH
   end
 
-  if test -d /usr/local/sbt/
-    set -gx SBT_HOME /usr/local/sbt
-    set PATH $SBT_HOME/bin $PATH
+  for SBT_HOME in "/usr/local/sbt-1.0.0" "/usr/local/sbt"
+    echo "try SBT_HOME $SBT_HOME"
+    if test -d $SBT_HOME
+      echo "$SBT_HOME exists"
+      set -gx SBT_HOME $SBT_HOME
+      set PATH $SBT_HOME/bin $PATH
+      break;
+    end
   end
 
   if test -d /usr/local/spark-2.1.1-bin-hadoop2.7/
