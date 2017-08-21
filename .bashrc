@@ -268,12 +268,12 @@ for HADOOP_HOME in "$HOME/.local/stow/hadoop-2.8.1"  '/usr/local/Cellar/hadoop/2
   fi
 done
 
-for HIVE_HOME in "$HOME/.local/stow/apache-hive-2.3.0-bin/"; do
+for HIVE_HOME in "$HOME/.local/stow/apache-hive-1.1.0-bin/"  "$HOME/.local/stow/apache-hive-1.3.0-bin/"; do
   debug "Checking for HIVE_HOME=${HIVE_HOME}"
   if [ -d "$HIVE_HOME" ]; then
     debug "Setting  HIVE_HOME=${HIVE_HOME}"
     export HIVE_HOME
-    export PATH="$HIVE_HOME/sbin:$PATH"
+    export PATH="$HIVE_HOME/bin:$PATH"
     break
   fi
 done
