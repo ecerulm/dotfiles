@@ -20,3 +20,5 @@ function ls {
 function installpythonprereq {
   brew install openssl readline xz
 }
+
+export JAVA_HOME=`/usr/libexec/java_home -v 1.8`

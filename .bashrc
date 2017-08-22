@@ -322,3 +322,16 @@ function jsonoverview {
 # Access parameters $1, $2, ${$1:mydefaultvalue}	"$@"
 jq -f ~/bin/jsonoverview.jq "$@"
 }
+
+function createjavaservercert {
+# Access parameters $1, $2, ${$1:mydefaultvalue}	"$@"
+KEYPASS=changeit
+STOREPASS=changeit
+
+echo "Generate server certificate and export it"
+${JAVA_HOME}/bin/keytool -genkey -alias server-alias -keyalg RSA -keypass $KEYPASS -storepass $STOREPASS -keystore keystore.jks
+${JAVA_HOME}/bin/keytool -export -alias server-alias -storepass $STOREPASS -file server.cer -keystore keystore.jks
+
+echo "Create trust store"
+${JAVA_HOME}/bin/keytool -import -v -trustcacerts -alias server-alias -file server.cer -keystore cacerts.jks -keypass $KEYPASS -storepass $STOREPASS
+}
