@@ -278,6 +278,16 @@ for HIVE_HOME in "$HOME/.local/stow/apache-hive-2.3.0-bin"  "$HOME/.local/stow/a
   fi
 done
 
+for MAVEN_HOME in "$HOME/.local/stow/apache-maven-3.5.0"; do
+  debug "Checking for MAVEN_HOME=${MAVEN_HOME}"
+  if [ -d "$MAVEN_HOME" ]; then
+    debug "Setting  MAVEN_HOME=${MAVEN_HOME}"
+    export MAVEN_HOME
+    export PATH="$MAVEN_HOME/bin:$PATH"
+    break
+  fi
+done
+
 
 for SPARK_HOME in "$HOME/.local/stow/spark-2.2.0-bin-hadoop2.7/"; do
   debug "Checking for SPARK_HOME=${SPARK_HOME}"
