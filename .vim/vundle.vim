@@ -18,13 +18,15 @@ Plugin 'gmarik/Vundle.vim'
 " Plugin 'scrooloose/nerdtree'
 Plugin 'tpope/vim-obsession' " Autosave Session.vim
 " Plugin 'tpope/vim-sleuth'      " No need to set indenting, ts, etc per ftype
-Plugin 'Shougo/unite.vim'
-Plugin 'Shougo/unite-outline'
+" Plugin 'Shougo/unite.vim'
+" Plugin 'Shougo/unite-outline'
+" Plugin 'tsukkee/unite-tag'
+" Plugin 'Shougo/neocomplete'     " required by unite-tag , needs vim if_lua
+Plugin 'Shougo/denite.vim'  " like unite.vim but for vim8 / neovim
+
 Plugin 'Shougo/vimproc.vim'
 Plugin 'Shougo/neomru.vim'
-Plugin 'tsukkee/unite-tag'
 Plugin 'Shougo/neocomplcache'
-Plugin 'Shougo/neocomplete'     " required by unite-tag , needs vim if_lua
 Plugin 'tpope/vim-repeat'       " Make command repeatble
 Plugin 'tpope/vim-sensible'
 Plugin 'SirVer/ultisnips'       " snippet manager like SnipMate :h UltiSnips

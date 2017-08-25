@@ -1,7 +1,11 @@
 " This is Ruben Laguna's .vimrc file
 " vim: ts=2 sts=2 sw=2 foldmethod=marker foldlevel=0 foldcolumn=3 expandtab :
 
+if !has('nvim')
+    set ttymouse=xterm2
 source ~/.vim/vundle.vim
+endif
+
 runtime! ftplugin/man.vim
 
 " vim :options {{{
@@ -83,10 +87,6 @@ set winwidth=79
 " useopen, jump to first open window that already has that buffer
 set switchbuf=useopen
 " switching between buffers }}}
-" STATUSLINE{{{
-set statusline=%<%f\ (%{&ft})\ %-4(%m%)%=%-19(%3l,%02c%03V%)%{fugitive#statusline()}	" filename filetype git
-" :set statusline=%t[%{strlen(&fenc)?&fenc:'none'},%{&ff}]%h%m%r%y%=%o,%c,%l/%L\ %P
-" }}} STATUSLINE
 " }}} 6 multiple windows
 "  7 multiple tab pages {{{
 set showtabline=2              " show always the editor tabs
@@ -454,7 +454,7 @@ command! -nargs=1 -complete=help H :tabnew | :set buftype=help | :h <args>
 
 let g:unite_source_history_yank_enable = 1
 " TODO: change from ag to rg --files, or sift --targets, (or any of the alternatives ripgrep,
-" sift, ack, ucg, pt, 
+" sift, ack, ucg, pt,
 " let g:unite_source_grep_command = 'ag'
 let g:unite_source_grep_command = 'ag'
 let g:unite_source_grep_default_opts = '--line-numbers --nocolor --nogroup --smart-case'
@@ -468,8 +468,9 @@ let g:unite_source_grep_recursive_opt = ''
 " \  '--hidden', '-g', '']
 
 let g:unite_source_rec_async_command = ['rg','--files']
-
-call unite#filters#matcher_default#use(['matcher_fuzzy'])
+if exists("unite#filters#matcher_default#use")
+  call unite#filters#matcher_default#use(['matcher_fuzzy'])
+endif
 nnoremap <C-p> :<C-u>Unite -no-split -buffer-name=files   -start-insert file_rec/async:!<cr>
 " We already have <C-p>  no need for <leader>t nnoremap <leader>t :<C-u>Unite -no-split -buffer-name=files   -start-insert file_rec/async:!<cr>
 " nnoremap <leader>f :<C-u>Unite -no-split -buffer-name=files   -start-insert file<cr>
@@ -514,10 +515,6 @@ inoremap <CR> <C-]><C-G>u<CR>
 " let g:gitgutter_sign_modified_removed = 'ww'
 
 " }}}
-" vim-tabber {{{
-set tabline=%!tabber#TabLine()
-let g:tabber_wrap_when_shifting = 1
-" }}}
 " Learn vimscript the hard way {{{1
 " }}}1 Learn vimscript the hard way
 " disable Q no Ex mode {{{1
@@ -560,43 +557,70 @@ let test#python#runner = 'nose'
 " vim-test }}}
 " Configuration to run after all plugins are loaded {{{
 function! ConfigAfterPluginLoaded()
+  " This function is called after all plugins are loaded
+  " put here anything that runs commands defined by plugins
+  " put here changes that depends on functions defined in plugins
+  " so that you can check if the function exists before using it
+  " in statusline, etc. That way the configuration won't break if runs on
+  " a machine that has not installed the plugins
+  "
+
   " vim-cycle groups {{{
-  call AddCycleGroup('python', ['True', 'False'])
-  call AddCycleGroup('python', ['if', 'while'])
-  call AddCycleGroup('python', ['==', '!=', '<=', '>='])
-  call AddCycleGroup('python', ['assertEqual', 'assertNotEqual'])
-  call AddCycleGroup('python', ['assertTrue', 'assertFalse'])
-  call AddCycleGroup('python', ['assertIs', 'assertIsNot'])
-  call AddCycleGroup('python', ['assertIsNone', 'assertIsNotNone'])
-  call AddCycleGroup('python', ['assertIn', 'assertNotIn'])
-  call AddCycleGroup('python', ['assertIsInstance', 'assertNotIsInstance'])
-  call AddCycleGroup('python', ['assert_has_calls', 'assert_any_call', 'assert_called_with', 'assert_called_once_with'])
-  call AddCycleGroup('python', ['called', 'call_count'])
-  call AddCycleGroup('python', ['return_value', 'side_effect'])
-  call AddCycleGroup('python', ['call_args', 'call_args_list'])
-  call AddCycleGroup('python', ['method_calls', 'mock_calls'])
-  call AddCycleGroup('python', ['start', 'stop'])
-  call AddCycleGroup('c', ['EXIT_FAILURE', 'EXIT_SUCCESS'])
+  if exists("*AddCycleGroup")
+    call AddCycleGroup('python', ['True', 'False'])
+    call AddCycleGroup('python', ['if', 'while'])
+    call AddCycleGroup('python', ['==', '!=', '<=', '>='])
+    call AddCycleGroup('python', ['assertEqual', 'assertNotEqual'])
+    call AddCycleGroup('python', ['assertTrue', 'assertFalse'])
+    call AddCycleGroup('python', ['assertIs', 'assertIsNot'])
+    call AddCycleGroup('python', ['assertIsNone', 'assertIsNotNone'])
+    call AddCycleGroup('python', ['assertIn', 'assertNotIn'])
+    call AddCycleGroup('python', ['assertIsInstance', 'assertNotIsInstance'])
+    call AddCycleGroup('python', ['assert_has_calls', 'assert_any_call', 'assert_called_with', 'assert_called_once_with'])
+    call AddCycleGroup('python', ['called', 'call_count'])
+    call AddCycleGroup('python', ['return_value', 'side_effect'])
+    call AddCycleGroup('python', ['call_args', 'call_args_list'])
+    call AddCycleGroup('python', ['method_calls', 'mock_calls'])
+    call AddCycleGroup('python', ['start', 'stop'])
+    call AddCycleGroup('c', ['EXIT_FAILURE', 'EXIT_SUCCESS'])
+  endif
   " }}} vim-cycle groups
 
   " Uppercase with <c-u> {{{
+  " Should this be here it looks like it could be run before plugins
   inoremap <C-u> <Esc>viW~Ea
   nnoremap <c-u> g~iWE
   " }}}
 
+
   " abolish types  {{{
-  :Abolish iwth with
-  :Abolish teh the
-  :Abolish usmt must
-  :Abolish configuraito{n,ns} configuratio{}
-  :Abolish itś it's
-  :Abolish thatś that's
-  :Abolish bojec{t,ts} objec{}
-  :Abolish aslo also
-  :Abolish simpel simple
-  :Abolish virutal virtual
-  :Abolish lable label
+  if exists(":Abolish")
+    :Abolish iwth with
+    :Abolish teh the
+    :Abolish usmt must
+    :Abolish configuraito{n,ns} configuratio{}
+    :Abolish itś it's
+    :Abolish thatś that's
+    :Abolish bojec{t,ts} objec{}
+    :Abolish aslo also
+    :Abolish simpel simple
+    :Abolish virutal virtual
+    :Abolish lable label
+  endif
   " }}}
+
+  " vim-tabber {{{
+  if exists("*tabber#TabLine")
+    set tabline=%!tabber#TabLine()
+    let g:tabber_wrap_when_shifting = 1
+  endif
+  " }}}
+  " STATUSLINE fugitive {{{
+  if exists("*fugitive#statusline")
+    set statusline=%<%f\ (%{&ft})\ %-4(%m%)%=%-19(%3l,%02c%03V%)%{fugitive#statusline()}	" filename filetype git
+  endif
+  " :set statusline=%t[%{strlen(&fenc)?&fenc:'none'},%{&ff}]%h%m%r%y%=%o,%c,%l/%L\ %P
+  " }}} STATUSLINE
 endfunction
 " }}} Configuration to run after all plugins are loaded
 " Autopep8 disable the <F8> mapping since it's taken by the the ToggleBar {{{
@@ -700,7 +724,7 @@ let g:go_test_timeout = '10s'
 let g:go_fmt_command = "goimports"
 
 " if you don't want the errors from goimports to pop on the quickfix list
-" see :help 'g:go_fmt_fail_silently', don't show a location list if the 
+" see :help 'g:go_fmt_fail_silently', don't show a location list if the
 " build fail (only when is run as part of the autoformat on save)
 let g:go_fmt_fail_silently = 1
 
