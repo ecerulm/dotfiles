@@ -1,55 +1,50 @@
 " This is Ruben Laguna's .vimrc file
 " vim: ts=2 sts=2 sw=2 foldmethod=marker foldlevel=0 foldcolumn=3 expandtab :
 
-if !has('nvim')
-    set ttymouse=xterm2
-source ~/.vim/vundle.vim
-endif
 
-runtime! ftplugin/man.vim
+" this file works for both vim and neovim
 
-" vim :options {{{
+" if !has('nvim')
+"   " set ttymouse=xterm2
+"   source ~/.vim/vundle.vim
+" endif
 
-"  1 important {{{
+" Plugin Manager (vim-plug) , moving the vundle.vim configuration to vim-plug
+" Plugins are at the end of this file
+
+
+" About <Plug> see :h <PLug> and :h <SID> and :h usign-<Plug>
+
+
 set nocompatible               " be iMproved
 set pastetoggle=<f4>
-"  1 important }}}
-"  2 moving around, searching and patterns {{{
 set ignorecase " make searches case-sensitive only if they contain upper case characters
 set smartcase  " override the ignorecase option if searching for uppercase chars
 set infercase  " for insert mode completion
-"  2 moving around, searching and patterns }}}
-"  3 tags {{{
 set tags+=~/.vim/systags
-"  3 tags }}}
-"  4 displaying text {{{
 set cmdheight=2
 set numberwidth=5
-"set listchars=tab:▸\ ,eol:$
-" No restore screen on vim exit {{{
-"set t_ti= t_te=                " :help norestorescreen See http://www.shallowsky.com/linux/noaltscreen.html
-"  No retsore screen on vim exit }}}
-" Prevent vim from clobbering the scrollback buffer. {{{
 set scrolloff=3                " keep more context when scrolling off the end of a buffer
-" Prevent vim from clobbering the scrollback buffer. }}}
 set sidescroll=1
-" wrapping text {{{
 set nowrap
 set breakindent
 set breakindentopt=sbr
 let &showbreak="\u21aa "
-" wrapping text }}}
-
-"  4 displaying text }}}
-
-"  5 syntax, highlighting and spelling {{{
 set hlsearch
 set cursorline                 " highlight current line
 set cursorcolumn                 " highlight current column
 set colorcolumn=+1 " highlight the column after the textwidth http://stackoverflow.com/questions/1919028/how-to-show-vertical-line-to-wrap-the-line-in-vim
 hi ColorColumn ctermbg=lightgrey
+
+" I think we can delete this line. I cannot find man.vim  must be an old thing
+" runtime! ftplugin/man.vim " search for ftplugin/man.vim in the runtimepath and execute it
+
+" set t_ti= t_te=                " :help norestorescreen See http://www.shallowsky.com/linux/noaltscreen.html
+" set listchars=tab:▸\ ,eol:$
+
 " set spell " could be annoying when editing code
 set spelllang=en_us
+
 
 " Enable filetype detection {{{
 " Use the default filetype settings, so that mail gets 'tw' set to 72
@@ -60,6 +55,8 @@ filetype on
 filetype indent on
 filetype plugin on
 " }}} Enable filetype detection
+
+
 " COLOR{{{
 if has('gui_running')
   set background=light
@@ -77,31 +74,20 @@ let g:molokai_original = 1
 colorscheme molokai
 
 " }}} COLOR
-"  5 syntax, highlighting and spelling }}}
-"
-"  6 multiple windows {{{
+
+
 set hidden                     " allow unsaved background buffers
 set winwidth=79
+
 " switching between buffers {{{
 " for quickfix commands, and I suspect that Ctrl-P is also affected
 " useopen, jump to first open window that already has that buffer
 set switchbuf=useopen
 " switching between buffers }}}
-" }}} 6 multiple windows
-"  7 multiple tab pages {{{
+
 set showtabline=2              " show always the editor tabs
-"  }}}
-"  8 terminal {{{
-"  }}}
-"  9 using the mouse {{{
-"  }}}
-" 10 GUI {{{
-"  }}}
-" 11 printing {{{
-"  }}}
-" 12 messages and info {{{
-"  }}}
-" 13 selecting text {{{
+
+
 " system clipboard {{{
 " http://vimcasts.org/episodes/accessing-the-system-clipboard-from-vim/
 " http://ilessendata.blogspot.se/2012/05/vim-using-system-clipboard.html
@@ -119,88 +105,76 @@ if has('clipboard')
   endif
 endif
 " }}} system clipboard
-" }}} 13 selecting text
-" 14 editing text {{{
+
 set showmatch                  " show the matching paren or bracket
 set complete+=k~/.vim/keywords.txt  " Add extra completions
-" }}} 15 editing text
+
+
 " 15 tabs and indenting {{{
 set expandtab
 set tabstop=2
 set shiftwidth=2
 set softtabstop=2
 set autoindent
-" }}} 15 tabs and indenting
-" 16 folding {{{
+" }}} tabs and indenting
+
+" folding {{{
 set foldcolumn=3
 set foldlevelstart=1
 set foldnestmax=1
 "  }}}
-" 17 diff mode {{{
-"  }}}
-" 18 mapping {{{
+
+
 let mapleader=","
-" }}} 18 mapping
-" 19 reading and writing files {{{
+
+
 set modeline
 set modelines=5
-" store temporary files in central spot
+
+
 set backup
 set backupdir=~/.vim-tmp,~/.tmp,~/tmp,/var/tmp,/tmp,.
 set directory=~/.vim-tmp,~/.tmp,~/tmp,/var/tmp,/tmp,.
 set autoread  " automatically reload files modified outside of vim
-" }}} 19 reading and writing files
-" 20 the swap file {{{
-" }}}
-" 21 command line editing {{{
+
 set history=10000
 
-" use emacs-style tab completion when selecting files, etc
-" set wildmode=list:longest
+
 " make tab completion for files/buffers act like zsh
 set wildmode=full
 set wildignore=*.o,*.obj,*.pyc " stuff to ignore when tab completing
 set wildignore+=.git
 set wildignore+=__pycache__
 
+" set wildmode=list:longest use emacs-style tab completion when selecting files, etc
+
 set undofile
 set undodir=~/.vim-tmp,~/.tmp,~/tmp,/var/tmp,/tmp,.
-" }}} 21 command line editing
-" 22 executing external commands {{{
+
 set shell=/bin/bash
-"  }}}
-" 23 running make and jumping to errors {{{
-"  }}}
-" 24 language specific {{{
-"  }}}
-" 25 multi-byte characters {{{
-"  }}}
-" 26 various {{{
-" Load per project .vimrc
+
+
 set exrc " enable per-directory .vimrc files
 set secure " disable unsafe commands in local .vimrc files
-" }}} 26 various
 
-" uncategorized yet {{{
 set ttyfast
 set lazyredraw
 set diffopt+=vertical
-" }}} uncategorized yet
-" }}} vim :options
+
+
+
 
 " CUSTOM AUTOCMDS{{{1
 augroup vimrcEx " Put them in a group so we delete them easily
-  " Clear all autocmd in the group {{{2
-  autocmd!
+  " Clear all autocmd in the group 
+  autocmd!  
 
-  " Use textwidth 72 for all text files {{{2
   autocmd FileType text,rst setlocal textwidth=72
-
   autocmd BufReadPost .Rprofile set filetype=r
-  " autoformat XML on save {{{2
+  " autoformat XML on save 
   autocmd FileType xml exe ":silent %!xmllint  --format --recover - 2>/dev/null"
 
-  " Jump to Last cursor position unless its invalid or in an event handler  {{{2
+  " Jump to Last cursor position unless its invalid or in an event handler
   autocmd BufReadPost *
      \ if line("'\"") > 0 && line("'\"") <= line("$") |
      \   exe "normal g`\"" |
@@ -263,6 +237,8 @@ augroup END
 """"""""""""""""""""""""""""""""""""""""
 
 " }}}1 CUSTOM AUTOCOMMANDS
+
+
 " MISC KEY MAPPINGS{{{1
 " Copy to system clipboard {{{2
 map <leader>y "*y
@@ -401,6 +377,7 @@ nnoremap <f8> :TagbarToggle<CR>
 " command mode mapping, throw away the stdout
 cmap w!! w !sudo tee >/dev/null %
 " }}}1 MISC KEY MAPS
+
 " Pymode {{{1
 let g:Pymode_lint_on_fly             = 1
 let g:pymode_lint                    = 1
@@ -420,32 +397,10 @@ let g:pymode_run                     = 0
 let g:pymode_doc                     = 1
 let g:pymode_doc_bind                = 'K'
 " }}}1 Pymode
-" vim-cycle plugin configuration {{{
-let g:cycle_no_mappings = 1
-nmap  -     <Plug>CycleNext
-
-" }}} vim-cycle plugin configuration
-" Easy Align plugin configuration {{{
-    " Start interactive EasyAlign in visual mode (e.g. vip<Enter>)
-    vmap <Enter> <Plug>(EasyAlign)
-
-    " Start interactive EasyAlign for a motion/text object (e.g. <Leader>aip)
-    " nmap <Leader>a <Plug>(EasyAlign)
-" }}} Easy Align pluign configuration
 " vim airline configuration {{{
 let g:airline_powerline_fonts = 1
 let g:airline#extensions#tabline#enabled = 0
 " }}} vim airline configuration
-" EasyMotion configuration {{{
-" http://code.tutsplus.com/tutorials/vim-essential-plugin-easymotion--net-19223
-" :h easymotion-default-mappings
-"map <Leader>l <Plug>(easymotion-lineforward)
-map <Leader>j <Plug>(easymotion-j)
-map <Leader>k <Plug>(easymotion-k)
-map <Leader>h <Plug>(easymotion-linebackward)
-
-let g:EasyMotion_startofline = 0 " keep cursor colum when JK motion the mappings are the typical w,f,b,e, etc but preceded by <Leader><Leader>
-" }}} EasyMotion configuration
 " :H to open help in current window {{{
 command! -nargs=1 -complete=help H :tabnew | :set buftype=help | :h <args>
 " }}} :H to open help in current window
@@ -468,22 +423,9 @@ let g:unite_source_grep_recursive_opt = ''
 " \  '--hidden', '-g', '']
 
 let g:unite_source_rec_async_command = ['rg','--files']
-if exists("unite#filters#matcher_default#use")
-  call unite#filters#matcher_default#use(['matcher_fuzzy'])
-endif
-nnoremap <C-p> :<C-u>Unite -no-split -buffer-name=files   -start-insert file_rec/async:!<cr>
-" We already have <C-p>  no need for <leader>t nnoremap <leader>t :<C-u>Unite -no-split -buffer-name=files   -start-insert file_rec/async:!<cr>
-" nnoremap <leader>f :<C-u>Unite -no-split -buffer-name=files   -start-insert file<cr>
-nnoremap <leader>mru :<C-u>Unite -no-split -buffer-name=mru   file_mru<cr>j
-nnoremap <leader>o :<C-u>Unite -no-split -buffer-name=outline -start-insert -auto-preview outline<cr>
-nnoremap <leader>ut :<C-u>Unite -no-split -buffer-name=tag     -start-insert tag<cr>
-nnoremap <leader>y :<C-u>Unite -no-split -buffer-name=yank    history/yank<cr>
-nnoremap <leader>e :<C-u>Unite -no-split -buffer-name=buffer  buffer<cr>
-nnoremap <leader>g :<C-u>Unite -no-split -buffer-name=ag      grep:.<cr>
-" nnoremap <silent> <leader>o  :<C-u>Unite                      outline<CR>
-nnoremap <leader>l :<C-u>Unite -no-split                      resume<cr>
 
-" Custom mappings for the unite buffer
+" Custom mappings for the unite buffer type, run when a FileType unite is
+" opened
 function! s:unite_settings()
   " Play nice with supertab
   let b:SuperTabDisabled=1
@@ -555,74 +497,6 @@ let test#strategy = "dispatch"
 let test#python#runner = 'nose'
 
 " vim-test }}}
-" Configuration to run after all plugins are loaded {{{
-function! ConfigAfterPluginLoaded()
-  " This function is called after all plugins are loaded
-  " put here anything that runs commands defined by plugins
-  " put here changes that depends on functions defined in plugins
-  " so that you can check if the function exists before using it
-  " in statusline, etc. That way the configuration won't break if runs on
-  " a machine that has not installed the plugins
-  "
-
-  " vim-cycle groups {{{
-  if exists("*AddCycleGroup")
-    call AddCycleGroup('python', ['True', 'False'])
-    call AddCycleGroup('python', ['if', 'while'])
-    call AddCycleGroup('python', ['==', '!=', '<=', '>='])
-    call AddCycleGroup('python', ['assertEqual', 'assertNotEqual'])
-    call AddCycleGroup('python', ['assertTrue', 'assertFalse'])
-    call AddCycleGroup('python', ['assertIs', 'assertIsNot'])
-    call AddCycleGroup('python', ['assertIsNone', 'assertIsNotNone'])
-    call AddCycleGroup('python', ['assertIn', 'assertNotIn'])
-    call AddCycleGroup('python', ['assertIsInstance', 'assertNotIsInstance'])
-    call AddCycleGroup('python', ['assert_has_calls', 'assert_any_call', 'assert_called_with', 'assert_called_once_with'])
-    call AddCycleGroup('python', ['called', 'call_count'])
-    call AddCycleGroup('python', ['return_value', 'side_effect'])
-    call AddCycleGroup('python', ['call_args', 'call_args_list'])
-    call AddCycleGroup('python', ['method_calls', 'mock_calls'])
-    call AddCycleGroup('python', ['start', 'stop'])
-    call AddCycleGroup('c', ['EXIT_FAILURE', 'EXIT_SUCCESS'])
-  endif
-  " }}} vim-cycle groups
-
-  " Uppercase with <c-u> {{{
-  " Should this be here it looks like it could be run before plugins
-  inoremap <C-u> <Esc>viW~Ea
-  nnoremap <c-u> g~iWE
-  " }}}
-
-
-  " abolish types  {{{
-  if exists(":Abolish")
-    :Abolish iwth with
-    :Abolish teh the
-    :Abolish usmt must
-    :Abolish configuraito{n,ns} configuratio{}
-    :Abolish itś it's
-    :Abolish thatś that's
-    :Abolish bojec{t,ts} objec{}
-    :Abolish aslo also
-    :Abolish simpel simple
-    :Abolish virutal virtual
-    :Abolish lable label
-  endif
-  " }}}
-
-  " vim-tabber {{{
-  if exists("*tabber#TabLine")
-    set tabline=%!tabber#TabLine()
-    let g:tabber_wrap_when_shifting = 1
-  endif
-  " }}}
-  " STATUSLINE fugitive {{{
-  if exists("*fugitive#statusline")
-    set statusline=%<%f\ (%{&ft})\ %-4(%m%)%=%-19(%3l,%02c%03V%)%{fugitive#statusline()}	" filename filetype git
-  endif
-  " :set statusline=%t[%{strlen(&fenc)?&fenc:'none'},%{&ff}]%h%m%r%y%=%o,%c,%l/%L\ %P
-  " }}} STATUSLINE
-endfunction
-" }}} Configuration to run after all plugins are loaded
 " Autopep8 disable the <F8> mapping since it's taken by the the ToggleBar {{{
 let no_autopep8_maps=1
 " Autopep8 }}}
@@ -793,4 +667,304 @@ let g:go_metalinter_deadline = "5s"
 set nrformats-=octal
 
 " Miscellaneous }}}1
-" All plugins are loaded after .vimrc see :h initialization
+
+" Configuration to run after all plugins are loaded {{{
+function! ConfigAfterPluginLoaded()
+  " This function is called after all plugins are loaded
+  " put here anything that runs commands defined by plugins
+  " put here changes that depends on functions defined in plugins
+  " so that you can check if the function exists before using it
+  " in statusline, etc. That way the configuration won't break if runs on
+  " a machine that has not installed the plugins
+  "
+
+  " vim-cycle groups {{{
+  if exists("*AddCycleGroup")
+    call AddCycleGroup('python', ['True', 'False'])
+    call AddCycleGroup('python', ['if', 'while'])
+    call AddCycleGroup('python', ['==', '!=', '<=', '>='])
+    call AddCycleGroup('python', ['assertEqual', 'assertNotEqual'])
+    call AddCycleGroup('python', ['assertTrue', 'assertFalse'])
+    call AddCycleGroup('python', ['assertIs', 'assertIsNot'])
+    call AddCycleGroup('python', ['assertIsNone', 'assertIsNotNone'])
+    call AddCycleGroup('python', ['assertIn', 'assertNotIn'])
+    call AddCycleGroup('python', ['assertIsInstance', 'assertNotIsInstance'])
+    call AddCycleGroup('python', ['assert_has_calls', 'assert_any_call', 'assert_called_with', 'assert_called_once_with'])
+    call AddCycleGroup('python', ['called', 'call_count'])
+    call AddCycleGroup('python', ['return_value', 'side_effect'])
+    call AddCycleGroup('python', ['call_args', 'call_args_list'])
+    call AddCycleGroup('python', ['method_calls', 'mock_calls'])
+    call AddCycleGroup('python', ['start', 'stop'])
+    call AddCycleGroup('c', ['EXIT_FAILURE', 'EXIT_SUCCESS'])
+  endif
+  " }}} vim-cycle groups
+
+  " Uppercase with <c-u> {{{
+  " Should this be here it looks like it could be run before plugins
+  inoremap <C-u> <Esc>viW~Ea
+  nnoremap <c-u> g~iWE
+  " }}}
+
+
+  " abolish types  {{{
+  if exists(":Abolish")
+    :Abolish iwth with
+    :Abolish teh the
+    :Abolish usmt must
+    :Abolish configuraito{n,ns} configuratio{}
+    :Abolish itś it's
+    :Abolish thatś that's
+    :Abolish bojec{t,ts} objec{}
+    :Abolish aslo also
+    :Abolish simpel simple
+    :Abolish virutal virtual
+    :Abolish lable label
+  endif
+  " }}}
+
+  " vim-tabber {{{
+  if exists("*tabber#TabLine")
+    set tabline=%!tabber#TabLine()
+    let g:tabber_wrap_when_shifting = 1
+  endif
+  " }}}
+  " STATUSLINE fugitive {{{
+  if exists("*fugitive#statusline")
+    set statusline=%<%f\ (%{&ft})\ %-4(%m%)%=%-19(%3l,%02c%03V%)%{fugitive#statusline()}	" filename filetype git
+  endif
+  " :set statusline=%t[%{strlen(&fenc)?&fenc:'none'},%{&ff}]%h%m%r%y%=%o,%c,%l/%L\ %P
+  " }}} STATUSLINE
+  " vim-cycle plugin configuration {{{
+  let g:cycle_no_mappings = 1
+  nmap  -     <Plug>CycleNext
+  " }}} vim-cycle plugin configuration
+
+  " Easy Align plugin configuration {{{
+  if exists("g:loaded_easy_align_plugin")
+    " Start interactive EasyAlign in visual mode (e.g. vip<Enter>)
+    vmap <Enter> <Plug>(EasyAlign)
+
+    " Start interactive EasyAlign for a motion/text object (e.g. <Leader>aip)
+    " nmap <Leader>a <Plug>(EasyAlign)
+  endif
+  " }}} Easy Align pluign configuration
+
+  " EasyMotion configuration {{{
+  " http://code.tutsplus.com/tutorials/vim-essential-plugin-easymotion--net-19223
+  " :h easymotion-default-mappings
+  if exists("g:EasyMotion_loaded")
+    "map <Leader>l <Plug>(easymotion-lineforward)
+    map <Leader>j <Plug>(easymotion-j)
+    map <Leader>k <Plug>(easymotion-k)
+    map <Leader>h <Plug>(easymotion-linebackward)
+
+    let g:EasyMotion_startofline = 0 " keep cursor colum when JK motion the mappings are the typical w,f,b,e, etc but preceded by <Leader><Leader>
+  endif
+
+" }}} EasyMotion configuration
+  " unite configuration {{{
+  if exists("unite#filters#matcher_default#use")
+    call unite#filters#matcher_default#use(['matcher_fuzzy'])
+  endif
+
+  if exists(":Unite")
+    nnoremap <C-p> :<C-u>Unite -no-split -buffer-name=files   -start-insert file_rec/async:!<cr>
+    " We already have <C-p>  no need for <leader>t nnoremap <leader>t :<C-u>Unite -no-split -buffer-name=files   -start-insert file_rec/async:!<cr>
+    " nnoremap <leader>f :<C-u>Unite -no-split -buffer-name=files   -start-insert file<cr>
+    nnoremap <leader>mru :<C-u>Unite -no-split -buffer-name=mru   file_mru<cr>j
+    nnoremap <leader>o :<C-u>Unite -no-split -buffer-name=outline -start-insert -auto-preview outline<cr>
+    nnoremap <leader>ut :<C-u>Unite -no-split -buffer-name=tag     -start-insert tag<cr>
+    nnoremap <leader>y :<C-u>Unite -no-split -buffer-name=yank    history/yank<cr>
+    nnoremap <leader>e :<C-u>Unite -no-split -buffer-name=buffer  buffer<cr>
+    nnoremap <leader>g :<C-u>Unite -no-split -buffer-name=ag      grep:.<cr>
+    " nnoremap <silent> <leader>o  :<C-u>Unite                      outline<CR>
+    nnoremap <leader>l :<C-u>Unite -no-split                      resume<cr>
+  endif
+  " unite configuration }}}
+  " Denite {{{
+  if exists(":Denite")
+    echomsg "Denite is ON"
+    " Change file_rec command.
+    call denite#custom#var('file_rec', 'command', ['ag', '--follow', '--nocolor', '--nogroup', '-g', ''])
+    call denite#custom#var('file_rec', 'command', ['rg', '--files', '--glob', '!.git', ''])
+    nnoremap <C-p> :<C-u>Denite file_rec<cr>
+  endif
+  " Denite }}}
+
+endfunction
+" }}} Configuration to run after all plugins are loaded
+"
+
+
+" Plugins {{{
+
+" remember all plugins are loaded after .vimrc is complete not before
+call plug#begin('~/.vim/plugged')
+
+  " Tim Pope plugins
+  Plug 'tpope/vim-obsession' " Autosave Session.vim
+  Plug 'tpope/vim-repeat'       " Make command repeatble
+  Plug 'tpope/vim-sensible'
+  Plug 'tpope/vim-abolish'
+  Plug 'tpope/vim-commentary'   " comment code gcc
+  Plug 'tpope/vim-fugitive'     " git interface
+  Plug 'tpope/vim-git'          " syntax for gitcommit, gitconfig, etc
+  Plug 'tpope/vim-speeddating'  " Increment dates with <C-a> <C-x>
+  Plug 'tpope/vim-surround'     " viwS)
+    " https://github.com/tpope/vim-surround
+    " Manipulate bracket pairs and tags
+    " cs + '"[]{}()<>t + X  <-- change surrounding pairs
+    " ds" <-- delete surrounding pairs
+    " ysiw + '"[]{}()<>t + X<-- surround word with X
+    " yss + '"[]{}()<>t + X<-- surround entire line with X
+    "
+    " advanced examples:
+    " take: ({ Hello } world!)
+    " do: ds{ds)
+    " get: Hello World!
+    "
+    " take: <em>Hello</em> world!
+    " do: V + S<p class="red">
+    " get:
+    "<p class="red">
+    "<em>Hello</em> world!
+    "</p>
+
+  Plug 'tpope/vim-unimpaired'   " con, cor, col ]b, ]l, ]q
+  Plug 'tpope/vim-sleuth'      " No need to set indenting, ts, etc per ftype
+  Plug 'tpope/vim-salve'         " autoconnect fireplace.vim to the REPL
+  Plug 'tpope/vim-projectionist' " alternate files,
+  Plug 'tpope/vim-dispatch'      " run test asynch
+  Plug 'tpope/vim-fireplace'     " REPL
+  Plug 'tpope/vim-classpath'
+  Plug 'tpope/vim-sexp-mappings-for-regular-people'
+
+  " Plug 'compactcode/alternate.vim'
+  " Plug 'compactcode/open.vim'
+  " Plug 'scrooloose/nerdtree'
+  " Plug 'Shougo/unite.vim'
+  " Plug 'Shougo/unite-outline'
+  " Plug 'tsukkee/unite-tag'
+  " Plug 'Shougo/neocomplete'     " required by unite-tag , needs vim if_lua
+  Plug 'Shougo/denite.nvim'  " like unite.vim but for vim8 / neovim
+  Plug 'Shougo/vimproc.vim'
+  Plug 'Shougo/neomru.vim'
+  Plug 'Shougo/neocomplcache'
+  Plug 'SirVer/ultisnips'       " snippet manager like SnipMate :h UltiSnips
+  Plug 'alfredodeza/pytest.vim' " :h pytest
+  Plug 'alfredodeza/coveragepy.vim'
+  Plug 'godlygeek/tabular'      " align text
+  " Plug 'kien/ctrlp.vim'         " file fuzzy search
+  " Plug 'klen/python-mode'       " :h python-mode
+  " Plug 'lambdalisue/nose.vim'   " :compiler nose (depends on pip install nose_machine2
+  Plug 'mileszs/ack.vim'        " :h ack
+  Plug 'oblitum/rainbow'        " rainbow parens
+  Plug 'sjl/gundo.vim'          " <f6> show undo tree
+  Plug 'tommcdo/vim-exchange'   " exchange regions of txt cxiw X
+  Plug 'janko-m/vim-test'
+  Plug 'vim-ruby/vim-ruby'
+  Plug 'vim-scripts/camelcasemotion'        " w stops at _ and CamelCase
+  Plug 'Townk/vim-autoclose'    " Auto close parens, brackets
+  " Plug 'bronson/vim-trailing-whitespace' " trailing whitespace highlighed in red and :FixWhitespace
+  Plug 'ntpeters/vim-better-whitespace' " tailing whitespace highlighted :StripWhitespace
+  " Plug 'jgdavey/tslime.vim'
+  " Plug 'mutewinter/GIFL' " Google I'm feeling Lucky URL Grabber <Leader>gifliw
+
+  " toggle.vim / cycle.vim / switch.vim
+  " I decided cycle because switch is harder to configure although it's not
+  " limited to single word
+  Plug 'zef/vim-cycle'
+
+  Plug 'junegunn/vim-easy-align'  " :h easy-align
+  " https://github.com/junegunn/vim-easy-align
+  " Easily align large blocks of code using various delimiters.
+  " vipga      <Space>, =, :, ., |, &,            , and ,.
+  " gaip       <Space>, =, :, ., |, &,            , and ,.
+  "
+  " <Space>    Around 1st whitespaces             :'<,'>EasyAlign\
+  " 2<Space>   Around 2nd whitespaces             :'<,'>EasyAlign2\
+  " -<Space>   Around the last whitespaces        :'<,'>EasyAlign-\
+  " -2<Space>  Around the 2nd to last whitespaces :'<,'>EasyAlign-2\
+  " :          Around 1st colon (key: value)      :'<,'>EasyAlign:
+  " <Right>:   Around 1st colon (key              : value)    :'<,'>EasyAlign:>l1
+  " =          Around 1st operators with =        :'<,'>EasyAlign=
+  " 3=         Around 3rd operators with =        :'<,'>EasyAlign3=
+  " *=         Around all operators with =        :'<,'>EasyAlign*=
+  " **=        Left-right alternating around =    :'<,'>EasyAlign**=
+  " <Enter>=   Right alignment around 1st =       :'<,'>EasyAlign!=
+  " <Enter>**= Rightleft alternating around =     :'<,'>EasyAlign!**=
+
+  
+
+
+  " Plug 'bling/vim-airline' " uses powerline symbols
+  Plug 'airblade/vim-gitgutter'
+  Plug 'easymotion/vim-easymotion'
+  Plug 'majutsushi/tagbar'      " ctags outline browser
+  Plug 'fweep/vim-tabber'       " tab renaming
+  Plug 'nathanaelkane/vim-indent-guides'
+  Plug 'vim-scripts/DrawIt'
+  Plug 'chrisbra/NrrwRgn'
+  Plug 'vim-scripts/visincr'
+   " visincr plugin facilitates making a olumn of increasing or decreasing 
+   " numbers, dates or daynames, select a column with visual-block C-v
+   " :I , :II, :IYMD
+  Plug 'guns/vim-sexp'
+  Plug 'danro/rename.vim'
+  Plug 'mhinz/vim-sayonara'
+  Plug 'mtth/scratch.vim' " :Scratch and gs in normal and visual mode
+  Plug 'MattesGroeger/vim-bookmarks'
+  " Plug 'Valloric/YouCompleteMe'
+  Plug 'nelstrom/vim-visual-star-search' " select in visual press * to search
+
+
+
+  " Plug 'svermeulen/vim-easyclip'
+  " " https://github.com/svermeulen/vim-easyclip
+  " " Separate cut and delete
+  " " d deletes and m 'moves'
+  " " + shared clipboard between multiple instances.
+
+  " Plug 'mbbill/undotree'
+  " " https://github.com/mbbill/undotree
+  " " :UndotreeToggle or <F5>
+  " " easier controls to get back to parts of the undo tree
+  " " where u and ctrl+r are not enough in some sittuations.
+
+  " Plugs for python py2 py3 development
+  Plug 'ecerulm/vim-nose' "  :compiler nose
+  Plug 'nvie/vim-flake8' " <F7> for running flake8, pep8
+  Plug 'tell-k/vim-autopep8' " <F8> for running autopep8
+  " Plug 'lambdalisue/vim-pyenv'
+
+  " Plugs for Clojure development
+  Plug 'jpalardy/vim-slime'      " send text to tmux pane
+
+
+  " Plugs for Golang development
+  Plug 'fatih/vim-go'
+
+  " Plugs for R development
+  Plug 'jalvesaq/Nvim-R'
+
+  " textobj
+  Plug 'kana/vim-textobj-fold'  " az and iz
+  Plug 'kana/vim-textobj-user'  " library for vim-textobj-*
+  Plug 'kana/vim-textobj-function' " vaf, vif, daf, dif, yaf
+  Plug 'kana/vim-textobj-indent' " ai, ii aI aI
+  Plug 'kana/vim-textobj-entire' " ae, ie
+  Plug 'lucapette/vim-textobj-underscore'
+  Plug 'vim-scripts/argtextobj.vim'         " daa to delete arguments
+  Plug 'kana/vim-textobj-syntax' " yiy yay
+  Plug 'AndrewRadev/splitjoin.vim'
+
+  " color themes
+  Plug 'altercation/vim-colors-solarized'
+  Plug 'rainux/vim-desert-warm-256'
+  Plug 'tomasr/molokai'
+  Plug 'sjl/badwolf'
+  Plug 'morhetz/gruvbox'
+
+
+call plug#end()
+" Plugins }}}

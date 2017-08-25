@@ -1,47 +1,27 @@
-" set runtimepath+=~/.vim,~/.vim/after
-" set packpath+=~/.vim
+" use the vim usual runtimepath
+" :h runtimepath is used for finding autoload, etc
+" this doesn't include the .vim/bundle
+" each directory in .vim/bundle needs to be added to the runtimepath
+" this is what pathogen, vundle, vim-plug, etc do. They keep doing
+" set runtimetime+=~/.vim/bundle/plugin1 for each folder 
+set runtimepath+=~/.vim,~/.vim/after
+
+" :h packpath used to find packages, a package is a directory that containes
+" one or more plugins, they are better than regular plugin directory because:
+" they can contains multiple plugins that depend on each other
+" a package can contain plguis that are automatically loaded on startup and
+" ones that are only loaded when needed with :packadd
+set packpath+=~/.vim
+
+" Set the python interpreters to use
+" these ones point to virtual environments where the pip install neovim
+" has already been executed. See :h provider-python
 let g:python_host_prog  = expand('~/.pyenv/versions/py27neovim/bin/python')
 let g:python3_host_prog = expand('~/.pyenv/versions/py36neovim/bin/python')
 
 
-call plug#begin('~/.local/share/nvim/plugged')
-Plug 'Shougo/denite.nvim'
-Plug 'tpope/vim-abolish'
-Plug 'tommcdo/vim-exchange'   " exchange regions of txt cxiw X
-Plug 'ntpeters/vim-better-whitespace' " tailing whitespace highlighted :StripWhitespace
-Plug 'zef/vim-cycle'
-Plug 'jalvesaq/Nvim-R'
-Plug 'fweep/vim-tabber'       " tab renaming
-
-
-" Tim Pope
-Plug 'tpope/vim-fugitive'     " git interface
-
-
-" colorschemes
-Plug 'altercation/vim-colors-solarized'
-Plug 'rainux/vim-desert-warm-256'
-Plug 'tomasr/molokai'
-Plug 'sjl/badwolf'
-
-call plug#end()
-
-
-
+" .vimrc works for both vim and neovim
 source ~/.vimrc
-autocmd VimEnter * :call Plugins()
 
-function Plugins()
-  " This is called after all plugins are loaded
-  " We cannot conditionally check for plugins until VimEnter
-  if exists(":Denite")
-    echomsg "Denite is ON"
-    " Change file_rec command.
-    call denite#custom#var('file_rec', 'command', ['ag', '--follow', '--nocolor', '--nogroup', '-g', ''])
-    call denite#custom#var('file_rec', 'command', ['rg', '--files', '--glob', '!.git', ''])
-    nnoremap <C-p> :<C-u>Denite file_rec<cr>
-  endif
-
-endfunction
 
 
