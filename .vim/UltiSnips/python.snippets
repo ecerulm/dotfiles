@@ -11,7 +11,7 @@ snippet curfile "current file path" !b
 basedir$1
 endsnippet
 
-snippet patchers "insert patchers" b 
+snippet patchers "insert patchers" b
 with self.patchers_ok['os.listdir'], self.patchers_ok['os.environ'], self.patchers_ok['os.path']$0:
 endsnippet
 
@@ -498,7 +498,7 @@ root = tk.Tk()
 app = App(root)
 
 root.mainloop()
-#root.destroy()  # optional 
+#root.destroy()  # optional
 endsnippet
 
 
@@ -871,7 +871,7 @@ print(digits.data.shape)
 print(digits.target.shape)
 print(digits.target_names)
 endsnippet
- 
+
 snippet skrandomforestclassifier "RandomForestClassifier" !b
 from sklearn.ensemble import RandomForestClassifier
 
@@ -918,5 +918,61 @@ logger.warning('warning message')
 logger.error('error message')
 logger.critical('critical message')
 endsnippet
+
+snippet nifiscript "NiFi script skeleton" !b
+# flowFile = session.get()
+flowFile = session.create()
+if (flowFile != None):
+	attrMap = {
+		'grounded': 'false',
+		'speed': '100',
+		'icao': 'ABC123',
+		'longitude': '179',
+		'latitude': '-181',
+		}
+	flowFile = session.putAllAttributes(flowFile, attrMap)
+	session.transfer(flowFile, REL_SUCCESS)
+endsnippet
+
+snippet nifiget "NiFi script process multiple FlowFiles" !b
+# https://community.hortonworks.com/articles/75032/executescript-cookbook-part-1.html
+flowFileList = session.get(100)
+if not flowFileList.isEmpty():
+	for flowFile in flowFileList:
+		# Process each FlowFile here
+		# flowFile = session.putAllAttributes(flowFile, {'attr1': 'val1', 'attr2': 'val2'})
+		session.transfer(flowFile, REL_SUCCESS)
+
+endsnippet
+
+snippet nifiread "NiFi script process content of FlowFile" !b
+from org.apache.commons.io import IOUtils
+from java.nio.charset import StandardCharsets
+from org.apache.nifi.processor.io import InputStreamCallback
+
+# Define a subclass of InputStreamCallback for use in session.read()
+class PyInputStreamCallback(InputStreamCallback):
+	def __init__(self):
+		pass
+	def process(self, inputStream):
+		text = IOUtils.toString(inputStream, StandardCharsets.UTF_8)
+		# Do something with text here
+# end class
+flowFile = session.get()
+if(flowFile != None):
+	session.read(flowFile, PyInputStreamCallback())
+# implicit return at the end
+endsnippet
+
+
+snippet timestamp "current time in millis since epoch" !b
+# import datetime
+datetime.datetime.now().timestamp() # 1503572399.264443
+endsnippet
+
+snippet timestamppy2 "py2: current time in millis since epoch" !b
+(datetime.datetime.utcnow() - datetime.datetime.utcfromtimestamp(0)).total_seconds() # 1503661282.017622
+endsnippet
+
 # vim: set noexpandtab tabstop=2 :
 
