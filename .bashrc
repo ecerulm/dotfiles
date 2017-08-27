@@ -299,6 +299,16 @@ for SPARK_HOME in "$HOME/.local/stow/spark-2.2.0-bin-hadoop2.7/"; do
   fi
 done
 
+for NIFI_HOME in "$HOME/.local/stow/nifi-1.0.0"; do
+  debug "Checking for NIFI_HOME=${NIFI_HOME}"
+  if [ -d "$NIFI_HOME" ]; then
+    debug "Setting  NIFI_HOME=${NIFI_HOME}"
+    export NIFI_HOME
+    export PATH="$NIFI_HOME/bin:$PATH"
+    break
+  fi
+done
+
 function hadoopdl {
 # Access parameters $1, $2, ${$1:mydefaultvalue}	"$@"
   if [ ! -f "hadoop-2.8.1.tar.gz" ]; then
@@ -344,4 +354,11 @@ ${JAVA_HOME}/bin/keytool -export -alias server-alias -storepass $STOREPASS -file
 
 echo "Create trust store"
 ${JAVA_HOME}/bin/keytool -import -v -trustcacerts -alias server-alias -file server.cer -keystore cacerts.jks -keypass $KEYPASS -storepass $STOREPASS
+}
+
+
+function installnifi {
+wget -c https://archive.apache.org/dist/nifi/1.0.0/nifi-1.0.0-bin.tar.gz
+tar xvzf nifi-1.0.0-bin.tar.gz
+mv nifi-1.0.0 ~/.local/stow/
 }
