@@ -202,16 +202,34 @@ function selfsignedcert {
   openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 3650 -nodes -sha256 -subj '/CN=localhost'
 }
 
-pyenvsetupjupytervenv() {
-set -euxo pipefail
-pyenv virtualenv 2.7.12 venv-jupyter
-pyenv shell venv-jupyter
+function installjupyter27() {
+pyenv virtualenv 2.7.12 venv-jupyter27
+echo "install jupyter on venv-jupyter27 and some useful modules"
+pyenv shell venv-jupyter27
 pip install -U pip
-pip install jupyter numpy scikit-learn matplotlib pandas scipy
+pip install jupyter numpy scikit-learn matplotlib pandas scipy seaborn ipykernel
 }
 
-jupyternotebookserver() {
-pyenv shell venv-jupyter
+function installjupyter36() {
+# install python 3.6.2 first with pyenv install 3.6.2
+pyenv virtualenv 3.6.2 venv-jupyter36
+pyenv shell venv-jupyter36
+pip3 install -U pip
+pip3 install jupyter numpy scikit-learn matplotlib pandas scipy seaborn ipykernel
+}
+
+function installjupyter() {
+  installjupyter27
+  installjupyter36
+
+  # install 2.7 kernel on the Py3 jupyter
+  $(pyenv prefix venv-jupyter27)/bin/python -m ipykernel install --prefix=$(pyenv prefix venv-jupyter36) --name 'Python-2-venv-jupyter27'
+  # install 3.6 kernel on the Py2 jupyter
+  $(pyenv prefix venv-jupyter36)/bin/python -m ipykernel install --prefix=$(pyenv prefix venv-jupyter27) --name 'Python-3-venv-jupyter36'
+}
+
+jupyternotebookserver36() {
+pyenv shell venv-jupyter36
 cd ~/Dropbox/JupyterNotebooks/
 jupyter-notebook
 }
