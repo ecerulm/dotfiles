@@ -21,4 +21,10 @@ function installpythonprereq {
   brew install openssl readline xz
 }
 
+function installkibana { 
+  FILENAME="kibana-5.5.2-darwin-x86_64.tar.gz"
+  wget -c "https://artifacts.elastic.co/downloads/kibana/$FILENAME"
+  cat $FILENAME | (cd ~/.local/stow && tar xvzf -)
+}
+
 export JAVA_HOME=`/usr/libexec/java_home -v 1.8`

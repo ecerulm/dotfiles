@@ -362,3 +362,10 @@ wget -c https://archive.apache.org/dist/nifi/1.0.0/nifi-1.0.0-bin.tar.gz
 tar xvzf nifi-1.0.0-bin.tar.gz
 mv nifi-1.0.0 ~/.local/stow/
 }
+
+
+function installelasticsearch {
+FILENAME="elasticsearch-5.5.2.tar.gz"
+  wget -c "https://artifacts.elastic.co/downloads/elasticsearch/$FILENAME"
+  cat "$FILENAME" | (cd ~/.local/stow && tar xzf -)
+}
