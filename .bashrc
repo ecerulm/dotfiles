@@ -327,6 +327,27 @@ for NIFI_HOME in "$HOME/.local/stow/nifi-1.0.0"; do
   fi
 done
 
+for ES_HOME in "$HOME/.local/stow/elasticsearch-5.5.2"; do
+  debug "Checking for ES_HOME=${ES_HOME}"
+  if [ -d "$ES_HOME" ]; then
+    debug "Setting  ES_HOME=${ES_HOME}"
+    export ES_HOME
+    export PATH="$ES_HOME/bin:$PATH"
+    break
+  fi
+done
+
+
+for KIBANA_HOME in "$HOME/.local/stow/kibana-5.5.2-darwin-x86_64" "$HOME/.local/stow/kibana-5.5.2-linux-x86_64" ; do
+  debug "Checking for KIBANA_HOME=${KIBANA_HOME}"
+  if [ -d "$KIBANA_HOME" ]; then
+    debug "Setting  KIBANA_HOME=${KIBANA_HOME}"
+    export KIBANA_HOME
+    export PATH="$KIBANA_HOME/bin:$PATH"
+    break
+  fi
+done
+
 function hadoopdl {
 # Access parameters $1, $2, ${$1:mydefaultvalue}	"$@"
   if [ ! -f "hadoop-2.8.1.tar.gz" ]; then
