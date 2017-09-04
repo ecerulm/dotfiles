@@ -234,6 +234,12 @@ cd ~/Dropbox/JupyterNotebooks/
 jupyter-notebook
 }
 
+function installmaven {
+  curl -O http://apache.mirrors.spacedump.net/maven/maven-3/3.5.0/binaries/apache-maven-3.5.0-bin.tar.gz
+  tar xvzf apache-maven-3.5.0-bin.tar.gz
+  mv apache-maven-3.5.0 $HOME/.local/stow/
+}
+
 
 PYENV_ROOT="$HOME/.pyenv"
 
