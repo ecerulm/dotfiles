@@ -166,12 +166,12 @@ set diffopt+=vertical
 
 " CUSTOM AUTOCMDS{{{1
 augroup vimrcEx " Put them in a group so we delete them easily
-  " Clear all autocmd in the group 
-  autocmd!  
+  " Clear all autocmd in the group
+  autocmd!
 
   autocmd FileType text,rst setlocal textwidth=72
   autocmd BufReadPost .Rprofile set filetype=r
-  " autoformat XML on save 
+  " autoformat XML on save
   autocmd FileType xml exe ":silent %!xmllint  --format --recover - 2>/dev/null"
 
   " Jump to Last cursor position unless its invalid or in an event handler
@@ -668,6 +668,30 @@ set nrformats-=octal
 
 " Miscellaneous }}}1
 
+" vim-syntastic settings {{{1
+set statusline+=%#warningmsg#
+set statusline+=%{SyntasticStatuslineFlag()}
+set statusline+=%*
+
+let g:syntastic_always_populate_loc_list = 1
+let g:syntastic_auto_loc_list = 1
+let g:syntastic_check_on_open = 1
+let g:syntastic_check_on_wq = 0
+" vim-syntastic settings }}}1
+
+" Scala  {{{1
+augroup scalaEx " Put them in a group so we delete them easily
+  " Clear all autocmd in the group
+  autocmd!
+  " autocmd BufWritePost *.scala silent :EnTypeCheck
+augroup END
+" nnoremap <localleader>t :EnType<CR>
+"  $ export BROWSER="firefox %s"
+"  :help ensime.txt
+"  :help ensime-build-tools
+" Scala  }}}1
+"
+
 " Configuration to run after all plugins are loaded {{{
 function! ConfigAfterPluginLoaded()
   " This function is called after all plugins are loaded
@@ -895,7 +919,7 @@ call plug#begin('~/.vim/plugged')
   " <Enter>=   Right alignment around 1st =       :'<,'>EasyAlign!=
   " <Enter>**= Rightleft alternating around =     :'<,'>EasyAlign!**=
 
-  
+
 
 
   " Plug 'bling/vim-airline' " uses powerline symbols
@@ -907,7 +931,7 @@ call plug#begin('~/.vim/plugged')
   Plug 'vim-scripts/DrawIt'
   Plug 'chrisbra/NrrwRgn'
   Plug 'vim-scripts/visincr'
-   " visincr plugin facilitates making a olumn of increasing or decreasing 
+   " visincr plugin facilitates making a olumn of increasing or decreasing
    " numbers, dates or daynames, select a column with visual-block C-v
    " :I , :II, :IYMD
   Plug 'guns/vim-sexp'
@@ -955,7 +979,7 @@ call plug#begin('~/.vim/plugged')
   " Syntastic plugin for syntax checkers (for scala)
   Plug 'vim-syntastic/syntastic'
 
- 
+
   " textobj
   Plug 'kana/vim-textobj-fold'  " az and iz
   Plug 'kana/vim-textobj-user'  " library for vim-textobj-*
