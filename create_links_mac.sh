@@ -8,6 +8,12 @@ mkdir -p ~/.config/fish/
 ln -Fvhfs ~/dotfiles/fishfunctions ~/.config/fish/functions
 ln -Fvhfs ~/dotfiles/config.fish ~/.config/fish/config.fish
 
+# SBT
+mkdir -p ~/.sbt/0.13/plugins
+ln -Fvhfs ~/dotfiles/sbt/0.13/plugins/plugins.sbt ~/.sbt/0.13/plugins/
+mkdir -p ~/.sbt/1.0/plugins
+ln -Fvhfs ~/dotfiles/sbt/1.0/plugins/plugins.sbt ~/.sbt/1.0/plugins/
+
 # NeoVim config files
 ln -Fvhfs ~/dotfiles/neovim ~/.config/nvim
 

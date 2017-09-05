@@ -15,6 +15,12 @@ mkdir -p ~/.config/fish/
 ln -Tvfs ~/dotfiles/fishfunctions ~/.config/fish/functions
 ln -Tvfs ~/dotfiles/config.fish ~/.config/fish/config.fish
 
+# sbt
+mkdir -p ~/.sbt/0.13/plugins
+ln -Tvfs ~/dotfiles/sbt/0.13/plugins/plugins.sbt ~/.sbt/0.13/plugins/
+mkdir -p ~/.sbt/1.0/plugins
+ln -Tvfs ~/dotfiles/sbt/1.0/plugins/plugins.sbt ~/.sbt/1.0/plugins/
+
 # NeoVim config files
 ln -Tvfs ~/dotfiles/neovim ~/.config/nvim
 
