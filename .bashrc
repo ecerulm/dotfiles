@@ -414,3 +414,14 @@ FILENAME="elasticsearch-5.5.2.tar.gz"
   wget -c "https://artifacts.elastic.co/downloads/elasticsearch/$FILENAME"
   cat "$FILENAME" | (cd ~/.local/stow && tar xzf -)
 }
+
+function installneovimdependencies {
+  pyenv virtualenv 2.7.12 venv-py27-neovim
+  pyenv activate venv-py27-neovim
+  pip2 install neovim websocket-client sexpdata
+  pyenv deactivate
+  pyenv virtualenv 3.6.1 venv-py36-neovim
+  pyenv activate venv-py36-neovim
+  pip3 install neovim websocket-client sexpdata
+  pyenv deactivate
+}
