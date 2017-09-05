@@ -799,6 +799,7 @@ endfunction
 " Plugins {{{
 
 " remember all plugins are loaded after .vimrc is complete not before
+" vim-plug
 call plug#begin('~/.vim/plugged')
 
   " Tim Pope plugins
@@ -947,6 +948,14 @@ call plug#begin('~/.vim/plugged')
   " Plugs for R development
   Plug 'jalvesaq/Nvim-R'
 
+  " Plugins for scala
+  Plug 'ensime/ensime-vim' " external ensime server provides completions, etc
+  Plug 'derekwyatt/vim-scala' " Sort scala imports :help vim-scala
+
+  " Syntastic plugin for syntax checkers (for scala)
+  Plug 'vim-syntastic/syntastic'
+
+ 
   " textobj
   Plug 'kana/vim-textobj-fold'  " az and iz
   Plug 'kana/vim-textobj-user'  " library for vim-textobj-*
