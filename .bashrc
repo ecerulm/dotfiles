@@ -140,8 +140,9 @@ export PATH="$GOPATH/bin:$PATH"
 #   export PATH="/home/ecerulm/anaconda/bin:$PATH"
 # fi
 
-export EDITOR=vim
-alias vi=vim
+export EDITOR=nvim
+alias vi=nvim
+alias vim=nvim
 alias tmux="tmux -2"
 alias pyenvreq='sudo apt-get install -y make build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev libncursesw5-dev xz-utils '
 alias pyenvreqosx='brew install xz readline' # https://github.com/yyuu/pyenv/wiki/Common-build-problems
@@ -421,6 +422,7 @@ function installneovimdependencies {
   pyenv activate venv-py27-neovim
   pip2 install neovim websocket-client sexpdata
   pyenv deactivate
+
   pyenv virtualenv 3.6.1 venv-py36-neovim
   pyenv activate venv-py36-neovim
   pip3 install neovim websocket-client sexpdata
