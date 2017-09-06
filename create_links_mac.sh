@@ -61,6 +61,7 @@ echo "submodule update"
 echo "Install vim plugins with vim-plug"
 # (vim -u ~/.vim/vundle.vim -N +PluginInstall +PluginClean +qall)
 (nvim -N +PlugInstall +PlugClean +qall)
+(nvim +UpdateRemotePlugins +qall)
 # echo "install vimproc"
 # (cd ~/.vim/bundle/vimproc.vim && make)
 # echo "install YouCompleteMe"

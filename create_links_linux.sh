@@ -67,9 +67,10 @@ echo "update the plugins"
 (cd ~/dotfiles; git submodule init; git submodule update)
 # echo "Generate help tags for ~/.vim/doc"
 # (vim -u NONE -N "+helptags ~/.vim/doc" "+qall")
-echo "Install vim plugins with vim-plug"
+echo "Install neovim plugins with vim-plug"
 # (vim -u ~/.vim/vundle.vim -N +PluginInstall +PluginClean +qall)
-(vim -N +PlugInstall +PlugClean +qall)
+(nvim -N +PlugInstall +PlugClean +qall)
+(nvim -N +UpdateRemotePlugins +qall)
 # echo "compile vimproc"
 # (cd ~/.vim/bundle/vimproc.vim && make)
 # echo "compile YouCompleteMe"
