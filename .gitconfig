@@ -72,7 +72,7 @@
 [http]
 	sslVerify = true
 [core]
-  editor = vim
+	editor = nvim
 	excludesfile = ~/.gitignore
 	autocrlf = input
 	safecrlf = warn

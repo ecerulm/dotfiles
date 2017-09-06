@@ -65,11 +65,12 @@ cp -v ~/dotfiles/fonts/10-powerline-symbols.conf ~/.config/fontconfig/conf.d/
 
 echo "update the plugins"
 (cd ~/dotfiles; git submodule init; git submodule update)
-echo "Generate help tags for ~/.vim/doc"
-(vim -u NONE -N "+helptags ~/.vim/doc" "+qall")
-echo "Install vim plugins with vundle"
-(vim -u ~/.vim/vundle.vim -N +PluginInstall +PluginClean +qall)
-echo "compile vimproc"
-(cd ~/.vim/bundle/vimproc.vim && make)
+# echo "Generate help tags for ~/.vim/doc"
+# (vim -u NONE -N "+helptags ~/.vim/doc" "+qall")
+echo "Install vim plugins with vim-plug"
+# (vim -u ~/.vim/vundle.vim -N +PluginInstall +PluginClean +qall)
+(vim -N +PlugInstall +PlugClean +qall)
+# echo "compile vimproc"
+# (cd ~/.vim/bundle/vimproc.vim && make)
 # echo "compile YouCompleteMe"
 # (cd ~/.vim/bundle/YouCompleteMe && ./install.py --clang-completer) # python is implied
