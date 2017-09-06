@@ -47,6 +47,7 @@ function installopt {
   brew install midnight-commander
   brew install ncdu
   brew install cscope
+  brew install tig
 
 }
 
