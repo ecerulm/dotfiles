@@ -16,6 +16,9 @@
 8. Unite.vim |CheatsheetUnite|
 9. XML editing |CheatsheetXml|
 10. Miscellaneous |CheatsheetMisc|
+11. Source code navigation |CheatsheetIDE|
+12. Ctags and cscope |CheatsheetCtags|
+13. Scala |CheatsheetScala|
 
 
 ==============================================================================
@@ -462,7 +465,7 @@ In normal mode:
 CTRL-P      open the file browser
 <Leader>mru to open a list of the Most Recently Used filed
 <Leader>o   Outline
-<Leader>ut   Tags 
+<Leader>ut   Tags
 <Leader>y   Yank. We don't have it configured properly I guess we need another
             plugin called https://github.com/Shougo/neoyank.vim
 <Leader>e   Open buffers, you have to wait for the timeout (see |timeout|,
@@ -555,7 +558,7 @@ Related help
 ==============================================================================
 Window management *CheatsheetWindow*
 
-windows, panes, tabs, 
+windows, panes, tabs,
 
 
 <C-w>w     switch to window to the right or below |CTRL-W_w|
@@ -569,3 +572,105 @@ windows, panes, tabs,
 Related help
 * |window-move-cursor|
 * |window-moving|
+
+==============================================================================
+Source code navigation *CheatsheetSourceCodeNavigation* *CheatsheetIDE*
+
+
+For Scala, Java, etc there are some IDE features that are usually desirable
+
+* Navigation
+  * Go to Declaration
+  * Go to Implementation
+  * Go to documentation
+  * Find Usages
+* Refactoring
+* REPL
+
+The vim approach is use ctags / cscope for source code navigation
+|CheatsheetCtags| .
+
+For refactoring we have to resort to external software and some vim plugin
+that communicates with an external software
+
+* Ensime
+* slime
+
+================================================================================
+Ctags and Cscope   *CheatsheetCtags* *CheatsheetCscope*
+
+
+see |:scs| , |:cscope| , etc
+
+You need to install cscope, cscope act as a server and vim/neovim will send
+commands to it and parse the response
+
+cscope is better than ctags in the sense that it has more search type, you
+can ask more specific things
+
+* cscope is only for C projects
+* Find function definition
+* Find functions called by this function
+* Find this text string
+
+ctags produces tags files http://ctags.sourceforge.net/FORMAT
+
+the tags files are searched in ./tags;,tags,˜/.vim/systags see |'tags'| and
+|tags-option|
+The format of the tags file produced by exuberant ctags is
+{tagname}		{TAB} {tagfile} {TAB} {tagaddress} {term} {field} ..
+
+tagname is the class name, symbol name
+tagfile is the file where tagname is defined
+tagaddress is the Ex command that will position the cursor over the right
+           place. Usually a search /^  public class xxx/
+term       the ;" that allows for backwards compatibioity with the old tag
+           file format
+field      c equivalent to kind:c , class:MyProcessor
+
+to see the kinds you run ctags --list-kinds
+the fields are optional , and I guess they could be used by plugins,
+
+Example:
+Aircraft	nifi-adsb-processors/src/main/java/com/thinkbiganalytics/nifi/processors/adsb/MyProcessor.java	/^    public static class Aircraft {$/;"	c	class:MyProcessor
+
+================================================================================
+Scala *CheatsheetScala*
+
+First exuberant ctags does NOT support Scala, so |'tags'|  |tags| are out of
+the question.
+
+An alternative is ENSIME, ensime is like cscope, it's a server that vim/neovim
+can send commands to and parse the response. Ensime provides the scala-aware
+indexing and ensime-vim |ensime| provides the commands |ensime-commands|:
+
+|:EnInstall|
+|:EnDeclaration|
+|:EnDeclarationSplit|
+|:EnDocBrowse|  I haven't figure this one yet, it should open the docs on a
+              browser
+|:EnInspectType|
+|:EnSearch|
+|:EnSymbol|
+|:EnToggleFullType|
+|:EnType| displays the type of the expression under cursor
+|:EnTypeCheck| typecheck on the current buffer , displays errors and warning
+             in the buffer
+|:EnShowPackage| display hierarchical view of a package in a vertical split
+|:EnUsages| Find usages of the symbol under cursor
+
+So to test this
+
+git clone https://github.com/ornicar/lila
+cd lila
+sbt shell
+sbt ensimeConfig # you need to have the ensime sbt plugin in your
+                 # ~/.sbt/plugins/plugins.sbt
+                 # you will end up with .ensime file
+nvim modules/tv/src/main/Tv.scala
+Go to ActorRef , put the cursor under the ActorRef word
+:EnDocBrowse
+# After a while Google Chrome will open with
+# http://127.0.0.1:60428/docs/akka-actor_2.12-2.5.4-javadoc.jar/akka/actor/ActorRef.html
+
+
