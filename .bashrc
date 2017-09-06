@@ -418,12 +418,19 @@ FILENAME="elasticsearch-5.5.2.tar.gz"
 }
 
 function installneovimdependencies {
+  pushd .
+  cd ~/.pyenv
+  git pull
+  popd
+
+  pyenv install -s 2.7.12 # skip if existing
   pyenv virtualenv 2.7.12 venv-py27-neovim
   pyenv activate venv-py27-neovim
   pip2 install neovim websocket-client sexpdata
   pyenv deactivate
 
-  pyenv virtualenv 3.6.1 venv-py36-neovim
+  pyenv install -s 3.6.2 # skip if existing
+  pyenv virtualenv 3.6.2 venv-py36-neovim
   pyenv activate venv-py36-neovim
   pip3 install neovim websocket-client sexpdata
   pyenv deactivate
