@@ -685,6 +685,7 @@ augroup scalaEx " Put them in a group so we delete them easily
   autocmd!
   " autocmd BufWritePost *.scala silent :EnTypeCheck
 augroup END
+" let $BROWSER = '~/bin/vim-browser %s'
 " nnoremap <localleader>t :EnType<CR>
 "  $ export BROWSER="firefox %s"
 "  :help ensime.txt

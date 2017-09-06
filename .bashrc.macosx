@@ -46,7 +46,9 @@ function installopt {
   brew install ripgrep
   brew install midnight-commander
   brew install ncdu
+  brew install cscope
 
 }
 
 export JAVA_HOME=`/usr/libexec/java_home -v 1.8`
+export BROWSER='/usr/bin/open -a "/Applications/Google Chrome.app" %s'
