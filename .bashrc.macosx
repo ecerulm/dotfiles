@@ -27,4 +27,26 @@ function installkibana {
   cat $FILENAME | (cd ~/.local/stow && tar xzf -)
 }
 
+function installopt {
+  brew install --HEAD coursier/formulas/coursier
+  brew install git
+  brew install scala
+  brew install go
+  brew install ctags
+  brew install ffmpeg
+  brew install neovim
+  brew install the_silver_searcher
+  brew install stow
+  brew install watch
+  brew install tree
+  brew install jq
+  brew install wget
+  brew install curl
+  brew install sbt
+  brew install ripgrep
+  brew install midnight-commander
+  brew install ncdu
+
+}
+
 export JAVA_HOME=`/usr/libexec/java_home -v 1.8`
