@@ -441,6 +441,11 @@ function elasticsearchstats {
 curl -s -XGET 'http://localhost:9200/*/_stats/docs,store' | jq '.indices'
 }
 
+function scalarepl {
+# Access parameters $1, $2, ${$1:mydefaultvalue}	"$@"
+coursier launch com.lihaoyi:ammonite_2.11.8:0.7.0
+}
+
 if [ -f ~/.bashrc.thismachine ]; then
   . ~/.bashrc.thismachine
 fi
