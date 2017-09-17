@@ -1,7 +1,7 @@
 " vim: filetype=help foldmethod=marker modifiable noreadonly
 *cheatsheet.txt* cheatsheet for this specific Vim configuration RubenLaguna
 
-
+To go to this file use :Cheatsheet or :help Cheatsheet.txt
 
 *CheatsheetOverview* *CheatsheetToc*
 

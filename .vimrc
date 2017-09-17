@@ -579,6 +579,7 @@ command Rtags :!Rscript -e 'rtags(path="./", recursive=TRUE, ofile="RTAGS")' -e 
 " vim-bookmarks }}}
 " command :Cheatsheet with the the ecerulm personal notes  about vim usage {{{
 :command Cheatsheet :helptags ~/.vim/doc | :help Cheatsheet
+:command EditCheatsheet :helptags ~/.vim/doc | :edit ~/.vim/doc/cheatsheet.txt
 " command to enable :help Cheatsheet }}}
 " Vim-go settings vimgo {{{1
 
