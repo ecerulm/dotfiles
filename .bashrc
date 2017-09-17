@@ -446,6 +446,11 @@ function scalarepl {
 coursier launch com.lihaoyi:ammonite_2.11.8:0.7.0
 }
 
+function beeline {
+  $HIVE_HOME/bin/beeline "$@"
+}
+
 if [ -f ~/.bashrc.thismachine ]; then
   . ~/.bashrc.thismachine
 fi
+
