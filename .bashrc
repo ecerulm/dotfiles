@@ -216,7 +216,7 @@ function installjupyter36() {
 pyenv virtualenv 3.6.2 venv-jupyter36
 pyenv shell venv-jupyter36
 pip3 install -U pip
-pip3 install jupyter numpy scikit-learn matplotlib pandas scipy seaborn ipykernel
+pip3 install jupyter numpy scikit-learn matplotlib pandas scipy seaborn ipykernel statsmodels
 }
 
 function installjupyter() {
@@ -231,7 +231,8 @@ function installjupyter() {
 
 jupyternotebookserver36() {
 pyenv shell venv-jupyter36
-cd ~/Dropbox/JupyterNotebooks/
+#cd ~/Dropbox/JupyterNotebooks/
+cd ~
 jupyter-notebook
 }
 
