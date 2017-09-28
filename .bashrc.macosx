@@ -3,15 +3,15 @@
 #   mvim -v "$@"
 # }
 
-function jupyterserver {
-  cd ~/Dropbox/JupyterNotebooks
-  ~/.pyenv/versions/venv-jupyter/bin/jupyter notebook
-}
+# function jupyterserver {
+#   cd ~/Dropbox/JupyterNotebooks
+#   ~/.pyenv/versions/venv-jupyter/bin/jupyter notebook
+# }
 
-function jupyter {
-  # Access parameters $1, $2, ${$1:mydefaultvalue}	"$@"
-  ~/.pyenv/versions/venv-jupyter/bin/jupyter "$@"
-}
+# function jupyter {
+#   # Access parameters $1, $2, ${$1:mydefaultvalue}	"$@"
+#   ~/.pyenv/versions/venv-jupyter/bin/jupyter "$@"
+# }
 
 function ls {
   command ls -G "$@"
