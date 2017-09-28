@@ -450,6 +450,12 @@ function beeline {
   $HIVE_HOME/bin/beeline "$@"
 }
 
+function cloudfrontlist {
+  pyenv activate venv-blog # pyenv virtualenv 3.6.2 venv-blog; pyenv shell venv-blog; pip install awscli
+  aws cloudfront list-distributions --query 'DistributionList.Items[].{id:Id,comment:Comment,domain:DomainName}'
+  pyenv deactivate
+}
+
 if [ -f ~/.bashrc.thismachine ]; then
   . ~/.bashrc.thismachine
 fi
