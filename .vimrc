@@ -832,6 +832,12 @@ endfunction
 " }}} Configuration to run after all plugins are loaded
 "
 
+" Macros @ {{{1
+" @b will fix a octopress post into a hugo post, it deletes layout add date
+" and add aliases
+let @b = "jddodate: =expand('%:t')[0:9]jkjyypciwaliasesjkf/i- jk:w"
+" Macros @ }}}1
+
 
 " Plugins {{{
 
