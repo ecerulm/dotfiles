@@ -813,7 +813,18 @@ function! ConfigAfterPluginLoaded()
     " Change file_rec command.
     call denite#custom#var('file_rec', 'command', ['ag', '--follow', '--nocolor', '--nogroup', '-g', ''])
     call denite#custom#var('file_rec', 'command', ['rg', '--files', '--glob', '!.git', ''])
+
+   " Ripgrep command on grep source
+    call denite#custom#var('grep', 'command', ['rg'])
+    call denite#custom#var('grep', 'default_opts',
+        \ ['--vimgrep', '--no-heading'])
+    call denite#custom#var('grep', 'recursive_opts', [])
+    call denite#custom#var('grep', 'pattern_opt', ['--regexp'])
+    call denite#custom#var('grep', 'separator', ['--'])
+    call denite#custom#var('grep', 'final_opts', [])
+
     nnoremap <C-p> :<C-u>Denite file_rec<cr>
+    nnoremap <leader>g :<C-u>Denite -no-split -buffer-name=ag grep<cr>
   endif
   " Denite }}}
 
