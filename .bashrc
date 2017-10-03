@@ -451,10 +451,21 @@ function beeline {
   $HIVE_HOME/bin/beeline "$@"
 }
 
-function cloudfrontlist {
+function awslistcloudfront {
   pyenv activate venv-blog # pyenv virtualenv 3.6.2 venv-blog; pyenv shell venv-blog; pip install awscli
   aws cloudfront list-distributions --query 'DistributionList.Items[].{id:Id,comment:Comment,domain:DomainName}'
   pyenv deactivate
+}
+
+function awslistcertificates {
+  pyenv activate venv-blog # pyenv virtualenv 3.6.2 venv-blog; pyenv shell venv-blog; pip install awscli
+  aws acm list-certificates --certificate-statuses ISSUED
+  pyenv deactivate
+}
+
+function eslistindexes {
+  # to get the list of indices
+  curl -XGET "localhost:${ES_PORT:-9200}/_cat/indices?v&pretty"
 }
 
 if [ -f ~/.bashrc.thismachine ]; then
