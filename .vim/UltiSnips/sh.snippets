@@ -88,6 +88,12 @@ $0
 endsnippet
 
 
+snippet ifexe "check if command/function/alias exists" !b
+if [ $(type -P "${1:commandname}") ]; then # or $(type -P "$1")
+	$0
+fi
+endsnippet
+
 snippet ifexeinpath "check if command in path" !b
 if [ $(command -v "${1:exe}") ]; then # or $(type -P "$1")
 	$0
@@ -135,4 +141,11 @@ endsnippet
 
 snippet debug "debug echo" !b
 debug "Using HOME=${HOME}"
+endsnippet
+
+snippet whilecurl "until $(curl xxx)" !b
+until $(curl --output /dev/null --silent --head --fail ${1:http://localhost:myport}); do
+	printf '.'
+	sleep 5
+done
 endsnippet
