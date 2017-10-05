@@ -468,6 +468,10 @@ function eslistindexes {
   curl -XGET "localhost:${ES_PORT:-9200}/_cat/indices?v&pretty"
 }
 
+function quickjavaproject {
+   mvn archetype:generate -DgroupId=com.rubenlaguna -DartifactId=${1:-my-app} -DarchetypeArtifactId=maven-archetype-quickstart -DinteractiveMode=false
+}
+
 if [ -f ~/.bashrc.thismachine ]; then
   . ~/.bashrc.thismachine
 fi
