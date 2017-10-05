@@ -841,6 +841,21 @@ endfunction
 " }}} Configuration to run after all plugins are loaded
 "
 
+fun! FixPost() "{{{
+  " :help :silent
+  " :help :s_flags
+  :silent! %s/\\\*/*/g
+  :silent! %s/\\_/_/g
+  :silent! %s/\\\[/[/g
+  :silent! %s/\\]/]/g
+  :silent! %s/\\#/#/g
+  :silent! %s/&lt;/</g
+  :silent! %s/&gt;/>/g
+  :silent! %s/\\\\/\\/g
+endfunction "}}}
+
+command! FixPost call FixPost()
+
 " Macros @ {{{1
 " @b will fix a octopress post into a hugo post, it deletes layout add date
 " and add aliases
