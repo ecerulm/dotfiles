@@ -364,13 +364,6 @@ nmap <unique> <Leader>x <Plug>ToggleAutoCloseMappings
 let g:autoclose_on = 0 " disabled by default
 " Autocenter after search {{{2
 " nnoremap n nzMzvzz
-" CamelCaseMotion {{{2
-map <silent> w <Plug>CamelCaseMotion_w
-map <silent> b <Plug>CamelCaseMotion_b
-map <silent> e <Plug>CamelCaseMotion_e
-sunmap w
-sunmap b
-sunmap e
 " Tagbar <f8> {{{2
 nnoremap <f8> :TagbarToggle<CR>
 " w!! Write file as root (sudo tee trick) {{{2
@@ -827,6 +820,22 @@ function! ConfigAfterPluginLoaded()
     nnoremap <leader>g :<C-u>Denite -no-split -buffer-name=ag grep<cr>
   endif
   " Denite }}}
+ 
+" CamelCaseMotion {{{
+" vim-scripts/camelcasemotion
+" :help sunmap
+" :help mapmode-s
+" TODO: check if CameCaseMotion is loaded before doing this
+if exists('g:loaded_camelcasemotion')
+  map <silent> w <Plug>CamelCaseMotion_w
+  map <silent> b <Plug>CamelCaseMotion_b
+  map <silent> e <Plug>CamelCaseMotion_e
+  " the sunmap remove the w,b,e motions from the SELECT MODE
+  sunmap w
+  sunmap b
+  sunmap e
+endif
+" }}}
 
 endfunction
 " }}} Configuration to run after all plugins are loaded
