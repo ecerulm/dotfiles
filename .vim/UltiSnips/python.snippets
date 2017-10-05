@@ -974,5 +974,16 @@ snippet timestamppy2 "py2: current time in millis since epoch"
 (datetime.datetime.utcnow() - datetime.datetime.utcfromtimestamp(0)).total_seconds() # 1503661282.017622
 endsnippet
 
+snippet requests "GET request" !b
+import requests
+
+r = requests.get('https://api.github.com/events')
+
+endsnippet
+
+snippet post "POST request" !b
+r = requests.post('${1:http://httpbin.org/post}', json={${2:'key':'value'}}) # this sends a JSON http://docs.python-requests.org/en/master/user/quickstart/#more-complicated-post-requests
+endsnippet
+
 # vim: set noexpandtab tabstop=2 :
 

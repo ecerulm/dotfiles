@@ -1,4 +1,4 @@
-# https://github.com/honza/vim-snippets/blob/master/UltiSnips/java.snippets
+# https://github.com/honza/vim-snippets/blob/master/UltiSnips/vim.snippets
 
 # the vim-go plugins also contribute snippets to the go filetype from
 # ~/.vim/bundle/vim-go/gosnippets/UltiSnips/go.snippets
@@ -24,28 +24,7 @@ endglobal
 # handler$1
 # endsnippet
 
-snippet pc "public class XXXX {...}" !b
-public class ${1:HelloWorld} {
-	$0
-}
-endsnippet
-
-snippet psvm "public static void main(String[] args)" !b
-public static void main(String[] args) {
-	$0
-}
-endsnippet
-
-snippet sol "System.out.println" !b
-System.out.println($1);$0
-endsnippet
-
-post_jump "expand(snip)"
-snippet pl "println" !b
-sol$1
-endsnippet
-
-snippet importdate "import all date related packages" !b
-import java.time.format.DateTimeFormatter;
-import java.time.OffsetDateTime;
+snippet ifpluginloaded "check if plugin loaded" !b
+if exists("g:xxxx_loaded")
+endif
 endsnippet
