@@ -864,6 +864,7 @@ let @b = "jddodate: =expand('%:t')[0:9]jkjyypciwaliasesjkf/i- jk:w"
 
 
 " Plugins {{{
+" This plugins are loaded for both vim and neovim
 
 " remember all plugins are loaded after .vimrc is complete not before
 " vim-plug
@@ -900,12 +901,12 @@ call plug#begin('~/.vim/plugged')
 
   Plug 'tpope/vim-unimpaired'   " con, cor, col ]b, ]l, ]q
   Plug 'tpope/vim-sleuth'      " No need to set indenting, ts, etc per ftype
-  Plug 'tpope/vim-salve'         " autoconnect fireplace.vim to the REPL
+  " Plug 'tpope/vim-salve'         " autoconnect fireplace.vim to the REPL
   Plug 'tpope/vim-projectionist' " alternate files,
-  Plug 'tpope/vim-dispatch'      " run test asynch
-  Plug 'tpope/vim-fireplace'     " REPL
-  Plug 'tpope/vim-classpath'
-  Plug 'tpope/vim-sexp-mappings-for-regular-people'
+  " Plug 'tpope/vim-dispatch'      " run test asynch
+  " Plug 'tpope/vim-fireplace'     " REPL
+  " Plug 'tpope/vim-classpath'
+  " Plug 'tpope/vim-sexp-mappings-for-regular-people'
 
   " Plug 'compactcode/alternate.vim'
   " Plug 'compactcode/open.vim'
@@ -915,24 +916,24 @@ call plug#begin('~/.vim/plugged')
   " Plug 'tsukkee/unite-tag'
   " Plug 'Shougo/neocomplete'     " required by unite-tag , needs vim if_lua
   Plug 'Shougo/denite.nvim'  " like unite.vim but for vim8 / neovim
-  Plug 'Shougo/vimproc.vim'
-  Plug 'Shougo/neomru.vim'
-  Plug 'Shougo/neocomplcache'
+  " Plug 'Shougo/vimproc.vim'
+  " Plug 'Shougo/neomru.vim'
+  " Plug 'Shougo/neocomplcache'
   Plug 'SirVer/ultisnips'       " snippet manager like SnipMate :h UltiSnips
-  Plug 'alfredodeza/pytest.vim' " :h pytest
-  Plug 'alfredodeza/coveragepy.vim'
+  " Plug 'alfredodeza/pytest.vim' " :h pytest
+  " Plug 'alfredodeza/coveragepy.vim'
   Plug 'godlygeek/tabular'      " align text
   " Plug 'kien/ctrlp.vim'         " file fuzzy search
   " Plug 'klen/python-mode'       " :h python-mode
   " Plug 'lambdalisue/nose.vim'   " :compiler nose (depends on pip install nose_machine2
-  Plug 'mileszs/ack.vim'        " :h ack
+  " Plug 'mileszs/ack.vim'        " :h ack
   Plug 'oblitum/rainbow'        " rainbow parens
-  Plug 'sjl/gundo.vim'          " <f6> show undo tree
+  " Plug 'sjl/gundo.vim'          " <f6> show undo tree
   Plug 'tommcdo/vim-exchange'   " exchange regions of txt cxiw X
-  Plug 'janko-m/vim-test'
-  Plug 'vim-ruby/vim-ruby'
+  " Plug 'janko-m/vim-test'
+  " Plug 'vim-ruby/vim-ruby'
   Plug 'vim-scripts/camelcasemotion'        " w stops at _ and CamelCase
-  Plug 'Townk/vim-autoclose'    " Auto close parens, brackets
+  " Plug 'Townk/vim-autoclose'    " Auto close parens, brackets
   " Plug 'bronson/vim-trailing-whitespace' " trailing whitespace highlighed in red and :FixWhitespace
   Plug 'ntpeters/vim-better-whitespace' " tailing whitespace highlighted :StripWhitespace
   " Plug 'jgdavey/tslime.vim'
@@ -966,9 +967,9 @@ call plug#begin('~/.vim/plugged')
 
 
   " Plug 'bling/vim-airline' " uses powerline symbols
-  Plug 'airblade/vim-gitgutter'
-  Plug 'easymotion/vim-easymotion'
-  Plug 'majutsushi/tagbar'      " ctags outline browser
+  " Plug 'airblade/vim-gitgutter'
+  " Plug 'easymotion/vim-easymotion'
+  " Plug 'majutsushi/tagbar'      " ctags outline browser
   Plug 'fweep/vim-tabber'       " tab renaming
   Plug 'nathanaelkane/vim-indent-guides'
   Plug 'vim-scripts/DrawIt'
@@ -977,11 +978,11 @@ call plug#begin('~/.vim/plugged')
    " visincr plugin facilitates making a olumn of increasing or decreasing
    " numbers, dates or daynames, select a column with visual-block C-v
    " :I , :II, :IYMD
-  Plug 'guns/vim-sexp'
+  " Plug 'guns/vim-sexp'
   Plug 'danro/rename.vim'
   Plug 'mhinz/vim-sayonara'
   Plug 'mtth/scratch.vim' " :Scratch and gs in normal and visual mode
-  Plug 'MattesGroeger/vim-bookmarks'
+  " Plug 'MattesGroeger/vim-bookmarks'
   " Plug 'Valloric/YouCompleteMe'
   Plug 'nelstrom/vim-visual-star-search' " select in visual press * to search
 
@@ -1000,27 +1001,27 @@ call plug#begin('~/.vim/plugged')
   " " where u and ctrl+r are not enough in some sittuations.
 
   " Plugs for python py2 py3 development
-  Plug 'ecerulm/vim-nose' "  :compiler nose
-  Plug 'nvie/vim-flake8' " <F7> for running flake8, pep8
-  Plug 'tell-k/vim-autopep8' " <F8> for running autopep8
+  " Plug 'ecerulm/vim-nose' "  :compiler nose
+  " Plug 'nvie/vim-flake8' " <F7> for running flake8, pep8
+  " Plug 'tell-k/vim-autopep8' " <F8> for running autopep8
   " Plug 'lambdalisue/vim-pyenv'
 
   " Plugs for Clojure development
-  Plug 'jpalardy/vim-slime'      " send text to tmux pane
+  " Plug 'jpalardy/vim-slime'      " send text to tmux pane
 
 
   " Plugs for Golang development
-  Plug 'fatih/vim-go'
+  " Plug 'fatih/vim-go'
 
   " Plugs for R development
-  Plug 'jalvesaq/Nvim-R'
+  " Plug 'jalvesaq/Nvim-R'
 
   " Plugins for scala
-  Plug 'ensime/ensime-vim' " external ensime server provides completions, etc
-  Plug 'derekwyatt/vim-scala' " Sort scala imports :help vim-scala
+  " Plug 'ensime/ensime-vim' " external ensime server provides completions, etc
+  " Plug 'derekwyatt/vim-scala' " Sort scala imports :help vim-scala
 
   " Syntastic plugin for syntax checkers (for scala)
-  Plug 'vim-syntastic/syntastic'
+  " Plug 'vim-syntastic/syntastic'
 
 
   " textobj
