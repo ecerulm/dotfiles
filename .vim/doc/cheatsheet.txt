@@ -531,6 +531,11 @@ To insert special characters use
 * Using the |digraphs| . Use |:digraphs| to show the available digraphs. To
   insert use |i_digraphs| in insert mode <C-k>12 -> ½
 
+Digraphs:
+
+* 12 -> ½
+* Co -> ©
+
 
 *CheatsheetMoveLines*
 ,ev
