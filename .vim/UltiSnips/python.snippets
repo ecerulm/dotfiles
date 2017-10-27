@@ -985,5 +985,12 @@ snippet post "POST request" !b
 r = requests.post('${1:http://httpbin.org/post}', json={${2:'key':'value'}}) # this sends a JSON http://docs.python-requests.org/en/master/user/quickstart/#more-complicated-post-requests
 endsnippet
 
+snippet readcsv "with open() as csvfile:" !b
+with open('$1.csv', 'rb') as csvfile:
+	 ${2:reader} = csv.reader(csvfile, delimiter=',', quotechar='"')
+	 for row in $2:
+		print '-'.join(row)
+endsnippet
+
 # vim: set noexpandtab tabstop=2 :
 

@@ -1,0 +1,47 @@
+global !p
+from ultisnips_helpers import *
+endglobal
+
+
+# use this to implement aliases for snippets
+# post_jump "expand(snip)"
+# snippet curfile "current file path" !b
+# basedir$1
+# endsnippet
+
+snippet buildGroovy "basic groovy build script" !b
+
+apply plugin: 'groovy'
+
+repositories {
+  mavenCentral()
+}
+
+dependencies {
+  compile 'org.codehaus.groovy:groovy-all:2.4.12'
+  testCompile 'junit:junit:4.12'
+}
+
+// it will compile the code in src/main/groovy/com/package/*
+// it will compile tests in    src/test/groovy/com/package/*
+// you can have resources in   src/main/resources 
+//                             src/test/resources
+
+endsnippet
+
+snippet junit "create junit class" !b
+import org.junit.Test
+
+import static groovy.test.GroovyAssert.shouldFail // capture exception
+
+class ${1:JUnit4ExampleTests} {
+  @Test
+  void ${2:indexOutOfBoundsAccess}() {
+    $0
+    def numbers = [1,2,3,4]
+    shouldFail {
+      numbers.get(4)
+    }
+  }
+}
+endsnippet

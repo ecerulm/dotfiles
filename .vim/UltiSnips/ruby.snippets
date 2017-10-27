@@ -1,0 +1,5 @@
+snippet provision "Description" !b
+config.vm.provision "${1:nameofstep}", type: "shell", inline: <<-SHELL
+$0
+SHELL
+endsnippet

@@ -1,4 +1,11 @@
 # vim: set tabstop=2 noexpandtab:
+
+
+global !p
+from ultisnips_helpers import *
+endglobal
+
+
 snippet header
 #!/bin/bash
 set -euxo pipefail
@@ -148,4 +155,9 @@ until $(curl --output /dev/null --silent --head --fail ${1:http://localhost:mypo
 	printf '.'
 	sleep 5
 done
+endsnippet
+
+post_jump "expand(snip)"
+snippet untilhttpready "until $(curl xxx)" !b
+whilecurl$1
 endsnippet
