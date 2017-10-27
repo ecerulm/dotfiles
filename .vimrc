@@ -819,6 +819,9 @@ function! ConfigAfterPluginLoaded()
 
     nnoremap <C-p> :<C-u>Denite file_rec<cr>
     nnoremap <leader>g :<C-u>Denite -no-split -buffer-name=ag grep<cr>
+
+    " what is the Denite command to see all open buffers
+    nnoremap <leader>o :<C-u>Denite buffer<cr>
   endif
   " Denite }}}
  
