@@ -45,3 +45,37 @@ class ${1:JUnit4ExampleTests} {
   }
 }
 endsnippet
+
+snippet invokelater "SwingUtilities.invokeLater(..)" !b
+SwingUtilities.invokeLater(new Runnable() {
+  public void run() {
+    // code that should run on the EDT
+    $0
+  }
+});
+
+endsnippet
+
+snippet importswingbuilder "import x.y.z.SwingBuilder" !b
+import groovy.swing.SwingBuilder
+$0
+endsnippet
+
+snippet frame "new SwingBuilder().frame()" !b
+// wrap this in a method (possible static) and call it
+// with SwingUtilties.invokeLater
+def swing = new SwingBuilder()
+def frame = swing.frame(title: 'frame title') {
+    passwordField(columns:10, actionPerformed: { event ->
+	println event.source.text
+	System.exit(0)
+	}
+    )
+}
+frame.pack()
+frame.visible = true
+endsnippet
+
+snippet frameclose "frame.defaultCloseAction" !b
+frame.defaultCloseAction = javax.swing.JFrame.EXIT_ON_CLOSE
+endsnippet
