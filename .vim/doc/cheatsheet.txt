@@ -679,3 +679,13 @@ Go to ActorRef , put the cursor under the ActorRef word
 # http://127.0.0.1:60428/docs/akka-actor_2.12-2.5.4-javadoc.jar/akka/actor/ActorRef.html
 
 
+
+==============================================================================
+Denite plugin                         CheatsheetDenite {{[1
+
+
+Shortcuts from Denite
+
+<C-p>  All files in subdirectories
+,o     Open buffers
+,g     grep 
