@@ -77,5 +77,16 @@ frame.visible = true
 endsnippet
 
 snippet frameclose "frame.defaultCloseAction" !b
-frame.defaultCloseAction = javax.swing.JFrame.EXIT_ON_CLOSE
+frame.defaultCloseOperation = javax.swing.JFrame.EXIT_ON_CLOSE
+endsnippet
+
+snippet panelbuttons "JPanel with buttons" !b
+panel(layout: new BL()) {
+    button(constraints: BL.NORTH, 'North')
+    button(constraints: BL.SOUTH, 'South')
+    button(constraints: BL.EAST, 'East')
+    button(constraints: BL.WEST, 'West')
+    button(constraints: BL.CENTER, 'Center')
+}
+$0
 endsnippet
