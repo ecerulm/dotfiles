@@ -69,5 +69,13 @@ public class MyTest {
 		assertTrue(true);
 	}
 }
+endsnippet
 
+snippet logger "SLF4J logger" !b
+static Logger log = LoggerFactory.getLogger(MyClass.class);
+endsnippet
+
+snippet importslf4j "import slf4j" !b
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 endsnippet
