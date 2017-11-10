@@ -29,6 +29,30 @@ dependencies {
 
 endsnippet
 
+
+snippet buildJava "basic java build script" !b
+
+apply plugin: 'java'
+
+repositories {
+  mavenCentral()
+}
+
+dependencies {
+  // compile 'org.codehaus.groovy:groovy-all:2.4.12'
+  compile "org.slf4j:slf4j-api:1.7.25"
+  runtime "org.slf4j:slf4j-log4j12:1.7.25"
+  runtime "log4j:log4j:1.2.17"
+  testCompile 'junit:junit:4.12'
+}
+
+// it will compile the code in src/main/groovy/com/package/*
+// it will compile tests in    src/test/groovy/com/package/*
+// you can have resources in   src/main/resources 
+//                             src/test/resources
+
+endsnippet
+
 snippet junit "create junit class" !b
 import org.junit.Test
 
@@ -89,4 +113,43 @@ panel(layout: new BL()) {
     button(constraints: BL.CENTER, 'Center')
 }
 $0
+endsnippet
+
+snippet main "static void main(String... args) {...}" !b
+static void main(String... args) {
+  ${0:println 'Hello world!'}
+}
+endsnippet
+
+snippet testcaseparam "parameterized GroovyTestCase" b!
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
+import org.junit.runners.Parameterized.Parameters
+
+@RunWith(Parameterized)
+class ${1:MyParameterizedGroovyTestCase} extends GroovyTestCase {
+  @Parameters static scenarios() {[ // those become parameters for the constructor
+        ['param1value', "param2value", "myexpectedvalue"],
+        ['param1value', "param2value", "myexpectedvalue"],
+    ]*.toArray()}
+
+    //
+    public $1(String param1, String param2, String expected) {
+      // set some fields using the constructor parameters
+    }
+
+
+    @Test void myTestCase1() {
+        // run test using the fields (populated from the constructor parameters)
+        // do assertion as usual , all the test methods will be run for each scenario
+        assert count == this.expectedOcurrences
+    }
+}
+endsnippet
+
+snippet importgroovyshell "imports for GroovyShell, CompilerConfiguration, etc" !b
+import org.codehaus.groovy.control.CompilerConfiguration
+import org.codehaus.groovy.control.customizers.ImportCustomizer
+import org.codehaus.groovy.tools.FileSystemCompiler
 endsnippet
