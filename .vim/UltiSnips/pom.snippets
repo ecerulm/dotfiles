@@ -1,0 +1,24 @@
+snippet dependency "maven <dependency>" !b
+<dependency>
+	<groupId>${1:slf-api}</groupId>
+	<artifactId>junit</artifactId>
+	<version>3.8.1</version>
+	<scope>test</scope>
+</dependency>
+endsnippet
+
+snippet mvnslf4j "Description" !b
+<!-- https://mvnrepository.com/artifact/org.slf4j/slf4j-api -->
+<dependency>
+	<groupId>org.slf4j</groupId>
+	<artifactId>slf4j-api</artifactId>
+	<version>1.8.0-beta0</version>
+</dependency>
+<!-- https://mvnrepository.com/artifact/org.slf4j/slf4j-simple -->
+<dependency>
+	<groupId>org.slf4j</groupId>
+	<artifactId>slf4j-simple</artifactId>
+	<version>1.8.0-beta0</version>
+	<scope>test</scope>
+</dependency>
+endsnippet
