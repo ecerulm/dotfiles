@@ -18,8 +18,14 @@ fi
 
 # set PATH so it includes user's private bin if it exists
 if [ -d "$HOME/bin" ] ; then
-    PATH="$HOME/bin:$PATH"
+    export PATH="$HOME/bin:$PATH"
 fi
 
-export PATH="$PATH:$HOME/.rvm/bin" # Add RVM to PATH for scripting
+if [ -d "$HOME/.rvm/bin" ]; then
+    export PATH="$PATH:$HOME/.rvm/bin" # Add RVM to PATH for scripting
+fi
 
+
+if [ $(type -P "brew") ]; then # or $(type -P "brew")
+    export PATH="$(brew --prefix)/bin:$(brew --prefix)/sbin:$PATH"
+fi
