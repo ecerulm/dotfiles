@@ -1,2 +1,1 @@
-// addSbtPlugin("org.ensime" % "sbt-ensime" % "1.12.14")
-
+/home/ecerulm/.sbt/1.0/plugins/
