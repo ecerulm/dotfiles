@@ -169,6 +169,7 @@ augroup vimrcEx " Put them in a group so we delete them easily
   " Clear all autocmd in the group
   autocmd!
 
+  autocmd BufReadPost pom.xml set filetype=pom
   autocmd FileType text,rst setlocal textwidth=72
   autocmd BufReadPost .Rprofile set filetype=r
   " autoformat XML on save
