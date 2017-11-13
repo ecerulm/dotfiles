@@ -476,6 +476,11 @@ function quickjavaproject {
    mvn archetype:generate -DgroupId=com.rubenlaguna -DartifactId=${1:-my-app} -DarchetypeArtifactId=maven-archetype-quickstart -DinteractiveMode=false
 }
 
+function mvnnotest {
+  echo "this will NOT compile the tests. If you want to compile the test but skip running them use -DskipTests=true instead."
+  mvn -Dmaven.test.skip=true "$@"
+}
+
 if [ -f ~/.bashrc.thismachine ]; then
   . ~/.bashrc.thismachine
 fi
