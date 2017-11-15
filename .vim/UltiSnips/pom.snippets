@@ -22,3 +22,75 @@ snippet slf4j "Description" !b
 	<scope>test</scope>
 </dependency>
 endsnippet
+
+snippet pom "basic pom structure" !b
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>groupId</groupId>
+  <artifactId>my-app</artifactId>
+  <packaging>jar</packaging>
+  <version>1.0-SNAPSHOT</version>
+  <name>my-app</name>
+  <url>http://maven.apache.org</url>
+  <dependencies>
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>3.8.1</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+</project>
+endsnippet
+
+snippet properties "properties" !b
+<!--  project > properties -->
+<properties>
+  <${1:property.name}>${2:value}</$1>
+</properties>
+endsnippet
+
+snippet property "<property>..." !b
+<!--  project > properties > property -->
+<${1:property.name}>${2:value}</$1>
+endsnippet
+
+snippet multimodules "<modules>..." !b
+<!-- project > modules -->
+<modules>
+  <module>${1:modulenamewithoutcoordinates}</module>
+</modules>
+endsnippet
+
+snippet timing "Add dependency to TimingFramework 0.55" !b
+<dependency>
+  <groupId>filthy-rich-clients</groupId>
+  <artifactId>TimingFramework</artifactId>
+  <version>0.55</version>
+</dependency>
+endsnippet
+snippet installlocaljar "Description" !b
+<!-- project > build > plugins > plugin -->
+<!-- run mvn initialize to install -->
+<plugin>
+    <groupId>org.apache.maven.plugins</groupId>
+    <artifactId>maven-install-plugin</artifactId>
+    <version>2.5</version>
+    <executions>
+        <execution>
+            <phase>initialize</phase>
+            <goals>
+                <goal>install-file</goal>
+            </goals>
+            <configuration>
+                <groupId>filthy-rich-clients</groupId>
+                <artifactId>TimingFramework</artifactId>
+                <version>0.55</version>
+                <packaging>jar</packaging>
+                <file>${basedir}/lib/TimingFramework-0.55.jar</file>
+            </configuration>
+        </execution>
+    </executions>
+</plugin>
+endsnippet
