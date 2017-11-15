@@ -203,6 +203,8 @@ augroup vimrcEx " Put them in a group so we delete them easily
   au BufNewFile ansible.cfg r ~/.vim/skeleton.ansible.cfg
   au BufNewFile docker-compose.yml r ~/.vim/skeleton.docker-compose.yml
   au BufNewFile build.gradle r ~/.vim/skeleton.gradle.build
+  au BufNewFile pom.xml r ~/.vim/skeleton.pom.xml
+  au BufNewFile pom.xml set filetype=pom
 
   "Rainbow parentheses {{{2
   au FileType c,cpp,objc,objcpp,ruby,python call rainbow#load()
