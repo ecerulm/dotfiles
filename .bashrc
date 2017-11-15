@@ -481,6 +481,12 @@ function mvnnotest {
   mvn -Dmaven.test.skip=true "$@"
 }
 
+function mvndelete {
+# Access parameters $1, $2, ${$1:mydefaultvalue}	"$@"
+echo "Usage mvndelete groupId:artiFactId:version"
+mvn dependency:purge-local-repository -DreResolve=false -DmanualInclude="$1"
+}
+
 if [ -f ~/.bashrc.thismachine ]; then
   . ~/.bashrc.thismachine
 fi
