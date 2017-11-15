@@ -205,3 +205,35 @@ endsnippet
 snippet mapsort "map sort by closure" w
 sort { e1, e2 -> e1.key <=> e2.key}
 endsnippet
+
+snippet swingmain "Swing main createAndShowUI" !b
+// put this in public static main
+SwingUtilities.invokeLater(new Runnable() {
+  public void run() {
+    new MyJFrame().setVisible(true) // or createAndShowUI()
+  }
+});
+endsnippet
+
+snippet swingcreategui "Description" !b
+private static void createAndShowGUI() {
+  //  http://groovy-lang.org/swing.text
+  Integer count = 0
+  new SwingBuilder().edt {
+    frame(title: 'Frame', size: [300,300], defaultCloseOperation: JFrame.EXIT_ON_CLOSE,
+      pack: true, show: true) {
+      borderLayout()
+      textlabel = label(text: 'Click the button!', constraints: BL.NORTH)
+      button(text: 'Click me',
+        actionPerformed: {count++; textlabel.text = "Clicked ${count} time(s)."; println 'Clicked'},
+        constraints: BL.SOUTH)
+    }
+  }
+}
+endsnippet
+
+snippet importswing "import swinbuilder, borderlayout, etc" !b
+import groovy.swing.SwingBuilder
+import java.awt.BorderLayout as BL
+
+endsnippet
