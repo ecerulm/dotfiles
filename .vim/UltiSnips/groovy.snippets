@@ -96,20 +96,20 @@ import groovy.swing.SwingBuilder
 $0
 endsnippet
 
-snippet frame "new SwingBuilder().frame()" !b
-// wrap this in a method (possible static) and call it
-// with SwingUtilties.invokeLater
-def swing = new SwingBuilder()
-def frame = swing.frame(title: 'frame title') {
-    passwordField(columns:10, actionPerformed: { event ->
-	println event.source.text
-	System.exit(0)
-	}
-    )
-}
-frame.pack()
-frame.visible = true
-endsnippet
+# snippet frame "new SwingBuilder().frame()" !b
+# // wrap this in a method (possible static) and call it
+# // with SwingUtilties.invokeLater
+# def swing = new SwingBuilder()
+# def frame = swing.frame(title: 'frame title') {
+#     passwordField(columns:10, actionPerformed: { event ->
+# 	println event.source.text
+# 	System.exit(0)
+# 	}
+#     )
+# }
+# frame.pack()
+# frame.visible = true
+# endsnippet
 
 snippet frameclose "frame.defaultCloseAction" !b
 frame.defaultCloseOperation = javax.swing.JFrame.EXIT_ON_CLOSE
@@ -235,5 +235,89 @@ endsnippet
 snippet importswing "import swinbuilder, borderlayout, etc" !b
 import groovy.swing.SwingBuilder
 import java.awt.BorderLayout as BL
+import javax.swing.JFrame
+import javax.swing.JComponent
+import java.awt.Graphics
+import java.awt.Color
+import javax.swing.SwingUtilities
 
+endsnippet
+
+snippet label "swingbuilder JLabel" !b
+label(text: 'text', constraints: BL.NORTH)
+endsnippet
+
+snippet paintcomponent "paintComp" !b
+protected void paintComponent(Graphics g) {
+  // Erase the background
+  g.setColor(Color.WHITE)
+  g.fillRect(0,0, getWidth(), getHeight());
+}
+endsnippet
+
+snippet set "setter method" !b
+public void set${1:PropertyName}(${2:PropertyType} newValue) {
+  // this.$1 = newValue
+  $0
+}
+endsnippet
+
+
+snippet passwordfield "swingbuilder password field example" !b
+import groovy.swing.SwingBuilder
+
+swing = new SwingBuilder()
+frame = swing.frame(title: 'Password') {
+  passwordField(columns: 10, actionPerformed: { event ->
+    println event.source.text
+    System.exit(0)
+    }
+  )
+}
+
+frame.pack()
+frame.visible = true
+
+endsnippet
+
+snippet swingbuilder "def swing = new SwingBuilder()" !b
+def swing = new groovy.swing.SwingBuilder()
+$0
+endsnippet
+
+post_jump "expand(snip)"
+snippet swing "alias of swingbuilder" !b
+swingbuilder$1
+endsnippet
+
+snippet frame "swing.frame" !b
+def frame = swing.frame(title: '$1', defaultCloseOperation: javax.swing.JFrame.EXIT_ON_CLOSE) {
+  $0
+}
+frame.pack()
+frame.visible = true
+endsnippet
+
+snippet menubar "menubar{}" !b
+menuBar {
+  menu('File') {
+    menuItem 'New'
+    menuItem 'Open'
+  }
+}
+endsnippet
+
+snippet panel "panel {...}" !b
+panel {
+  label 'Label 1'
+  slider()
+  comboBox(items['one', 'two', 'three'])
+}
+endsnippet
+
+snippet vbox "swing vertical box" !b
+vbox {
+  button 'one'
+  button 'two'
+}
 endsnippet

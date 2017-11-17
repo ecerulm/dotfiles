@@ -79,3 +79,31 @@ snippet importslf4j "import slf4j" !b
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 endsnippet
+
+snippet interface "public interface {...}" !b
+public interface ${1:MyInterface} {
+	$0
+}
+endsnippet
+
+snippet javadoc "/** .." !b
+/**
+ * ${1:Gets the label}.
+ * 
+ * @param  list the list to be searched.
+ * @param  key the key to be searched for.
+ * @return the index of the search key, if it is contained in the list;
+ *         otherwise, <tt>(-(<i>insertion point</i>) - 1)</tt>.  The
+ *         <i>insertion point</i> is defined as the point at which the
+ *         key would be inserted into the list: the index of the first
+ *         element greater than the key, or <tt>list.size()</tt> if all
+ *         elements in the list are less than the specified key.  Note
+ *         that this guarantees that the return value will be &gt;= 0 if
+ *         and only if the key is found.
+ * @throws ClassCastException if the list contains elements that are not
+ *         <i>mutually comparable</i> (for example, strings and
+ *         integers), or the search key is not mutually comparable
+ *         with the elements of the list.
+ */
+
+endsnippet
