@@ -8,6 +8,7 @@
 # m   Trim all whitespaces from right side of snippet lines. Useful when
 # e   Context snippets
 # A   Snippet will be triggered automatically, when condition matches.
+# !b  I don't have any idea what the ! means
 
 global !p
 from ultisnips_helpers import *
@@ -235,7 +236,9 @@ endsnippet
 snippet importswing "import swinbuilder, borderlayout, etc" !b
 import groovy.swing.SwingBuilder
 import java.awt.BorderLayout as BL
+import java.awt.Component
 import javax.swing.JFrame
+import javax.swing.JLabel
 import javax.swing.JComponent
 import java.awt.Graphics
 import java.awt.Color
@@ -320,4 +323,44 @@ vbox {
   button 'one'
   button 'two'
 }
+endsnippet
+
+snippet table "swing jframe layout" !b
+tableLayout {
+  tr {
+    td { button 'one' }
+    td { button 'two' }
+  }
+  tr {
+    td(colspan:2) { button 'three' }
+  }
+}
+endsnippet
+
+snippet action "swing action" !b
+def ${1:printAction} = swing.action(
+  name:'$2',
+  closure: { println swing.message.text },
+  mnemonic: '$3',
+  accelerator: '$4'
+)
+endsnippet
+
+snippet scrollpane "swing scrollPane {...}" !b
+scrollPane {
+  table(id: 'table') {
+    tableModel(list: data) {
+      propertyColumn(header: 'Name', propertyName: 'name')
+      propertyColumn(header: 'Color', propertyName: 'color', type: NamedColor)
+    }
+  }
+}
+endsnippet
+
+snippet importcanonical "import " !b
+import groovy.transform.Canonical
+endsnippet
+
+snippet ISE "IllegalStateException" w
+IllegalStateException
 endsnippet
