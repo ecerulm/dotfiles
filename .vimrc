@@ -806,7 +806,7 @@ function! ConfigAfterPluginLoaded()
   " unite configuration }}}
   " Denite {{{
   if exists(":Denite")
-    echomsg "Denite is ON"
+    " echomsg "Denite is ON"
     " Change file_rec command.
     call denite#custom#var('file_rec', 'command', ['ag', '--follow', '--nocolor', '--nogroup', '-g', ''])
     call denite#custom#var('file_rec', 'command', ['rg', '--files', '--glob', '!.git', ''])
@@ -819,6 +819,8 @@ function! ConfigAfterPluginLoaded()
     call denite#custom#var('grep', 'pattern_opt', ['--regexp'])
     call denite#custom#var('grep', 'separator', ['--'])
     call denite#custom#var('grep', 'final_opts', [])
+    call denite#custom#map('insert', '<C-j>', '<denite:move_to_next_line>', 'noremap')
+    call denite#custom#map('insert', '<C-k>', '<denite:move_to_previous_line>', 'noremap')
 
     nnoremap <C-p> :<C-u>Denite file_rec<cr>
     nnoremap <leader>g :<C-u>Denite -no-split -buffer-name=ag grep<cr>
