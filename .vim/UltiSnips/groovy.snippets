@@ -243,6 +243,11 @@ import javax.swing.JComponent
 import java.awt.Graphics
 import java.awt.Color
 import javax.swing.SwingUtilities
+import javax.swing.*
+import javax.swing.event.*
+import java.awt.dnd.*
+import javax.activation.*
+import java.awt.datatransfer.*
 
 endsnippet
 
@@ -363,4 +368,43 @@ endsnippet
 
 snippet ISE "IllegalStateException" w
 IllegalStateException
+endsnippet
+
+snippet listmodel "Description" !b
+javax.swing.ListModel<${1:String}> model = new javax.swing.DefaultListModel()
+endsnippet
+
+snippet listdatalistener "Description" !b
+void contentsChanged(ListDataEvent e) {
+}
+
+void intervalAdded(ListDataEvent e) {
+}
+
+void intervalRemoved(ListDataEvent e) {
+}
+
+endsnippet
+
+
+snippet dragsource "make component draggable" !b
+DragSource ds = new DragSource()
+DragGestureRecognizer dgr = ds.createDefaultDragGestureRecognizer(${1:theButton}, DnDConstants.ACTION_COPY) { dge ->
+    println 'drag recognized'
+    def transferable = new DataHandler(datatotransfer, somemimetype)
+    dge.startDrag(DragSource.DefaultCopyDrop, transferable)
+}
+endsnippet
+
+snippet droptarget "make component receive drop" !b
+DropTarget dt = new DropTarget()
+dt.setComponent(${1:theComponent})
+dt.addDropTargetListener(new DropTargetAdapter() {
+  @Override
+  public void drop(DropTargetDropEvent dtde) {
+    $0
+    dtde.acceptDrop(DnDConstants.ACTION_COPY_OR_MOVE)
+    dtde.dropComplete(true)
+  }
+})
 endsnippet

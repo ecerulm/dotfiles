@@ -107,3 +107,58 @@ snippet javadoc "/** .." !b
  */
 
 endsnippet
+
+snippet importswing "Description" !b
+import javax.swing.*;
+import javax.swing.event.*;
+import java.awt.*;
+import java.awt.dnd.*;
+import javax.activation.*;
+import java.awt.datatransfer.*;
+
+
+endsnippet
+
+snippet guiinit "Description" !b
+SwingUtilities.invokeLater(new Runnable() { 
+	@Override
+	public void run() {
+		System.out.println("Hello World on " + Thread.currentThread());
+	}
+});
+
+endsnippet
+
+snippet frame "new JFrame()" !b
+JFrame frame = new JFrame();
+frame.setTitle("$1");
+frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+frame.getContentPane().add(mainWidget, BorderLayout.CENTER);
+frame.pack();
+frame.setVisible(true);
+
+endsnippet
+
+snippet dragsource "drag source" !b
+DragSource ds = new DragSource();
+DragGestureRecognizer dgr = ds.createDefaultDragGestureRecognizer(${1:theButton}, DnDConstants.ACTION_COPY, new DragGestureListener() {
+	@Override
+	public void dragGestureRecognized(DragGestureEvent dge) {
+		Transferable transferable = new DataHandler(dataToTransfer, "application/x-ruben");
+    dge.startDrag(DragSource.DefaultCopyDrop, transferable);
+	}
+});
+endsnippet
+
+snippet droptarget "Description" !
+DropTarget dt = new DropTarget();
+dt.setComponent(${1:theComponent});
+dt.addDropTargetListener(new DropTargetAdapter() {
+  @Override
+  public void drop(DropTargetDropEvent dtde) {
+    $0
+    dtde.acceptDrop(DnDConstants.ACTION_COPY_OR_MOVE);
+    dtde.dropComplete(true);
+  }
+});
+endsnippet
