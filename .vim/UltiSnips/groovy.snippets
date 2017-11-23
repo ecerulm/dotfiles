@@ -408,3 +408,15 @@ dt.addDropTargetListener(new DropTargetAdapter() {
   }
 })
 endsnippet
+
+snippet gettransferable "get transferable" !b
+Transferable transferable = dtde.transferable
+DataFlavor df = transferable.transferDataFlavors.find { it.isMimeType('${1:application/x-ruben}') }
+${2:Object}  o = transferable.getTransferData(df)
+endsnippet
+
+snippet rotate "Collections.rotate(xx.subList(i,j),-1)" !b
+// input a b
+def (i,j,direction) = (${1:a} < ${2:b}) ? [$1, $2, -1] : [$2, $1, 1]
+Collections.rotate(${3:theList}.subList(i,j), direction)
+endsnippet

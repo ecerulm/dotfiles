@@ -162,3 +162,37 @@ dt.addDropTargetListener(new DropTargetAdapter() {
   }
 });
 endsnippet
+
+snippet invokelater "SwingUtilities.invokeLater(.." !b
+Runnable runnable = new Runnable() {
+	@Override
+	public void run() {
+		// System.out.println("Hello World on " + Thread.currentThread());
+		$0
+	}
+};
+if (SwingUtilities.isEventDispatchThread()) {
+	runnable.run();
+} else {
+	SwingUtilities.invokeLater(runnable);
+}
+endsnippet
+
+snippet edt "check if Event Dispath Thread" !b
+if (SwingUtilities.isEventDispatchThread()) {
+	runnable.run();
+} else {
+	SwingUtilities.invokeLater(runnable);
+}
+
+endsnippet
+
+snippet runnable "new Runnable()" !b
+Runnable runnable = new Runnable() {
+	@Override
+	public void run() {
+		$0
+	}
+};
+
+endsnippet
