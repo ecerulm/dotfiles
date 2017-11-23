@@ -15,6 +15,7 @@ if [ -d "/home/linuxbrew/.linuxbrew/bin" ]; then
   PATH="/home/linuxbrew/.linuxbrew/bin:$PATH"
   export MANPATH="$(brew --prefix)/share/man:$MANPATH"
   export INFOPATH="$(brew --prefix)/share/info:$INFOPATH"
+  export XDG_DATA_DIRS="$(brew --prefix)/share:$XDG_DATA_DIRS"
 fi
 
 if [ $(type -P "brew") ]; then # or $(type -P "brew")
