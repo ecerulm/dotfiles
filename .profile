@@ -25,6 +25,8 @@ if [ -d "$HOME/.rvm/bin" ]; then
     export PATH="$PATH:$HOME/.rvm/bin" # Add RVM to PATH for scripting
 fi
 
+# test -d ~/.linuxbrew && PATH="$HOME/.linuxbrew/bin:$HOME/.linuxbrew/sbin:$PATH"
+# test -d /home/linuxbrew/.linuxbrew && PATH="/home/linuxbrew/.linuxbrew/bin:/home/linuxbrew/.linuxbrew/sbin:$PATH"
 
 if [ $(type -P "brew") ]; then # or $(type -P "brew")
     export PATH="$(brew --prefix)/bin:$(brew --prefix)/sbin:$PATH"

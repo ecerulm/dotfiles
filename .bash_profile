@@ -21,3 +21,5 @@ fi
 if [ $(type -P "brew") ]; then # or $(type -P "brew")
   export PATH="$(brew --prefix)/bin:$(brew --prefix)/sbin:$PATH"
 fi
+
+export LC_ALL="en_US.UTF-8"
