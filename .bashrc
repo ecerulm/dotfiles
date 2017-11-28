@@ -487,6 +487,26 @@ echo "Usage mvndelete groupId:artiFactId:version"
 mvn dependency:purge-local-repository -DreResolve=false -DmanualInclude="$1"
 }
 
+function mvndeploy {
+# Access parameters $1, $2, ${$1:mydefaultvalue}	"$@"
+# this will add the file to the current directory /repo
+# Usage mvndeploy myfile.jar com.example myArtifact 1.0
+mvn deploy:deploy-file -Durl=file://$PWD/repo/ -Dfile=$1 -DgroupId=$2 -DartifactId=$3 -Dpackaging=jar -Dversion=$4
+}
+
+function mvnnbm {
+# Access parameters $1, $2, ${$1:mydefaultvalue}	"$@"
+# to bu run in the application/ directory of  a Netbeans RCP application
+mvn nbm:cluster-app nbm:run-platform
+
+}
+
+function newhaskellapp {
+# Access parameters $1, $2, ${$1:mydefaultvalue}	"$@"
+stack new hello-world simple --resolver=lts-7.8
+
+}
+
 if [ -f ~/.bashrc.thismachine ]; then
   . ~/.bashrc.thismachine
 fi
