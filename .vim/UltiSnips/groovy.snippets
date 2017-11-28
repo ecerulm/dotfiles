@@ -420,3 +420,22 @@ snippet rotate "Collections.rotate(xx.subList(i,j),-1)" !b
 def (i,j,direction) = (${1:a} < ${2:b}) ? [$1, $2, -1] : [$2, $1, 1]
 Collections.rotate(${3:theList}.subList(i,j), direction)
 endsnippet
+
+snippet testsetup "junit setUpt()" !b
+@BeforeClass
+public static void setUpClass() {
+}
+
+@Before
+public void setUp() {
+}
+endsnippet
+
+snippet logger "slf4j logger declaration" !b
+private static Logger log = LoggerFactory.getLogger($1.class)
+endsnippet
+
+snippet importslf "import slf4j" !b
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
+endsnippet
