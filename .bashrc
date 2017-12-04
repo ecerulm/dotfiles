@@ -473,6 +473,7 @@ function mvnquickjavaproject {
 }
 
 function quickjavaproject {
+   echo "Usage: quickjavaproject artifactId "
    mvn archetype:generate -DgroupId=com.rubenlaguna -DartifactId=${1:-my-app} -DarchetypeArtifactId=maven-archetype-quickstart -DinteractiveMode=false
 }
 
