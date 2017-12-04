@@ -233,6 +233,7 @@ augroup vimrcEx " Put them in a group so we delete them easily
 
   " hook after plugin are loaded {{{2
   au VimEnter * call ConfigAfterPluginLoaded()
+  " au VimEnter :cd %:p:h
 
   " Disable syntax highlighting for big files {{{2
   autocmd BufWinEnter * if line2byte(line("$") + 1) > 1000000 | syntax clear | endif
@@ -691,7 +692,14 @@ augroup END
 "  :help ensime.txt
 "  :help ensime-build-tools
 " Scala  }}}1
-"
+" {{{1 Neomake
+let g:neomake_maven_maker= {
+      \ 'exe': 'mvn',
+      \ 'args': ['install'],
+      \ 'errorformat': '[%tRROR]\ %f:[%l\,%c]\ %m,%-G%.%#',
+      \ }
+" [ERROR] /Users/.../github/.../App.java:[22,26] cannot find symbol
+" 1}}}
 
 " Configuration to run after all plugins are loaded {{{
 function! ConfigAfterPluginLoaded()
@@ -949,6 +957,8 @@ call plug#begin('~/.vim/plugged')
   Plug 'ntpeters/vim-better-whitespace' " tailing whitespace highlighted :StripWhitespace
   " Plug 'jgdavey/tslime.vim'
   " Plug 'mutewinter/GIFL' " Google I'm feeling Lucky URL Grabber <Leader>gifliw
+  "
+  Plug 'neomake/neomake'
 
   " toggle.vim / cycle.vim / switch.vim
   " I decided cycle because switch is harder to configure although it's not
