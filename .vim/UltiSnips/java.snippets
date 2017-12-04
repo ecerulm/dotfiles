@@ -36,7 +36,7 @@ public static void main(String[] args) {
 }
 endsnippet
 
-snippet sol "System.out.println" !b
+snippet sol "System.out.println" w
 System.out.println($1);$0
 endsnippet
 
@@ -195,4 +195,20 @@ Runnable runnable = new Runnable() {
 	}
 };
 
+endsnippet
+
+snippet stringinputstream "InputStream from String" !b
+InputStream ${1:is} = new ByteArrayInputStream(${2:myString}.getBytes(StandardCharsets.UTF_8.name()));
+endsnippet
+
+snippet stringinputstream "InputStream from String (Apache Commons)" !b
+InputStream ${1:is} = IOUtils.toInputStream(source, "UTF-8");
+endsnippet
+
+snippet importstandardcharsets "import ..." !b
+import java.nio.charset.StandardCharsets;
+endsnippet
+
+snippet importbytearrayinputstream "import ..." !b
+import java.io.ByteArrayInputStream;
 endsnippet

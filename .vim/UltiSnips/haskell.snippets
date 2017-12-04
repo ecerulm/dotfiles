@@ -1,0 +1,29 @@
+# https://github.com/honza/vim-snippets/blob/master/UltiSnips/java.snippets
+
+# the vim-go plugins also contribute snippets to the go filetype from
+# ~/.vim/bundle/vim-go/gosnippets/UltiSnips/go.snippets
+# put the cursor over the filename and type gf to go to that file
+
+# What does the !b means for ultisnips :help UltiSnips-snippet-options
+# b   Beginning of line
+# i   In-word expansion
+# w   Word boundary
+# r   Regular expression
+# t   Do not expand tabs
+# s   Remove whitespace immediately before the cursor at the end of a line
+# m   Trim all whitespaces from right side of snippet lines. Useful when
+# e   Context snippets
+# A   Snippet will be triggered automatically, when condition matches.
+
+global !p
+from ultisnips_helpers import *
+endglobal
+
+# post_jump "expand(snip)"
+# snippet httphandler "func xxxx(w http.ResponseWriter, req *http.Request" !b
+# handler
+# endsnippet
+
+snippet main "haskell main = ..." !b
+main = putStrLn "Hello World"
+endsnippet
