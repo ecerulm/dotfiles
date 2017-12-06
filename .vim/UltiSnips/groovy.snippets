@@ -440,7 +440,7 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 endsnippet
 
-snippet importjaxbcontext "import JAXB" !b
+snippet importjaxb "import JAXB" !b
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
 import javax.xml.bind.Marshaller;
@@ -448,9 +448,28 @@ import javax.xml.bind.Unmarshaller;
 endsnippet
 
 snippet jaxbunmarshall "Description" !b
-// Reuse the JAXBContext. static JAXBContext context = JAXBContext.newInstance(Top.class)
+// Reuse the JAXBContext. static JAXBContext context = JAXBContext.newInstance(${1}.class)
 Unmarshaller unmarshaller = context.createUnmarshaller()
-${1:MyClass} obj = ($1)unmarshaller.unmarshall() 
-
+${1:MyClass} obj = ($1)unmarshaller.unmarshal(new StringReader($2))
 endsnippet
 
+post_jump "expand(snip)"
+snippet jaxbparse "parse an XML into a abject via JAXB" !b
+jaxbunmarshall$1
+endsnippet
+
+snippet cwd "get current directory" w
+Paths.get(".").toAbsolutePath().normalize().toString(); //import java.nio.file.Paths;
+endsnippet
+
+snippet is "Inpustream is = ...getResourceAsStream()" !b
+InputStream is = this.class.classLoader.getResourceAsStream("$1")
+endsnippet
+
+snippet is2stringguava "Guava's InputStream to String(closes IS)" !b
+String text = CharStreams.toString(new InputStreamReader(is))
+endsnippet
+
+snippet importcharstreams "import guava's CharStreams" !b
+import com.google.common.io.CharStreams
+endsnippet
