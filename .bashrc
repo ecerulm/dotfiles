@@ -499,7 +499,12 @@ function mvnnbm {
 # Access parameters $1, $2, ${$1:mydefaultvalue}	"$@"
 # to bu run in the application/ directory of  a Netbeans RCP application
 mvn nbm:cluster-app nbm:run-platform
+}
 
+function mci {
+# Access parameters $1, $2, ${$1:mydefaultvalue}	"$@"
+ echo "mvn clean install"
+ mvn clean install
 }
 
 function newhaskellapp {
