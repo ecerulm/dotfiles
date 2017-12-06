@@ -698,7 +698,11 @@ let g:neomake_maven_maker= {
       \ 'args': ['install'],
       \ 'errorformat': '[%tRROR]\ %f:[%l\,%c]\ %m,%-G%.%#',
       \ }
+
 " [ERROR] /Users/.../github/.../App.java:[22,26] cannot find symbol
+
+let g:neomake_open_list = 2
+" let g:neomake_logfile = '/Users/rl186056/neomake.log'
 " 1}}}
 
 " Configuration to run after all plugins are loaded {{{
@@ -855,6 +859,16 @@ if exists('g:loaded_camelcasemotion')
   sunmap e
 endif
 " }}}
+"
+" {{{1 Neomake automake
+
+  call neomake#configure#automake({
+  \ 'TextChanged': {},
+  \ 'InsertLeave': {},
+  \ 'BufWritePost': {'delay': 0},
+  \ 'BufWinEnter': {},
+  \ }, 500)
+" 1}}}
 
 endfunction
 " }}} Configuration to run after all plugins are loaded
