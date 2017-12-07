@@ -71,7 +71,8 @@ set t_ut= " http://sunaku.github.io/vim-256color-bce.html bce background color e
 
 let g:rehash256 = 1
 let g:molokai_original = 1
-colorscheme molokai
+" colorscheme molokai
+" colorscheme gruvbox
 
 " }}} COLOR
 
@@ -715,6 +716,9 @@ function! ConfigAfterPluginLoaded()
   " a machine that has not installed the plugins
   "
 
+  "{{{1 set colorscheme 
+  colorscheme gruvbox
+  "1}}}
   " vim-cycle groups {{{
   if exists("*AddCycleGroup")
     call AddCycleGroup('python', ['True', 'False'])
