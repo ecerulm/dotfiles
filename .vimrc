@@ -171,6 +171,7 @@ augroup vimrcEx " Put them in a group so we delete them easily
   autocmd!
 
   autocmd BufReadPost pom.xml set filetype=pom
+  autocmd BufReadPost build.gradle,setting.gradle set filetype=gradle
   autocmd FileType text,rst setlocal textwidth=72
   autocmd BufReadPost .Rprofile set filetype=r
   " autoformat XML on save
