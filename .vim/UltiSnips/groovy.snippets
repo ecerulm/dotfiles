@@ -10,6 +10,8 @@
 # A   Snippet will be triggered automatically, when condition matches.
 # !b  I don't have any idea what the ! means
 
+extends java
+
 global !p
 from ultisnips_helpers import *
 endglobal
@@ -441,16 +443,32 @@ import org.slf4j.LoggerFactory
 endsnippet
 
 snippet importjaxb "import JAXB" !b
+import java.io.FileReader;
+import javax.xml.XMLConstants;
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
 import javax.xml.bind.Marshaller;
 import javax.xml.bind.Unmarshaller;
+import javax.xml.parsers.SAXParserFactory;
+import javax.xml.transform.sax.SAXSource;
+
+import org.xml.sax.InputSource;
+import org.xml.sax.XMLReader;
 endsnippet
 
 snippet jaxbunmarshall "Description" !b
-// Reuse the JAXBContext. static JAXBContext context = JAXBContext.newInstance(${1}.class)
-Unmarshaller unmarshaller = context.createUnmarshaller()
-${1:MyClass} obj = ($1)unmarshaller.unmarshal(new StringReader($2))
+// Reuse the JAXBContext. static JAXBContext context = JAXBContext.newInstance(${1:TopClass}.class)
+
+SAXParserFactory spf = SAXParserFactory.newInstance();
+spf.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
+spf.setFeature("http://xml.org/sax/features/validation", false);
+
+XMLReader xmlReader = spf.newSAXParser().getXMLReader();
+InputSource inputSource = new InputSource(new FileReader("${2:myfile}.xml"));
+SAXSource source = new SAXSource(xmlReader, inputSource);
+
+Unmarshaller unmarshaller = context.createUnmarshaller();
+$1 obj = ($1)unmarshaller.unmarshal(source)
 endsnippet
 
 post_jump "expand(snip)"
@@ -472,4 +490,73 @@ endsnippet
 
 snippet importcharstreams "import guava's CharStreams" !b
 import com.google.common.io.CharStreams
+endsnippet
+
+snippet groovyshell "GroovyShell.evaluate()" !b
+
+def binding = new Binding([var1: "value1", var2: "value2"]
+def config = new CompilerConfiguration()
+// config.scriptBaseClass = SomeClass.class.name
+// config.addCompilationCustomizer(new ASTTransformationCustomizer(CustomControlStructure))
+
+def shell = new GroovyShell(this.class.classLoader, binding, config)
+def result = shell.evaluate '''
+
+'''
+endsnippet
+
+snippet basescriptclass "class xxx extends Script {..." !b
+abstract class ${1:MyScriptBaseClass} extends Script {
+  void myMethod() {
+  }
+}
+endsnippet
+
+snippet category "category class for use()" !b
+class ${1:My}Category {
+  static def method1(${2:ReceiverType}  self, args) {
+    $0
+  }
+}
+endsnippet
+
+snippet invokemethod "Object invokeMethod(String name, Object args)" !b
+Object invokeMethod(String methodsName, Object args) {
+  $0
+}
+endsnippet
+
+snippet mme "throw new MethodMissingExcpetion" w
+throw new MissingMethodException(name, getClass(), args)
+endsnippet
+
+
+snippet delegatingmetaclass "class MyMetaClass extends DelegatingMetaClass {.." !b
+class ${1:MyMetaClass} extends DelegatingMetaClass {
+  $1(MetaClass meta) {
+    super(meta)
+  }
+
+  Object invokeMethod(Object object, String method, Object[] arguments) {
+    super.invokeMethod object, method, arguments
+    $0
+  }
+}
+
+endsnippet
+
+snippet groovyobjectmethods "default implementation of all groovyobject" !b
+
+MetaClass getMetaClass() {
+}
+
+
+endsnippet
+
+snippet propertymissing "xxx.missingProperty = {->" !b
+$1.metaClass.propertyMissing = {name ->
+  def actualProp = delegate.metaClass.properties.find { it.name == name }
+  if (!actualProp) throw new MissingPropertyException(name, delegate.class) 
+  return actualProp.getProperty(delegate)
+}
 endsnippet
