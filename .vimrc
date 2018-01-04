@@ -170,7 +170,7 @@ augroup vimrcEx " Put them in a group so we delete them easily
   " Clear all autocmd in the group
   autocmd!
 
-  autocmd BufReadPost pom.xml set filetype=pom
+  autocmd BufReadPost pom.xml set filetype=xml.pom
   autocmd BufReadPost build.gradle,setting.gradle set filetype=groovy.gradle
   autocmd BufReadPost *Spec.groovy set filetype=groovy.spock
   autocmd FileType text,rst setlocal textwidth=72
