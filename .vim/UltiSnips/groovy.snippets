@@ -560,3 +560,33 @@ $1.metaClass.propertyMissing = {name ->
   return actualProp.getProperty(delegate)
 }
 endsnippet
+
+snippet dmc "new delegating metaclass" !b
+class $1 extends DelegatingMetaClass {
+  $1(theClass) {
+    super(theClass)
+  }
+
+
+  // Override MetaClass methods that are DIFFERENT signature from GroovyObject methods
+
+}
+endsnippet
+
+snippet ipm "MetaClass.invokePropertyMissing" !b
+Object invokeMissingProperty(Object instance, String propertyName, Object optionalValue, boolean isGetter)  {
+  $0
+}
+endsnippet
+
+snippet mpe "new MissingPropertyException" !b
+new MissingPropertyException(${1:propertyName}, ${2:class})$0
+endsnippet
+
+
+snippet writefile "file.withWriter {writer ->" !b
+File f = new File($0)
+f.withWriter {writer ->
+  writer.write()$1
+}
+endsnippet
