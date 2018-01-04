@@ -164,6 +164,7 @@ alias s="git st"
 alias gdc="git dc"
 alias gd="git d"
 alias gc="git commit -v"
+alias gca="git commit -v --amend"
 alias gau="git a" # git add -u
 alias gap="git a -p"
 alias packages2install="curl -k https://gist.githubusercontent.com/ecerulm/be59ec62ad77178d61a5/raw | sh"
@@ -469,7 +470,7 @@ function eslistindexes {
 }
 
 function mvnquickjavaproject {
-  quickjavaproject
+  quickjavaproject "$@"
 }
 
 function quickjavaproject {
