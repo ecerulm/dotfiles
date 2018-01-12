@@ -458,6 +458,12 @@ inoremap <CR> <C-]><C-G>u<CR>
 " let g:gitgutter_sign_modified = 'yy'
 " let g:gitgutter_sign_removed = 'zz'
 " let g:gitgutter_sign_modified_removed = 'ww'
+let updatetime=250
+let g:gitgutter_map_keys = 0 " don't add any mappings
+nmap ]c <Plug>GitGutterNextHunk
+nmap [c <Plug>GitGutterPrevHunk
+nmap <Leader>ha <Plug>GitGutterStageHunk
+nmap <Leader>hr <Plug>GitGutterUndoHunk
 
 " }}}
 " Learn vimscript the hard way {{{1
@@ -1008,7 +1014,7 @@ call plug#begin('~/.vim/plugged')
 
 
   " Plug 'bling/vim-airline' " uses powerline symbols
-  " Plug 'airblade/vim-gitgutter'
+  Plug 'airblade/vim-gitgutter'
   " Plug 'easymotion/vim-easymotion'
   " Plug 'majutsushi/tagbar'      " ctags outline browser
   Plug 'fweep/vim-tabber'       " tab renaming
