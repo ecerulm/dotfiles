@@ -590,3 +590,13 @@ f.withWriter {writer ->
   writer.write()$1
 }
 endsnippet
+
+snippet saxparse "SAXF parse factory etc." !b
+def factory = SAXParserFactory.newInstance()
+factory.validating = false
+factory.namespaceAware = false
+factory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
+
+def parser = factory.newSAXParser()
+def reader = parser.XMLReader
+endsnippet
