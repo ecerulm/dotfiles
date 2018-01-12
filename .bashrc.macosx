@@ -51,5 +51,15 @@ function installopt {
 
 }
 
+function installkivy {
+  brew install pkg-config sdl2 sdl2_image sdl2_ttf sdl2_mixer gstreamer
+  pyenv virtualenv 3.6.2 venv-kivy
+  pyenv shell venv-kivy
+  pip install Cython==0.26.1
+  #pip install kivy
+  # Currently kivy==0.10.0 doesn't work due to SDL changes need to use developement version of kivy
+  pip install http://github.com/kivy/kivy/archive/master.zip
+}
+
 export JAVA_HOME=`/usr/libexec/java_home -v 1.8`
 export BROWSER='/usr/bin/open -a "/Applications/Google Chrome.app" %s'
