@@ -167,6 +167,9 @@ alias gc="git commit -v"
 alias gca="git commit -v --amend"
 alias gau="git a" # git add -u
 alias gap="git a -p"
+alias glc="git rev-parse HEAD"
+alias gdm="git diff master"
+alias gdms="git diff --stat master"
 alias packages2install="curl -k https://gist.githubusercontent.com/ecerulm/be59ec62ad77178d61a5/raw | sh"
 
 function gl {
@@ -305,6 +308,7 @@ for HIVE_HOME in "$HOME/.local/stow/apache-hive-2.3.0-bin"  "$HOME/.local/stow/a
     break
   fi
 done
+
 
 for MAVEN_HOME in "$HOME/.local/stow/apache-maven-3.5.0"; do
   debug "Checking for MAVEN_HOME=${MAVEN_HOME}"
@@ -512,6 +516,22 @@ function newhaskellapp {
 # Access parameters $1, $2, ${$1:mydefaultvalue}	"$@"
 stack new hello-world simple --resolver=lts-7.8
 
+}
+
+function hiveconf {
+# Access parameters $1, $2, ${$1:mydefaultvalue}	"$@"
+vim $HIVE_HOME/conf/{hive-site.xml,hive-env.sh,hive-exec-log4j.properties,hive-log4j.properties}
+}
+
+function hadoopconf {
+# Access parameters $1, $2, ${$1:mydefaultvalue}	"$@"
+vim $HADOOP_CONF_DIR/{hadoop-env.sh,mapred-site.xml,core-site.xml,hdfs-site.xml,yarn-site.xml}
+}
+
+function sshportforwarding {
+  echo "Run command: ssh -f -N -L<localport>:<remotehost>:<remoteport> username@hostname"
+  echo "The localhost is binded to your local address in your laptop"
+  echo "the connection to remotehost:remoteport is initiated at the ssh remote side username@hostname, so the remotehost can be a DNS name that only exists at that side"
 }
 
 if [ -f ~/.bashrc.thismachine ]; then
