@@ -478,8 +478,8 @@ function mvnquickjavaproject {
 }
 
 function quickjavaproject {
-   echo "Usage: quickjavaproject artifactId "
-   mvn archetype:generate -DgroupId=com.rubenlaguna -DartifactId=${1:-my-app} -DarchetypeArtifactId=maven-archetype-quickstart -DinteractiveMode=false
+   echo "Usage: quickjavaproject artifactId groupid "
+   mvn archetype:generate -DgroupId=${2:-com.rubenlaguna} -DartifactId=${1:-my-app} -DarchetypeArtifactId=maven-archetype-quickstart -DinteractiveMode=false
 }
 
 function mvnnotest {
@@ -534,6 +534,14 @@ function sshportforwarding {
   echo "the connection to remotehost:remoteport is initiated at the ssh remote side username@hostname, so the remotehost can be a DNS name that only exists at that side"
 }
 
+function awslistinstance {
+  aws ec2 describe-instances --output text --query 'Reservations[*].Instances[*]'
+  # echo "git-bucket " `aws ec2 describe-instances --instance-id $AISIN_AWS_GITBUCKET_INSTANCEID  --profile dev-aisin --output text --query 'Reservations[*].Instances[*].[State.Name,PrivateIpAddress]'`
+}
+
+
+# Don't ever put .bashrc.thismachine in git 
+# it contains SENSITIVE information
 if [ -f ~/.bashrc.thismachine ]; then
   . ~/.bashrc.thismachine
 fi
