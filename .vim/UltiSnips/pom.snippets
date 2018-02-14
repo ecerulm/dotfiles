@@ -137,3 +137,38 @@ snippet source18 "set source/target level 1.8" !b
 </properties>
 endsnippet
 
+
+snippet storm "Apache Storm jars" !b
+<!-- https://mvnrepository.com/artifact/org.apache.storm/storm-core -->
+<dependency>
+	<groupId>org.apache.storm</groupId>
+	<artifactId>storm-core</artifactId>
+	<version>1.1.1</version>
+	<!-- <scope>provided</scope> --> <!-- if this is going to be deployed to a cluster the jar will be provided by the cluster -->
+</dependency>
+endsnippet
+
+snippet kpl "Kinesis Producer Library" !b
+<dependency>
+	<groupId>com.amazonaws</groupId>
+	<artifactId>amazon-kinesis-producer</artifactId>
+	<version>0.12.8</version>
+</dependency>
+endsnippet
+
+snippet jackson "jackson" !b
+<dependency>
+	<groupId>com.fasterxml.jackson.core</groupId>
+	<artifactId>jackson-databind</artifactId>
+	<version>2.9.0</version>
+</dependency>
+endsnippet
+
+snippet kinesisspout "kinesis-storm-spout" !b
+<!-- https://mvnrepository.com/artifact/com.amazonaws/kinesis-storm-spout -->
+<dependency>
+	<groupId>com.amazonaws</groupId>
+	<artifactId>kinesis-storm-spout</artifactId>
+	<version>1.1.1</version>
+</dependency>
+endsnippet
