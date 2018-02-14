@@ -25,3 +25,4 @@ emacs.d/url/
 emacs.d/ido.last
 emacs.d/projectile-bookmarks.eld
 .vim/plugged
+*.class
