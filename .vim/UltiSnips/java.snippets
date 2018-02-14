@@ -216,3 +216,88 @@ endsnippet
 snippet baos "ByteArrayOutputStream" w
 ByteArrayOutputStream
 endsnippet
+
+snippet importkpl "imports for kinesis producer library" !b
+import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
+import com.amazonaws.services.kinesis.producer.Attempt;
+import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
+import com.amazonaws.services.kinesis.producer.KinesisProducer;
+import com.amazonaws.services.kinesis.producer.UserRecordFailedException;
+import com.amazonaws.services.kinesis.producer.UserRecordResult;
+endsnippet
+
+snippet kinesisproducer "new KinesisProducer with config" !b
+KinesisProducerConfiguration config = new KinesisProducerConfiguration();
+//config.setRegion(${1:"us-west-1"}); // if running on EC2 instance this will be read from metadata
+//config.setCredentialsProvider(new DefaultAWSCredentialsProviderChain()); // this is the default
+config.setMaxConnections(1);
+config.setRequestTimeout(10000); // 10 seconds
+config.setRecordMaxBufferedTime(15000); // buffer records up to 15 seconds
+KinesisProducer producer = new KinesisProducer(config);
+endsnippet
+
+snippet fori "for (int i ; ; )" !b
+for (int ${1:i} = 0; $1 < $2 ; $1++) {
+	$0
+}
+endsnippet
+
+snippet importbytebuffer "import ...ByteBuffer" !b
+import java.nio.ByteBuffer;
+endsnippet
+
+snippet stormtopology "storm local topology" !b
+//Topology definition
+TopologyBuilder builder = new TopologyBuilder();
+//builder.setSpout("word-reader",new WordReader());
+//builder.setBolt("word-normalizer", new WordNormalizer())
+//	.shuffleGrouping("word-reader");
+//builder.setBolt("word-counter", new WordCounter(),2)
+//	.fieldsGrouping("word-normalizer", new Fields("word"));
+
+//Configuration
+Config conf = new Config();
+conf.put("wordsFile", args[0]);
+conf.setDebug(false);
+
+//Topology run
+conf.put(Config.TOPOLOGY_MAX_SPOUT_PENDING, 1);
+LocalCluster cluster = new LocalCluster();
+cluster.submitTopology("Getting-Started-Toplogie", conf, builder.createTopology());
+Thread.sleep(1000);
+cluster.shutdown();
+endsnippet
+ 
+snippet importstorm "Description" !b
+import org.apache.storm.Config;
+import org.apache.storm.LocalCluster;
+import org.apache.storm.topology.TopologyBuilder;
+endsnippet
+
+snippet importkinesisspout "import kinesis-storm-spout" !b
+import com.amazonaws.ClientConfiguration;
+import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
+import com.amazonaws.regions.Regions;
+import com.amazonaws.services.kinesis.stormspout.DefaultKinesisRecordScheme;
+import com.amazonaws.services.kinesis.stormspout.InitialPositionInStream;
+import com.amazonaws.services.kinesis.stormspout.KinesisSpout;
+import com.amazonaws.services.kinesis.stormspout.KinesisSpoutConfig;
+endsnippet
+
+snippet kinesisspout "Define a kinesis spout" !b
+final KinesisSpoutConfig config =
+	new KinesisSpoutConfig("kinesis-stream-name", "localhost:2181")
+		.withZookeeperPrefix("kinesis_spout")
+		.withKinesisRecordScheme(new DefaultKinesisRecordScheme())
+		.withInitialPositionInStream(InitialPositionInStream.TRIM_HORIZON)
+		.withRecordRetryLimit(3)
+		.withRegion(Regions.AP_NORTHEAST_1);
+
+final KinesisSpout spout = new KinesisSpout(config, new CustomCredentialsProviderChain(), new ClientConfiguration());
+TopologyBuilder builder = new TopologyBuilder();
+//LOG.info("Using Kinesis stream: " + config.getStreamName());
+
+// Using number of shards as the parallelism hint for the spout.
+builder.setSpout("kinesis_spout", spout, 2);
+
+endsnippet
