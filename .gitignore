@@ -30,3 +30,4 @@ emacs.d/projectile-bookmarks.eld
 *.iws
 # maven target/ dir contains the build artifacts
 target/
+neovim/.netrwhist
