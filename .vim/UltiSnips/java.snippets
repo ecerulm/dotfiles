@@ -268,10 +268,17 @@ Thread.sleep(1000);
 cluster.shutdown();
 endsnippet
  
-snippet importstorm "Description" !b
+snippet importstorm "import org.apache.storm..." !b
 import org.apache.storm.Config;
 import org.apache.storm.LocalCluster;
 import org.apache.storm.topology.TopologyBuilder;
+import org.apache.storm.Constants;
+import org.apache.storm.task.OutputCollector;
+import org.apache.storm.task.TopologyContext;
+import org.apache.storm.topology.OutputFieldsDeclarer;
+import org.apache.storm.topology.base.BaseRichBolt;
+import org.apache.storm.tuple.Tuple;
+import org.apache.storm.tuple.Fields;
 endsnippet
 
 snippet importkinesisspout "import kinesis-storm-spout" !b
@@ -299,6 +306,59 @@ TopologyBuilder builder = new TopologyBuilder();
 
 // Using number of shards as the parallelism hint for the spout.
 builder.setSpout("kinesis_spout", spout, 2);
+endsnippet
+
+snippet importserializable "import java.io.Serializable" !b
+import java.io.Serializable;
+$0
+endsnippet
+
+snippet bolt "Generates a new Storm Bolt" !b
+
+public class ${1:MyCustomBolt} extends BaseRichBolt {
+
+	private OutputCollector outputCollector;
+	
+	@Override
+	public Map<String, Object> getComponentConfiguration() {
+		Config config = new Config();
+		// send a tick tuple to this bolt every 10 secs
+		//config.put(Config.TOPOLOGY_TICK_TUPLE_FREQ_SECS, 10);
+		return config;
+	}
+	
+	@Override
+	public void prepare(Map stormConf, TopologyContext topologyContext, OutputCollector outputCollector) {
+		//Called when a task for this component is initialized within a worker on the cluster. It provides the bolt with the environment in which the bolt executes. 
+		// stormConf: This is the configuration provided to the topology merged in with cluster configuration on this machine.
+		// topologyContext: This object can be used to get information about this task's place within the topology, including the task id and component id of this task, input and output information, etc.
+		// outputCollector is thread-safe and should be saved as an instance variable of this bolt object.
+		this.outputCollector = outputCollector;
+	}
+	
+	@Override
+	public void execute(Tuple tuple) {
+		if (isTickTuple(tuple)) {
+			// periodic
+		} else {
+			// String partitionKey = tuple.getStringByField("partitionKey"); // assuming the incoming tuple has this field
+			// TODO: insert logic here 
+			//outputCollector.emit(new Values("fieldvalue1", "fielvalue2"), messageId);
+			//outputCollector.ack(tuple);
+		}
+	}
+	
+	private boolean isTickTuple(Tuple tuple) {
+		String sourceComponent = tuple.getSourceComponent();
+		String sourceStreamId = tuple.getSourceStreamId();
+		return sourceComponent.equals(Constants.SYSTEM_COMPONENT_ID) && sourceStreamId.equals(Constants.SYSTEM_TICK_STREAM_ID);
+	}
+	
+	@Override
+	public void declareOutputFields(OutputFieldsDeclarer outputFieldsDeclarer) {
+		outputFieldsDeclarer.declare(new Fields("fieldname1", "fieldname2")); // tuples emitted by this bolt have this fields
+	}
+}
 
 endsnippet
 # vim: set noexpandtab tabstop=2 :
