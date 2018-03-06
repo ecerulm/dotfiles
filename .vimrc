@@ -710,7 +710,8 @@ let g:neomake_maven_maker= {
 
 " [ERROR] /Users/.../github/.../App.java:[22,26] cannot find symbol
 
-let g:neomake_open_list = 2
+let g:neomake_open_list = 0
+" let g:neomake_open_list = 2 " a value of 2 will preserve the cursors position when the location-list or quickfix window is opened.
 " let g:neomake_logfile = '/Users/rl186056/neomake.log'
 " 1}}}
 
@@ -872,14 +873,14 @@ if exists('g:loaded_camelcasemotion')
 endif
 " }}}
 "
-" {{{1 Neomake automake
+" {{{1 Neomake automake :h neomake-automake
 
-  call neomake#configure#automake({
-  \ 'TextChanged': {},
-  \ 'InsertLeave': {},
-  \ 'BufWritePost': {'delay': 0},
-  \ 'BufWinEnter': {},
-  \ }, 500)
+  " call neomake#configure#automake({
+  " \ 'TextChanged': {},
+  " \ 'InsertLeave': {},
+  " \ 'BufWritePost': {'delay': 0},
+  " \ 'BufWinEnter': {},
+  " \ }, 500)
 " 1}}}
 
 endfunction
