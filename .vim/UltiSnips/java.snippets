@@ -197,11 +197,11 @@ Runnable runnable = new Runnable() {
 
 endsnippet
 
-snippet stringinputstream "InputStream from String" !b
+snippet s2is "InputStream from String" !b
 InputStream ${1:is} = new ByteArrayInputStream(${2:myString}.getBytes(StandardCharsets.UTF_8.name()));
 endsnippet
 
-snippet stringinputstream "InputStream from String (Apache Commons)" !b
+snippet s2is2 "InputStream from String (Apache Commons)" !b
 InputStream ${1:is} = IOUtils.toInputStream(source, "UTF-8");
 endsnippet
 
@@ -358,6 +358,212 @@ public class ${1:MyCustomBolt} extends BaseRichBolt {
 	public void declareOutputFields(OutputFieldsDeclarer outputFieldsDeclarer) {
 		outputFieldsDeclarer.declare(new Fields("fieldname1", "fieldname2")); // tuples emitted by this bolt have this fields
 	}
+}
+
+endsnippet
+
+snippet importdynamodb "import com.amazonaws..." !b
+import com.amazonaws.AmazonServiceException;
+import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
+import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
+import com.amazonaws.services.dynamodbv2.AttributeAction;
+import com.amazonaws.services.dynamodbv2.model.AttributeValue;
+import com.amazonaws.services.dynamodbv2.model.AttributeValueUpdate;
+import com.amazonaws.services.dynamodbv2.model.ResourceNotFound;
+
+import com.amazonaws.services.dynamodbv2.document.DynamoDB;
+import com.amazonaws.services.dynamodbv2.document.Table;
+
+import java.util.ArrayList;
+
+endsnippet
+
+snippet dynamoclient "AmazonDynamoDB ddb = ..." 
+AmazonDynamoDB ddb = AmazonDynamoDBClientBuilder.defaultClient();
+endsnippet
+
+snippet dynamoput "ddb.putItem(..." !b
+try {
+	ddb.putItem(table_name, item_values);
+} catch (ResourceNotFoundException e) {
+	//System.err.format("Error: The table \"%s\" can't be found.\n", table_name);
+	//System.exit(1);
+} catch (AmazonServiceException e) {
+	//System.err.println(e.getMessage());
+	//System.exit(1);
+}
+endsnippet
+
+snippet dynamoitemvalues "HashMap<String, AttributeValue> item_values = ..." !b
+// https://github.com/awsdocs/aws-doc-sdk-examples/blob/311e1b6a6bba04cc3318487f372d4b1dc03cf009/java/example_code/dynamodb/src/main/java/aws/example/dynamodb/PutItem.java#L77-L89
+HashMap<String, AttributeValue> item_values = new HashMap<String, AttributeValue>();
+
+item_values.put("attrName",  new AttributeValue().withN("123.2");
+endsnippet
+
+snippet resource "this.getClass().getResourceAsStream(..."
+InputStream is = this.getClass().getResourceAsStream("resource.txt"); // path begins at the this class, no leading /
+endsnippet
+
+snippet resource2string "resource to string" !b
+// https://stackoverflow.com/a/6068228/90580
+URL url = Resources.getResource("foo.txt");
+String text = Resources.toString(url, Charsets.UTF_8);
+endsnippet
+
+snippet importjackson "import " !b
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+endsnippet
+
+snippet sout "System.out.format(..." !b
+System.out.format("%s:%d", myString, myNumber);
+endsnippet
+
+snippet tostring "public String toString() ..." !b
+@Override
+public String toString() {
+	return "$0";
+}
+endsnippet
+
+snippet stormspout "Creates a storm spout" !b
+
+
+import org.apache.storm.topology.base.BaseRichSpout;
+import org.apache.storm.tuple.Fields;
+import org.apache.storm.topology.OutputFieldsDeclarer;
+import org.apache.storm.task.TopologyContext ;
+import org.apache.storm.spout.SpoutOutputCollector;
+
+
+import java.util.Map;
+
+
+public class MySpout extends BaseRichSpout {
+  public void declareOutputFields(OutputFieldsDeclarer declarer) {
+      declarer.declare(new Fields("field1", "field2"));
+  }
+
+
+  public void open(Map conf, TopologyContext context, SpoutOutputCollector collector) {
+      for(Object key: conf.keySet()) {
+          System.out.format("%s:%s", key, conf.get(key));
+      }
+  }
+
+  public void nextTuple() {
+  }
+}
+
+endsnippet
+
+
+snippet importsleep "import guava uninterruptibles" !b
+import com.google.common.util.concurrent.Uninterruptibles;
+import java.util.concurrent.TimeUnit;
+
+endsnippet
+
+snippet sleep "Guava sleep" !b
+Uninterruptibles.sleepUninterruptibly(${1:1000}, TimeUnit.${2:MILLISECONDS});
+endsnippet
+
+snippet importinstant "import java.time.Instant" !b
+import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.Duration;
+
+endsnippet
+
+snippet uuid "create uuid" !b
+final String workerId = InetAddress.getLocalHost().getCanonicalHostName() + ":" + UUID.randomUUID();
+endsnippet
+
+snippet importkcl "import kinesis client library" !b
+
+import com.amazonaws.services.kinesis.clientlibrary.interfaces.v2.IRecordProcessor;
+import com.amazonaws.services.kinesis.clientlibrary.interfaces.v2.IRecordProcessorFactory;
+import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
+import com.amazonaws.services.kinesis.clientlibrary.lib.worker.KinesisClientLibConfiguration;
+import com.amazonaws.services.kinesis.clientlibrary.lib.worker.Worker;
+import com.amazonaws.services.kinesis.clientlibrary.types.InitializationInput;
+import com.amazonaws.services.kinesis.clientlibrary.types.ProcessRecordsInput;
+import com.amazonaws.services.kinesis.clientlibrary.types.ShutdownInput;
+import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
+import com.amazonaws.services.kinesis.model.Record;
+
+
+endsnippet
+
+snippet try "try {} catch" !b
+try {
+	$0
+} catch (Exception e) {
+	throw new RuntimeException(e);
+}
+
+endsnippet
+
+snippet awslambdahandler "AWS Lambda Handler class " !b
+import java.io.InputStream;
+import java.io.OutputStream;
+import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
+import com.amazonaws.services.lambda.runtime.Context; 
+
+public class Hello implements RequestStreamHandler{
+	public static void handler(InputStream inputStream, OutputStream outputStream, Context context) throws IOException {
+		int letter;
+		while((letter = inputStream.read()) != -1)
+		{
+			outputStream.write(Character.toUpperCase(letter));
+		}
+	}
+}
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.IOException;
+import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
+import com.amazonaws.services.lambda.runtime.Context; 
+
+// Depends on org.amazonaws:aws-lambda-java-core:1.2.0
+public class AdasDynamoDb implements RequestStreamHandler{
+	@Override
+	public  void handleRequest(InputStream inputStream, OutputStream outputStream, Context context) throws IOException {
+		int letter;
+		while((letter = inputStream.read()) != -1)
+		{
+			outputStream.write(Character.toUpperCase(letter));
+		}
+	}
+}
+endsnippet
+
+snippet dynamodbclient "Description" !b
+AmazonDynamoDBClient ddb = AmazonDynamoDBClientBuilder.defaultClient();
+DynamoDB dynamoDb = new DynamoDB(ddb); // Document interface: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Programming.SDKs.Interfaces.Document.html
+
+endsnippet
+
+snippet dynamodbquery "AWS DynamoDb Query code" !b
+AmazonDynamoDB client = AmazonDynamoDBClientBuilder.standard()
+.withRegion(Regions.US_WEST_2).build();
+DynamoDB dynamoDB = new DynamoDB(client);
+
+Table table = dynamoDB.getTable("Reply");
+
+QuerySpec spec = new QuerySpec()
+	.withKeyConditionExpression("Id = :v_id")
+	.withValueMap(new ValueMap()
+		.withString(":v_id", "Amazon DynamoDB#DynamoDB Thread 1"));
+
+ItemCollection<QueryOutcome> items = table.query(spec);
+
+Iterator<Item> iterator = items.iterator();
+Item item = null;
+while (iterator.hasNext()) {
+	item = iterator.next();
+	System.out.println(item.toJSONPretty());
 }
 
 endsnippet

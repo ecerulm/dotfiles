@@ -1,3 +1,5 @@
+# vim:  set noexpandtab ts=2 :
+
 snippet dependency "maven <dependency>" !b
 <dependency>
 	<groupId>${1:slf-api}</groupId>
@@ -170,5 +172,100 @@ snippet kinesisspout "kinesis-storm-spout" !b
 	<groupId>com.amazonaws</groupId>
 	<artifactId>kinesis-storm-spout</artifactId>
 	<version>1.1.1</version>
+</dependency>
+endsnippet
+
+snippet shade "add uberjar shade plugin execution" !b
+<!-- project > build > plugins > plugin -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<version>3.1.0</version>
+				<executions>
+					<execution>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<!-- https://maven.apache.org/plugins/maven-shade-plugin/shade-mojo.html -->
+							<createDependencyReducedPom>false</createDependencyReducedPom>
+						</configuration>
+					</execution>
+				</executions>
+</plugin>
+
+endsnippet
+
+snippet stormshade "storm uberjar" !b
+<plugin>
+	<groupId>org.apache.maven.plugins</groupId>
+	<artifactId>maven-shade-plugin</artifactId>
+	<configuration>
+		<createDependencyReducedPom>true</createDependencyReducedPom>
+		<filters>
+			<filter>
+				<artifact>*:*</artifact>
+				<excludes>
+					<exclude>META-INF/*.SF</exclude>
+					<exclude>META-INF/*.sf</exclude>
+					<exclude>META-INF/*.DSA</exclude>
+					<exclude>META-INF/*.dsa</exclude>
+					<exclude>META-INF/*.RSA</exclude>
+					<exclude>META-INF/*.rsa</exclude>
+					<exclude>META-INF/*.EC</exclude>
+					<exclude>META-INF/*.ec</exclude>
+					<exclude>META-INF/MSFTSIG.SF</exclude>
+					<exclude>META-INF/MSFTSIG.RSA</exclude>
+				</excludes>
+			</filter>
+		</filters>
+	</configuration>
+	<executions>
+		<execution>
+			<phase>package</phase>
+			<goals>
+				<goal>shade</goal>
+			</goals>
+			<configuration>
+				<transformers>
+					<transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+					<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer"/>
+				</transformers>
+			</configuration>
+		</execution>
+	</executions>
+</plugin>
+
+endsnippet
+
+snippet sourcelevel "maven.compiler.source and target levels" !b
+<!-- project > properties -->
+<maven.compiler.source>1.8</maven.compiler.source>
+<maven.compiler.target>1.8</maven.compiler.target>
+
+endsnippet
+
+snippet kcl "depencency to amazon-kinesis-client" !b
+
+<dependency>
+	<groupId>com.amazonaws</groupId>
+	<artifactId>amazon-kinesis-client</artifactId>
+	<version>1.9.0</version>
+</dependency>
+
+endsnippet
+
+snippet utf8 "set source enconding" !b
+<!-- project > properties > project.build.sourceEnconding -->
+<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+endsnippet
+
+snippet aws "AWS SDK for Java" !b
+<!-- https://mvnrepository.com/artifact/com.amazonaws/aws-java-sdk -->
+<dependency>
+	<groupId>com.amazonaws</groupId>
+	<artifactId>aws-java-sdk</artifactId>
+	<version>1.11.285</version>
 </dependency>
 endsnippet
