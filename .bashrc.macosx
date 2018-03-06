@@ -61,5 +61,16 @@ function installkivy {
   pip install http://github.com/kivy/kivy/archive/master.zip
 }
 
+function ports {
+  sudo lsof -iTCP -sTCP:LISTEN -n -P
+}
+
+function ports2 {
+  netstat -anv|grep -i listen
+  # -a : show the status of each socket LISTEN , etc.
+  # -n : numeric ports and addresses instead of trying to dns resolve the addresses and servicename for ports
+  # -v : increase verbosity
+}
+
 export JAVA_HOME=`/usr/libexec/java_home -v 1.8`
 export BROWSER='/usr/bin/open -a "/Applications/Google Chrome.app" %s'
