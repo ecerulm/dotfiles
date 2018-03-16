@@ -539,6 +539,15 @@ function awslistinstance {
   # echo "git-bucket " `aws ec2 describe-instances --instance-id $AISIN_AWS_GITBUCKET_INSTANCEID  --profile dev-aisin --output text --query 'Reservations[*].Instances[*].[State.Name,PrivateIpAddress]'`
 }
 
+function mavenalljars {
+# Access parameters $1, $2, ${$1:mydefaultvalue}	"$@"
+  mvn dependency:build-classpath -DincludeScope=compile -Dmdep.outputFilterFile=true|grep 'classpath='|cut -f 2 -d '=' | tr ":" "\n"
+}
+
+function mvnalljars {
+  mavenalljars
+}
+
 
 # Don't ever put .bashrc.thismachine in git 
 # it contains SENSITIVE information
