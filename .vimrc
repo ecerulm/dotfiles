@@ -253,6 +253,9 @@ augroup END
 " Copy to system clipboard {{{2
 map <leader>y "*y
 
+" format xml
+map @@x %!xmllint --format --recover -<CR>
+
 
 " Move around splits with <c-hjkl>{{{2
 nnoremap <c-h> <c-w>h
