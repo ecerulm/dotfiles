@@ -208,33 +208,49 @@ function selfsignedcert {
 }
 
 function installjupyter27() {
-pyenv virtualenv 2.7.12 venv-jupyter27
-echo "install jupyter on venv-jupyter27 and some useful modules"
-pyenv shell venv-jupyter27
-pip install -U pip
-pip install jupyter numpy scikit-learn matplotlib pandas scipy seaborn ipykernel
+  pyenv virtualenv 2.7.12 venv-jupyter27
+  echo "install jupyter on venv-jupyter27 and some useful modules"
+  pyenv shell venv-jupyter27
+  pip install -U pip
+  pip install jupyter numpy scikit-learn matplotlib pandas scipy seaborn ipykernel
+  pip2 install ipykernel
+  python2 -m ipykernel install --user # kernelspec installed at Users/rl186056/Library/Jupyter/kernels/python2/kernel.json
 }
 
 function installjupyter36() {
-# install python 3.6.2 first with pyenv install 3.6.2
-pyenv virtualenv 3.6.2 venv-jupyter36
-pyenv shell venv-jupyter36
-pip3 install -U pip
-pip3 install jupyter numpy scikit-learn matplotlib pandas scipy seaborn ipykernel statsmodels
+  # install python 3.6.2 first with pyenv install 3.6.2
+  pyenv virtualenv 3.6.2 venv-jupyter36
+  pyenv shell venv-jupyter36
+  pip3 install -U pip
+  pip3 install jupyter numpy scikit-learn matplotlib pandas scipy seaborn ipykernel statsmodels
 
-# Deep Learning packages from https://github.com/the-deep-learners/TensorFlow-LiveLessons/blob/791d14280f53d4c340391c8990f86ceea9ae4303/Dockerfile
-pip3 install tensorflow=1.0.0 tflearn==0.3.2 keras==2.0.8 nltk==3.2.4 RUN pip install gensim==2.3.0 gym==0.9.4
-pip3 install pydot 
+  # Deep Learning packages from https://github.com/the-deep-learners/TensorFlow-LiveLessons/blob/791d14280f53d4c340391c8990f86ceea9ae4303/Dockerfile
+  pip3 install tensorflow==1.0.0 tflearn==0.3.2 keras==2.0.8 nltk==3.2.4 gensim==2.3.0 gym==0.9.4
+  pip3 install pydot
+  python3 -m pip install ipykernel
+  python3 -m ipykernel install --user # kernelpec installed at /Users/rl186056/Library/Jupyter/kernels/python3/kernel.json
+}
+
+function installjupyterlab() {
+  pyenv virtualenv 3.6.2 venv-jupyterlab
+  pyenv shell venv-jupyterlab
+  pip install -U pip
+  pip3 install numpy scikit-learn matplotlib pandas scipy seaborn ipykernel statsmodels
+  pip3 install tensorflow==1.0.0 tflearn==0.3.2 keras==2.0.8 nltk==3.2.4 gensim==2.3.0 gym==0.9.4
+  pip3 install pydot
+  python3 -m pip install ipykernel
+  python3 -m ipykernel install --user # kernelpec installed at /Users/rl186056/Library/Jupyter/kernels/python3/kernel.json
 }
 
 function installjupyter() {
   installjupyter27
   installjupyter36
+  installjupyterlab
 
   # install 2.7 kernel on the Py3 jupyter
-  $(pyenv prefix venv-jupyter27)/bin/python -m ipykernel install --prefix=$(pyenv prefix venv-jupyter36) --name 'Python-2-venv-jupyter27'
+  # $(pyenv prefix venv-jupyter27)/bin/python -m ipykernel install --prefix=$(pyenv prefix venv-jupyter36) --name 'Python-2-venv-jupyter27'
   # install 3.6 kernel on the Py2 jupyter
-  $(pyenv prefix venv-jupyter36)/bin/python -m ipykernel install --prefix=$(pyenv prefix venv-jupyter27) --name 'Python-3-venv-jupyter36'
+  # $(pyenv prefix venv-jupyter36)/bin/python -m ipykernel install --prefix=$(pyenv prefix venv-jupyter27) --name 'Python-3-venv-jupyter36'
 }
 
 jupyternotebookserver36() {
@@ -242,6 +258,13 @@ pyenv shell venv-jupyter36
 #cd ~/Dropbox/JupyterNotebooks/
 cd ~
 jupyter-notebook
+}
+
+function jupyterlabserver() {
+  pyenv shell venv-jupyterlab
+  cd ~
+  jupyter notebook --version
+  jupyter lab
 }
 
 function installmaven {
