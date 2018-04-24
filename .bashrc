@@ -573,6 +573,19 @@ function mavenalljars {
   mvn dependency:build-classpath -DincludeScope=compile -Dmdep.outputFilterFile=true|grep 'classpath='|cut -f 2 -d '=' | tr ":" "\n"
 }
 
+function mavendependencytree {
+  mvn dependency:tree -Ddetail=true
+}
+
+function mavencoverage {
+  mvn clean clover:setup test clover:aggregate clover:clover
+  open target/site/clover/dashboard.html
+}
+
+function mvncoverage {
+  mavencoverage
+}
+
 function mvnalljars {
   mavenalljars
 }
