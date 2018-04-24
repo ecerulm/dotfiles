@@ -239,6 +239,7 @@ function installjupyterlab() {
   pip3 install numpy scikit-learn matplotlib pandas scipy seaborn ipykernel statsmodels
   pip3 install tensorflow==1.0.0 tflearn==0.3.2 keras==2.0.8 nltk==3.2.4 gensim==2.3.0 gym==0.9.4
   pip3 install pydot
+  pip3 install h5py
   python3 -m pip install ipykernel
   python3 -m ipykernel install --user # kernelpec installed at /Users/rl186056/Library/Jupyter/kernels/python3/kernel.json
 }
