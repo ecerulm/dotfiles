@@ -16,6 +16,7 @@ set packpath+=~/.vim
 " Set the python interpreters to use
 " these ones point to virtual environments where the pip install neovim
 " has already been executed. See :h provider-python
+" use installneovimdependenciesfunction in bash
 for p in ['py27neovim', 'venv-py27-neovim']
   let fp = expand('~/.pyenv/versions/' . p . '/bin/python')
   if filereadable(fp)
