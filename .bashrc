@@ -97,6 +97,7 @@ alias ll='ls -alF'
 alias la='ls -A'
 alias l='ls -CF'
 alias vi=vim
+alias cssh="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
 
 # Add an "alert" alias for long running commands.  Use like so:
 #   sleep 10; alert
@@ -175,6 +176,12 @@ alias packages2install="curl -k https://gist.githubusercontent.com/ecerulm/be59e
 
 function gl {
   git l
+}
+
+function gdca {
+  # Diff branch head from the branching point (common ancestor of branch and master)
+  # Access parameters $1, $2, ${$1:mydefaultvalue}	"$@"
+  git diff $(git merge-base "$1" master) "$1"
 }
 
 function rtags {
@@ -569,6 +576,16 @@ function awslistinstance {
   # echo "git-bucket " `aws ec2 describe-instances --instance-id $AISIN_AWS_GITBUCKET_INSTANCEID  --profile dev-aisin --output text --query 'Reservations[*].Instances[*].[State.Name,PrivateIpAddress]'`
 }
 
+function awslistinstancenames {
+  # Access parameters $1, $2, ${$1:mydefaultvalue}	"$@"
+  aws ec2 describe-instances --output text --query 'Reservations[*].Instances[*].Tags[?Key==`Name`].Value'
+}
+
+function awsfindautoscalinggroupofinstance {
+  # Access parameters $1, $2, ${$1:mydefaultvalue}	"$@"
+  aws autoscaling describe-auto-scaling-instances --instance-ids "$@"
+
+}
 function mavenalljars {
 # Access parameters $1, $2, ${$1:mydefaultvalue}	"$@"
   mvn dependency:build-classpath -DincludeScope=compile -Dmdep.outputFilterFile=true|grep 'classpath='|cut -f 2 -d '=' | tr ":" "\n"
