@@ -94,3 +94,5 @@
 	tool = vimdiff
 [http "https://gopkg.in"]
 	followRedirects = true
+[difftool "filemerge"]
+	cmd = opendiff \"$LOCAL\" \"$REMOTE\"
