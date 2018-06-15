@@ -1,6 +1,5 @@
 # .bash_profile is executed only for login shell (ssh or terminal emulator) 
 
-[[ -s "$HOME/.profile" ]] && source "$HOME/.profile" # Load the default .profile
 
 
 test -e "${HOME}/.iterm2_shell_integration.bash" && source "${HOME}/.iterm2_shell_integration.bash"
@@ -23,3 +22,6 @@ if [ $(type -P "brew") ]; then # or $(type -P "brew")
 fi
 
 export LC_ALL="en_US.UTF-8"
+
+# we do this at the end so that pyenv path is before brew path
+[[ -s "$HOME/.profile" ]] && source "$HOME/.profile" # Load the default .profile

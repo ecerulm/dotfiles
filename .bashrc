@@ -283,16 +283,8 @@ function installmaven {
 }
 
 
-PYENV_ROOT="$HOME/.pyenv"
 
-if [ -d $PYENV_ROOT ]; then
-  export PYENV_ROOT
-  export PATH="$PYENV_ROOT/bin:$PATH"
-  export PYENV_VIRTUALENV_DISABLE_PROMPT=1
 
-  eval "$(pyenv init -)"
-  eval "$(pyenv virtualenv-init -)"
-fi
 
 RENV_ROOT="$HOME/.Renv"
 if [ -d "$RENV_ROOT" ]; then
@@ -621,3 +613,15 @@ if [ -d "$HOME/.sdkman" ]; then
   export SDKMAN_DIR="$HOME/.sdkman"
   [[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]] && source "$HOME/.sdkman/bin/sdkman-init.sh"
 fi
+
+PYENV_ROOT="$HOME/.pyenv"
+
+if [ -d $PYENV_ROOT ]; then
+  export PYENV_ROOT
+  export PATH="$PYENV_ROOT/bin:$PATH"
+  export PYENV_VIRTUALENV_DISABLE_PROMPT=1
+
+  eval "$(pyenv init -)"
+  eval "$(pyenv virtualenv-init -)"
+fi
+

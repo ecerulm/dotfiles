@@ -8,13 +8,6 @@
 # for ssh logins, install and configure the libpam-umask package.
 #umask 022
 
-# if running bash
-if [ -n "$BASH_VERSION" ]; then
-    # include .bashrc if it exists
-    if [ -f "$HOME/.bashrc" ]; then
-	. "$HOME/.bashrc"
-    fi
-fi
 
 # set PATH so it includes user's private bin if it exists
 if [ -d "$HOME/bin" ] ; then
@@ -30,4 +23,13 @@ fi
 
 if [ $(type -P "brew") ]; then # or $(type -P "brew")
     export PATH="$(brew --prefix)/bin:$(brew --prefix)/sbin:$PATH"
+fi
+
+
+# if running bash, you want this at the end so that pyenv path is before brew path, 
+if [ -n "$BASH_VERSION" ]; then
+    # include .bashrc if it exists
+    if [ -f "$HOME/.bashrc" ]; then
+	. "$HOME/.bashrc"
+    fi
 fi
