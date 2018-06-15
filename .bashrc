@@ -181,7 +181,8 @@ function gl {
 function gdca {
   # Diff branch head from the branching point (common ancestor of branch and master)
   # Access parameters $1, $2, ${$1:mydefaultvalue}	"$@"
-  git diff $(git merge-base "$1" master) "$1"
+  CID=${1:-HEAD}
+  git diff $(git merge-base "$CID" master) "$CID"
 }
 
 function rtags {
@@ -243,12 +244,12 @@ function installjupyterlab() {
   pyenv virtualenv 3.6.2 venv-jupyterlab
   pyenv shell venv-jupyterlab
   pip install -U pip
-  pip3 install jupyter jupyterlab jupyterlab-launcher numpy scikit-learn matplotlib pandas scipy seaborn ipykernel statsmodels
+  pip3 install -U jupyter jupyterlab jupyterlab-launcher numpy scikit-learn matplotlib pandas scipy seaborn ipykernel statsmodels
   pip3 install tensorflow==1.0.0 tflearn==0.3.2 keras==2.0.8 nltk==3.2.4 gensim==2.3.0 gym==0.9.4
-  pip3 install pydot
-  pip3 install h5py
+  pip3 install -U pydot
+  pip3 install -U h5py
   python -m pip install ipykernel
-  python -m ipykernel install --user # kernelpec installed at /Users/rl186056/Library/Jupyter/kernels/python3/kernel.json
+  # python -m ipykernel install --user # kernelpec installed at /Users/rl186056/Library/Jupyter/kernels/python3/kernel.json
 }
 
 function installjupyter() {
@@ -272,8 +273,15 @@ jupyter-notebook
 function jupyterlabserver() {
   pyenv shell venv-jupyterlab
   cd ~
-  jupyter notebook --version
-  jupyter lab
+  # jupyter notebook --version
+
+  # https://github.com/jupyterlab/jupyterlab/issues/2980
+  jupyter lab --NotebookApp.notebook_dir=$HOME
+}
+
+function pipinstallds() {
+  pip install matplotlib numpy scikit-learn pandas seaborn 
+  pip install scipy
 }
 
 function installmaven {
@@ -282,8 +290,14 @@ function installmaven {
   mv apache-maven-3.5.0 $HOME/.local/stow/
 }
 
+function installjupyterlabextensions {
+# Access parameters $1, $2, ${$1:mydefaultvalue}	"$@"
+  pyenv shell venv-jupyterlab
 
+  # table of contents plugin
+  jupyter labextension install jupyterlab-toc
 
+}
 
 
 RENV_ROOT="$HOME/.Renv"
@@ -598,6 +612,19 @@ function mvncoverage {
 
 function mvnalljars {
   mavenalljars
+}
+
+function dockerjenkins {
+# Access parameters $1, $2, ${$1:mydefaultvalue}	"$@"
+echo "To get latest version of docker run:"
+echo "docker pull jenkins/jenkins:lts"
+echo "https://github.com/jenkinsci/docker/blob/master/README.md"
+docker run -p 8080:8080 -p 50000:50000 -v jenkins_home:/var/jenkins_home jenkins/jenkins:lts
+}
+
+function bashrc() {
+  vim ~/.bashrc
+  source ~/.bashrc
 }
 
 
