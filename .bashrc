@@ -363,7 +363,15 @@ for MAVEN_HOME in "$HOME/.local/stow/apache-maven-3.5.0"; do
 done
 
 
-for SPARK_HOME in "$HOME/.local/stow/spark-2.2.0-bin-hadoop2.7/"; do
+
+# If you are using sdkman to install spark this will have no effect
+# since sdkman loads after 
+SPARK_HOME_CANDIDATES=(
+"$HOME/.local/stow/spark-2.2.0-bin-hadoop2.7/"
+"$HOME/spark-2.3.1-bin-hadoop2.7/"
+)
+
+for SPARK_HOME in "${SPARK_HOME_CANDIDATES[@]}"; do
   debug "Checking for SPARK_HOME=${SPARK_HOME}"
   if [ -d "$SPARK_HOME" ]; then
     debug "Setting  SPARK_HOME=${SPARK_HOME}"
@@ -652,3 +660,4 @@ if [ -d $PYENV_ROOT ]; then
   eval "$(pyenv virtualenv-init -)"
 fi
 
+export GPG_TTY=$(tty)

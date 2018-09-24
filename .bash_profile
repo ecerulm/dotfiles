@@ -25,3 +25,7 @@ export LC_ALL="en_US.UTF-8"
 
 # we do this at the end so that pyenv path is before brew path
 [[ -s "$HOME/.profile" ]] && source "$HOME/.profile" # Load the default .profile
+
+##THIS MUST BE AT THE END OF THE FILE FOR SDKMAN TO WORK!!!
+#export SDKMAN_DIR="/Users/rublag/.sdkman"
+#[[ -s "/Users/rublag/.sdkman/bin/sdkman-init.sh" ]] && source "/Users/rublag/.sdkman/bin/sdkman-init.sh"
