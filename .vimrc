@@ -851,12 +851,16 @@ function! ConfigAfterPluginLoaded()
     call denite#custom#var('grep', 'final_opts', [])
     call denite#custom#map('insert', '<C-j>', '<denite:move_to_next_line>', 'noremap')
     call denite#custom#map('insert', '<C-k>', '<denite:move_to_previous_line>', 'noremap')
+   
 
     nnoremap <C-p> :<C-u>Denite file_rec<cr>
     nnoremap <leader>g :<C-u>Denite -no-split -buffer-name=ag grep<cr>
 
     " what is the Denite command to see all open buffers
     nnoremap <leader>o :<C-u>Denite buffer<cr>
+    
+    " Browse tags / ctags
+    noremap <leader>c :<C-u>Denite tags<cr>
   endif
   " Denite }}}
  
@@ -965,6 +969,7 @@ call plug#begin('~/.vim/plugged')
   " Plug 'tsukkee/unite-tag'
   " Plug 'Shougo/neocomplete'     " required by unite-tag , needs vim if_lua
   Plug 'Shougo/denite.nvim'  " like unite.vim but for vim8 / neovim
+  Plug 'ozelentok/denite-gtags'
   " Plug 'Shougo/vimproc.vim'
   " Plug 'Shougo/neomru.vim'
   " Plug 'Shougo/neocomplcache'

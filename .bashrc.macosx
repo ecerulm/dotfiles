@@ -33,6 +33,7 @@ function installopt {
   brew install scala
   brew install go
   brew install ctags
+  brew install global # replacement for ctags
   brew install ffmpeg
   brew install neovim
   brew install the_silver_searcher
