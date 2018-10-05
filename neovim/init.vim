@@ -34,6 +34,3 @@ endfor
 
 " .vimrc works for both vim and neovim
 source ~/.vimrc
-
-
-

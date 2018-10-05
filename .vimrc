@@ -838,8 +838,8 @@ function! ConfigAfterPluginLoaded()
   if exists(":Denite")
     " echomsg "Denite is ON"
     " Change file_rec command.
-    call denite#custom#var('file_rec', 'command', ['ag', '--follow', '--nocolor', '--nogroup', '-g', ''])
-    call denite#custom#var('file_rec', 'command', ['rg', '--files', '--glob', '!.git', ''])
+    " call denite#custom#var('file_rec', 'command', ['ag', '--follow', '--nocolor', '--nogroup', '-g', ''])
+    call denite#custom#var('file_rec', 'command', ['rg', '--files', '--glob', '!.git' ])
 
    " Ripgrep command on grep source
     call denite#custom#var('grep', 'command', ['rg'])
