@@ -49,7 +49,8 @@
   lc = rev-parse HEAD
   ctags = !.git/hooks/ctags
   standup = log --since=yesterday --author 'ecerulm\\|ruben\\|Ruben'
-  lol = log --graph --decorate --pretty=oneline --abbrev-commit --all
+  lol = log --graph --decorate --pretty=oneline --abbrev-commit
+  lola = log --graph --decorate --pretty=oneline --abbrev-commit --all
   purr = pull --rebase
   ready = rebase -i @{u}
   rebasebranch = !git rebase -i $(git merge-base HEAD master)
