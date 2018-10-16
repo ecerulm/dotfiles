@@ -173,6 +173,7 @@ alias gdm="git diff master"
 alias gdms="git diff --stat master"
 alias gdlc="git diff HEAD^ HEAD" # or git diff @~..@ 
 alias packages2install="curl -k https://gist.githubusercontent.com/ecerulm/be59ec62ad77178d61a5/raw | sh"
+alias pipenv=/usr/local/bin/pipenv
 
 function gl {
   git l
@@ -660,4 +661,11 @@ if [ -d $PYENV_ROOT ]; then
   eval "$(pyenv virtualenv-init -)"
 fi
 
+alias pipenv=/usr/local/bin/pipenv
+export PIPENV_IGNORE_VIRTUALENVS=1 
+
 export GPG_TTY=$(tty)
+
+export LANG="en_US.UTF-8"
+
+[ -f ~/.fzf.bash ] && source ~/.fzf.bash
