@@ -33,3 +33,6 @@ if [ -n "$BASH_VERSION" ]; then
 	. "$HOME/.bashrc"
     fi
 fi
+
+# added by Snowflake SnowSQL installer v1.0
+[ -d "/Applications/SnowSQL.app/Contents/MacOS" ] && export PATH=/Applications/SnowSQL.app/Contents/MacOS:$PATH
