@@ -31,3 +31,4 @@ emacs.d/projectile-bookmarks.eld
 # maven target/ dir contains the build artifacts
 target/
 neovim/.netrwhist
+.idea
