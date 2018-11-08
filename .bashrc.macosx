@@ -63,7 +63,16 @@ function installkivy {
 }
 
 function ports {
+  # https://apple.stackexchange.com/questions/117644/how-can-i-list-my-open-network-ports-with-netstat
+  # netstat -ap tcp | grep -i "listen"
+  # sudo lsof -PiTCP -sTCP:LISTEN
+  # lsof -Pn -i4
+
   sudo lsof -iTCP -sTCP:LISTEN -n -P
+}
+
+function openports {
+  ports
 }
 
 function ports2 {
