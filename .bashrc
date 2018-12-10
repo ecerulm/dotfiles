@@ -637,6 +637,9 @@ function bashrc() {
   source ~/.bashrc
 }
 
+function httpserver() {
+  python -m SimpleHTTPServer 8080
+}
 
 # Don't ever put .bashrc.thismachine in git 
 # it contains SENSITIVE information
