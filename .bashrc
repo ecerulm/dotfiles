@@ -172,6 +172,7 @@ alias glc="git rev-parse HEAD"
 alias gdm="git diff master"
 alias gdms="git diff --stat master"
 alias gdlc="git diff HEAD^ HEAD" # or git diff @~..@ 
+alias gfa="git fetch --all"
 alias packages2install="curl -k https://gist.githubusercontent.com/ecerulm/be59ec62ad77178d61a5/raw | sh"
 alias pipenv=/usr/local/bin/pipenv
 
