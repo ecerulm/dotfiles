@@ -86,5 +86,10 @@ function postgresqlserver {
   pg_ctl -D /usr/local/var/postgres start
 }
 
+function pjc {
+  # prettify the json contents in the clipboard
+  pbpaste | jq -S . | pbcopy
+}
+
 export JAVA_HOME=`/usr/libexec/java_home -v 1.8`
 export BROWSER='/usr/bin/open -a "/Applications/Google Chrome.app" %s'
