@@ -916,6 +916,8 @@ command! FixPost call FixPost()
 let @b = "jddodate: =expand('%:t')[0:9]jkjyypciwaliasesjkf/i- jk:w"
 " Macros @ }}}1
 
+" Highlight unwanted spaces / trailing spaces
+" http://vim.wikia.com/wiki/Highlight_unwanted_spaces
 
 " Plugins {{{
 " This plugins are loaded for both vim and neovim
