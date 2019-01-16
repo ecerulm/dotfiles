@@ -641,6 +641,12 @@ function httpserver() {
   python -m SimpleHTTPServer 8080
 }
 
+function scalareplgradle {
+  # This requires that your  gradle project has a printClasspath task 
+  # https://chris-martin.org/2015/gradle-scala-repl
+  java -Dscala.usejavacp=true -classpath "$(gradle printClasspath --quiet)" scala.tools.nsc.MainGenericRunner
+}
+
 # Don't ever put .bashrc.thismachine in git 
 # it contains SENSITIVE information
 if [ -f ~/.bashrc.thismachine ]; then
