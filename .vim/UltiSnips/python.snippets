@@ -309,6 +309,12 @@ with open(${1:filename}, "r") as ${2:f}:
 	f.read()
 endsnippet
 
+snippet loadbinaryfile "with open ... read"
+# Read the entire file a single bytes string
+with open(${1:filename}, "rb") as ${2:f}:
+	 buf = r.read()
+endsnippet
+
 snippet ctxmanager "implement __enter__ and __exit__"
 class ${1:MyContextManager}:
 	"""Creates a context manager."""
