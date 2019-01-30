@@ -175,6 +175,7 @@ alias gdlc="git diff HEAD^ HEAD" # or git diff @~..@
 alias gfa="git fetch --all"
 alias packages2install="curl -k https://gist.githubusercontent.com/ecerulm/be59ec62ad77178d61a5/raw | sh"
 alias pipenv=/usr/local/bin/pipenv
+alias nvr=/Users/rublag/.pyenv/versions/venv-py36-neovim/bin/nvr
 
 function gl {
   git l
@@ -677,6 +678,14 @@ export PIPENV_IGNORE_VIRTUALENVS=1
 export GPG_TTY=$(tty)
 
 export LANG="en_US.UTF-8"
+
+if [ -n "$NVIM_LISTEN_ADDRESS" ]; then 
+  if [ -n "$(command -v nvr)" ]; then
+    alias nvim=nvr
+  else
+    alias nvim='echo "No nesting!"'
+  fi
+fi
 
 [ -f ~/.fzf.bash ] && source ~/.fzf.bash
 
