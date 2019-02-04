@@ -183,7 +183,6 @@ augroup vimrcEx " Put them in a group so we delete them easily
      \ if line("'\"") > 0 && line("'\"") <= line("$") |
      \   exe "normal g`\"" |
      \ endif
-
   " Indent p tags {{{2
   "autocmd FileType html,eruby if g:html_indent_tags !~ '\\|p\>' | let g:html_indent_tags .= '\|p\|li\|dt\|dd' | endif
 
@@ -241,6 +240,8 @@ augroup vimrcEx " Put them in a group so we delete them easily
   " Disable syntax highlighting for big files {{{2
   autocmd BufWinEnter * if line2byte(line("$") + 1) > 1000000 | syntax clear | endif
   " autocmd BufReadPre * if getfsize(expand("%")) > 10000000 | syntax sync clear | endif
+  " save the job id of the last terminal for use with chansend() {{{2
+  autocmd TermOpen * let g:last_terminal_job_id = &channel
 augroup END
 
 
@@ -728,9 +729,9 @@ function! ConfigAfterPluginLoaded()
   " a machine that has not installed the plugins
   "
 
-  "{{{1 set colorscheme 
+  "{{{ set colorscheme
   colorscheme gruvbox
-  "1}}}
+  "}}}
   " vim-cycle groups {{{
   if exists("*AddCycleGroup")
     call AddCycleGroup('python', ['True', 'False'])
@@ -881,20 +882,17 @@ if exists('g:loaded_camelcasemotion')
 endif
 " }}}
 "
-" {{{1 Neomake automake :h neomake-automake
+" {{{ Neomake automake :h neomake-automake
 
   " call neomake#configure#automake({
   " \ 'TextChanged': {},
   " \ 'InsertLeave': {},
   " \ 'BufWritePost': {'delay': 0},
   " \ 'BufWinEnter': {},
-  " \ }, 500)
-" 1}}}
+  " \ }, 500) " }}}
 
-endfunction
+endfunction "function! ConfigAfterPluginLoaded()
 " }}} Configuration to run after all plugins are loaded
-"
-
 fun! FixPost() "{{{
   " :help :silent
   " :help :s_flags
@@ -906,10 +904,16 @@ fun! FixPost() "{{{
   :silent! %s/&lt;/</g
   :silent! %s/&gt;/>/g
   :silent! %s/\\\\/\\/g
-endfunction "}}}
+endfunction
 
 command! FixPost call FixPost()
-
+"}}} FixPost
+" :Terminal command to open neovim term at bottom {{{
+"
+if has('nvim')
+  command! Terminal :botright :split term://bash
+  command! GwTest :wall | :call chansend(g:last_terminal_job_id, "gw test\n")
+endif " }}}
 " Macros @ {{{1
 " @b will fix a octopress post into a hugo post, it deletes layout add date
 " and add aliases
