@@ -1,3 +1,13 @@
 snippet patternmatch "val pattern(outputVar) = input" !b
 val ${1:pattern}(${2:outputVar}) = ${3:input}
 endsnippet
+
+snippet flatspec ".... extends FlatSpec" !b
+import org.scalatest.FlatSpec
+
+class ${1:My}Spec extends FlatSpec {
+  "${2:An empty Set}" should "${3:have size 0}" in {
+    assert(${4:assert(Set.empty.size == 0)})
+  }
+}
+endsnippet
