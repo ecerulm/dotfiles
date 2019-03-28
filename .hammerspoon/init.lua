@@ -1,3 +1,7 @@
+require "credentials"
+
+local hyper = {"cmd", "alt", "ctrl", "shift"}
+
 hs.hotkey.bind({"cmd", "alt", "ctrl"}, "W", function()
     hs.notify.new({title="Hammerspoon", informativeText="Hello World"}):send()
   end)
@@ -118,15 +122,52 @@ hs.reload()
 end)
 
 hs.hotkey.bind({"cmd", "alt", "ctrl", "shift"}, 'X', function() -- PRETTIFY JSON IN CLIPBOARD
+  prettifyJsonInPasteboard()
+  hs.alert.show("clipboard update with prettified JSON")
+end)
+
+function prettifyJsonInPasteboard()
   local file = io.open("/Users/rublag/tmp.json", "w")
   file:write(hs.pasteboard.readString())
   file:close()
   hs.execute("/usr/local/bin/jq . /Users/rublag/tmp.json > /Users/rublag/tmp2.json")
   file = io.open("/Users/rublag/tmp2.json", "r")
   hs.pasteboard.setContents(file:read("*all"))
-  hs.alert.show("clipboard update with prettified JSON")
-end)
+end
 
+hs.hotkey.bind(hyper, 'V', function() -- CREATE A GIST WITH THE CONTENTS OF PASTEBOARD
+  -- https://developer.github.com/v3/gists/#create-a-gist
+  -- authentication https://developer.github.com/apps/building-oauth-apps/understanding-scopes-for-oauth-apps/
+  -- hs.http https://www.hammerspoon.org/docs/hs.http.html
+  -- hs.json https://www.hammerspoon.org/docs/hs.json.html
+  local data = {
+    files={
+      ["file1.txt"]={
+        content=hs.pasteboard.readString()
+      }
+    }
+  }
+  local json = hs.json.encode(data,true)
+  --hs.dialog.blockAlert(json, "json is")
+  local headers = {
+    ["Authorization"]="token " .. credentials.gistCredentials.token
+  }
+
+
+  local code, body, headers = hs.http.post(credentials.gistCredentials.endpoint, json, headers)
+  local response = hs.json.decode(body)
+
+  hs.alert.show("POST gist returned" .. code)
+  if ( code ~= 201) then
+    hs.pasteboard.setContents(json)
+    hs.dialog.blockAlert(response, "code:" .. code)
+  else
+    local html_url = response.html_url
+    hs.pasteboard.setContents(html_url)
+    hs.alert.show("gist url " .. html_url .. " copied to pasteboard")
+    hs.urlevent.openURL(html_url)
+  end
+end)
 
 hs.hotkey.bind({"cmd", "alt", "ctrl", "shift"}, 'C', function() -- SCREENSHOT TO EVERNOTE
 hs.task.new("/usr/sbin/screencapture",
