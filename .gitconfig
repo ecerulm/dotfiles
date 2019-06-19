@@ -58,6 +58,7 @@
   undomerge = reset --merge ORIG_HEAD
   diffbase = !cd ${GIT_PREFIX:-.} && git diff $(git merge-base HEAD ${1-origin/master}) ${1-origin/master}
   pristine = !sh -c 'git reset --hard $1 && git clean -qdfx && git status' -
+  diffmaster = !git diff $(git merge-base --fork-point master) # Current branch from fork point
 
   # From https://robots.thoughtbot.com/streamline-your-git-workflow-with-aliases
   c = commit -m
