@@ -195,6 +195,7 @@ function rtags {
 function dotfiles {
   cd ~/dotfiles
   s
+  open https://github.com/ecerulm/dotfiles
 }
 
 function globalrtags {
@@ -301,6 +302,12 @@ function installjupyterlabextensions {
   jupyter labextension install jupyterlab-toc
 
 }
+
+function sparkshell {
+  echo "Run sdk use spark 2.4.0 # SDKman"
+  $SPARK_HOME/bin/spark-shell --master local[2]
+}
+
 
 
 RENV_ROOT="$HOME/.Renv"
