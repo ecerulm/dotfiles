@@ -160,7 +160,7 @@ hs.hotkey.bind(hyper, 'V', function() -- CREATE A GIST WITH THE CONTENTS OF PAST
   hs.alert.show("POST gist returned" .. code)
   if ( code ~= 201) then
     hs.pasteboard.setContents(json)
-    hs.dialog.blockAlert(response, "code:" .. code)
+    hs.dialog.blockAlert(response, "code: " .. code)
   else
     local html_url = response.html_url
     hs.pasteboard.setContents(html_url)
@@ -200,10 +200,14 @@ hs.hotkey.bind({"cmd", "alt", "ctrl", "shift"}, '8', function() -- SLACK
   focusAppOnMousePointer("Slack")
 end)
 
+hs.hotkey.bind({"cmd", "alt", "ctrl", "shift"}, '9', function() -- SLACK
+  focusAppOnMousePointer("iTerm2")
+end)
+
 function focusAppOnMousePointer(appName)
   local screen = hs.mouse.getCurrentScreen() -- http://www.hammerspoon.org/docs/hs.mouse.html#getCurrentScreen
   local screenFrame = screen:frame()
-  hideApplicationsWithWindowsOnScreen(screen) -- hide all other windows
+  -- hideApplicationsWithWindowsOnScreen(screen) -- hide all other windows
 
 
   local app = hs.application.get(appName)
