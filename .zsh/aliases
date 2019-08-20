@@ -32,8 +32,13 @@ if [[ `uname -s` == 'Linux' ]]; then
 #   alias tmuxinator='LD_LIBRARY_PATH=/home/ecerulm/local/lib tmuxinator'
 # alias tmux='LD_LIBRARY_PATH=/home/ecerulm/local/lib tmux'
 fi
-if [[ -z '/usr/local/bin/vim' ]]; then
+if [[ -x '/usr/local/bin/vim' ]]; then
   alias vim='/usr/local/bin/vim'
   alias vi=vim
 fi
 alias vi=vim
+
+if [[ -x '/usr/local/bin/nvim' ]]; then
+  alias vim='/usr/local/bin/nvim'
+  alias vi=vim
+fi

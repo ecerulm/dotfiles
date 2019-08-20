@@ -21,7 +21,12 @@ HISTSIZE=1000000
 SAVEHIST=1000000
 #setopt extendedglob notify
 setopt append_history
+setopt extended_history
 setopt inc_append_history
+setopt hist_find_no_dups # Don's show duplicates in search
+setopt hist_ignore_space # Don't preserve spaces.
+setopt no_hist_beep
+setopt share_history # Share history between sessions/terminals
 unsetopt autocd
 #bindkey -e #emacs mode
 bindkey -v  #vi mode
