@@ -130,7 +130,7 @@ function prettifyJsonInPasteboard()
   local file = io.open("/Users/rublag/tmp.json", "w")
   file:write(hs.pasteboard.readString())
   file:close()
-  hs.execute("/usr/local/bin/jq . /Users/rublag/tmp.json > /Users/rublag/tmp2.json")
+  hs.execute("/usr/local/bin/jq -S . /Users/rublag/tmp.json > /Users/rublag/tmp2.json")
   file = io.open("/Users/rublag/tmp2.json", "r")
   hs.pasteboard.setContents(file:read("*all"))
 end
