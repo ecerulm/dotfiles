@@ -112,6 +112,8 @@ if [ -f ~/.bash_aliases ]; then
     . ~/.bash_aliases
 fi
 
+alias codepoints="perl -C7 -ne 'for(split(//)){print sprintf("U+%04X", ord)." ".$_."\n"}'" # Get unicode codepoints of a string, (utf-8, unicode)
+
 # enable programmable completion features (you don't need to enable
 # this, if it's already enabled in /etc/bash.bashrc and /etc/profile
 # sources /etc/bash.bashrc).
