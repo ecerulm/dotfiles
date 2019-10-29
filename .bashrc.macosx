@@ -82,8 +82,12 @@ function ports2 {
   # -v : increase verbosity
 }
 
-function postgresqlserver {
+function postgresqlserverstart {
   pg_ctl -D /usr/local/var/postgres start
+}
+
+function postgresqlserverstop {
+  pg_ctl -D /usr/local/var/postgres stop
 }
 
 function pjc {
