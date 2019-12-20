@@ -203,6 +203,9 @@ end)
 hs.hotkey.bind({"cmd", "alt", "ctrl", "shift"}, '9', function() -- SLACK
   focusAppOnMousePointer("iTerm2")
 end)
+hs.hotkey.bind(hyper, '1', function() -- CREATE A GIST WITH THE CONTENTS OF PASTEBOARD
+  noStrongOpinionAudio()
+end)
 
 function focusAppOnMousePointer(appName)
   local screen = hs.mouse.getCurrentScreen() -- http://www.hammerspoon.org/docs/hs.mouse.html#getCurrentScreen
@@ -233,4 +236,25 @@ function hideApplicationsWithWindowsOnScreen(screen)
       w:application():hide()
     end
   end
+end
+
+function noStrongOpinionAudio()
+  -- save state
+  local currentOutputDevice = hs.audiodevice.defaultOutputDevice()
+  local currentVolume  = currentOutputDevice:outputVolume()
+  local currentMutedState = currentOutputDevice:muted()
+
+  -- set audio output to speakers, volume to max and open youtube clip
+  local speakers = hs.audiodevice.findOutputByName('MacBook Pro Speakers')
+  speakers:setDefaultOutputDevice()
+  speakers:setOutputMuted(false)
+  speakers:setOutputVolume(100)
+  hs.urlevent.openURL('https://www.youtube.com/watch?v=CxK_nA2iVXw')
+  hs.timer.doAfter(5.5, function()
+
+    -- restore state
+    currentOutputDevice:setDefaultOutputDevice()
+    currentOutputDevice:setOuputMuted(currentMutedState)
+    currentOutputDevice:setOutputVolume(currentVolume)
+  end)
 end
