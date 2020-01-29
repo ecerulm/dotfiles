@@ -6,7 +6,7 @@ hs.hotkey.bind({"cmd", "alt", "ctrl"}, "W", function()
     hs.notify.new({title="Hammerspoon", informativeText="Hello World"}):send()
   end)
 
-hs.hotkey.bind({"cmd", "alt", "ctrl", "shift"}, "H", function()
+hs.hotkey.bind(hyper, "H", function() -- move window left 10 px
   local win = hs.window.focusedWindow()
   local f = win:frame()
 
@@ -14,7 +14,7 @@ hs.hotkey.bind({"cmd", "alt", "ctrl", "shift"}, "H", function()
   win:setFrame(f)
 end)
 
-hs.hotkey.bind({"cmd", "alt", "ctrl", "shift"}, "L", function()
+hs.hotkey.bind(hyper, "L", function() -- move window right 10 px
   local win = hs.window.focusedWindow()
   local f = win:frame()
 
@@ -22,7 +22,7 @@ hs.hotkey.bind({"cmd", "alt", "ctrl", "shift"}, "L", function()
   win:setFrame(f)
 end)
 
-hs.hotkey.bind({"cmd", "alt", "ctrl", "shift"}, "k", function()
+hs.hotkey.bind(hyper, "k", function() -- move window down 10 px
   local win = hs.window.focusedWindow()
   local f = win:frame()
 
@@ -30,7 +30,7 @@ hs.hotkey.bind({"cmd", "alt", "ctrl", "shift"}, "k", function()
   win:setFrame(f)
 end)
 
-hs.hotkey.bind({"cmd", "alt", "ctrl", "shift"}, "J", function()
+hs.hotkey.bind(hyper, "J", function() -- move window up 10 px
   local win = hs.window.focusedWindow()
   local f = win:frame()
 
@@ -38,7 +38,7 @@ hs.hotkey.bind({"cmd", "alt", "ctrl", "shift"}, "J", function()
   win:setFrame(f)
 end)
 
-hs.hotkey.bind({"cmd", "alt", "ctrl", "shift"}, "b", function()
+hs.hotkey.bind(hyper, "b", function() -- move window down-right 10 px
   local win = hs.window.focusedWindow()
   local f = win:frame()
 
@@ -47,7 +47,7 @@ hs.hotkey.bind({"cmd", "alt", "ctrl", "shift"}, "b", function()
   win:setFrame(f)
 end)
 
-hs.hotkey.bind({"cmd", "alt", "ctrl", "shift"}, "n", function()
+hs.hotkey.bind(hyper, "n", function() -- move window down-left 10 px
   local win = hs.window.focusedWindow()
   local f = win:frame()
 
@@ -56,7 +56,7 @@ hs.hotkey.bind({"cmd", "alt", "ctrl", "shift"}, "n", function()
   win:setFrame(f)
 end)
 
-hs.hotkey.bind({"cmd", "alt", "ctrl", "shift"}, "y", function()
+hs.hotkey.bind(hyper, "y", function() -- move window up-right 10 px
   local win = hs.window.focusedWindow()
   local f = win:frame()
 
@@ -65,7 +65,7 @@ hs.hotkey.bind({"cmd", "alt", "ctrl", "shift"}, "y", function()
   win:setFrame(f)
 end)
 
-hs.hotkey.bind({"cmd", "alt", "ctrl", "shift"}, "u", function()
+hs.hotkey.bind(hyper, "u", function() -- move window up-left 10 px 
   local win = hs.window.focusedWindow()
   local f = win:frame()
 
@@ -75,7 +75,7 @@ hs.hotkey.bind({"cmd", "alt", "ctrl", "shift"}, "u", function()
 end)
 
 
-hs.hotkey.bind({"cmd", "alt", "ctrl", "shift"}, "Left", function() -- RESIZE WINDOW TO HALF-LEFT
+hs.hotkey.bind(hyper, "Left", function() -- RESIZE WINDOW TO HALF-LEFT
   local win = hs.window.focusedWindow()
   local f = win:frame()
   local screen = win:screen()
@@ -90,7 +90,7 @@ hs.hotkey.bind({"cmd", "alt", "ctrl", "shift"}, "Left", function() -- RESIZE WIN
 end)
 
 
-hs.hotkey.bind({"cmd", "alt", "ctrl", "shift"}, "Right", function() -- RESIZE WINDOW TO HALF-RIGHT
+hs.hotkey.bind(hyper, "Right", function() -- RESIZE WINDOW TO HALF-RIGHT
   local win = hs.window.focusedWindow()
   local f = win:frame()
   local screen = win:screen()
@@ -103,7 +103,7 @@ hs.hotkey.bind({"cmd", "alt", "ctrl", "shift"}, "Right", function() -- RESIZE WI
   win:setFrame(f)
 end)
 
-hs.hotkey.bind({"cmd", "alt", "ctrl", "shift"}, "Up", function() -- MAXIMIZE CURRENT WINDOW
+hs.hotkey.bind(hyper, "Up", function() -- MAXIMIZE CURRENT WINDOW
   local win = hs.window.focusedWindow()
   local f = win:frame()
   local screen = win:screen()
@@ -117,11 +117,12 @@ hs.hotkey.bind({"cmd", "alt", "ctrl", "shift"}, "Up", function() -- MAXIMIZE CUR
 
 end)
 
-hs.hotkey.bind({"cmd", "alt", "ctrl", "shift"}, "R", function() -- RELOAD HAMMERSPOON CONFIG
+hs.hotkey.bind(hyper, "R", function() -- RELOAD HAMMERSPOON CONFIG
+-- hs.alert.show("Reloading config")
 hs.reload()
 end)
 
-hs.hotkey.bind({"cmd", "alt", "ctrl", "shift"}, 'X', function() -- PRETTIFY JSON IN CLIPBOARD
+hs.hotkey.bind(hyper, 'X', function() -- PRETTIFY JSON IN CLIPBOARD
   prettifyJsonInPasteboard()
   hs.alert.show("clipboard update with prettified JSON")
 end)
@@ -138,6 +139,8 @@ end
 hs.hotkey.bind(hyper, 'V', function() -- CREATE A GIST WITH THE CONTENTS OF PASTEBOARD
   -- https://developer.github.com/v3/gists/#create-a-gist
   -- authentication https://developer.github.com/apps/building-oauth-apps/understanding-scopes-for-oauth-apps/
+  -- Oath scope : gist
+  -- GitHub > Settings > Developer settings > Personal access token
   -- hs.http https://www.hammerspoon.org/docs/hs.http.html
   -- hs.json https://www.hammerspoon.org/docs/hs.json.html
   local data = {
@@ -148,13 +151,20 @@ hs.hotkey.bind(hyper, 'V', function() -- CREATE A GIST WITH THE CONTENTS OF PAST
     }
   }
   local json = hs.json.encode(data,true)
-  --hs.dialog.blockAlert(json, "json is")
+  -- is.dialog.blockAlert(json, "json is")
   local headers = {
     ["Authorization"]="token " .. credentials.gistCredentials.token
   }
 
+  hs.alert.show("credentials.gistCredentials.endpoint " .. credentials.gistCredentials.endpoint)
+  -- hs.alert.show("headers " .. headers)
+  hs.alert.show("credentials.gistCredentials.token  " .. credentials.gistCredentials.token)
 
   local code, body, headers = hs.http.post(credentials.gistCredentials.endpoint, json, headers)
+  -- hs.alert.show("code " .. code)
+  -- hs.alert.show("ruben")
+  -- hs.alert.show("body " .. body)
+  -- hs.alert.show("headers " .. headers)
   local response = hs.json.decode(body)
 
   hs.alert.show("POST gist returned" .. code)
@@ -169,7 +179,7 @@ hs.hotkey.bind(hyper, 'V', function() -- CREATE A GIST WITH THE CONTENTS OF PAST
   end
 end)
 
-hs.hotkey.bind({"cmd", "alt", "ctrl", "shift"}, 'C', function() -- SCREENSHOT TO EVERNOTE
+hs.hotkey.bind(hyper, 'C', function() -- SCREENSHOT TO EVERNOTE
 hs.task.new("/usr/sbin/screencapture",
   function()
     hs.application.get('Evernote'):activate()
@@ -191,19 +201,20 @@ hs.task.new("/usr/sbin/screencapture",
   ):start()
 end)
 
-hs.hotkey.bind({"cmd", "alt", "ctrl", "shift"}, '7', function() -- EVERNOTE
+hs.hotkey.bind(hyper, '7', function() -- EVERNOTE
   focusAppOnMousePointer("Evernote")
 end)
 
 
-hs.hotkey.bind({"cmd", "alt", "ctrl", "shift"}, '8', function() -- SLACK
+hs.hotkey.bind(hyper, '8', function() -- SLACK
   focusAppOnMousePointer("Slack")
 end)
 
-hs.hotkey.bind({"cmd", "alt", "ctrl", "shift"}, '9', function() -- SLACK
+hs.hotkey.bind(hyper, '9', function() -- iTerm2
   focusAppOnMousePointer("iTerm2")
 end)
-hs.hotkey.bind(hyper, '1', function() -- CREATE A GIST WITH THE CONTENTS OF PASTEBOARD
+
+hs.hotkey.bind(hyper, '1', function() -- I have no strong feelings one way or the other
   noStrongOpinionAudio()
 end)
 
