@@ -30,6 +30,9 @@ ln -Fvhfs ~/dotfiles/.gitconfig_osx .gitconfig_platform_specific
 ln -Fvhfs ~/dotfiles/.gitconfig_osx ~/.gitconfig_platform_specific
 ln -Fvhfs ~/dotfiles/.tmux.conf.macosx ~/.tmux.conf.extra
 ln -Fvhfs ~/dotfiles/.bashrc.macosx ~/.bashrc.extra
+mkdir -p ~/.config/karabiner
+ln -Fvhfs ~/dotfiles/karabiner.json ~/.config/karabiner/karabiner.json
+
 
 # emacs dirs
 ln -Fvhfs ~/dotfiles/emacs.d ~/.emacs.d
