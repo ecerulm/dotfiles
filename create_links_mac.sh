@@ -32,6 +32,7 @@ ln -Fvhfs ~/dotfiles/.tmux.conf.macosx ~/.tmux.conf.extra
 ln -Fvhfs ~/dotfiles/.bashrc.macosx ~/.bashrc.extra
 mkdir -p ~/.config/karabiner
 ln -Fvhfs ~/dotfiles/karabiner.json ~/.config/karabiner/karabiner.json
+ln -Fvhfs ~/dotfiles/.ripgreprc ~/.ripgreprc
 
 
 # emacs dirs

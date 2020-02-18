@@ -709,3 +709,4 @@ fi
 [ -f $HOME/.travis/travis.sh ] && source $HOME/.travis/travis.sh
 [ -f $HOME/.rvm/scripts/rvm ] && source $HOME/.rvm/scripts/rvm
 
+export RIPGREP_CONFIG_PATH="$HOME/.ripgreprc"
