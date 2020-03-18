@@ -32,3 +32,4 @@ emacs.d/projectile-bookmarks.eld
 target/
 neovim/.netrwhist
 .idea
+karabiner/automatic_backups
