@@ -1,4 +1,13 @@
 require "credentials"
+-- credentials.lua should have the format
+-- local modname = ... -- ... is varargs, require passes the module name as as part of the varargs
+-- local M = {
+--  gistCredentials={
+--      token="xxxxxxxx",
+--      endpoint="https://api.github.com",
+--  },
+-- }
+-- _G[modname] = M -- we set _G["credentials"] = {...}
 
 local hyper = {"cmd", "alt", "ctrl", "shift"}
 
@@ -153,14 +162,15 @@ hs.hotkey.bind(hyper, 'V', function() -- CREATE A GIST WITH THE CONTENTS OF PAST
   local json = hs.json.encode(data,true)
   -- is.dialog.blockAlert(json, "json is")
   local headers = {
-    ["Authorization"]="token " .. credentials.gistCredentials.token
+    ["Authorization"]="token " .. credentials.gistCredentials.token,
+    ["Accept"]="application/vnd.github.v3+json",
   }
 
   hs.alert.show("credentials.gistCredentials.endpoint " .. credentials.gistCredentials.endpoint)
   -- hs.alert.show("headers " .. headers)
   hs.alert.show("credentials.gistCredentials.token  " .. credentials.gistCredentials.token)
 
-  local code, body, headers = hs.http.post(credentials.gistCredentials.endpoint, json, headers)
+  local code, body, headers = hs.http.post(credentials.gistCredentials.endpoint .. "/gists", json, headers)
   -- hs.alert.show("code " .. code)
   -- hs.alert.show("ruben")
   -- hs.alert.show("body " .. body)
