@@ -1,0 +1,59 @@
+[[snippets]]
+  description = "Show contents of SSL certificate in PEM format"
+  command = "openssl x509 -inform pem -in <certfile> -noout -text"
+  output = ""
+
+[[snippets]]
+  description = "Generate random text"
+  command = "base64 /dev/urandom | head -c 100"
+  output = ""
+
+[[snippets]]
+  description = "Print ssl certificate subject and dates"
+  command = "openssl x509 -noout -in <file> -inform der -subject -dates"
+  output = ""
+
+[[snippets]]
+  description = "Connect to a SSL host and Get the expiration date of the server certificate"
+  command = "openssl s_client -servername NAME -connect <server>:<port=443> 2>/dev/null <<< 'Q'| openssl x509 -noout -subject -dates"
+  output = ""
+
+[[snippets]]
+  description = "List containers in a pod"
+  command = "kubectl get pods <podname> -n <namespace>  -o jsonpath='{.spec.containers[*].name}*'"
+  output = ""
+
+[[snippets]]
+  description = "AWS whoami what IAM user are you using"
+  command = "aws sts get-caller-identity"
+  output = ""
+
+[[snippets]]
+  description = "Delete / remove all stopped docker containers"
+  command = "docker rm -v $(docker ps -a -q -f status=exited)"
+  output = ""
+
+[[snippets]]
+  description = "Generate a random hexadecimal string"
+  command = "cat /dev/urandom | LC_ALL=C tr -dc 'a-z0-9' | fold -w 16 | head -n 1"
+  output = ""
+
+[[snippets]]
+  description = "List all kubernetes deployments in all namespaces"
+  command = "kubectl get deployment --all-namespaces"
+  output = ""
+
+[[snippets]]
+  description = "Kubernetes restart pods in a deployment"
+  command = "kubectl -n <namespace> rollout restart deployment <deploymentname>"
+  output = ""
+
+[[snippets]]
+  description = "List all pods in a deployment"
+  command = "kubectl -n <namespace> get pod -l=app=<appname>"
+  output = ""
+
+[[snippets]]
+  description = "List all tags that contains a certain git commit"
+  command = "git tag --contains <commit>"
+  output = ""
