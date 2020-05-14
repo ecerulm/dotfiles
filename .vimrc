@@ -228,6 +228,8 @@ augroup vimrcEx " Put them in a group so we delete them easily
 
   " unite_settings for unite buffers {{{2
   autocmd FileType unite call s:unite_settings() " apply setting to unite buffers
+  " denite_setting for denite buffers {{{2
+  autocmd FileType denite call s:denite_settings() " set mappings 
   " autopep8 <f3> {{{2
   autocmd FileType python map <buffer> <F3> :call Autopep8()<CR>
 
@@ -443,6 +445,17 @@ function! s:unite_settings()
   imap <buffer> <C-r>   <Plug>(unite_redraw)
 endfunction
 " }}} unite.vim mappings
+" denite mappings {{{
+function! s:denite_settings() abort
+  " the function will abort as soon as an error is detected
+	  nnoremap <silent><buffer><expr> <CR> denite#do_map('do_action')
+	  nnoremap <silent><buffer><expr> d denite#do_map('do_action', 'delete')
+	  nnoremap <silent><buffer><expr> p denite#do_map('do_action', 'preview')
+	  nnoremap <silent><buffer><expr> q denite#do_map('quit')
+	  nnoremap <silent><buffer><expr> i denite#do_map('open_filter_buffer')
+	  nnoremap <silent><buffer><expr> <Space> denite#do_map('toggle_select').'j'
+endfunction
+"
 " jk to get of insert mode {{{
 inoremap jk <Esc>
 " jk to get of insert mode }}}
@@ -841,7 +854,7 @@ function! ConfigAfterPluginLoaded()
     " echomsg "Denite is ON"
     " Change file_rec command.
     " call denite#custom#var('file_rec', 'command', ['ag', '--follow', '--nocolor', '--nogroup', '-g', ''])
-    call denite#custom#var('file_rec', 'command', ['rg', '--files', '--glob', '!.git' ])
+    call denite#custom#var('file/rec', 'command', ['rg', '--files', '--glob', '!.git' ])
 
    " Ripgrep command on grep source
     call denite#custom#var('grep', 'command', ['rg'])
@@ -855,7 +868,7 @@ function! ConfigAfterPluginLoaded()
     call denite#custom#map('insert', '<C-k>', '<denite:move_to_previous_line>', 'noremap')
    
 
-    nnoremap <C-p> :<C-u>Denite file_rec<cr>
+    nnoremap <C-p> :<C-u>Denite file/rec -start-filter<cr>
     nnoremap <leader>g :<C-u>Denite -no-split -buffer-name=ag grep<cr>
 
     " Currently opened buffers
