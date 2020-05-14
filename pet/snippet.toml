@@ -35,7 +35,7 @@
 
 [[snippets]]
   description = "Generate a random hexadecimal string"
-  command = "cat /dev/urandom | LC_ALL=C tr -dc 'a-z0-9' | fold -w 16 | head -n 1"
+  command = "cat /dev/urandom | LC_ALL=C tr -dc 'a-f0-9' | fold -w 16 | head -n 1"
   output = ""
 
 [[snippets]]
@@ -56,4 +56,69 @@
 [[snippets]]
   description = "List all tags that contains a certain git commit"
   command = "git tag --contains <commit>"
+  output = ""
+
+[[snippets]]
+  description = "kubernetes: connect to service via proxy / port-forward"
+  command = "kubectl -n <namespace> port-forward service/<service> <localport>:<remoteport>"
+  output = ""
+
+[[snippets]]
+  description = "Add passphrase / password to private key file pem"
+  command = "openssl rsa -aes256 -in <infile> -out <outfile>"
+  output = ""
+
+[[snippets]]
+  description = "Update stack in AWS CloudFormation"
+  command = "aws cloudformation update-stack --stack-name <stackname> --template-body file://<filename>"
+  output = ""
+
+[[snippets]]
+  description = "pipenv: Find path to virtualenv"
+  command = "pipenv --venv"
+  output = ""
+
+[[snippets]]
+  description = "kubernetes: k8s: List running pods in namespace"
+  command = "kubectl -n <namespace> get pods --field-selector=status.phase=Running --watch"
+  output = ""
+
+[[snippets]]
+  description = "kubernets: k8s: get token for serviceaccount"
+  command = "kubectl -n <namespace> get secret $(kubectl -n <namespace> get serviceaccounts <serviceaccount> -o jsonpath='{.secrets[].name}') -o jsonpath='{.data.token}' | base64 -D"
+  output = ""
+
+[[snippets]]
+  description = "Parse a JWT token"
+  command = "jq -R 'split(\".\") | .[1] | @base64d | fromjson' <<< \"$JWT\""
+  output = ""
+
+[[snippets]]
+  description = "aws: secretsmanager: get secret / retrieve secret value"
+  command = "aws secretsmanager get-secret-value --secret-id <secret-id>"
+  output = ""
+
+[[snippets]]
+  description = "pem: rsa private key: split a single line rsa private ssh key to multi line"
+  command = "cat <inputfile> | gsed -e \"s/-----BEGIN RSA PRIVATE KEY-----/&\\n/\" -e \"s/-----END RSA PRIVATE KEY-----/\\n&/\" -e \"s/\\S\\{64,\\}/&\\n/g\" | gsed -e \"s/^\\s*//g\" -e \"/^$/d\""
+  output = ""
+
+[[snippets]]
+  description = "openssl: Extract certificate chain from ssl server"
+  command = "openssl s_client -connect <server>:<port> -showcerts 2>/dev/null <<< 'Q'"
+  output = ""
+
+[[snippets]]
+  description = "kubernetes: kubectl: Get all logs / Tail log for a deployment"
+  command = "kubectl -n <namespace> logs -f deployment/<app-name> --all-containers=true --since=10m"
+  output = ""
+
+[[snippets]]
+  description = "openssl: Show all certs in a concatenated certificate chain"
+  command = "openssl crl2pkcs7 -nocrl -certfile /usr/local/etc/openssl@1.1/cert.pem|openssl pkcs7 -print_certs -noout"
+  output = ""
+
+[[snippets]]
+  description = "Delete files older than x days"
+  command = "find <dir> -type f -mtime +<days> -delete"
   output = ""
