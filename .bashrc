@@ -23,6 +23,13 @@ shopt -s histappend
 HISTSIZE=1000
 HISTFILESIZE=2000
 
+_bash_history_append() {
+    builtin history -a # append current history to the file ~/.bash_history
+    builtin history -c #  clears the history for the current shell, and does not delete ~/.bash_history.
+    builtin history -r # rereds the history from ~/.bash_history
+}
+PROMPT_COMMAND="_bash_history_append; $PROMPT_COMMAND"
+
 # check the window size after each command and, if necessary,
 # update the values of LINES and COLUMNS.
 shopt -s checkwinsize
@@ -148,11 +155,11 @@ alias vi=nvim
 alias vim=nvim
 alias tmux="tmux -2"
 alias pyenvreq='sudo apt-get install -y make build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev libncursesw5-dev xz-utils '
-alias pyenvreqosx='brew install xz readline' # https://github.com/yyuu/pyenv/wiki/Common-build-problems
+alias pyenvreqosx='brew install xz readline openssl' # https://github.com/yyuu/pyenv/wiki/Common-build-problems
 alias pyenvinstall="git clone https://github.com/yyuu/pyenv.git ~/.pyenv && git clone https://github.com/yyuu/pyenv-virtualenv.git ~/.pyenv/plugins/pyenv-virtualenv"
 alias pyenvupdate="cd ~/.pyenv && git pull && cd plugins/pyenv-virtualenv && git pull"
 alias pyenvinstall27="env CONFIGURE_OPTS='--enable-shared' pyenv install 2.7.12"
-alias pyenvinstall27osx="env CONFIGURE_OPTS='' pyenv install 2.7.12"
+alias pyenvinstall27osx="pyenv install 2.7.17"
 alias pyenvinstall35="env CONFIGURE_OPTS='--enable-shared' pyenv install 3.5.2"
 alias pyenvinstall36="installpythonprereq; env CONFIGURE_OPTS='--enable-shared' pyenv install 3.6.2"
 alias pyenvansible="pyenv virtualenv 2.7.12 venv-ansible; pyenv shell venv-ansible && pip install ansible"
@@ -179,6 +186,7 @@ alias gb="git branch --sort=-committerdate"
 alias packages2install="curl -k https://gist.githubusercontent.com/ecerulm/be59ec62ad77178d61a5/raw | sh"
 alias pipenv=/usr/local/bin/pipenv
 alias nvr=/Users/rublag/.pyenv/versions/venv-py36-neovim/bin/nvr
+alias rsync='rsync -azvcC'
 
 function gl {
   git l
@@ -309,6 +317,10 @@ function installjupyterlabextensions {
 function sparkshell {
   echo "Run sdk use spark 2.4.0 # SDKman"
   $SPARK_HOME/bin/spark-shell --master local[2]
+}
+
+function getsecret {
+ aws secretsmanager get-secret-value --secret-id "$@"
 }
 
 
@@ -488,19 +500,19 @@ FILENAME="elasticsearch-5.5.2.tar.gz"
 
 function installneovimdependencies {
   # nvim
-  pushd .
-  cd ~/.pyenv
-  git pull
-  popd
+  # pushd .
+  # cd ~/.pyenv
+  # git pull
+  # popd
 
-  pyenv install -s 2.7.12 # skip if existing
-  pyenv virtualenv 2.7.12 venv-py27-neovim
+  pyenv install -s 2.7.17 # skip if existing
+  pyenv virtualenv 2.7.17 venv-py27-neovim
   pyenv activate venv-py27-neovim
   pip2 install neovim websocket-client sexpdata
   pyenv deactivate
 
-  pyenv install -s 3.6.2 # skip if existing
-  pyenv virtualenv 3.6.2 venv-py36-neovim
+  pyenv install -s 3.8.2 # skip if existing
+  pyenv virtualenv 3.8.2 venv-py36-neovim
   pyenv activate venv-py36-neovim
   pip3 install neovim websocket-client sexpdata
   pyenv deactivate
@@ -658,6 +670,23 @@ function scalareplgradle {
   java -Dscala.usejavacp=true -classpath "$(gradle printClasspath --quiet)" scala.tools.nsc.MainGenericRunner
 }
 
+function printcert {
+  openssl x509 -in $1 -text -noout
+  # openssl x509 -inform pem -in $1 -noout -text # read it as PEM
+  # openssl x509 -inform der -in $1 -noout -text # read it as CER
+}
+
+function printcertpem {
+   openssl x509 -inform pem -in $1 -noout -text # read it as PEM
+}
+
+function printcertder {
+   openssl x509 -inform der -in $1 -noout -text # read it as DER
+}
+
+
+
+
 # Don't ever put .bashrc.thismachine in git 
 # it contains SENSITIVE information
 if [ -f ~/.bashrc.thismachine ]; then
@@ -710,3 +739,11 @@ fi
 [ -f $HOME/.rvm/scripts/rvm ] && source $HOME/.rvm/scripts/rvm
 
 export RIPGREP_CONFIG_PATH="$HOME/.ripgreprc"
+
+[ -f $HOME/.local/bin ] && export PATH=$PATH:$HOME/.local/bin
+
+if [ $(command -v "kubectl") ]; then
+  source <(kubectl completion bash)
+fi
+
+
