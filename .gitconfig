@@ -83,7 +83,8 @@
   templatedir = ~/.git_template
 [pager]
 [push]
-	default = simple
+	default = current
+	followTags = true
 [filter "media"]
   clean = git-media-clean %f
   smudge = git-media-smudge %f
