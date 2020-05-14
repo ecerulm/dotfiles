@@ -31,3 +31,4 @@ export LC_ALL="en_US.UTF-8"
 #[[ -s "/Users/rublag/.sdkman/bin/sdkman-init.sh" ]] && source "/Users/rublag/.sdkman/bin/sdkman-init.sh"
 
 [[ -s "$HOME/.rvm/scripts/rvm" ]] && source "$HOME/.rvm/scripts/rvm" # Load RVM into a shell session *as a function*
+[[ -r "/usr/local/etc/profile.d/bash_completion.sh" ]] && . "/usr/local/etc/profile.d/bash_completion.sh"
