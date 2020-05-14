@@ -208,6 +208,7 @@ augroup vimrcEx " Put them in a group so we delete them easily
   au BufNewFile pom.xml r ~/.vim/skeleton.pom.xml
   au BufNewFile pom.xml set filetype=pom
   au BufNewFile stack.yaml r ~/.vim/skeleton.stack.yaml
+  au BufNewFile .gitlab-ci.yml r ~/.vim/skeleton.gitlab-ci.yml
   " au BufNewFile stack.yaml set filetype=haskellstack
 
   "Rainbow parentheses {{{2
