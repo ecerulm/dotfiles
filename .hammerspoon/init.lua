@@ -211,22 +211,35 @@ hs.task.new("/usr/sbin/screencapture",
   ):start()
 end)
 
+hs.hotkey.bind(hyper, '1', function() -- I have no strong feelings one way or the other
+  noStrongOpinionAudio()
+end)
+
+hs.hotkey.bind(hyper, '5', function() -- Google Chrome
+  focusAppOnMousePointer("Google Chrome")
+end)
+
+hs.hotkey.bind(hyper, '6', function() -- Microsoft Teams
+  focusAppOnMousePointer("Microsoft Teams")
+end)
+
+-- Open Evernote
 hs.hotkey.bind(hyper, '7', function() -- EVERNOTE
   focusAppOnMousePointer("Evernote")
 end)
 
+-- hs.hotkey.bind(hyper, '8', function() -- SLACK
+--   focusAppOnMousePointer("Slack")
+-- end)
 
-hs.hotkey.bind(hyper, '8', function() -- SLACK
-  focusAppOnMousePointer("Slack")
+hs.hotkey.bind(hyper, '8', function() -- PyCharm
+  focusAppOnMousePointer("PyCharm")
 end)
 
 hs.hotkey.bind(hyper, '9', function() -- iTerm2
   focusAppOnMousePointer("iTerm2")
 end)
 
-hs.hotkey.bind(hyper, '1', function() -- I have no strong feelings one way or the other
-  noStrongOpinionAudio()
-end)
 
 function focusAppOnMousePointer(appName)
   local screen = hs.mouse.getCurrentScreen() -- http://www.hammerspoon.org/docs/hs.mouse.html#getCurrentScreen
