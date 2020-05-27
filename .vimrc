@@ -747,6 +747,7 @@ function! ConfigAfterPluginLoaded()
   colorscheme gruvbox
   "}}}
   " vim-cycle groups {{{
+  " :help cycle
   if exists("*AddCycleGroup")
     call AddCycleGroup('python', ['True', 'False'])
     call AddCycleGroup('python', ['if', 'while'])
