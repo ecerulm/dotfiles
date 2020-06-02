@@ -122,3 +122,13 @@
   description = "Delete files older than x days"
   command = "find <dir> -type f -mtime +<days> -delete"
   output = ""
+
+[[snippets]]
+  description = "kubernetes: find all RoleBindings for a given ServiceAccount"
+  command = "kubectl -n <namespace> get rolebindings -o json |  jq -r '.items[] | select(.subjects // [] | .[] | [.kind, .namespace, .name] == [\"ServiceAccount\", \"<namespace>\", \"<serviceaccount>\"]) | .metadata.name'"
+  output = ""
+
+[[snippets]]
+  description = "kubernetes: find all ClusterRoleBindings for a given ServiceAccount"
+  command = "kubectl get clusterrolebindings -o json |  jq -r '.items[] | select(.subjects // [] | .[] | [.kind, .namespace, .name] == [\"ServiceAccount\", \"<namespace>\", \"<serviceaccount>\"]) | .metadata.name'"
+  output = ""
