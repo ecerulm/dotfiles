@@ -735,6 +735,10 @@ let g:neomake_open_list = 0
 " let g:neomake_logfile = '/Users/rl186056/neomake.log'
 " 1}}}
 
+" Neoterm {{{
+let g:neoterm_autoscroll=1
+" }}}
+
 " Configuration to run after all plugins are loaded {{{
 function! ConfigAfterPluginLoaded()
   " This function is called after all plugins are loaded
