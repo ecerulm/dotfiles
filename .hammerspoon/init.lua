@@ -15,6 +15,25 @@ hs.hotkey.bind({"cmd", "alt", "ctrl"}, "W", function()
     hs.notify.new({title="Hammerspoon", informativeText="Hello World"}):send()
   end)
 
+hs.hotkey.bind(hyper, 'a', function()  -- remove formatting from pasteboard and paste
+  -- for k,v in pairs(hs.pasteboard.contentTypes()) do
+  --   hs.alert.show(v)
+  -- end
+  -- hs.alert.show(hs.pasteboard.readDataForUTI(nil,"public.utf8-plain-text"))
+  local contents = hs.pasteboard.getContents()
+  hs.pasteboard.setContents(contents)
+
+  while hs.eventtap.checkKeyboardModifiers()["alt"] ~= nil do 
+    hs.alert.show('wait')
+    hs.timer.usleep(500 * 1000) -- logitech gaming software will keep the hyper key pressed for 25 milliseconds I think so that will interfere with the Cmd-v below
+  end
+  hs.timer.usleep(500 * 1000) -- logitech gaming software will keep the hyper key pressed for 25 milliseconds I think so that will interfere with the Cmd-v below
+  hs.eventtap.keyStroke({'cmd'},'v')
+
+  hs.alert.show('paste unformatted')
+
+end)
+
 hs.hotkey.bind(hyper, "H", function() -- move window left 10 px
   local win = hs.window.focusedWindow()
   local f = win:frame()
@@ -248,16 +267,17 @@ function focusAppOnMousePointer(appName)
 
 
   local app = hs.application.get(appName)
-  local mainWindow = app:mainWindow() -- http://www.hammerspoon.org/docs/hs.window.html
-  mainWindow:moveToScreen(screen) -- https://www.hammerspoon.org/docs/hs.window.html#moveToScreen
-  local f = hs.geometry.copy(screenFrame) -- http://www.hammerspoon.org/docs/hs.geometry.html#copy
-  -- screenFrame x,y is relative to the mainWindow so if the screen is to the left of the mainWindow .x will be negative
-  f.x = f.x + screenFrame.w * 1/6
-  f.y = f.y
-  -- f.w = f.w*4/5
-  f.w = f.w - 50
-  f.h = f.h - 50
-  mainWindow:setFrameInScreenBounds(f) -- https://www.hammerspoon.org/docs/hs.window.html#setFrameInScreenBounds
+  -- Keep the current position
+  -- local mainWindow = app:mainWindow() -- http://www.hammerspoon.org/docs/hs.window.html
+  -- mainWindow:moveToScreen(screen) -- https://www.hammerspoon.org/docs/hs.window.html#moveToScreen
+  -- local f = hs.geometry.copy(screenFrame) -- http://www.hammerspoon.org/docs/hs.geometry.html#copy
+  -- -- screenFrame x,y is relative to the mainWindow so if the screen is to the left of the mainWindow .x will be negative
+  -- f.x = f.x + screenFrame.w * 1/6
+  -- f.y = f.y
+  -- -- f.w = f.w*4/5
+  -- f.w = f.w - 50
+  -- f.h = f.h - 50
+  -- mainWindow:setFrameInScreenBounds(f) -- https://www.hammerspoon.org/docs/hs.window.html#setFrameInScreenBounds
   app:activate()
   hs.alert.show("activate " .. appName)
 end
