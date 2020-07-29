@@ -132,3 +132,43 @@
   description = "kubernetes: find all ClusterRoleBindings for a given ServiceAccount"
   command = "kubectl get clusterrolebindings -o json |  jq -r '.items[] | select(.subjects // [] | .[] | [.kind, .namespace, .name] == [\"ServiceAccount\", \"<namespace>\", \"<serviceaccount>\"]) | .metadata.name'"
   output = ""
+
+[[snippets]]
+  description = "kubernetes: Get CA bundle for kubernetes cluster"
+  command = "kubectl get secret $(kubectl get secret -o json | jq -r '.items[] | .metadata.name | select(startswith(\"default-token\"))') -o jsonpath=\"{['data']['ca\\.crt']}\" | base64 --decode"
+  output = ""
+
+[[snippets]]
+  description = "kubernetes: Get token for a service account"
+  command = "kubectl -n kube-system get secret $(kubectl -n kube-system get secret | grep <serviceaccount> | awk '{print $1}') -o json| jq -r .data.token"
+  output = ""
+
+[[snippets]]
+  description = "kubernetes: Logs for the ALB ingress controller"
+  command = "kubectl logs -n kube-system $(kubectl get pod -n kube-system | egrep -o alb-ingress[a-zA-Z0-9-]+)"
+  output = ""
+
+[[snippets]]
+  description = "netstat: list of open ports / listening ports"
+  command = "netstat -ap tcp | grep -i \"listen\""
+  output = ""
+
+[[snippets]]
+  description = "lsof: list all processes that have open ports  / listening port and show pid"
+  command = "sudo lsof -PiTCP -sTCP:LISTEN"
+  output = ""
+
+[[snippets]]
+  description = "lsof: Show all connections established / listen of all processes"
+  command = "lsof -Pn -i4"
+  output = ""
+
+[[snippets]]
+  description = "openssl: certificate fingerprint as SHA-1"
+  command = "openssl x509 -noout -fingerprint -sha1 -inform <pem or der> -in <infile>"
+  output = ""
+
+[[snippets]]
+  description = "kubernetes: get secret and decode it"
+  command = "kubectl -n <namespace> get secret <secretname> -o json | jq -r '<jq path>' | base64 -D"
+  output = ""
