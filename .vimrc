@@ -411,8 +411,10 @@ let g:pymode_doc_bind                = 'K'
 let g:airline_powerline_fonts = 1
 let g:airline#extensions#tabline#enabled = 0
 " }}} vim airline configuration
-" :H to open help in current window {{{
-command! -nargs=1 -complete=help H :tabnew | :set buftype=help | :h <args>
+" :H to open help in current window  :Help {{{
+"command! -nargs=1 -complete=help H :tabnew | :set buftype=help | :h <args>
+command! -nargs=1 -complete=help H :tab help <args>
+
 " }}} :H to open help in current window
 " unite.vim mappings {{{
 " unitemappings
@@ -937,6 +939,9 @@ let @b = "jddodate: =expand('%:t')[0:9]jkjyypciwaliasesjkf/i- jk:w"
 
 " Highlight unwanted spaces / trailing spaces
 " http://vim.wikia.com/wiki/Highlight_unwanted_spaces
+
+" Open help in new tab
+cabbrev help tab help
 
 " Plugins {{{
 " This plugins are loaded for both vim and neovim
