@@ -1125,6 +1125,9 @@ call plug#begin('~/.vim/plugged')
   Plug 'sjl/badwolf'
   Plug 'morhetz/gruvbox'
 
+  " terminal
+  Plug 'kassio/neoterm'
+
 
 call plug#end()
 " Plugins }}}
