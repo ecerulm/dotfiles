@@ -17,11 +17,15 @@ hs.hotkey.bind({"cmd", "alt", "ctrl"}, "W", function()
 
 hs.hotkey.bind(hyper, 'a', function()  -- remove formatting from pasteboard and paste
   -- for k,v in pairs(hs.pasteboard.contentTypes()) do
+  --   hs.alert.show(k)
   --   hs.alert.show(v)
   -- end
   -- hs.alert.show(hs.pasteboard.readDataForUTI(nil,"public.utf8-plain-text"))
-  local contents = hs.pasteboard.getContents()
-  hs.pasteboard.setContents(contents)
+  if not hs.pasteboard.typesAvailable()["image"] then
+    -- leave images alone
+    local contents = hs.pasteboard.getContents()
+    hs.pasteboard.setContents(contents)
+  end
 
   while hs.eventtap.checkKeyboardModifiers()["alt"] ~= nil do 
     hs.alert.show('wait')
@@ -146,7 +150,8 @@ hs.hotkey.bind(hyper, "Up", function() -- MAXIMIZE CURRENT WINDOW
 end)
 
 hs.hotkey.bind(hyper, "R", function() -- RELOAD HAMMERSPOON CONFIG
--- hs.alert.show("Reloading config")
+hs.alert.show("Reloading config",2)
+-- hs.timer.usleep(20000 * 1000) -- logitech gaming software will keep the hyper key pressed for 25 milliseconds I think so that will interfere with the Cmd-v below
 hs.reload()
 end)
 
