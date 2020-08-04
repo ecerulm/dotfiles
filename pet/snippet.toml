@@ -172,3 +172,8 @@
   description = "kubernetes: get secret and decode it"
   command = "kubectl -n <namespace> get secret <secretname> -o json | jq -r '<jq path>' | base64 -D"
   output = ""
+
+[[snippets]]
+  description = "terraform: Get IP for EC2 instance from the terraform state file"
+  command = "cat terraform.tfstate| jq -r '.resources[] | select(.name==\"<resourcename=nifi-test-1>\")| .instances[0].attributes.private_ip'"
+  output = ""
