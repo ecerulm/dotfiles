@@ -934,6 +934,7 @@ command! FixPost call FixPost()
 if has('nvim')
   command! Terminal :botright :split term://bash
   command! GwTest :wall | :call chansend(g:last_terminal_job_id, "gw test\n")
+  tnoremap <Esc> <C-\><C-n>
 endif " }}}
 " Macros @ {{{1
 " @b will fix a octopress post into a hugo post, it deletes layout add date
@@ -1144,6 +1145,10 @@ call plug#begin('~/.vim/plugged')
 
   " easy window swapping
   Plug 'wesQ3/vim-windowswap'
+
+  " Terraform
+  Plug 'hashivim/vim-terraform'
+
 
 
 call plug#end()
