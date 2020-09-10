@@ -21,6 +21,7 @@ hs.hotkey.bind(hyper, 'a', function()  -- remove formatting from pasteboard and 
   --   hs.alert.show(v)
   -- end
   -- hs.alert.show(hs.pasteboard.readDataForUTI(nil,"public.utf8-plain-text"))
+  hs.alert.show('paste unformatted start')
   if not hs.pasteboard.typesAvailable()["image"] then
     -- leave images alone
     local contents = hs.pasteboard.getContents()
@@ -28,10 +29,10 @@ hs.hotkey.bind(hyper, 'a', function()  -- remove formatting from pasteboard and 
   end
 
   while hs.eventtap.checkKeyboardModifiers()["alt"] ~= nil do 
-    hs.alert.show('wait')
-    hs.timer.usleep(500 * 1000) -- logitech gaming software will keep the hyper key pressed for 25 milliseconds I think so that will interfere with the Cmd-v below
+    -- hs.alert.show('wait')
+    hs.timer.usleep(50 * 1000) -- logitech gaming software will keep the hyper key pressed for 25 milliseconds I think so that will interfere with the Cmd-v below
   end
-  hs.timer.usleep(500 * 1000) -- logitech gaming software will keep the hyper key pressed for 25 milliseconds I think so that will interfere with the Cmd-v below
+  hs.timer.usleep(50 * 1000) -- logitech gaming software will keep the hyper key pressed for 25 milliseconds I think so that will interfere with the Cmd-v below
   hs.eventtap.keyStroke({'cmd'},'v')
 
   hs.alert.show('paste unformatted')
@@ -107,7 +108,7 @@ hs.hotkey.bind(hyper, "u", function() -- move window up-left 10 px
 end)
 
 
-hs.hotkey.bind(hyper, "Left", function() -- RESIZE WINDOW TO HALF-LEFT
+hs.hotkey.bind(hyper, "Left", function() -- RESIZE WINDOW TO HALF-LEFT / MAXIMIZE LEFT
   local win = hs.window.focusedWindow()
   local f = win:frame()
   local screen = win:screen()
