@@ -740,10 +740,13 @@ fi
 
 export RIPGREP_CONFIG_PATH="$HOME/.ripgreprc"
 
-[ -f $HOME/.local/bin ] && export PATH=$PATH:$HOME/.local/bin
+[ -d $HOME/.local/bin ] && export PATH=$PATH:$HOME/.local/bin
 
 if [ $(command -v "kubectl") ]; then
   source <(kubectl completion bash)
 fi
 
+[ -d ${KREW_ROOT:-$HOME/.krew}/bin ] && export PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH"
 
+
+complete -C /usr/local/bin/terraform terraform
