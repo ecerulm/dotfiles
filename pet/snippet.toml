@@ -140,7 +140,7 @@
 
 [[snippets]]
   description = "kubernetes: Get token for a service account"
-  command = "kubectl -n kube-system get secret $(kubectl -n kube-system get secret | grep <serviceaccount> | awk '{print $1}') -o json| jq -r .data.token"
+  command = "kubectl -n kube-system get secret $(kubectl -n kube-system get secret | grep <serviceaccount> | awk '{print $1}') -o jsonpath='{.data.token}'|base64 -D"
   output = ""
 
 [[snippets]]
@@ -176,4 +176,44 @@
 [[snippets]]
   description = "terraform: Get IP for EC2 instance from the terraform state file"
   command = "cat terraform.tfstate| jq -r '.resources[] | select(.name==\"<resourcename=nifi-test-1>\")| .instances[0].attributes.private_ip'"
+  output = ""
+
+[[snippets]]
+  description = "kubernetes: kubectl: List pods with the node / nodename they are running on"
+  command = "kubectl get pods -o=custom-columns=NAME:.metadata.name,STATUS:.status.phase,NODE:.spec.nodeName"
+  output = ""
+
+[[snippets]]
+  description = "kubernetes: kubectl: Start a pod in a specific node"
+  command = "kubectl run  --namespace <namespace> --generator=run-pod/v1 -ti --rm test-$RANDOM --image=ecerulm/ubuntu-tools:latest --overrides='{\"spec\": { \"nodeSelector\": {\"nodename\": \"<nodename>\"}}}'"
+  output = ""
+
+[[snippets]]
+  description = "kubernetes: kubectl: Get the CA.crt"
+  command = "kubectl -n kube-system get secret $(kubectl -n kube-system get secret | grep <serviceaccount=eks-admin> | awk '{print $1}') -o jsonpath=\"{['data']['ca\\.crt']}\"|base64 -D"
+  output = ""
+
+[[snippets]]
+  description = "kubernetes: kubectl: Get the Kubernetes API URL"
+  command = "kubectl config view --minify -o jsonpath=\"{.clusters[0].cluster.server}\""
+  output = ""
+
+[[snippets]]
+  description = "kubernetes: kubectl: Show all PersistentVolumes and it's EBS volume"
+  command = "kubectl get pv -o custom-columns='Name:metadata.name,Claim:.spec.claimRef.name,DATA:spec.awsElasticBlockStore.volumeID'"
+  output = ""
+
+[[snippets]]
+  description = "kubernetes: kubectl: Restarting all pods on a deployment"
+  command = "kubectl -n <namespace> rollout restart deployment/<deploymentname>"
+  output = ""
+
+[[snippets]]
+  description = "kubernetes: kubectl: Get the all pods in Completed state"
+  command = "kubectl -n <namespace=airflow-prod> get pods --field-selector 'status.phase=Succeeded'"
+  output = ""
+
+[[snippets]]
+  description = "kubernetes: Get a shell into a running Pod / container"
+  command = "kubectl -n <namespace> exec -it <podname> <containername> -- <command=/bin/sh>"
   output = ""
