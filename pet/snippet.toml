@@ -215,5 +215,10 @@
 
 [[snippets]]
   description = "kubernetes: Get a shell into a running Pod / container"
-  command = "kubectl -n <namespace> exec -it <podname> <containername> -- <command=/bin/sh>"
+  command = "kubectl -n <namespace> exec -it <podname> -c <containername> -- <command=/bin/sh>"
+  output = ""
+
+[[snippets]]
+  description = "kubernetes: troubleshooting: get all events in a namespace"
+  command = "kubectl -n <namespace> get events --sort-by='{.lastTimestamp}'"
   output = ""
