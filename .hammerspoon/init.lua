@@ -16,14 +16,20 @@ hs.hotkey.bind({"cmd", "alt", "ctrl"}, "W", function()
   end)
 
 hs.hotkey.bind(hyper, 'a', function()  -- remove formatting from pasteboard and paste
-  -- for k,v in pairs(hs.pasteboard.contentTypes()) do
-  --   hs.alert.show(k)
-  --   hs.alert.show(v)
-  -- end
-  -- hs.alert.show(hs.pasteboard.readDataForUTI(nil,"public.utf8-plain-text"))
-  hs.alert.show('paste unformatted start')
-  if not hs.pasteboard.typesAvailable()["image"] then
-    -- leave images alone
+  local downgradeToText = true
+  for k,v in pairs(hs.pasteboard.contentTypes()) do
+    -- hs.alert.show(k)
+    -- hs.alert.show(v)
+    -- print(k)
+    print("contentType:",v)
+    if v == 'com.evernote.Evernote.Note-url' then downgradeToText = false end
+  end
+
+  if hs.pasteboard.typesAvailable()["image"] then
+    downgradeToText = false
+  end
+
+  if downgrade then
     local contents = hs.pasteboard.getContents()
     hs.pasteboard.setContents(contents)
   end
