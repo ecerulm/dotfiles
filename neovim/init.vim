@@ -24,7 +24,13 @@ for p in ['py27neovim', 'venv-py27-neovim']
   endif
 endfor
 " let g:python_host_prog  = expand('~/.pyenv/versions/py27neovim/bin/python')
-for p in ['py36neovim', 'venv-py36-neovim']
+
+"
+" pyenv virtualenv 3.8.6 venv-py38-neovim
+" pyenv activate venv-py38-neovim
+" pip install -U pip 
+" pip install -U neovim
+for p in ['venv-py38-neovim', 'py36neovim', 'venv-py36-neovim']
   let fp = expand('~/.pyenv/versions/' . p . '/bin/python')
   if filereadable(fp)
     let g:python3_host_prog = fp
