@@ -222,3 +222,23 @@
   description = "kubernetes: troubleshooting: get all events in a namespace"
   command = "kubectl -n <namespace> get events --sort-by='{.lastTimestamp}'"
   output = ""
+
+[[snippets]]
+  description = "kubernetes:kubectl: get current context"
+  command = "kubectl config current-context"
+  output = ""
+
+[[snippets]]
+  description = "vim: clean: no profile fresh install"
+  command = "vim --clean"
+  output = ""
+
+[[snippets]]
+  description = "EKS: get authentication token"
+  command = "aws --profile <AWS_PROFILE> eks get-token --cluster-name <eks_cluster_name> | jq -r '.status.token' | pbcopy"
+  output = ""
+
+[[snippets]]
+  description = "kubernetes: eks: Update the local kubeconfig with the aws token"
+  command = "aws eks --profile <aws_profile> update-kubeconfig --name <eks-cluster-name>"
+  output = ""
