@@ -23,12 +23,13 @@ shopt -s histappend
 HISTSIZE=1000
 HISTFILESIZE=2000
 
-_bash_history_append() {
-    builtin history -a # append current history to the file ~/.bash_history
-    builtin history -c #  clears the history for the current shell, and does not delete ~/.bash_history.
-    builtin history -r # rereds the history from ~/.bash_history
-}
-PROMPT_COMMAND="_bash_history_append; $PROMPT_COMMAND"
+# _bash_history_append() {
+#     builtin history -a # append current history to the file ~/.bash_history
+#     builtin history -c #  clears the history for the current shell, and does not delete ~/.bash_history.
+#     builtin history -r # rereds the history from ~/.bash_history
+# }
+# PROMPT_COMMAND="_bash_history_append; $PROMPT_COMMAND"
+# The problem with the above is that you will lose the local history per shell, so if you go to previous command in one shell you can get a command that was typed in another shell
 
 # check the window size after each command and, if necessary,
 # update the values of LINES and COLUMNS.
@@ -183,6 +184,7 @@ alias gdms="git diff --stat master"
 alias gdlc="git diff HEAD^ HEAD" # or git diff @~..@ 
 alias gfa="git fetch --all"
 alias gb="git branch --sort=-committerdate"
+alias garchive="git archive --format zip  -o archive.zip HEAD"
 alias packages2install="curl -k https://gist.githubusercontent.com/ecerulm/be59ec62ad77178d61a5/raw | sh"
 alias pipenv=/usr/local/bin/pipenv
 alias nvr=/Users/rublag/.pyenv/versions/venv-py36-neovim/bin/nvr
@@ -750,3 +752,10 @@ fi
 
 
 complete -C /usr/local/bin/terraform terraform
+
+
+shellpodns() {
+   kubectl run --namespace "$1" --generator=run-pod/v1 -ti --rm test-$RANDOM --image-pull-policy Always --image=ecerulm/ubuntu-tools:latest
+}
+
+[ -f "/Users/ecerulm/.ghcup/env" ] && source "/Users/ecerulm/.ghcup/env" # ghcup-env
