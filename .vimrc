@@ -998,7 +998,7 @@ call plug#begin('~/.vim/plugged')
   Plug 'tpope/vim-sleuth'      " No need to set indenting, ts, etc per ftype
   " Plug 'tpope/vim-salve'         " autoconnect fireplace.vim to the REPL
   Plug 'tpope/vim-projectionist' " alternate files,
-  " Plug 'tpope/vim-dispatch'      " run test asynch
+  Plug 'tpope/vim-dispatch'      " run test asynch
   " Plug 'tpope/vim-fireplace'     " REPL
   " Plug 'tpope/vim-classpath'
   " Plug 'tpope/vim-sexp-mappings-for-regular-people'
@@ -1010,7 +1010,13 @@ call plug#begin('~/.vim/plugged')
   " Plug 'Shougo/unite-outline'
   " Plug 'tsukkee/unite-tag'
   " Plug 'Shougo/neocomplete'     " required by unite-tag , needs vim if_lua
-  Plug 'Shougo/denite.nvim'  " like unite.vim but for vim8 / neovim
+  if has('nvim')
+    Plug 'Shougo/denite.nvim', { 'do': ':UpdateRemotePlugins' }  " like unite.vim but for vim8 / neovim
+  else
+    Plug 'Shougo/denite.nvim'
+    Plug 'roxma/nvim-yarp'
+    Plug 'roxma/vim-hug-neovim-rpc'
+  endif
   Plug 'ozelentok/denite-gtags'
   " Plug 'Shougo/vimproc.vim'
   " Plug 'Shougo/neomru.vim'
@@ -1149,7 +1155,12 @@ call plug#begin('~/.vim/plugged')
   " Terraform
   Plug 'hashivim/vim-terraform'
 
+  " Npm / Javascript / vue.js / nux.js
+  " Plug 'neoclide/npm.nvim', {'do' : 'npm install'}
+
 
 
 call plug#end()
 " Plugins }}}
+"
+set runtimepath+=/Users/ecerulm/git/vue.vim
