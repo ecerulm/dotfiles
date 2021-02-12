@@ -35,7 +35,7 @@
 
 [[snippets]]
   description = "Generate a random hexadecimal string"
-  command = "cat /dev/urandom | LC_ALL=C tr -dc 'a-f0-9' | fold -w 16 | head -n 1"
+  command = "cat /dev/urandom | LC_ALL=C tr -dc 'a-f0-9' | fold -w <size=16> | head -n 1"
   output = ""
 
 [[snippets]]
@@ -190,7 +190,7 @@
 
 [[snippets]]
   description = "kubernetes: kubectl: Get the CA.crt"
-  command = "kubectl -n kube-system get secret $(kubectl -n kube-system get secret | grep <serviceaccount=eks-admin> | awk '{print $1}') -o jsonpath=\"{['data']['ca\\.crt']}\"|base64 -D"
+  command = "kubectl get secret $(kubectl get secret -o json | jq -r '.items[] | .metadata.name | select(startswith(\"default-token\"))') -o jsonpath=\"{['data']['ca\\.crt']}\" | base64 --decode"
   output = ""
 
 [[snippets]]
@@ -241,4 +241,9 @@
 [[snippets]]
   description = "kubernetes: eks: Update the local kubeconfig with the aws token"
   command = "aws eks --profile <aws_profile> update-kubeconfig --name <eks-cluster-name>"
+  output = ""
+
+[[snippets]]
+  description = "Remove quarantine from file, solve unidentified developer"
+  command = "xattr -d com.apple.quarantine <file>"
   output = ""
