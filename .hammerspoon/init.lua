@@ -221,14 +221,23 @@ hs.hotkey.bind(hyper, 'V', function() -- CREATE A GIST WITH THE CONTENTS OF PAST
   end
 end)
 
-hs.hotkey.bind(hyper, 'C', function() -- SCREENSHOT TO EVERNOTE
+-- hs.hotkey.bind(hyper, 'C', function() -- SCREENSHOT TO EVERNOTE
+-- hs.task.new("/usr/sbin/screencapture",
+--   function()
+--     hs.application.get('Evernote'):activate()
+--     hs.eventtap.keyStroke({"cmd"}, "v")
+--     hs.eventtap.keyStrokes(" \n")
+
+--     hs.alert.show("clipboard pasted to evernote")
+--   end,
+--   {"-ci"}
+--   ):start()
+-- end)
+
+hs.hotkey.bind(hyper, 'C', function() -- SCREENSHOT TO
 hs.task.new("/usr/sbin/screencapture",
   function()
-    hs.application.get('Evernote'):activate()
-    hs.eventtap.keyStroke({"cmd"}, "v")
-    hs.eventtap.keyStrokes(" \n")
-
-    hs.alert.show("clipboard pasted to evernote")
+    hs.alert.show("screenshot copied to clipboard")
   end,
   {"-ci"}
   ):start()
