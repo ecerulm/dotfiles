@@ -77,8 +77,9 @@
 [core]
 	editor = nvim
 	excludesfile = ~/.gitignore
-	autocrlf = input
+	autocrlf = false
 	safecrlf = warn
+	longpaths = true
 [init]
   templatedir = ~/.git_template
 [pager]
