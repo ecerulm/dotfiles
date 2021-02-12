@@ -29,7 +29,8 @@ hs.hotkey.bind(hyper, 'a', function()  -- remove formatting from pasteboard and 
     downgradeToText = false
   end
 
-  if downgrade then
+  if downgradeToText then
+    hs.alert.show('downgrade to plain text')
     local contents = hs.pasteboard.getContents()
     hs.pasteboard.setContents(contents)
   end
