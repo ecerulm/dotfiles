@@ -243,7 +243,7 @@ hs.task.new("/usr/sbin/screencapture",
   ):start()
 end)
 
-hs.hotkey.bind(hyper, '1', function() -- I have no strong feelings one way or the other
+hs.hotkey.bind(hyper, '1', function() -- Neutral : I have no strong feelings one way or the other
   noStrongOpinionAudio()
 end)
 
