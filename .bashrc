@@ -189,6 +189,7 @@ alias packages2install="curl -k https://gist.githubusercontent.com/ecerulm/be59e
 alias pipenv=/usr/local/bin/pipenv
 alias nvr=/Users/rublag/.pyenv/versions/venv-py36-neovim/bin/nvr
 alias rsync='rsync -azvcC'
+alias whatsmyip='curl -s https://checkip.amazonaws.com'
 
 function gl {
   git l
