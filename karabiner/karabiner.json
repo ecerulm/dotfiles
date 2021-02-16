@@ -53,9 +53,32 @@
                         "product_id": 49738,
                         "vendor_id": 1133
                     },
-                    "ignore": false,
+                    "ignore": true,
                     "manipulate_caps_lock_led": false,
                     "simple_modifications": [
+                        {
+                            "from": {
+                                "key_code": "0"
+                            },
+                            "to": [
+                                {
+                                    "key_code": "f10"
+                                }
+                            ]
+                        },
+                        {
+                            "from": {
+                                "key_code": "1",
+                                "modifiers": [
+                                    "left_control"
+                                ]
+                            },
+                            "to": [
+                                {
+                                    "key_code": "f10"
+                                }
+                            ]
+                        },
                         {
                             "from": {
                                 "key_code": "1"
@@ -180,11 +203,17 @@
                         },
                         {
                             "from": {
-                                "key_code": "0"
+                                "key_code": "equal_sign"
                             },
                             "to": [
                                 {
-                                    "key_code": "f10"
+                                    "key_code": "up_arrow",
+                                    "modifiers": [
+                                        "left_command",
+                                        "left_control",
+                                        "left_option",
+                                        "left_shift"
+                                    ]
                                 }
                             ]
                         },
@@ -197,22 +226,6 @@
                                     "key_code": "k",
                                     "modifiers": [
                                         "left_command"
-                                    ]
-                                }
-                            ]
-                        },
-                        {
-                            "from": {
-                                "key_code": "equal_sign"
-                            },
-                            "to": [
-                                {
-                                    "key_code": "up_arrow",
-                                    "modifiers": [
-                                        "left_command",
-                                        "left_control",
-                                        "left_option",
-                                        "left_shift"
                                     ]
                                 }
                             ]
