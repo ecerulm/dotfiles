@@ -115,32 +115,58 @@ hs.hotkey.bind(hyper, "u", function() -- move window up-left 10 px
 end)
 
 
-hs.hotkey.bind(hyper, "Left", function() -- RESIZE WINDOW TO HALF-LEFT / MAXIMIZE LEFT
-  local win = hs.window.focusedWindow()
+function leftSide(win)
   local f = win:frame()
   local screen = win:screen()
   local max = screen:frame()
-
   f.x = max.x
   f.y = max.y
   f.w = max.w / 2
   f.h = max.h
-  win:setFrame(f)
+  return f
+end
+
+function rightSide(win)
+  local f = win:frame()
+  local screen = win:screen()
+  local max = screen:frame()
+  f.x = max.x + (max.w / 2)
+  f.y = max.y
+  f.w = max.w / 2
+  f.h = max.h
+  return f
+end
+
+hs.hotkey.bind(hyper, "Left", function() -- RESIZE WINDOW TO HALF-LEFT / MAXIMIZE LEFT
+  local win = hs.window.focusedWindow()
+  local leftSideFrame = leftSide(win)
+  local rightSideFrame = rightSide(win)
+  
+  if win:frame() == leftSideFrame then
+    win:moveOneScreenWest(false,true)
+    win:maximize()
+  elseif win:frame() == rightSideFrame then
+    win:maximize()
+  else 
+    win:setFrame(leftSideFrame)
+  end
 
 end)
 
 
 hs.hotkey.bind(hyper, "Right", function() -- RESIZE WINDOW TO HALF-RIGHT
   local win = hs.window.focusedWindow()
-  local f = win:frame()
-  local screen = win:screen()
-  local max = screen:frame()
-
-  f.x = max.x + (max.w / 2)
-  f.y = max.y
-  f.w = max.w / 2
-  f.h = max.h
-  win:setFrame(f)
+  local leftSideFrame = leftSide(win)
+  local rightSideFrame = rightSide(win)
+  
+  if win:frame() == leftSideFrame then
+    win:maximize()
+  elseif win:frame() == rightSideFrame then
+    win:moveOneScreenEast()
+    win:maximize()
+  else 
+    win:setFrame(rightSideFrame)
+  end
 end)
 
 hs.hotkey.bind(hyper, "Up", function() -- MAXIMIZE CURRENT WINDOW
@@ -249,6 +275,10 @@ end)
 
 hs.hotkey.bind(hyper, '2', function() -- iTunes play pause / Music play pause
   hs.itunes.playpause()
+end)
+
+hs.hotkey.bind(hyper, '3', function() -- iTunes play pause / Music play pause
+  hs.itunes.next()
 end)
 
 hs.hotkey.bind(hyper, '5', function() -- Google Chrome
