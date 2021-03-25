@@ -190,6 +190,7 @@ alias pipenv=/usr/local/bin/pipenv
 alias nvr=/Users/rublag/.pyenv/versions/venv-py36-neovim/bin/nvr
 alias rsync='rsync -azvcC'
 alias whatsmyip='curl -s https://checkip.amazonaws.com'
+alias checkip='curl -s https://checkip.amazonaws.com'
 
 function gl {
   git l
@@ -200,6 +201,11 @@ function gdca {
   # Access parameters $1, $2, ${$1:mydefaultvalue}	"$@"
   CID=${1:-HEAD}
   git diff $(git merge-base "$CID" master) "$CID"
+}
+
+function gbranches {
+  # Credit http://stackoverflow.com/a/2514279
+  for branch in `git branch -r | grep -v HEAD`;do echo -e `git show --format="%ci %cr" $branch | head -n 1` \\t$branch; done | sort -r
 }
 
 function rtags {
