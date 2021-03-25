@@ -247,6 +247,10 @@ hs.hotkey.bind(hyper, '1', function() -- Neutral : I have no strong feelings one
   noStrongOpinionAudio()
 end)
 
+hs.hotkey.bind(hyper, '2', function() -- iTunes play pause / Music play pause
+  hs.itunes.playpause()
+end)
+
 hs.hotkey.bind(hyper, '5', function() -- Google Chrome
   focusAppOnMousePointer("Google Chrome")
 end)
