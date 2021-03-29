@@ -9,6 +9,7 @@ require "credentials"
 -- }
 -- _G[modname] = M -- we set _G["credentials"] = {...}
 
+local l = hs.logger.new('global', 'info')
 local hyper = {"cmd", "alt", "ctrl", "shift"}
 
 hs.hotkey.bind({"cmd", "alt", "ctrl"}, "W", function()
@@ -143,12 +144,12 @@ hs.hotkey.bind(hyper, "Left", function() -- RESIZE WINDOW TO HALF-LEFT / MAXIMIZ
   local rightSideFrame = rightSide(win)
   
   if win:frame() == leftSideFrame then
-    win:moveOneScreenWest(false,true)
-    win:maximize()
+    win:moveOneScreenWest{noResize=false,ensureInScreenBounds=true,duration=0 }
+    win:setFrame(rightSide(win),0)
   elseif win:frame() == rightSideFrame then
-    win:maximize()
+    win:maximize(0)
   else 
-    win:setFrame(leftSideFrame)
+    win:setFrame(leftSideFrame,0)
   end
 
 end)
@@ -160,12 +161,12 @@ hs.hotkey.bind(hyper, "Right", function() -- RESIZE WINDOW TO HALF-RIGHT
   local rightSideFrame = rightSide(win)
   
   if win:frame() == leftSideFrame then
-    win:maximize()
+    win:maximize(0)
   elseif win:frame() == rightSideFrame then
-    win:moveOneScreenEast()
-    win:maximize()
+    win:moveOneScreenEast{noResize=false,ensureInScreenBounds=true,duration=0 }
+    win:setFrame(leftSide(win),0)
   else 
-    win:setFrame(rightSideFrame)
+    win:setFrame(rightSideFrame,0)
   end
 end)
 
