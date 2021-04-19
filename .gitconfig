@@ -82,6 +82,7 @@
 	longpaths = true
 [init]
   templatedir = ~/.git_template
+	defaultBranch = master
 [pager]
 [push]
 	default = current
