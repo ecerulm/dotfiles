@@ -9,6 +9,100 @@ require "credentials"
 -- }
 -- _G[modname] = M -- we set _G["credentials"] = {...}
 
+
+
+function leftSide(win)
+  local f = win:frame()
+  local screen = win:screen()
+  local max = screen:frame()
+  f.x = max.x
+  f.y = max.y
+  f.w = max.w / 2
+  f.h = max.h
+  return f
+end
+
+function rightSide(win)
+  local f = win:frame()
+  local screen = win:screen()
+  local max = screen:frame()
+  f.x = max.x + (max.w / 2)
+  f.y = max.y
+  f.w = max.w / 2
+  f.h = max.h
+  return f
+end
+
+function prettifyJsonInPasteboard()
+  local file = io.open("/Users/rublag/tmp.json", "w")
+  file:write(hs.pasteboard.readString())
+  file:close()
+  hs.execute("/usr/local/bin/jq -S . /Users/rublag/tmp.json > /Users/rublag/tmp2.json")
+  file = io.open("/Users/rublag/tmp2.json", "r")
+  hs.pasteboard.setContents(file:read("*all"))
+end
+
+function focusAppOnMousePointer(appName)
+  local screen = hs.mouse.getCurrentScreen() -- http://www.hammerspoon.org/docs/hs.mouse.html#getCurrentScreen
+  local screenFrame = screen:frame()
+  -- hideApplicationsWithWindowsOnScreen(screen) -- hide all other windows
+
+
+  local app = hs.application.get(appName)
+  -- Keep the current position
+  -- local mainWindow = app:mainWindow() -- http://www.hammerspoon.org/docs/hs.window.html
+  -- mainWindow:moveToScreen(screen) -- https://www.hammerspoon.org/docs/hs.window.html#moveToScreen
+  -- local f = hs.geometry.copy(screenFrame) -- http://www.hammerspoon.org/docs/hs.geometry.html#copy
+  -- -- screenFrame x,y is relative to the mainWindow so if the screen is to the left of the mainWindow .x will be negative
+  -- f.x = f.x + screenFrame.w * 1/6
+  -- f.y = f.y
+  -- -- f.w = f.w*4/5
+  -- f.w = f.w - 50
+  -- f.h = f.h - 50
+  -- mainWindow:setFrameInScreenBounds(f) -- https://www.hammerspoon.org/docs/hs.window.html#setFrameInScreenBounds
+  app:activate()
+  hs.alert.show("activate " .. appName)
+end
+
+function toggleMuteOnMicrosoftTeams()
+  focusAppOnMousePointer("Microsoft Teams")
+  hs.eventtap.keyStroke({'cmd','shift'},'c')
+end
+
+
+function hideApplicationsWithWindowsOnScreen(screen)
+  local windows = hs.window.allWindows()
+
+  for i,w in ipairs(windows) do
+    if w:screen() == screen then
+      w:application():hide()
+    end
+  end
+end
+
+function noStrongOpinionAudio()
+  -- save state
+  local currentOutputDevice = hs.audiodevice.defaultOutputDevice()
+  local currentVolume  = currentOutputDevice:outputVolume()
+  local currentMutedState = currentOutputDevice:muted()
+
+  -- set audio output to speakers, volume to max and open youtube clip
+  local speakers = hs.audiodevice.findOutputByName('MacBook Pro Speakers')
+  speakers:setDefaultOutputDevice()
+  speakers:setOutputMuted(false)
+  speakers:setOutputVolume(100)
+  hs.urlevent.openURL('https://www.youtube.com/watch?v=CxK_nA2iVXw')
+  hs.timer.doAfter(5.5, function()
+
+    -- restore state
+    currentOutputDevice:setDefaultOutputDevice()
+    currentOutputDevice:setOuputMuted(currentMutedState)
+    currentOutputDevice:setOutputVolume(currentVolume)
+  end)
+end
+
+
+
 local l = hs.logger.new('global', 'info')
 local hyper = {"cmd", "alt", "ctrl", "shift"}
 
@@ -115,29 +209,6 @@ hs.hotkey.bind(hyper, "u", function() -- move window up-left 10 px
   win:setFrame(f)
 end)
 
-
-function leftSide(win)
-  local f = win:frame()
-  local screen = win:screen()
-  local max = screen:frame()
-  f.x = max.x
-  f.y = max.y
-  f.w = max.w / 2
-  f.h = max.h
-  return f
-end
-
-function rightSide(win)
-  local f = win:frame()
-  local screen = win:screen()
-  local max = screen:frame()
-  f.x = max.x + (max.w / 2)
-  f.y = max.y
-  f.w = max.w / 2
-  f.h = max.h
-  return f
-end
-
 hs.hotkey.bind(hyper, "Left", function() -- RESIZE WINDOW TO HALF-LEFT / MAXIMIZE LEFT
   local win = hs.window.focusedWindow()
   local leftSideFrame = leftSide(win)
@@ -194,15 +265,6 @@ hs.hotkey.bind(hyper, 'X', function() -- PRETTIFY JSON IN CLIPBOARD
   prettifyJsonInPasteboard()
   hs.alert.show("clipboard update with prettified JSON")
 end)
-
-function prettifyJsonInPasteboard()
-  local file = io.open("/Users/rublag/tmp.json", "w")
-  file:write(hs.pasteboard.readString())
-  file:close()
-  hs.execute("/usr/local/bin/jq -S . /Users/rublag/tmp.json > /Users/rublag/tmp2.json")
-  file = io.open("/Users/rublag/tmp2.json", "r")
-  hs.pasteboard.setContents(file:read("*all"))
-end
 
 hs.hotkey.bind(hyper, 'V', function() -- CREATE A GIST WITH THE CONTENTS OF PASTEBOARD
   -- https://developer.github.com/v3/gists/#create-a-gist
@@ -307,56 +369,5 @@ hs.hotkey.bind(hyper, '9', function() -- iTerm2
   focusAppOnMousePointer("iTerm2")
 end)
 
+hs.hotkey.bind(hyper, '0', toggleMuteOnMicrosoftTeams)
 
-function focusAppOnMousePointer(appName)
-  local screen = hs.mouse.getCurrentScreen() -- http://www.hammerspoon.org/docs/hs.mouse.html#getCurrentScreen
-  local screenFrame = screen:frame()
-  -- hideApplicationsWithWindowsOnScreen(screen) -- hide all other windows
-
-
-  local app = hs.application.get(appName)
-  -- Keep the current position
-  -- local mainWindow = app:mainWindow() -- http://www.hammerspoon.org/docs/hs.window.html
-  -- mainWindow:moveToScreen(screen) -- https://www.hammerspoon.org/docs/hs.window.html#moveToScreen
-  -- local f = hs.geometry.copy(screenFrame) -- http://www.hammerspoon.org/docs/hs.geometry.html#copy
-  -- -- screenFrame x,y is relative to the mainWindow so if the screen is to the left of the mainWindow .x will be negative
-  -- f.x = f.x + screenFrame.w * 1/6
-  -- f.y = f.y
-  -- -- f.w = f.w*4/5
-  -- f.w = f.w - 50
-  -- f.h = f.h - 50
-  -- mainWindow:setFrameInScreenBounds(f) -- https://www.hammerspoon.org/docs/hs.window.html#setFrameInScreenBounds
-  app:activate()
-  hs.alert.show("activate " .. appName)
-end
-
-function hideApplicationsWithWindowsOnScreen(screen)
-  local windows = hs.window.allWindows()
-
-  for i,w in ipairs(windows) do
-    if w:screen() == screen then
-      w:application():hide()
-    end
-  end
-end
-
-function noStrongOpinionAudio()
-  -- save state
-  local currentOutputDevice = hs.audiodevice.defaultOutputDevice()
-  local currentVolume  = currentOutputDevice:outputVolume()
-  local currentMutedState = currentOutputDevice:muted()
-
-  -- set audio output to speakers, volume to max and open youtube clip
-  local speakers = hs.audiodevice.findOutputByName('MacBook Pro Speakers')
-  speakers:setDefaultOutputDevice()
-  speakers:setOutputMuted(false)
-  speakers:setOutputVolume(100)
-  hs.urlevent.openURL('https://www.youtube.com/watch?v=CxK_nA2iVXw')
-  hs.timer.doAfter(5.5, function()
-
-    -- restore state
-    currentOutputDevice:setDefaultOutputDevice()
-    currentOutputDevice:setOuputMuted(currentMutedState)
-    currentOutputDevice:setOutputVolume(currentVolume)
-  end)
-end
