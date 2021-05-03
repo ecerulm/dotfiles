@@ -771,6 +771,8 @@ function! ConfigAfterPluginLoaded()
     call AddCycleGroup('python', ['method_calls', 'mock_calls'])
     call AddCycleGroup('python', ['start', 'stop'])
     call AddCycleGroup('c', ['EXIT_FAILURE', 'EXIT_SUCCESS'])
+
+    call AddCycleGroup('cfg', ['True', 'False'])
   endif
   " }}} vim-cycle groups
 
