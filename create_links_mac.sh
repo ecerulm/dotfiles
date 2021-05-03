@@ -8,6 +8,11 @@ mkdir -p ~/.config/fish/
 ln -Fvhfs ~/dotfiles/fishfunctions ~/.config/fish/functions
 ln -Fvhfs ~/dotfiles/config.fish ~/.config/fish/config.fish
 
+# pet config files
+mkdir -p ~/.config/pet
+ln -Fvhfs ~/dotfiles/pet/config.toml ~/.config/pet/config.toml
+ln -Fvhfs ~/dotfiles/pet/snippet.toml ~/.config/pet/snippet.toml
+
 # SBT
 mkdir -p ~/.sbt/0.13/plugins
 ln -Fvhfs ~/dotfiles/sbt/0.13/plugins/plugins.sbt ~/.sbt/0.13/plugins/
@@ -67,6 +72,7 @@ echo "submodule update"
 # (vim -u NONE -N "+helptags ~/.vim/doc" "+qall")
 echo "Install vim plugins with vim-plug"
 # (vim -u ~/.vim/vundle.vim -N +PluginInstall +PluginClean +qall)
+#neovim
 (nvim -N +PlugInstall +PlugClean +qall)
 (nvim +UpdateRemotePlugins +qall)
 # echo "install vimproc"
