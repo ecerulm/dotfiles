@@ -247,3 +247,8 @@
   description = "Remove quarantine from file, solve unidentified developer"
   command = "xattr -d com.apple.quarantine <file>"
   output = ""
+
+[[snippets]]
+  description = "git: list all tags / show all tags"
+  command = "git fetch --tags && git tag"
+  output = ""
