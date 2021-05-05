@@ -66,7 +66,7 @@ end
 
 function toggleMuteOnMicrosoftTeams()
   focusAppOnMousePointer("Microsoft Teams")
-  hs.eventtap.keyStroke({'cmd','shift'},'c')
+  hs.eventtap.keyStroke({'cmd','shift'},'m')
 end
 
 
