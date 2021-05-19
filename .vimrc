@@ -160,6 +160,7 @@ set secure " disable unsafe commands in local .vimrc files
 
 set ttyfast
 set lazyredraw
+
 set diffopt+=vertical
 
 
@@ -244,7 +245,9 @@ augroup vimrcEx " Put them in a group so we delete them easily
   autocmd BufWinEnter * if line2byte(line("$") + 1) > 1000000 | syntax clear | endif
   " autocmd BufReadPre * if getfsize(expand("%")) > 10000000 | syntax sync clear | endif
   " save the job id of the last terminal for use with chansend() {{{2
+  if has("nvim") 
   autocmd TermOpen * let g:last_terminal_job_id = &channel
+  endif
 augroup END
 
 
@@ -386,6 +389,11 @@ nnoremap <f8> :TagbarToggle<CR>
 " w!! Write file as root (sudo tee trick) {{{2
 " command mode mapping, throw away the stdout
 cmap w!! w !sudo tee >/dev/null %
+
+" vim-base64 {{{2
+let g:vim_base64_disable_default_key_mappings = 1
+vnoremap <silent> <leader>btoa :<c-u>call base64#v_atob()<cr>
+vnoremap <silent> <leader>atob :<c-u>call base64#v_btoa()<cr>
 " }}}1 MISC KEY MAPS
 
 " Pymode {{{1
@@ -960,6 +968,7 @@ cabbrev help tab help
 " nnoremap <silent> <leader>ww :call WindowSwap#EasyWindowSwap()<CR>
 " Making swapping windows easy }}}
 
+
 " Plugins {{{
 " This plugins are loaded for both vim and neovim
 
@@ -1159,6 +1168,11 @@ call plug#begin('~/.vim/plugged')
 
   " Npm / Javascript / vue.js / nux.js
   " Plug 'neoclide/npm.nvim', {'do' : 'npm install'}
+  
+
+
+  " Base64 encode / decode
+  Plug 'christianrondeau/vim-base64'
 
 
 
