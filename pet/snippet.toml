@@ -252,3 +252,8 @@
   description = "git: list all tags / show all tags"
   command = "git fetch --tags && git tag"
   output = ""
+
+[[snippets]]
+  description = "kubernetes: kubectl: get token for kubernetes dashboard"
+  command = "kubectl --context <context=bia-b2b-eks-dev> -n kubernetes-dashboard get secret $(kubectl --context <context=bia-b2b-eks-dev> -n kubernetes-dashboard get sa <serviceaccount=dashboard-admin-sa> -o json | jq -r '.secrets[0].name') -o json | jq -r .data.token|base64 -D|pbcopy"
+  output = ""
