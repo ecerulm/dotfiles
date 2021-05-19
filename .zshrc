@@ -56,5 +56,9 @@ fi
 # Add RVM to PATH for scripting. Make sure this is the last PATH variable change.
 export PATH="$PATH:$HOME/.rvm/bin"
 
+autoload compinit && compinit
 autoload -U +X bashcompinit && bashcompinit
 complete -o nospace -C /usr/local/bin/terraform terraform
+# START: Added by Airflow Breeze autocomplete setup
+[ -f ~/.bash_completion.d/breeze-complete ] && source ~/.bash_completion.d/breeze-complete
+# END: Added by Airflow Breeze autocomplete setup
