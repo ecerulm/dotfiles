@@ -766,3 +766,5 @@ shellpodns() {
 }
 
 [ -f "/Users/ecerulm/.ghcup/env" ] && source "/Users/ecerulm/.ghcup/env" # ghcup-env
+
+[ -f $HOME/.bash_completion.d/breeze-complete ] && source $HOME/.bash_completion.d/breeze-complete
