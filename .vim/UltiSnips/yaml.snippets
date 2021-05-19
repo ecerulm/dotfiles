@@ -101,3 +101,15 @@ ${1:ssh}_security_group:
 				port_range_min: ${2:22}
 				port_range_max: ${3:22}
 endsnippet
+
+
+snippet k8ssecret
+---
+apiVersion: v1
+kind: Secret
+metadata:
+    name: ${1:secretname}
+type: Opaque
+data:
+  ${2:KEY_NAME}: ${3:base64encodedvalue}
+endsnippet 
