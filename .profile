@@ -36,3 +36,7 @@ fi
 
 # added by Snowflake SnowSQL installer v1.0
 [ -d "/Applications/SnowSQL.app/Contents/MacOS" ] && export PATH=/Applications/SnowSQL.app/Contents/MacOS:$PATH
+
+
+export LC_ALL=en_US.UTF-8
+export LANG=en_US.UTF-8
