@@ -378,8 +378,13 @@ end)
 
 --hs.hotkey.bind(hyper, '0', toggleMuteOnMicrosoftTeams)
 hs.hotkey.bind(hyper, '0', function()
-  -- focusAppOnMousePointer("Google Chrome")
-  --expose_chrome:toggleShow()
   focusAppOnMousePointer("Google Chrome")
   hs.eventtap.keyStroke({"fn","control"}, "down")
 end)
+
+
+hs.hotkey.bind(hyper, '-', function()
+  focusAppOnMousePointer("iTerm2")
+  hs.eventtap.keyStroke({"fn","control"}, "down")
+end)
+

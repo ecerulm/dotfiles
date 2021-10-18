@@ -356,7 +356,7 @@
                                         "type": "device_if"
                                     }
                                 ],
-                                "description": "Change G600 G17 to Hyper+left (window resize half left)",
+                                "description": "Change G600 G17 to Hyper+left (window resize half right)",
                                 "from": {
                                     "key_code": "9"
                                 },
@@ -390,13 +390,47 @@
                                         "type": "device_if"
                                     }
                                 ],
-                                "description": "Change G600 G18 to Hyper+0 (window resize half left)",
+                                "description": "Change G600 G18 to Hyper+0 (Select Google Chrome window)",
                                 "from": {
                                     "key_code": "0"
                                 },
                                 "to": [
                                     {
                                         "key_code": "0",
+                                        "modifiers": [
+                                            "left_command",
+                                            "left_control",
+                                            "left_option",
+                                            "left_shift"
+                                        ]
+                                    }
+                                ],
+                                "type": "basic"
+                            }
+                        ]
+                    },
+                    {
+                        "manipulators": [
+                            {
+                                "conditions": [
+                                    {
+                                        "identifiers": [
+                                            {
+                                                "is_keyboard": true,
+                                                "product_id": 49738,
+                                                "vendor_id": 1133
+                                            }
+                                        ],
+                                        "type": "device_if"
+                                    }
+                                ],
+                                "description": "Change G600 G19 to Hyper+- (Select iTerm2 window)",
+                                "from": {
+                                    "key_code": "hyphen"
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "hyphen",
                                         "modifiers": [
                                             "left_command",
                                             "left_control",
