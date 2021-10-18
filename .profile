@@ -26,6 +26,20 @@ if [ $(type -P "brew") ]; then # or $(type -P "brew")
 fi
 
 
+
+PYENV_ROOT="$HOME/.pyenv"
+
+if [ -d $PYENV_ROOT ]; then
+  export PYENV_ROOT
+  export PATH="$PYENV_ROOT/bin:$PATH"
+  export PYENV_VIRTUALENV_DISABLE_PROMPT=1
+
+
+  eval "$(pyenv init --path)"
+  eval "$(pyenv virtualenv-init -)"
+fi
+
+
 # if running bash, you want this at the end so that pyenv path is before brew path, 
 if [ -n "$BASH_VERSION" ]; then
     # include .bashrc if it exists
@@ -40,3 +54,4 @@ fi
 
 export LC_ALL=en_US.UTF-8
 export LANG=en_US.UTF-8
+
