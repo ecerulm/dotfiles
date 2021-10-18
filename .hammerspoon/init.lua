@@ -10,6 +10,8 @@ require "credentials"
 -- _G[modname] = M -- we set _G["credentials"] = {...}
 
 
+wf_chrome = hs.window.filter.new('Google Chrome')
+expose_chrome= hs.expose.new(wf_chrome)
 
 function leftSide(win)
   local f = win:frame()
@@ -110,6 +112,8 @@ hs.hotkey.bind({"cmd", "alt", "ctrl"}, "W", function()
     hs.notify.new({title="Hammerspoon", informativeText="Hello World"}):send()
   end)
 
+
+-- PASTE EVERNOTE
 hs.hotkey.bind(hyper, 'a', function()  -- remove formatting from pasteboard and paste
   local downgradeToText = true
   for k,v in pairs(hs.pasteboard.contentTypes()) do
@@ -332,6 +336,9 @@ hs.task.new("/usr/sbin/screencapture",
   ):start()
 end)
 
+
+-- Hyper keys
+
 hs.hotkey.bind(hyper, '1', function() -- Neutral : I have no strong feelings one way or the other
   noStrongOpinionAudio()
 end)
@@ -369,5 +376,10 @@ hs.hotkey.bind(hyper, '9', function() -- iTerm2
   focusAppOnMousePointer("iTerm2")
 end)
 
-hs.hotkey.bind(hyper, '0', toggleMuteOnMicrosoftTeams)
-
+--hs.hotkey.bind(hyper, '0', toggleMuteOnMicrosoftTeams)
+hs.hotkey.bind(hyper, '0', function()
+  -- focusAppOnMousePointer("Google Chrome")
+  --expose_chrome:toggleShow()
+  focusAppOnMousePointer("Google Chrome")
+  hs.eventtap.keyStroke({"fn","control"}, "down")
+end)
