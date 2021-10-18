@@ -203,6 +203,15 @@ function gdca {
   git diff $(git merge-base "$CID" master) "$CID"
 }
 
+function gdiffbranches {
+  if [ "$#" -ne 2 ]; then
+    echo "Usage: gdiffbranches branchname otherbranchname(origin/main,master,etc)"
+    return 1
+  fi
+  #git diff --name-only "$1" $(git merge-base "$2" "$1")
+  git diff --stat $(git merge-base "$2" "$1") "$1" 
+}
+
 function gbranches {
   # Credit http://stackoverflow.com/a/2514279
   for branch in `git branch -r | grep -v HEAD`;do echo -e `git show --format="%ci %cr" $branch | head -n 1` \\t$branch; done | sort -r
@@ -670,7 +679,8 @@ function bashrc() {
 }
 
 function httpserver() {
-  python -m SimpleHTTPServer 8080
+  
+  python3.9 -m SimpleHTTPServer 8080
 }
 
 function scalareplgradle {
@@ -693,8 +703,32 @@ function printcertder {
    openssl x509 -inform der -in $1 -noout -text # read it as DER
 }
 
+function airflowprecommitbranch {
+  pyenv shell airflow-venv
+  git fetch origin
+  time pre-commit run --from-ref $(git merge-base origin/main HEAD)  --to-ref HEAD
+}
 
+function airflowcoretests {
+  cd ~/git/airflow
+  pyenv shell airflow-venv
+  ./breeze --backend mysql --db-reset --test-type Core tests 
+}
 
+function airflowalltests {
+  cd ~/git/airflow
+  pyenv shell airflow-venv
+  ./breeze --backend mysql --db-reset --test-type All tests 
+}
+
+function airflowstaticcheck {
+# https://github.com/apache/airflow/blob/main/STATIC_CODE_CHECKS.rst
+  cd ~/git/airflow
+  pyenv shell airflow-venv
+  git fetch origin
+  ./breeze static-check all -- --from-ref $(git merge-base origin/main HEAD) --to-ref HEAD
+ 
+}
 
 # Don't ever put .bashrc.thismachine in git 
 # it contains SENSITIVE information
@@ -709,16 +743,7 @@ if [ -d "$HOME/.sdkman" ]; then
   [[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]] && source "$HOME/.sdkman/bin/sdkman-init.sh"
 fi
 
-PYENV_ROOT="$HOME/.pyenv"
-
-if [ -d $PYENV_ROOT ]; then
-  export PYENV_ROOT
-  export PATH="$PYENV_ROOT/bin:$PATH"
-  export PYENV_VIRTUALENV_DISABLE_PROMPT=1
-
-  eval "$(pyenv init -)"
-  eval "$(pyenv virtualenv-init -)"
-fi
+if command -v pyenv >/dev/null; then eval "$(pyenv init -)"; fi
 
 alias pipenv=/usr/local/bin/pipenv
 export PIPENV_IGNORE_VIRTUALENVS=1 
@@ -768,3 +793,10 @@ shellpodns() {
 [ -f "/Users/ecerulm/.ghcup/env" ] && source "/Users/ecerulm/.ghcup/env" # ghcup-env
 
 [ -f $HOME/.bash_completion.d/breeze-complete ] && source $HOME/.bash_completion.d/breeze-complete
+# START: Added by Airflow Breeze autocomplete setup
+for bcfile in ~/.bash_completion.d/* ; do
+    . ${bcfile}
+done
+# END: Added by Airflow Breeze autocomplete setup
+
+
