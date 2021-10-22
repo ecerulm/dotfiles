@@ -294,13 +294,59 @@
                                         "type": "device_if"
                                     }
                                 ],
-                                "description": "Change G600 G15 to PlayOrPause",
+                                "description": "Change G600 G15 to Hyper+2 iTunes / Music play/pause",
                                 "from": {
                                     "key_code": "7"
                                 },
                                 "to": [
                                     {
-                                        "key_code": "play_or_pause"
+                                        "key_code": "2",
+                                        "modifiers": [
+                                            "left_command",
+                                            "left_control",
+                                            "left_option",
+                                            "left_shift"
+                                        ]
+                                    }
+                                ],
+                                "type": "basic"
+                            }
+                        ]
+                    },
+                    {
+                        "manipulators": [
+                            {
+                                "conditions": [
+                                    {
+                                        "identifiers": [
+                                            {
+                                                "is_keyboard": true,
+                                                "product_id": 49738,
+                                                "vendor_id": 1133
+                                            }
+                                        ],
+                                        "type": "device_if"
+                                    }
+                                ],
+                                "description": "Change G600 Gshift + G15 to Hyper+3 iTunes/Music.app next song",
+                                "from": {
+                                    "key_code": "7",
+                                    "modifiers": {
+                                        "mandatory": [
+                                            "left_control"
+                                        ]
+                                    }
+
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "3",
+                                        "modifiers": [
+                                            "left_command",
+                                            "left_control",
+                                            "left_option",
+                                            "left_shift"
+                                        ]
                                     }
                                 ],
                                 "type": "basic"

@@ -347,7 +347,7 @@ hs.hotkey.bind(hyper, '2', function() -- iTunes play pause / Music play pause
   hs.itunes.playpause()
 end)
 
-hs.hotkey.bind(hyper, '3', function() -- iTunes play pause / Music play pause
+hs.hotkey.bind(hyper, '3', function() -- iTunes next / Music.app next
   hs.itunes.next()
 end)
 
@@ -362,6 +362,7 @@ end)
 -- Open Evernote
 hs.hotkey.bind(hyper, '7', function() -- EVERNOTE
   focusAppOnMousePointer("Evernote")
+  hs.eventtap.keyStroke({"fn","control"}, "down")
 end)
 
 -- hs.hotkey.bind(hyper, '8', function() -- SLACK
