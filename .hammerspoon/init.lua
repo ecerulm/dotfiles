@@ -113,36 +113,14 @@ hs.hotkey.bind({"cmd", "alt", "ctrl"}, "W", function()
   end)
 
 
--- PASTE EVERNOTE
+-- PASTE EVERNOTE / removing formattig / copy and paste 
 hs.hotkey.bind(hyper, 'a', function()  -- remove formatting from pasteboard and paste
-  local downgradeToText = true
-  for k,v in pairs(hs.pasteboard.contentTypes()) do
-    -- hs.alert.show(k)
-    -- hs.alert.show(v)
-    -- print(k)
-    print("contentType:",v)
-    if v == 'com.evernote.Evernote.Note-url' then downgradeToText = false end
-  end
-
-  if hs.pasteboard.typesAvailable()["image"] then
-    downgradeToText = false
-  end
-
-  if downgradeToText then
-    hs.alert.show('downgrade to plain text')
-    local contents = hs.pasteboard.getContents()
-    hs.pasteboard.setContents(contents)
-  end
-
-  while hs.eventtap.checkKeyboardModifiers()["alt"] ~= nil do 
-    -- hs.alert.show('wait')
-    hs.timer.usleep(50 * 1000) -- logitech gaming software will keep the hyper key pressed for 25 milliseconds I think so that will interfere with the Cmd-v below
-  end
-  hs.timer.usleep(50 * 1000) -- logitech gaming software will keep the hyper key pressed for 25 milliseconds I think so that will interfere with the Cmd-v below
-  hs.eventtap.keyStroke({'cmd'},'v')
-
-  hs.alert.show('paste unformatted')
-
+  local allData = hs.pasteboard.readAllData()
+  allData['public.html'] = nil -- just remove HTML from the pasteboard/clipboard as it's usually the offender
+  allData['public.rtf'] = nil -- just remove styled text RTF as well
+  hs.pasteboard.writeAllData(allData)
+  hs.eventtap.keyStroke({'cmd'}, 'v')
+  hs.alert.show('removed HTML from pasteboard')
 end)
 
 hs.hotkey.bind(hyper, "H", function() -- move window left 10 px
