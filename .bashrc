@@ -799,4 +799,8 @@ for bcfile in ~/.bash_completion.d/* ; do
 done
 # END: Added by Airflow Breeze autocomplete setup
 
+shortname() {
+  ldapsearch -LLL "(displayName=$*)" sAMAccountName 2>&1| grep sAMAccountName
+}
+
 
