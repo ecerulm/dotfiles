@@ -269,7 +269,7 @@
                                 },
                                 "to": [
                                     {
-                                        "key_code": "up_arrow",
+                                        "key_code": "right_arrow",
                                         "modifiers": [
                                             "left_control"
                                         ]
