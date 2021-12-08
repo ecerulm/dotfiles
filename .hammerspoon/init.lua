@@ -45,12 +45,12 @@ function prettifyJsonInPasteboard()
 end
 
 function focusAppOnMousePointer(appName)
-  local screen = hs.mouse.getCurrentScreen() -- http://www.hammerspoon.org/docs/hs.mouse.html#getCurrentScreen
-  local screenFrame = screen:frame()
+  -- local screen = hs.mouse.getCurrentScreen() -- http://www.hammerspoon.org/docs/hs.mouse.html#getCurrentScreen
+  -- local screenFrame = screen:frame()
   -- hideApplicationsWithWindowsOnScreen(screen) -- hide all other windows
 
 
-  local app = hs.application.get(appName)
+  -- local app = hs.application.get(appName)
   -- Keep the current position
   -- local mainWindow = app:mainWindow() -- http://www.hammerspoon.org/docs/hs.window.html
   -- mainWindow:moveToScreen(screen) -- https://www.hammerspoon.org/docs/hs.window.html#moveToScreen
@@ -62,7 +62,8 @@ function focusAppOnMousePointer(appName)
   -- f.w = f.w - 50
   -- f.h = f.h - 50
   -- mainWindow:setFrameInScreenBounds(f) -- https://www.hammerspoon.org/docs/hs.window.html#setFrameInScreenBounds
-  app:activate()
+
+  local app = hs.application.open(appName, 10,true) -- Launches an application or activates if already running, waits for first window to appear at least 10 seconds
   hs.alert.show("activate " .. appName)
 end
 
@@ -339,8 +340,9 @@ end)
 
 -- Open Evernote
 hs.hotkey.bind(hyper, '7', function() -- EVERNOTE
-  focusAppOnMousePointer("Evernote")
-  hs.eventtap.keyStroke({"fn","control"}, "down")
+  --focusAppOnMousePointer("Evernote")
+  local app = hs.application.open("Evernote", 10,true) -- Launches an application or activates if already running, waits for first window to appear at least 10 seconds
+  hs.eventtap.keyStroke({"fn","control"}, "down") -- Mission control for this app only
 end)
 
 -- hs.hotkey.bind(hyper, '8', function() -- SLACK
