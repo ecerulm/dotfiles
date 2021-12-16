@@ -353,19 +353,26 @@ hs.hotkey.bind(hyper, '8', function() -- PyCharm
   focusAppOnMousePointer("PyCharm")
 end)
 
-hs.hotkey.bind(hyper, '9', function() -- iTerm2
-  focusAppOnMousePointer("iTerm2")
-end)
+-- hs.hotkey.bind(hyper, '9', function() -- iTerm2
+--   hs.alert.show("test iTerm2")
+--   local app = hs.application.open(appName, 10,true) -- Launches an application or activates if already running, waits for first window to appear at least 10 seconds
+-- end)
 
 --hs.hotkey.bind(hyper, '0', toggleMuteOnMicrosoftTeams)
 hs.hotkey.bind(hyper, '0', function()
-  focusAppOnMousePointer("Google Chrome")
+  -- local app = hs.application.open("Google Chrome",5,true) -- Launches an application or activates if already running, waits for first window to appear at least 10 seconds
+  local app = hs.application.open("com.google.Chrome",5,true) -- Launches an application or activates if already running, waits for first window to appear at least 10 seconds
+  -- hs.alert.show("application name " .. app:name())
+  -- hs.alert.show("bundleID " .. app:bundleID())
+  app:activate(true)
   hs.eventtap.keyStroke({"fn","control"}, "down")
 end)
 
 
 hs.hotkey.bind(hyper, '-', function()
-  focusAppOnMousePointer("iTerm2")
+  hs.alert.show("activate iTerm2")
+  local app = hs.application.open("com.googlecode.iterm2", 10,true) -- Launches an application or activates if already running, waits for first window to appear at least 10 seconds
+  app:activate()
   hs.eventtap.keyStroke({"fn","control"}, "down")
 end)
 
