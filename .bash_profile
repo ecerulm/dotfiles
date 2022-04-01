@@ -39,3 +39,5 @@ export NVM_DIR="$HOME/.nvm"
 
 export PATH="/usr/local/opt/gnu-getopt/bin:$PATH"
 [[ -f ~/.bashrc ]] && source ~/.bashrc # ghcup-env
+
+. /usr/local/opt/asdf/libexec/asdf.sh
