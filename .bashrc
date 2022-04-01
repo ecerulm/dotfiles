@@ -807,3 +807,7 @@ shortname() {
 colors() {
 for  i in {0..255}; do printf "\x1b[38;5;${i}m${i} "; done
 }
+
+randompassword() {
+  cat /dev/urandom | LC_ALL=C tr -dc 'a-zA-Z0-9$./,:' | fold -w 32| head -n 1
+}
