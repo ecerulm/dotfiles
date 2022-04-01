@@ -14,26 +14,50 @@ wf_chrome = hs.window.filter.new('Google Chrome')
 expose_chrome= hs.expose.new(wf_chrome)
 
 function leftSide(win)
-  local f = win:frame()
-  local screen = win:screen()
-  local max = screen:frame()
-  f.x = max.x
-  f.y = max.y
-  f.w = max.w / 2
-  f.h = max.h
-  return f
+  return windowFrame(win, 0, 2)
 end
 
 function rightSide(win)
+  return windowFrame(win, 1, 2)
+end
+
+function screenFrame(win)
+  local screen = win:screen()
+  local screenframe = screen:frame()
+  return screenframe
+end
+
+function windowFrame(win, n, np) 
+  -- n is 0,1,2 if np == 3
+  -- np is the number of horizontal partitions
   local f = win:frame()
   local screen = win:screen()
-  local max = screen:frame()
-  f.x = max.x + (max.w / 2)
-  f.y = max.y
-  f.w = max.w / 2
-  f.h = max.h
-  return f
+  local screenframe =  screenFrame(win)
+
+  f.w = screenframe.w//np 
+  f.x = screenframe.x + (n*f.w) -- screenframe.x is the horizontal "origin" of this display
+
+  -- we don't mess with the vertical space
+  f.y = screenframe.y  
+  f.h = screenframe.h -- same vertical size as the screen display (minus the Dock vertical space)
+
+  return screen:absoluteToLocal(f)
 end
+
+function setWindowFrame(win, n, np) 
+   if n < 0 then
+     n = 0
+   end
+
+   if n >= np then
+     n = np - 1
+   end
+
+   local screen = win:screen()
+   local frame = screen:localToAbsolute(windowFrame(win, n,np))
+   win:setFrame(frame,0)
+end
+
 
 function prettifyJsonInPasteboard()
   local file = io.open("/Users/rublag/tmp.json", "w")
@@ -117,11 +141,19 @@ hs.hotkey.bind({"cmd", "alt", "ctrl"}, "W", function()
 -- PASTE EVERNOTE / removing formattig / copy and paste 
 hs.hotkey.bind(hyper, 'a', function()  -- remove formatting from pasteboard and paste
   local allData = hs.pasteboard.readAllData()
+  htmlData = allData['public.html']
   allData['public.html'] = nil -- just remove HTML from the pasteboard/clipboard as it's usually the offender
+  rtfData = allData['public.rtf']
   allData['public.rtf'] = nil -- just remove styled text RTF as well
   hs.pasteboard.writeAllData(allData)
   hs.eventtap.keyStroke({'cmd'}, 'v')
   hs.alert.show('removed HTML from pasteboard')
+  allData['public.html'] = htmlData
+  allData['public.rtf'] = rtfData
+  hs.timer.doAfter(2, function()
+    hs.pasteboard.writeAllData(allData)
+    hs.alert.show('restore pasteboard')
+  end)
 end)
 
 hs.hotkey.bind(hyper, "H", function() -- move window left 10 px
@@ -192,37 +224,60 @@ hs.hotkey.bind(hyper, "u", function() -- move window up-left 10 px
   win:setFrame(f)
 end)
 
-hs.hotkey.bind(hyper, "Left", function() -- RESIZE WINDOW TO HALF-LEFT / MAXIMIZE LEFT
+
+function moveWindow(direction) 
   local win = hs.window.focusedWindow()
-  local leftSideFrame = leftSide(win)
-  local rightSideFrame = rightSide(win)
-  
-  if win:frame() == leftSideFrame then
+  local screen = win:screen()
+  local winFrame = screen:absoluteToLocal(win:frame())
+  local screenwidth = math.floor(screenFrame(win).w)
+
+  local np = 3
+  local winPartWidth = screenwidth//np
+  hs.alert.show('windPartWidth' .. winPartWidth)
+
+  local currentIndex  = math.abs(winFrame.x // winPartWidth)
+
+  if winFrame.x ~= windowFrame(win, currentIndex, np).x then
+    win:setFrame(windowFrame(win, currentIndex, np),0)
+  end
+
+
+  local newIndex = currentIndex + direction
+
+  if newIndex < 0 then
     win:moveOneScreenWest{noResize=false,ensureInScreenBounds=true,duration=0 }
-    win:setFrame(rightSide(win),0)
-  elseif win:frame() == rightSideFrame then
-    win:maximize(0)
-  else 
-    win:setFrame(leftSideFrame,0)
-  end
-
-end)
-
-
-hs.hotkey.bind(hyper, "Right", function() -- RESIZE WINDOW TO HALF-RIGHT
-  local win = hs.window.focusedWindow()
-  local leftSideFrame = leftSide(win)
-  local rightSideFrame = rightSide(win)
-  
-  if win:frame() == leftSideFrame then
-    win:maximize(0)
-  elseif win:frame() == rightSideFrame then
+    win:maximize()
+  elseif newIndex >= np then
     win:moveOneScreenEast{noResize=false,ensureInScreenBounds=true,duration=0 }
-    win:setFrame(leftSide(win),0)
+    win:maximize()
   else 
-    win:setFrame(rightSideFrame,0)
+    setWindowFrame(win, newIndex, np)
   end
+end
+
+hs.hotkey.bind(hyper, "Left", function() -- RESIZE WINDOW TO HALF-LEFT / MAXIMIZE LEFT / SPLIT WINDOW / TILE WINDOW
+  moveWindow(-1)
 end)
+
+
+hs.hotkey.bind(hyper, "Right", function() -- RESIZE WINDOW TO HALF-LEFT / MAXIMIZE LEFT / SPLIT WINDOW / TILE WINDOW
+  moveWindow(1)
+end)
+
+-- hs.hotkey.bind(hyper, "Right", function() -- RESIZE WINDOW TO HALF-RIGHT
+--   local win = hs.window.focusedWindow()
+--   local leftSideFrame = leftSide(win)
+--   local rightSideFrame = rightSide(win)
+  
+--   if win:frame() == leftSideFrame then
+--     win:maximize(0)
+--   elseif win:frame() == rightSideFrame then
+--     win:moveOneScreenEast{noResize=false,ensureInScreenBounds=true,duration=0 }
+--     win:setFrame(leftSide(win),0)
+--   else 
+--     win:setFrame(rightSideFrame,0)
+--   end
+-- end)
 
 hs.hotkey.bind(hyper, "Up", function() -- MAXIMIZE CURRENT WINDOW
   local win = hs.window.focusedWindow()
@@ -376,3 +431,28 @@ hs.hotkey.bind(hyper, '-', function()
   hs.eventtap.keyStroke({"fn","control"}, "down")
 end)
 
+
+hs.hotkey.bind(hyper, 'e', function() 
+  hs.alert.show("Search evernote")
+  evernoteapp = hs.application.open("com.evernote.Evernote", 10,true) -- Launches an application or activates if already running, waits for first window to appear at least 10 seconds
+  --evernoteapp:activate(true) -- https://www.hammerspoon.org/docs/hs.application.html#activate
+  --evernoteapp:mainWindow():focus()
+  hs.eventtap.keyStroke({"cmd","ctrl"}, "e")
+  mytimer = hs.timer.doAfter(0.3, function()
+    hs.eventtap.keyStroke({"cmd"}, hs.keycodes.map.delete)
+    mytimer2 = hs.timer.doAfter(0.3, function()
+      --hs.eventtap.keyStrokes("hello") -- https://www.hammerspoon.org/docs/hs.eventtap.html#keyStrokes
+      --hs.eventtap.keyStroke({"cmd"}, "x",500000,evernoteapp)
+
+      -- newKeyEvent: https://www.hammerspoon.org/docs/hs.eventtap.event.html#newKeyEvent
+      hs.eventtap.event.newKeyEvent(hs.keycodes.map.cmd, true):post()
+      hs.eventtap.event.newKeyEvent(hs.keycodes.map.alt, true):post()
+      hs.eventtap.event.newKeyEvent("1", true):post()
+      hs.eventtap.event.newKeyEvent("1", false):post()
+      hs.eventtap.event.newKeyEvent(hs.keycodes.map.alt, false):post()
+      hs.eventtap.event.newKeyEvent(hs.keycodes.map.cmd, false):post()
+      hs.eventtap.keyStroke({"cmd","ctrl"}, "e")
+
+    end)
+  end)
+end)
