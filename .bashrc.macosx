@@ -105,3 +105,33 @@ function installasciidoctor {
 export JAVA_HOME=`/usr/libexec/java_home -v 1.8`
 export BROWSER='/usr/bin/open -a "/Applications/Google Chrome.app" %s'
 export LESS='-FRX' # less support colors
+
+function reset_printer {
+lpadmin -p SecurePrintMac  -o "CNDuplex=DuplexFront"
+lpadmin -p SecurePrintMac -o "CNSrcOption=None"
+lpadmin -p SecurePrintMac -o "MediaType=Auto"
+lpadmin -p SecurePrintMac -o "InputSlot=Auto"
+lpoptions -p SecurePrintMac -l|grep -E '^(CNDuplex|CNSrcOption|InputSlot|MediaType)'
+}
+
+function print_default {
+  reset_printer
+}
+
+function print_single_sided {
+lpadmin -p SecurePrintMac  -o "CNDuplex=None"
+lpoptions -p SecurePrintMac -l|grep -E '^(CNDuplex|CNSrcOption|InputSlot|MediaType)'
+}
+
+function print_double_sided {
+lpadmin -p SecurePrintMac  -o "CNDuplex=DuplexFront"
+lpoptions -p SecurePrintMac -l|grep -E '^(CNDuplex|CNSrcOption|InputSlot|MediaType)'
+}
+
+
+function print_cardboard {
+lpadmin -p SecurePrintMac  -o "CNDuplex=None"
+lpadmin -p SecurePrintMac -o "MediaType=HEAVY6"
+lpadmin -p SecurePrintMac -o "InputSlot=Manual"
+lpoptions -p SecurePrintMac -l|grep -E '^(CNDuplex|CNSrcOption|InputSlot|MediaType)'
+}
