@@ -9,6 +9,7 @@ require "credentials"
 -- }
 -- _G[modname] = M -- we set _G["credentials"] = {...}
 
+local log = hs.logger.new('mymodule','debug')
 
 wf_chrome = hs.window.filter.new('Google Chrome')
 expose_chrome= hs.expose.new(wf_chrome)
@@ -30,6 +31,7 @@ end
 function windowFrame(win, n, np) 
   -- n is 0,1,2 if np == 3
   -- np is the number of horizontal partitions
+  log.i('windowFrame')
   local f = win:frame()
   local screen = win:screen()
   local screenframe =  screenFrame(win)
@@ -41,10 +43,12 @@ function windowFrame(win, n, np)
   f.y = screenframe.y  
   f.h = screenframe.h -- same vertical size as the screen display (minus the Dock vertical space)
 
-  return screen:absoluteToLocal(f)
+  return screen:absoluteToLocal(f) -- return local coordinates
 end
 
-function setWindowFrame(win, n, np) 
+function setWindowFrame(win, n, np)  -- takes local  coordinates
+   log.i('setWindowFrame')
+   
    if n < 0 then
      n = 0
    end
@@ -55,6 +59,7 @@ function setWindowFrame(win, n, np)
 
    local screen = win:screen()
    local frame = screen:localToAbsolute(windowFrame(win, n,np))
+   -- local frame = windowFrame(win, n, np)
    win:setFrame(frame,0)
 end
 
@@ -233,13 +238,18 @@ function moveWindow(direction)
 
   local np = 3
   local winPartWidth = screenwidth//np
-  hs.alert.show('windPartWidth' .. winPartWidth)
 
   local currentIndex  = math.abs(winFrame.x // winPartWidth)
 
-  if winFrame.x ~= windowFrame(win, currentIndex, np).x then
-    win:setFrame(windowFrame(win, currentIndex, np),0)
+  local candidateFrame = windowFrame(win, currentIndex, np) 
+  if winFrame.x ~= candidateFrame.x  or winFrame.w ~= candidateFrame.w or math.abs(winFrame.h-candidateFrame.h) > 10 then
+    -- log.i('moveWindow a' .. winFrame.x .. ' ' .. winFrame.w .. ' ' .. winFrame.h)
+    -- log.i('moveWindow b' .. candidateFrame.x .. ' ' .. candidateFrame.w .. ' ' .. candidateFrame.h)
+
+    setWindowFrame(win, currentIndex,np)
+    return
   end
+
 
 
   local newIndex = currentIndex + direction
