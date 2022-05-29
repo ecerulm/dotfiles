@@ -523,6 +523,7 @@
                                     {
                                         "identifiers": [
                                             {
+                                                "description": "Logitech G604",
                                                 "product_id": 49738,
                                                 "vendor_id": 1133
                                             }
@@ -550,6 +551,7 @@
                                     {
                                         "identifiers": [
                                             {
+                                                "description": "Logitech G604",
                                                 "product_id": 50489,
                                                 "vendor_id": 1133
                                             }
@@ -559,13 +561,46 @@
                                 ],
                                 "description": "G604: Map G6 to Copy",
                                 "from": {
+                                    "pointing_button": "button5"
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "c",
+                                        "modifiers": [
+                                            "left_command"
+                                        ]
+                                    }
+                                ],
+                                "type": "basic"
+                            }
+                        ]
+                    },
+                    {
+                        "manipulators": [
+                            {
+                                "conditions": [
+                                    {
+                                        "identifiers": [
+                                            {
+                                                "description": "Logitech G604",
+                                                "product_id": 50489,
+                                                "vendor_id": 1133
+                                            }
+                                        ],
+                                        "type": "device_if"
+                                    }
+                                ],
+                                "description": "G604: Map G5 to Screenshot",
+                                "from": {
                                     "pointing_button": "button4"
                                 },
                                 "to": [
                                     {
                                         "key_code": "c",
                                         "modifiers": [
-                                            "left_command"
+                                            "left_control",
+                                            "left_option",
+                                            "left_shift"
                                         ]
                                     }
                                 ],
@@ -580,8 +615,8 @@
                                     {
                                         "identifiers": [
                                             {
+                                                "description": "Logitech G604",
                                                 "is_keyboard": true,
-                                                "is_pointing_device": false,
                                                 "product_id": 50489,
                                                 "vendor_id": 1133
                                             }
@@ -589,41 +624,9 @@
                                         "type": "device_if"
                                     }
                                 ],
-                                "description": "G604: Map G9 to Copy",
+                                "description": "G604: Map G9 to Paste2",
                                 "from": {
                                     "key_code": "1"
-                                },
-                                "to": [
-                                    {
-                                        "key_code": "c",
-                                        "modifiers": [
-                                            "left_command"
-                                        ]
-                                    }
-                                ],
-                                "type": "basic"
-                            }
-                        ]
-                    },
-                    {
-                        "manipulators": [
-                            {
-                                "conditions": [
-                                    {
-                                        "identifiers": [
-                                            {
-                                                "is_keyboard": true,
-                                                "is_pointing_device": false,
-                                                "product_id": 50489,
-                                                "vendor_id": 1133
-                                            }
-                                        ],
-                                        "type": "device_if"
-                                    }
-                                ],
-                                "description": "G604: Map G8 to Paste",
-                                "from": {
-                                    "key_code": "2"
                                 },
                                 "to": [
                                     {
@@ -737,11 +740,11 @@
                         },
                         {
                             "from": {
-                                "key_code": "page_down"
+                                "key_code": "home"
                             },
                             "to": [
                                 {
-                                    "key_code": "non_us_backslash"
+                                    "key_code": "left_control"
                                 }
                             ]
                         },
@@ -757,21 +760,21 @@
                         },
                         {
                             "from": {
-                                "key_code": "home"
+                                "key_code": "page_down"
                             },
                             "to": [
                                 {
-                                    "key_code": "left_control"
+                                    "key_code": "non_us_backslash"
                                 }
                             ]
                         },
                         {
                             "from": {
-                                "key_code": "right_control"
+                                "key_code": "page_up"
                             },
                             "to": [
                                 {
-                                    "key_code": "right_command"
+                                    "key_code": "right_control"
                                 }
                             ]
                         },
@@ -787,11 +790,11 @@
                         },
                         {
                             "from": {
-                                "key_code": "page_up"
+                                "key_code": "right_control"
                             },
                             "to": [
                                 {
-                                    "key_code": "right_control"
+                                    "key_code": "right_command"
                                 }
                             ]
                         }
@@ -970,6 +973,32 @@
                             ]
                         }
                     ]
+                },
+                {
+                    "disable_built_in_keyboard_if_exists": false,
+                    "fn_function_keys": [],
+                    "identifiers": {
+                        "is_keyboard": false,
+                        "is_pointing_device": true,
+                        "product_id": 50489,
+                        "vendor_id": 1133
+                    },
+                    "ignore": false,
+                    "manipulate_caps_lock_led": false,
+                    "simple_modifications": []
+                },
+                {
+                    "disable_built_in_keyboard_if_exists": false,
+                    "fn_function_keys": [],
+                    "identifiers": {
+                        "is_keyboard": true,
+                        "is_pointing_device": false,
+                        "product_id": 50489,
+                        "vendor_id": 1133
+                    },
+                    "ignore": false,
+                    "manipulate_caps_lock_led": true,
+                    "simple_modifications": []
                 }
             ],
             "fn_function_keys": [
@@ -1099,7 +1128,18 @@
                 "delay_milliseconds_before_open_device": 5000
             },
             "selected": true,
-            "simple_modifications": [],
+            "simple_modifications": [
+                {
+                    "from": {
+                        "key_code": "caps_lock"
+                    },
+                    "to": [
+                        {
+                            "key_code": "left_control"
+                        }
+                    ]
+                }
+            ],
             "virtual_hid_keyboard": {
                 "country_code": 0,
                 "indicate_sticky_modifier_keys_state": true,
