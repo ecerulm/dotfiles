@@ -41,3 +41,6 @@ export PATH="/usr/local/opt/gnu-getopt/bin:$PATH"
 [[ -f ~/.bashrc ]] && source ~/.bashrc # ghcup-env
 
 . /usr/local/opt/asdf/libexec/asdf.sh
+
+# Created by `pipx` on 2022-05-05 14:45:03
+export PATH="$PATH:/Users/rubelagu/.local/bin"

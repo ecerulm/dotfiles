@@ -680,7 +680,7 @@ function bashrc() {
 
 function httpserver() {
   
-  python3.9 -m SimpleHTTPServer 8080
+  python3.9 -m http.server 8080
 }
 
 function scalareplgradle {
@@ -803,6 +803,10 @@ shortname() {
   ldapsearch -LLL "(displayName=$*)" sAMAccountName 2>&1| grep sAMAccountName
 }
 
+ldaplookup() {
+  ldapsearch -Q -LLL "displayName=$*" sAMAccountName userPrincipalName mail |grep -E "^\w+: "
+}
+
 
 colors() {
 for  i in {0..255}; do printf "\x1b[38;5;${i}m${i} "; done
@@ -811,3 +815,6 @@ for  i in {0..255}; do printf "\x1b[38;5;${i}m${i} "; done
 randompassword() {
   cat /dev/urandom | LC_ALL=C tr -dc 'a-zA-Z0-9$./,:' | fold -w 32| head -n 1
 }
+
+# Created by `pipx` on 2022-05-05 14:45:03
+export PATH="$PATH:/Users/rubelagu/.local/bin"

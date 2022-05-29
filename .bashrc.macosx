@@ -135,3 +135,8 @@ lpadmin -p SecurePrintMac -o "MediaType=HEAVY6"
 lpadmin -p SecurePrintMac -o "InputSlot=Manual"
 lpoptions -p SecurePrintMac -l|grep -E '^(CNDuplex|CNSrcOption|InputSlot|MediaType)'
 }
+
+function print_regular_paper {
+lpadmin -p SecurePrintMac -o "MediaType=Auto"
+lpoptions -p SecurePrintMac -l|grep -E '^(CNDuplex|CNSrcOption|InputSlot|MediaType)'
+}
