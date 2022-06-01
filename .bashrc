@@ -8,6 +8,9 @@ case $- in
       *) return;;
 esac
 
+
+eval "$(/opt/homebrew/bin/brew shellenv)"
+
 function debug() {
   [ -n "$debug" ] && echo " debug: $@"
 }
@@ -762,28 +765,11 @@ fi
 
 [ -f ~/.fzf.bash ] && source ~/.fzf.bash
 
-if [ -d "$HOME/.nvm" ]; then
-  export NVM_DIR="$HOME/.nvm"
-  [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-  [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
-fi
-
-# added by travis gem
-[ -f $HOME/.travis/travis.sh ] && source $HOME/.travis/travis.sh
-[ -f $HOME/.rvm/scripts/rvm ] && source $HOME/.rvm/scripts/rvm
 
 export RIPGREP_CONFIG_PATH="$HOME/.ripgreprc"
 
 [ -d $HOME/.local/bin ] && export PATH=$PATH:$HOME/.local/bin
 
-if [ $(command -v "kubectl") ]; then
-  source <(kubectl completion bash)
-fi
-
-[ -d ${KREW_ROOT:-$HOME/.krew}/bin ] && export PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH"
-
-
-complete -C /usr/local/bin/terraform terraform
 
 
 shellpodns() {
@@ -815,6 +801,3 @@ for  i in {0..255}; do printf "\x1b[38;5;${i}m${i} "; done
 randompassword() {
   cat /dev/urandom | LC_ALL=C tr -dc 'a-zA-Z0-9$./,:' | fold -w 32| head -n 1
 }
-
-# Created by `pipx` on 2022-05-05 14:45:03
-export PATH="$PATH:/Users/rubelagu/.local/bin"
