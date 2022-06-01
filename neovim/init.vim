@@ -30,7 +30,7 @@ endfor
 " pyenv activate venv-py38-neovim
 " pip install -U pip 
 " pip install -U neovim
-for p in ['venv-py38-neovim', 'py36neovim', 'venv-py36-neovim']
+for p in ['venv-py310-neovim','venv-py38-neovim', 'py36neovim', 'venv-py36-neovim']
   let fp = expand('~/.pyenv/versions/' . p . '/bin/python')
   if filereadable(fp)
     let g:python3_host_prog = fp
