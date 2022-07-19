@@ -495,6 +495,36 @@
                                     {
                                         "identifiers": [
                                             {
+                                                "is_keyboard": true,
+                                                "product_id": 49738,
+                                                "vendor_id": 1133
+                                            }
+                                        ],
+                                        "type": "device_if"
+                                    }
+                                ],
+                                "description": "Change G600 G20 (=) to End",
+                                "from": {
+                                    "key_code": "equal_sign"
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "end",
+                                        "modifiers": [
+                                        ]
+                                    }
+                                ],
+                                "type": "basic"
+                            }
+                        ]
+                    },
+                    {
+                        "manipulators": [
+                            {
+                                "conditions": [
+                                    {
+                                        "identifiers": [
+                                            {
                                                 "is_pointing_device": true,
                                                 "product_id": 49738,
                                                 "vendor_id": 1133
