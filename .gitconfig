@@ -76,7 +76,7 @@
 	sslVerify = true
 [core]
 	editor = nvim
-	excludesfile = /Users/rubelagu/dotfiles/.gitignore
+	excludesfile = /Users/ecerulm/.gitignore
 	autocrlf = false
 	safecrlf = warn
 	longpaths = true
