@@ -17,6 +17,7 @@ eval "$(pyenv init -)"
 fi
 
 alias vim=nvim
+alias vi=nvim
 alias s="git status"
 alias gd="git diff"
 alias gdc="git diff --cached"
