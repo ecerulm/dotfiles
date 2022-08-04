@@ -102,7 +102,7 @@ function installasciidoctor {
   GEM_HOME=$(brew --prefix asciidoctor) gem install pygments.rb
 }
 
-export JAVA_HOME=`/usr/libexec/java_home -v 1.8`
+# export JAVA_HOME=`/usr/libexec/java_home -v 1.8`
 export BROWSER='/usr/bin/open -a "/Applications/Google Chrome.app" %s'
 export LESS='-FRX' # less support colors
 
