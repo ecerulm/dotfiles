@@ -210,6 +210,7 @@ augroup vimrcEx " Put them in a group so we delete them easily
   au BufNewFile pom.xml set filetype=pom
   au BufNewFile stack.yaml r ~/.vim/skeleton.stack.yaml
   au BufNewFile .gitlab-ci.yml r ~/.vim/skeleton.gitlab-ci.yml
+  au BufNewFile index.html r ~/.vim/skeleton.index.html
   " au BufNewFile stack.yaml set filetype=haskellstack
 
   "Rainbow parentheses {{{2
@@ -883,7 +884,6 @@ function! ConfigAfterPluginLoaded()
     call denite#custom#var('grep', 'final_opts', [])
     call denite#custom#map('insert', '<C-j>', '<denite:move_to_next_line>', 'noremap')
     call denite#custom#map('insert', '<C-k>', '<denite:move_to_previous_line>', 'noremap')
-   
 
     nnoremap <C-p> :<C-u>Denite file/rec -start-filter<cr>
     nnoremap <leader>g :<C-u>Denite -no-split -buffer-name=ag grep<cr>
