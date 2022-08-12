@@ -9,7 +9,12 @@ case $- in
 esac
 
 
-eval "$(/opt/homebrew/bin/brew shellenv)"
+export NVM_DIR="$HOME/.nvm"
+if [ -d $(brew --prefix  nvm) ]; then
+  NVM_INSTALL_DIR=$(brew --prefix nvm)
+  [ -s "$NVM_INSTALL_DIR/nvm.sh" ] && \. "$NVM_INSTALL_DIR/nvm.sh"  # This loads nvm
+  [ -s "$NVM_INSTALL_DIR/etc/bash_completion.d/nvm" ] && \. "$NVM_INSTALL_DIR/etc/bash_completion.d/nvm"  # This loads nvm bash_completion
+fi
 
 function debug() {
   [ -n "$debug" ] && echo " debug: $@"
@@ -148,11 +153,6 @@ for BINDIR in $HOME/.local/bin $HOME/.local/sbin; do
 done
 
 export PATH="$GOPATH/bin:$PATH"
-
-# added by Anaconda 2.1.0 installer
-# if [ -d "/home/ecerulm/anaconda/bin" ]; then
-#   export PATH="/home/ecerulm/anaconda/bin:$PATH"
-# fi
 
 export EDITOR=nvim
 alias vi=nvim
@@ -801,3 +801,5 @@ for  i in {0..255}; do printf "\x1b[38;5;${i}m${i} "; done
 randompassword() {
   cat /dev/urandom | LC_ALL=C tr -dc 'a-zA-Z0-9$./,:' | fold -w 32| head -n 1
 }
+
+export PATH="$(brew --prefix make)/libexec/gnubin/:$PATH"
