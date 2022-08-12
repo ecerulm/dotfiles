@@ -5,4 +5,10 @@
 
 test -e "${HOME}/.iterm2_shell_integration.bash" && source "${HOME}/.iterm2_shell_integration.bash"
 
+
+if [ -e "$(brew --prefix asdf)/asdf.sh" ]; then
+  . "$(brew --prefix asdf)/asdf.sh"
+fi
+
 . ~/.bashrc
+
