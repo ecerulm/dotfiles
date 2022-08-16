@@ -8,7 +8,7 @@ case $- in
       *) return;;
 esac
 
-
+eval "$(/opt/homebrew/bin/brew shellenv)"
 export NVM_DIR="$HOME/.nvm"
 if [ -d $(brew --prefix  nvm) ]; then
   NVM_INSTALL_DIR=$(brew --prefix nvm)
