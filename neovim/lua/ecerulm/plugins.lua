@@ -34,4 +34,5 @@ packer.startup(function(use)
   -- using packer.nvim
   use { 'akinsho/bufferline.nvim', tag = "v2.*", requires = 'kyazdani42/nvim-web-devicons' }
   use 'norcalli/nvim-colorizer.lua'
+  use 'glepnir/lspsaga.nvim'
 end)
