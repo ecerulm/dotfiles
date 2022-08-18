@@ -42,4 +42,5 @@ packer.startup(function(use)
       'jose-elias-alvarez/null-ls.nvim',
     }
   })
+  use 'lewis6991/gitsigns.nvim'
 end)
