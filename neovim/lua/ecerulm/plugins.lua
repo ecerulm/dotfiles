@@ -44,4 +44,11 @@ packer.startup(function(use)
   })
   use 'lewis6991/gitsigns.nvim'
   use 'dinhhuy258/git.nvim'
+  use "williamboman/mason.nvim"
+  use {
+    "williamboman/mason-lspconfig.nvim",
+    requires = {
+      "neovim/nvim-lspconfig",
+    }
+  }
 end)
