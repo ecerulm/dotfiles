@@ -15,4 +15,5 @@ nvm install-latest-npm
 npm --version
 
 npm install -g typescript-language-server
+npm install -g @fsouza/prettierd
 ```
