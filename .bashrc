@@ -799,13 +799,26 @@ ldaplookup() {
   ldapsearch -Q -LLL "displayName=$*" sAMAccountName userPrincipalName mail |grep -E "^\w+: "
 }
 
-
-colors() {
-for  i in {0..255}; do printf "\x1b[38;5;${i}m${i} "; done
-}
-
 randompassword() {
   cat /dev/urandom | LC_ALL=C tr -dc 'a-zA-Z0-9$./,:' | fold -w 32| head -n 1
+}
+
+function colors() {
+  # echo -ne "\u001b[0m\u001b[40m" # 8-color palette: black background
+  # for  i in {0..255}; do printf "\x1b[38;5;${i}m${i} "; done
+  # echo ""
+  # echo -ne "\u001b[0m\u001b[47m" # 8-color palette: white background
+  # for  i in {0..255}; do printf "\x1b[38;5;${i}m${i} "; done
+  # echo ""
+  for i in {0..255}; do
+    # echo -ne "\u001b[48;5;${i}m   \u001b[0m \u001b[38;5;${i}m ${i}\u001b[0m "
+    printf "\u001b[48;5;${i}m   \u001b[0m \u001b[38;5;${i}m %3d\u001b[0m " "$i"
+    if [[ (( $i > 0)) && $(( $i % 16 )) = 0 ]]; then
+      echo -e "" 
+    fi
+    # echo -ne "\u001b[38;5;${i}m ${i} \u001b[0m"
+  done
+  echo -e ""
 }
 
 export PATH="$(brew --prefix make)/libexec/gnubin/:$PATH"
