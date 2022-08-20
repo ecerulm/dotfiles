@@ -9,7 +9,7 @@ null_ls.setup({
       diagnostics_format = '[eslint] #{m}\n(#{c})'
     }),
     null_ls.builtins.diagnostics.shellcheck,
-    null_ls.builtins.formatting.beautysh,
+    -- null_ls.builtins.formatting.beautysh, 
     null_ls.builtins.formatting.black,
   },
   on_attach = function(client, bufnr)
