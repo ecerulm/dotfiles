@@ -6,6 +6,7 @@ brew install --cask font-hack-nerd-font
 
 brew install nvim
 brew install tree-sitter lua-language-server
+brew install shellcheck
 brew install nvm
 
 nvm install --lts
@@ -17,4 +18,5 @@ npm --version
 npm install -g typescript-language-server
 npm install -g @fsouza/prettierd
 npm install -g @tailwindcss/language-server
+
 ```
