@@ -51,4 +51,5 @@ packer.startup(function(use)
       "neovim/nvim-lspconfig",
     }
   }
+  use 'tpope/vim-commentary'
 end)
