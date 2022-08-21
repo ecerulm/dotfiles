@@ -65,10 +65,18 @@ ls.add_snippets("javascript", {
     })
   }), -- logger
   s("mongooseschema", {
-    t({"const "}), i(1, "schemaName"), t({" = mongoose.Schema({", "\t"}),
-    i(2,"attrName"),t({": {type: String, required: true, index: {unique: true}},",""}),
+    t({"const "}), i(1, "schemaName"), t({" = mongoose.Schema({",""}),
+    t({"\t"}), i(2,"attrName"),t({": {type: String, required: true, index: {unique: true}},", ""}),
+    t({"\t// other attributes", ""}),
+    t({"\t"}), i(0),
+    t({"",""}),
     t({"}); // "}),rep(1),t("")
   }), -- mongooseschema
+  s("mongooseconn", {
+    t("const "), i(1, "conn"), t(" = mongoose.createConnection("), i(2, "process.env.MONGO_URL"), t({");",""}),
+    rep(1),t([[.model(']]), i(3,"User"), t([[', ]]), i(4, "userSchema"), t({");",""}),
+    i(0),
+  }) -- mongooseconn
 })
 
 -- Set the keymaps imap 
