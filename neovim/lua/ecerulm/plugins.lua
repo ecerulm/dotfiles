@@ -52,4 +52,5 @@ packer.startup(function(use)
     }
   }
   use 'tpope/vim-commentary'
+  use { 'saadparwaiz1/cmp_luasnip' } -- luasnip source for nvim-cmp
 end)

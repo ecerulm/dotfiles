@@ -21,6 +21,7 @@ cmp.setup({
   sources = cmp.config.sources({
     { name = "nvim_lsp" }, -- nvim builtin lsp
     { name = "buffer" }, -- words in buffer
+    { name = "luasnip"}
   }),
   formatting = {
     format = lspkind.cmp_format({ with_text = false, maxwidth = 50 })
