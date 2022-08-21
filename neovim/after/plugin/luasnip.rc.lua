@@ -63,8 +63,12 @@ ls.add_snippets("javascript", {
       [[	transports: [new winston.transports.Console()] ]],
       [[});]],
     })
-
-  }),
+  }), -- logger
+  s("mongooseschema", {
+    t({"const "}), i(1, "schemaName"), t({" = mongoose.Schema({", "\t"}),
+    i(2,"attrName"),t({": {type: String, required: true, index: {unique: true}},",""}),
+    t({"}); // "}),rep(1),t("")
+  }), -- mongooseschema
 })
 
 -- Set the keymaps imap 
