@@ -38,5 +38,10 @@ keymap.set('n', '<C-w><up>', '<C-w>+')
 keymap.set('n', '<C-w><down>', '<C-w>-')
 --keymap.set('n', 'sb', '<C-w>j20<C-w>_') -- switch to bottom split and set it's height  to 20
 
+keymap.set('i', 'jk', '<Esc>') -- exit insert mode with jk
 
-keymap.set('i', 'jk', '<Esc>')
+-- visual model indent
+keymap.set('v', '>', '>gv')
+keymap.set('v', '<', '<gv')
+keymap.set('v', '<Tab>', '>gv')
+keymap.set('v', '<S-Tab>', '<gv')
