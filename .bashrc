@@ -834,4 +834,9 @@ function ide() {
   tmux select-pane -t "$TMUX_PANE" # give focus to the pane that invoked with script
 }
 
+function nvimconfig() {
+  cd ~/.config/nvim || exit
+  vim ~/.config/nvim
+}
+
 export PATH="$(brew --prefix make)/libexec/gnubin/:$PATH"
