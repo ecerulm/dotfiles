@@ -54,5 +54,7 @@ packer.startup(function(use)
   use 'tpope/vim-commentary'
   use { 'saadparwaiz1/cmp_luasnip' } -- luasnip source for nvim-cmp
   use { "kylechui/nvim-surround" }
+  use 'nvim-treesitter/playground'
+  use 'nvim-treesitter/nvim-treesitter-textobjects'
 
 end)
