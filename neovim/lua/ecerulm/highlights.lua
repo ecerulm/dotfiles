@@ -4,3 +4,6 @@ vim.opt.winblend = 0
 vim.opt.wildoptions = 'pum'
 vim.opt.pumblend = 5
 vim.opt.background = 'dark'
+vim.opt.listchars = 'tab:> ,trail:*,nbsp:+'
+
+vim.cmd[[highlight Whitespace gui=reverse guifg=#dc322f guibg=none guisp=none]]
