@@ -12,6 +12,7 @@ null_ls.setup({
     null_ls.builtins.diagnostics.trail_space,
     -- null_ls.builtins.formatting.beautysh,
     null_ls.builtins.formatting.black,
+    null_ls.builtins.formatting.prettier,
   },
   on_attach = function(client, bufnr)
     if client.server_capabilities.documentFormattingProvider then
