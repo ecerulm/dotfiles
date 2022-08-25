@@ -49,5 +49,6 @@ vim.keymap.set('n', ';;', '<cmd>lua require("telescope.builtin").resume()<cr>', 
 vim.keymap.set('n', ';e', '<cmd>lua require("telescope.builtin").diagnostics()<cr>', opts)
 vim.keymap.set('n', 'sf',
   '<cmd>lua require("telescope").extensions.file_browser.file_browser({ path = "%:p:h", cwd = telescope_buffer_dir(), respect_git_ignore=false, hidden=true, grouped = true, previewer = false, initial_mode = "normal", layout_config = {height = 40 }})<cr>'
-  ,
-  opts)
+  , opts)
+vim.keymap.set('n', ';s',
+  '<cmd>lua require("telescope.builtin").git_status{on_complete = {function() vim.cmd"stopinsert" end }}<cr>', opts)
