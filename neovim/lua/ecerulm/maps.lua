@@ -50,3 +50,5 @@ keymap.set('v', '<S-Tab>', '<gv')
 -- textobjects :help text-objects :help motion
 keymap.set('x', 'ae', ':<c-u>normal! ggVG<cr>', {remap = false, silent = true }) -- visual mode "ae" entire file
 keymap.set('o', 'ae', ':<c-u>normal Vae<cr>', {remap = true, silent = false }) -- ae entire file
+
+keymap.set('n', '<Enter>', ':nohlsearch<cr>', {})
