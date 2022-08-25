@@ -1,13 +1,12 @@
-
-
 ```
 brew tap homebrew/cask-fonts
 brew install --cask font-hack-nerd-font
 
 brew install nvim
 brew install tree-sitter lua-language-server
-brew install shellcheck
+brew install shellcheck prettier black
 brew install nvm
+
 
 nvm install --lts
 nvm current
