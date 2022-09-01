@@ -46,6 +46,8 @@ packer.startup(function(use)
   use 'lewis6991/gitsigns.nvim'
   -- use 'dinhhuy258/git.nvim'
   use 'tpope/vim-fugitive'
+  use 'tpope/vim-rhubarb'
+  use 'shumphrey/fugitive-gitlab.vim'
   use "williamboman/mason.nvim"
   use {
     "williamboman/mason-lspconfig.nvim",
