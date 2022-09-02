@@ -21,6 +21,7 @@ ts.setup {
     "css",
     "html",
     "lua",
+    "hcl",
   },
   autotag = {
     enable = true,
