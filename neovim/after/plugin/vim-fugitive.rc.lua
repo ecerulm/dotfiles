@@ -2,4 +2,4 @@
 
 vim.keymap.set('n', '<Leader>go', '<cmd>.GBrowse<cr>', { noremap = true, silent = true })
 vim.keymap.set('v', '<Leader>go', ':GBrowse<cr>', { noremap = true })
-vim.api.nvim_create_user_command('Browse', [[silent execute "!open " .. fnameescape('<args>')]], { nargs = 1 })
+vim.api.nvim_create_user_command('Browse', [[silent execute "!open " .. shellescape(<q-args>,1)]], { nargs = 1 })
