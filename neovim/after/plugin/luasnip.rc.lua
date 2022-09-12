@@ -45,10 +45,24 @@ ls.add_snippets("javascript", {
       [[const winston = require('winston');]],
     })
   }),
+  s("require", {
+    t("const "),
+    i(1, "modulename"),
+    t(" = require('"),
+    rep(1),
+    t("');"),
+    t(''),
+    i(0)
+  }),
+  s("test2", {
+    t("test2 insert text: "), i(1), t(''),
+    t("test insert some more text: "), i(2)
+
+  }),
   s("iife", {
-    t({"(async () => {",""}),
-    t({"\t"}), i(1),
-    t({"", "})();",""}),
+    t({ "(async () => {", "" }),
+    t({ "\t" }), i(1),
+    t({ "", "})();", "" }),
     i(2),
   }),
   s("logger", {
@@ -65,28 +79,30 @@ ls.add_snippets("javascript", {
     })
   }), -- logger
   s("mongooseschema", {
-    t({"const "}), i(1, "schemaName"), t({" = mongoose.Schema({",""}),
-    t({"\t"}), i(2,"attrName"),t({": {type: String, required: true, index: {unique: true}},", ""}),
-    t({"\t// other attributes", ""}),
-    t({"\t"}), i(0),
-    t({"",""}),
-    t({"}); // "}),rep(1),t("")
+    t({ "const " }), i(1, "schemaName"), t({ " = mongoose.Schema({", "" }),
+    t({ "\t" }), i(2, "attrName"), t({ ": {type: String, required: true, index: {unique: true}},", "" }),
+    t({ "\t// other attributes", "" }),
+    t({ "\t" }), i(0),
+    t({ "", "" }),
+    t({ "}); // " }), rep(1), t("")
   }), -- mongooseschema
   s("mongooseconn", {
-    t("const "), i(1, "conn"), t(" = mongoose.createConnection("), i(2, "process.env.MONGO_URL"), t({");",""}),
-    rep(1),t([[.model(']]), i(3,"User"), t([[', ]]), i(4, "userSchema"), t({");",""}),
+    t("const "), i(1, "conn"), t(" = mongoose.createConnection("), i(2, "process.env.MONGO_URL"), t({ ");", "" }),
+    rep(1), t([[.model(']]), i(3, "User"), t([[', ]]), i(4, "userSchema"), t({ ");", "" }),
     i(0),
   }) -- mongooseconn
 })
 
--- Set the keymaps imap 
+-- Set the keymaps imap
 -- :help nvim_set_keymap()
 -- :help :map-arguments
 -- :help luasnip
-vim.keymap.set('i', '<Tab>', "luasnip#expand_or_jumpable() ? '<Plug>luasnip-expand-or-jump' : '<Tab>'", {silent=true, expr = true})
-vim.keymap.set('i', '<S-Tab>', function() ls.jump(-1) end, {silent=true})
+vim.keymap.set('i', '<Tab>', "luasnip#expand_or_jumpable() ? '<Plug>luasnip-expand-or-jump' : '<Tab>'",
+  { silent = true, expr = true })
+vim.keymap.set('i', '<S-Tab>', function() ls.jump(-1) end, { silent = true })
 
-vim.keymap.set('s', '<Tab>', function() ls.jump(1) end, {silent=true})
-vim.keymap.set('s', '<S-Tab>', function() ls.jump(-1) end, {silent=true})
+vim.keymap.set('s', '<Tab>', function() ls.jump(1) end, { silent = true })
+vim.keymap.set('s', '<S-Tab>', function() ls.jump(-1) end, { silent = true })
 
-vim.keymap.set({'i', 's'}, '<C-E>', "luasnip#choice_active() ? '<Plug>luasnip-next-choice' : '<C-E>'", {silent=true, expr=true})
+vim.keymap.set({ 'i', 's' }, '<C-E>', "luasnip#choice_active() ? '<Plug>luasnip-next-choice' : '<C-E>'",
+  { silent = true, expr = true })

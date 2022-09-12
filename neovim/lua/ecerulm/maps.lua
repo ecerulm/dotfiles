@@ -1,7 +1,7 @@
 local keymap = vim.keymap
 
 -- Do not yank with x
-keymap.set('n', 'x', '"_x')
+-- keymap.set('n', 'x', '"_x') -- commented out because otherwise xp won't work
 
 -- Increment / decrement
 keymap.set('n', '+', '<C-a>')
