@@ -16,7 +16,7 @@ fi
 
 
 export NVM_DIR="$HOME/.nvm"
-if [ -d $(brew --prefix  nvm) ]; then
+if [ -d "$(brew --prefix  nvm)" ]; then
   NVM_INSTALL_DIR=$(brew --prefix nvm)
   [ -s "$NVM_INSTALL_DIR/nvm.sh" ] && \. "$NVM_INSTALL_DIR/nvm.sh"  # This loads nvm
   [ -s "$NVM_INSTALL_DIR/etc/bash_completion.d/nvm" ] && \. "$NVM_INSTALL_DIR/etc/bash_completion.d/nvm"  # This loads nvm bash_completion
@@ -752,7 +752,7 @@ if [ -d "$HOME/.sdkman" ]; then
   [[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]] && source "$HOME/.sdkman/bin/sdkman-init.sh"
 fi
 
-if command -v pyenv >/dev/null; then eval "$(pyenv init -)"; fi
+# if command -v pyenv >/dev/null; then eval "$(pyenv init -)"; fi
 
 alias pipenv=/usr/local/bin/pipenv
 export PIPENV_IGNORE_VIRTUALENVS=1 
