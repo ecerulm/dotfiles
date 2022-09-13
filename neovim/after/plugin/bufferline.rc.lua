@@ -32,5 +32,9 @@ bufferline.setup {
   }
 }
 
-vim.keymap.set('n', '<Tab>', '<Cmd>BufferLineCycleNext<CR>', {})
-vim.keymap.set('n', '<S-Tab>', '<Cmd>BufferLineCyclePrev<CR>', {})
+-- vim.keymap.set('n', '<Tab>', '<Cmd>BufferLineCycleNext<CR>', {}) -- remove those because it interferes with the jumplist <C-I> / <Tab> (jump forward)
+-- vim.keymap.set('n', '<S-Tab>', '<Cmd>BufferLineCyclePrev<CR>', {})
+
+-- :help bufferline-mappings
+vim.keymap.set('n', '[b', "<Cmd>BufferLineCycleNext<CR>", { silent = true })
+vim.keymap.set('n', 'b]', "<Cmd>BufferLineCyclePrev<CR>", { silent = true })
