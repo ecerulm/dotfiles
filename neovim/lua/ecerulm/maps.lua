@@ -58,3 +58,4 @@ keymap.set('n', '<Leader>lf', ':lua vim.lsp.buf.formatting()<cr>', { remap = fal
 
 -- uppercase with <c-u>
 keymap.set('i', '<C-u>', '<Esc>viW~Ea', { remap = false })
+keymap.set('n', '<C-u>', 'g~iWE', { remap = false })
