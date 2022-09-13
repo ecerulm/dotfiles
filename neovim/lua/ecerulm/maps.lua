@@ -55,3 +55,6 @@ keymap.set('n', '<Enter>', ':nohlsearch<cr>', {}) -- clear search results
 
 -- formatting a file
 keymap.set('n', '<Leader>lf', ':lua vim.lsp.buf.formatting()<cr>', { remap = false, silent = true })
+
+-- uppercase with <c-u>
+keymap.set('i', '<C-u>', '<Esc>viW~Ea', { remap = false })
