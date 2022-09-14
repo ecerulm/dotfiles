@@ -60,3 +60,25 @@ keymap.set('n', '<Leader>lf', ':lua vim.lsp.buf.formatting()<cr>', { remap = fal
 -- uppercase with <c-u>
 keymap.set('i', '<C-u>', '<Esc>viW~Ea', { remap = false })
 keymap.set('n', '<C-u>', 'g~iWE', { remap = false })
+
+-- reselect last visual selection / last pasted text / last changed text
+--
+-- keymap.set('n', 'gz', function()
+--   return '`[v`]'
+-- end, { remap = false, expr = true })
+
+keymap.set('n', 'gv', '`[v`]', { remap = false })
+
+
+-- visual mode indent
+keymap.set('v', '>', '>gv')
+keymap.set('v', '<', '<gv')
+keymap.set('v', '<Tab>', '>gv')
+keymap.set('v', '<S-Tab>', '<gv')
+keymap.set('v', '<D-]>', '>gv') -- D- is Cmd- in macOS
+keymap.set('v', '<D-[>', '<gv') -- D- is Cmd- in macOS
+
+-- normal mode ident
+-- >> and << are builtin
+keymap.set('n', '<D-[', '<<')
+keymap.set('n', '<D-]', '>>')
