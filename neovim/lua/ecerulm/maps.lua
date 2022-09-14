@@ -51,7 +51,8 @@ keymap.set('v', '<S-Tab>', '<gv')
 keymap.set('x', 'ae', ':<c-u>normal! ggVG<cr>', { remap = false, silent = true }) -- visual mode "ae" entire file
 keymap.set('o', 'ae', ':<c-u>normal Vae<cr>', { remap = true, silent = false }) -- ae entire file
 
-keymap.set('n', '<Enter>', ':nohlsearch<cr>', {}) -- clear search results
+-- keymap.set('n', '<Enter>', ':nohlsearch<cr>', {}) -- clear search results , do not remap <Enter> because <Enter> is used for other things like in :h cmdwink
+keymap.set('n', '<c-l>', ':nohlsearch<cr><c-l>', { remap = false })
 
 -- formatting a file
 keymap.set('n', '<Leader>lf', ':lua vim.lsp.buf.formatting()<cr>', { remap = false, silent = true })
