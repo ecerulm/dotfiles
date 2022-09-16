@@ -27,7 +27,7 @@ vim.opt.smartindent = true
 vim.opt.wrap = false
 vim.opt.backspace = 'start,eol,indent'
 vim.opt.path:append { '**' }
-vim.opt.wildignore:append { '*/node_modules/*' } 
+vim.opt.wildignore:append { '*/node_modules/*' }
 
 -- undercurl (it doesn't work on iTerm2
 vim.cmd([[let &t_Cs = "\e[4:3m"]])
@@ -36,9 +36,19 @@ vim.cmd([[let &t_Ce = "\e[4:0m"]])
 
 -- Turn off paste mode when leaving insert
 vim.api.nvim_create_autocmd("InsertLeave", {
-  pattern= '*',
+  pattern = '*',
   command = 'set nopaste'
 })
 
 -- Add asterisk in block comments
 vim.opt.formatoptions:append { 'r' }
+
+-- :h restore-cursor
+-- :h last-position-jump
+vim.api.nvim_create_autocmd("BufWinEnter", { -- BufReadPost won't work because for zz we need the window
+  pattern = { "*" },
+  callback = function()
+    -- vim.api.nvim_exec('silent! normal! g`"zz', false)
+    vim.api.nvim_exec('silent! normal! g`"zvzz', false) -- zv to open fold, zz to center
+  end
+})
