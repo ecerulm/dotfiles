@@ -90,7 +90,21 @@ ls.add_snippets("javascript", {
     t("const "), i(1, "conn"), t(" = mongoose.createConnection("), i(2, "process.env.MONGO_URL"), t({ ");", "" }),
     rep(1), t([[.model(']]), i(3, "User"), t([[', ]]), i(4, "userSchema"), t({ ");", "" }),
     i(0),
-  }) -- mongooseconn
+  }), -- mongooseconn
+  ls.parser.parse_snippet({ trig = "axios" }, [[
+    const axios = require('axios')
+    axios.post('$1', {
+      ${2:key: value}
+    })
+    .then(res => {
+      console.log(`statusCode: ${res.status}`);
+      console.log(res);
+    })
+    .catch(error => {
+      console.error(error);
+    });
+    $0
+    ]])
 })
 
 -- Set the keymaps imap
@@ -106,3 +120,11 @@ vim.keymap.set('s', '<S-Tab>', function() ls.jump(-1) end, { silent = true })
 
 vim.keymap.set({ 'i', 's' }, '<C-E>', "luasnip#choice_active() ? '<Plug>luasnip-next-choice' : '<C-E>'",
   { silent = true, expr = true })
+
+
+
+-- set keybinds for both INSERT and VISUAL. cycle choice node
+vim.api.nvim_set_keymap("i", "<C-n>", "<Plug>luasnip-next-choice", {})
+vim.api.nvim_set_keymap("s", "<C-n>", "<Plug>luasnip-next-choice", {})
+vim.api.nvim_set_keymap("i", "<C-p>", "<Plug>luasnip-prev-choice", {})
+vim.api.nvim_set_keymap("s", "<C-p>", "<Plug>luasnip-prev-choice", {})
