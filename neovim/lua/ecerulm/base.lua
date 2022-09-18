@@ -49,6 +49,13 @@ vim.api.nvim_create_autocmd("BufWinEnter", { -- BufReadPost won't work because f
   pattern = { "*" },
   callback = function()
     -- vim.api.nvim_exec('silent! normal! g`"zz', false)
-    vim.api.nvim_exec('silent! normal! g`"zvzz', false) -- zv to open fold, zz to center
+    for _, value in ipairs({ 'commit', 'rebase' }) do
+      if vim.regex(value):match_str(vim.bo.filetype) then return end
+    end
+    -- check that the position is still valid, line > 1 and less than max line in buffer
+    local targetline = vim.fn.line([['"]])
+    if targetline > 1 or targetline <= vim.fn.line('$') then
+      vim.api.nvim_exec('silent! normal! g`"zvzz', false) -- zv to open fold, zz to center
+    end
   end
 })
