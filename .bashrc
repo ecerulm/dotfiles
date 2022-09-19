@@ -827,10 +827,20 @@ function ide() {
     echo "You must run this inside tmux"
   fi
   tmux select-pane -T 'NeoVim'
-  tmux split-window -v -l 20% 
+  tmux split-window -v -l 20%
   tmux select-pane -T "Build tasks" # works because the new pane is the active pane
   tmux split-window -h
   tmux select-pane -T "Other commands" # works because the new pane is the active pane
+  tmux select-pane -t "$TMUX_PANE" # give focus to the pane that invoked with script
+}
+
+function ide2() {
+  if [[ -z "$TMUX_PANE" ]]; then
+    echo "You must run this inside tmux"
+  fi
+  tmux select-pane -T 'NeoVim' # change pane title
+  export SHELL_TMUX_PANE=$(tmux split-window -v -l 20% -P -F "#{pane_id}") # create new horizontal split
+  tmux select-pane -T "shell commands" # works because the new pane is the active pane
   tmux select-pane -t "$TMUX_PANE" # give focus to the pane that invoked with script
 }
 
