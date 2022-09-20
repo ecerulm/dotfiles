@@ -30,7 +30,7 @@ emacs.d/projectile-bookmarks.eld
 # intellj idea workspace file contains user-specific settings https://www.jetbrains.com/help/idea/2017.3/managing-projects-under-version-control.html
 *.iws
 # maven target/ dir contains the build artifacts
-target/
+/target/
 neovim/.netrwhist
 .idea
 karabiner/automatic_backups
