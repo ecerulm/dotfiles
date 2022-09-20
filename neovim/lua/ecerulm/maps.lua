@@ -82,3 +82,6 @@ keymap.set('v', '<D-[>', '<gv') -- D- is Cmd- in macOS
 -- >> and << are builtin
 keymap.set('n', '<D-[', '<<')
 keymap.set('n', '<D-]', '>>')
+
+-- %% expands to buffer directory
+keymap.set('c', '%%', [[<C-R>=expand('%:h').'/'<cr>]], { remap = false })
