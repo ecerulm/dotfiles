@@ -829,7 +829,7 @@ function ide() {
   tmux select-pane -T 'NeoVim'
   tmux split-window -v -l 20%
   tmux select-pane -T "Build tasks" # works because the new pane is the active pane
-  tmux split-window -h
+  export SHELL_TMUX_PANE=$(tmux split-window -h -P -F "#{pane_id}")
   tmux select-pane -T "Other commands" # works because the new pane is the active pane
   tmux select-pane -t "$TMUX_PANE" # give focus to the pane that invoked with script
 }
