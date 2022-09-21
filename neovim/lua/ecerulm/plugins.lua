@@ -60,5 +60,6 @@ packer.startup(function(use)
   use { "kylechui/nvim-surround" }
   use 'nvim-treesitter/playground'
   use 'nvim-treesitter/nvim-treesitter-textobjects'
+  use 'tommcdo/vim-exchange'
 
 end)
