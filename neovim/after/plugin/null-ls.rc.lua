@@ -13,6 +13,7 @@ null_ls.setup({
     -- null_ls.builtins.formatting.beautysh,
     null_ls.builtins.formatting.black,
     null_ls.builtins.formatting.prettier,
+    null_ls.builtins.formatting.terraform_fmt,
   },
   on_attach = function(client, bufnr)
     if client.server_capabilities.documentFormattingProvider then
