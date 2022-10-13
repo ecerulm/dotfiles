@@ -54,6 +54,7 @@ ls.add_snippets("javascript", {
     t(''),
     i(0)
   }),
+  ls.parser.parse_snippet({ trig = 'import' }, [[import $1 from '$1';]]),
   s("test2", {
     t("test2 insert text: "), i(1), t(''),
     t("test insert some more text: "), i(2)
