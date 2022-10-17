@@ -202,6 +202,7 @@ function MoveWindow(direction)
   end
 
   winFrame.x = arrayOfPositions[targetIndex].x
+  winFrame.y = screenframe.y
   winFrame.w = arrayOfPositions[targetIndex].width
   winFrame.h = screenframe.h
   win:setFrame(winFrame)
