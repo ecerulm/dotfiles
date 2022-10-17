@@ -374,6 +374,8 @@ if [ -f ~/.bashrc.extra ]; then
   . ~/.bashrc.extra
 fi
 
+# See also .bashrc.thismachine (equivalent to .bashrc.local)
+
 
 for HADOOP_HOME in "$HOME/.local/stow/hadoop-2.8.1"  '/usr/local/Cellar/hadoop/2.8.0' '/usr/local/hadoop-2.8.1'; do
   debug "Checking HADOOP_HOME=$HADOOP_HOME"
@@ -740,6 +742,7 @@ function airflowstaticcheck {
 }
 
 # Don't ever put .bashrc.thismachine in git 
+# .bashrc.local
 # it contains SENSITIVE information
 if [ -f ~/.bashrc.thismachine ]; then
   . ~/.bashrc.thismachine
