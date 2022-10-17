@@ -9,62 +9,12 @@ require "credentials"
 -- }
 -- _G[modname] = M -- we set _G["credentials"] = {...}
 
-local log = hs.logger.new('mymodule','debug')
+Log = hs.logger.new('mymodule', 'debug')
 
-wf_chrome = hs.window.filter.new('Google Chrome')
-expose_chrome= hs.expose.new(wf_chrome)
+Wf_chrome = hs.window.filter.new('Google Chrome')
+Expose_chrome = hs.expose.new(Wf_chrome)
 
-function leftSide(win)
-  return windowFrame(win, 0, 2)
-end
-
-function rightSide(win)
-  return windowFrame(win, 1, 2)
-end
-
-function screenFrame(win)
-  local screen = win:screen()
-  local screenframe = screen:frame()
-  return screenframe
-end
-
-function windowFrame(win, n, np) 
-  -- n is 0,1,2 if np == 3
-  -- np is the number of horizontal partitions
-  log.i('windowFrame')
-  local f = win:frame()
-  local screen = win:screen()
-  local screenframe =  screenFrame(win)
-
-  f.w = screenframe.w//np 
-  f.x = screenframe.x + (n*f.w) -- screenframe.x is the horizontal "origin" of this display
-
-  -- we don't mess with the vertical space
-  f.y = screenframe.y  
-  f.h = screenframe.h -- same vertical size as the screen display (minus the Dock vertical space)
-
-  return screen:absoluteToLocal(f) -- return local coordinates
-end
-
-function setWindowFrame(win, n, np)  -- takes local  coordinates
-   log.i('setWindowFrame')
-   
-   if n < 0 then
-     n = 0
-   end
-
-   if n >= np then
-     n = np - 1
-   end
-
-   local screen = win:screen()
-   local frame = screen:localToAbsolute(windowFrame(win, n,np))
-   -- local frame = windowFrame(win, n, np)
-   win:setFrame(frame,0)
-end
-
-
-function prettifyJsonInPasteboard()
+function PrettifyJsonInPasteboard()
   local file = io.open("/Users/rublag/tmp.json", "w")
   file:write(hs.pasteboard.readString())
   file:close()
@@ -73,50 +23,31 @@ function prettifyJsonInPasteboard()
   hs.pasteboard.setContents(file:read("*all"))
 end
 
-function focusAppOnMousePointer(appName)
-  -- local screen = hs.mouse.getCurrentScreen() -- http://www.hammerspoon.org/docs/hs.mouse.html#getCurrentScreen
-  -- local screenFrame = screen:frame()
-  -- hideApplicationsWithWindowsOnScreen(screen) -- hide all other windows
-
-
-  -- local app = hs.application.get(appName)
-  -- Keep the current position
-  -- local mainWindow = app:mainWindow() -- http://www.hammerspoon.org/docs/hs.window.html
-  -- mainWindow:moveToScreen(screen) -- https://www.hammerspoon.org/docs/hs.window.html#moveToScreen
-  -- local f = hs.geometry.copy(screenFrame) -- http://www.hammerspoon.org/docs/hs.geometry.html#copy
-  -- -- screenFrame x,y is relative to the mainWindow so if the screen is to the left of the mainWindow .x will be negative
-  -- f.x = f.x + screenFrame.w * 1/6
-  -- f.y = f.y
-  -- -- f.w = f.w*4/5
-  -- f.w = f.w - 50
-  -- f.h = f.h - 50
-  -- mainWindow:setFrameInScreenBounds(f) -- https://www.hammerspoon.org/docs/hs.window.html#setFrameInScreenBounds
-
-  local app = hs.application.open(appName, 10,true) -- Launches an application or activates if already running, waits for first window to appear at least 10 seconds
+function FocusAppOnMousePointer(appName)
+  local app = hs.application.open(appName, 10, true) -- Launches an application or activates if already running, waits for first window to appear at least 10 seconds
   hs.alert.show("activate " .. appName)
 end
 
-function toggleMuteOnMicrosoftTeams()
-  focusAppOnMousePointer("Microsoft Teams")
-  hs.eventtap.keyStroke({'cmd','shift'},'m')
+function ToggleMuteOnMicrosoftTeams()
+  FocusAppOnMousePointer("Microsoft Teams")
+  hs.eventtap.keyStroke({ 'cmd', 'shift' }, 'm')
 end
 
-
-function hideApplicationsWithWindowsOnScreen(screen)
+function HideApplicationsWithWindowsOnScreen(screen)
   local windows = hs.window.allWindows()
 
-  for i,w in ipairs(windows) do
+  for _, w in ipairs(windows) do
     if w:screen() == screen then
       w:application():hide()
     end
   end
 end
 
-function noStrongOpinionAudio()
+function NoStrongOpinionAudio()
   -- save state
   local currentOutputDevice = hs.audiodevice.defaultOutputDevice()
-  local currentVolume  = currentOutputDevice:outputVolume()
-  local currentMutedState = currentOutputDevice:muted()
+  local currentVolume       = currentOutputDevice:outputVolume()
+  local currentMutedState   = currentOutputDevice:muted()
 
   -- set audio output to speakers, volume to max and open youtube clip
   local speakers = hs.audiodevice.findOutputByName('MacBook Pro Speakers')
@@ -133,25 +64,23 @@ function noStrongOpinionAudio()
   end)
 end
 
+-- local l = hs.logger.new('global', 'info')
+local hyper = { "cmd", "alt", "ctrl", "shift" }
+
+hs.hotkey.bind({ "cmd", "alt", "ctrl" }, "W", function()
+  hs.notify.new({ title = "Hammerspoon", informativeText = "Hello World" }):send()
+end)
 
 
-local l = hs.logger.new('global', 'info')
-local hyper = {"cmd", "alt", "ctrl", "shift"}
-
-hs.hotkey.bind({"cmd", "alt", "ctrl"}, "W", function()
-    hs.notify.new({title="Hammerspoon", informativeText="Hello World"}):send()
-  end)
-
-
--- PASTE EVERNOTE / removing formattig / copy and paste 
-hs.hotkey.bind(hyper, 'a', function()  -- remove formatting from pasteboard and paste
+-- PASTE EVERNOTE / removing formattig / copy and paste
+hs.hotkey.bind(hyper, 'a', function() -- remove formatting from pasteboard and paste
   local allData = hs.pasteboard.readAllData()
-  htmlData = allData['public.html']
+  local htmlData = allData['public.html']
   allData['public.html'] = nil -- just remove HTML from the pasteboard/clipboard as it's usually the offender
-  rtfData = allData['public.rtf']
+  local rtfData = allData['public.rtf']
   allData['public.rtf'] = nil -- just remove styled text RTF as well
   hs.pasteboard.writeAllData(allData)
-  hs.eventtap.keyStroke({'cmd'}, 'v')
+  hs.eventtap.keyStroke({ 'cmd' }, 'v')
   hs.alert.show('removed HTML from pasteboard')
   allData['public.html'] = htmlData
   allData['public.rtf'] = rtfData
@@ -220,7 +149,7 @@ hs.hotkey.bind(hyper, "y", function() -- move window up-right 10 px
   win:setFrame(f)
 end)
 
-hs.hotkey.bind(hyper, "u", function() -- move window up-left 10 px 
+hs.hotkey.bind(hyper, "u", function() -- move window up-left 10 px
   local win = hs.window.focusedWindow()
   local f = win:frame()
 
@@ -230,64 +159,63 @@ hs.hotkey.bind(hyper, "u", function() -- move window up-left 10 px
 end)
 
 
-function moveWindow(direction) 
+function MoveWindow(direction)
   local win = hs.window.focusedWindow()
   local screen = win:screen()
+  local screenframe = screen:frame()
   local winFrame = screen:absoluteToLocal(win:frame())
-  local screenwidth = math.floor(screenFrame(win).w)
+  local winX = winFrame.x
+  local winWidth = winFrame.w
+  local screenwidth = math.floor(screenframe.w)
 
   local np = 3
-  local winPartWidth = screenwidth//np
+  local winPartWidth = screenwidth // np
 
-  local currentIndex  = math.abs(winFrame.x // winPartWidth)
+  local arrayOfPositions = {
+    { x = 0, width = winPartWidth * 3 }, -- maximize
+    { x = 0, width = winPartWidth }, -- left half
+    { x = 0, width = screenwidth // 2 }, -- left 1/3
+    { x = 0, width = winPartWidth * 2 }, -- left 2/3
+    { x = winPartWidth, width = winPartWidth }, -- 1/3 to  2/3
+    { x = winPartWidth, width = winPartWidth * 2 }, -- 1/3 to  3/3
+    { x = screenwidth // 2, width = screenwidth // 2 }, -- 1/2 to  2/2
+    { x = winPartWidth * 2, width = winPartWidth }, -- 2/3 to 3/3
+  }
 
-  local candidateFrame = windowFrame(win, currentIndex, np) 
-  if winFrame.x ~= candidateFrame.x  or winFrame.w ~= candidateFrame.w or math.abs(winFrame.h-candidateFrame.h) > 10 then
-    -- log.i('moveWindow a' .. winFrame.x .. ' ' .. winFrame.w .. ' ' .. winFrame.h)
-    -- log.i('moveWindow b' .. candidateFrame.x .. ' ' .. candidateFrame.w .. ' ' .. candidateFrame.h)
+  local currentIndex = 0
+  for i, pos in ipairs(arrayOfPositions) do
+    -- Log.i(winX, winWidth, pos.x, pos.width)
+    if (pos.x == winX and pos.width == winWidth) then
+      currentIndex = i
+      break
+    end
+  end
 
-    setWindowFrame(win, currentIndex,np)
-    return
+  local targetIndex = currentIndex + direction
+  if targetIndex < 1 then
+    targetIndex = 1
   end
 
 
-
-  local newIndex = currentIndex + direction
-
-  if newIndex < 0 then
-    win:moveOneScreenWest{noResize=false,ensureInScreenBounds=true,duration=0 }
-    win:maximize()
-  elseif newIndex >= np then
-    win:moveOneScreenEast{noResize=false,ensureInScreenBounds=true,duration=0 }
-    win:maximize()
-  else 
-    setWindowFrame(win, newIndex, np)
+  if targetIndex > #arrayOfPositions then
+    targetIndex = #arrayOfPositions
   end
+
+  winFrame.x = arrayOfPositions[targetIndex].x
+  winFrame.w = arrayOfPositions[targetIndex].width
+  winFrame.h = screenframe.h
+  win:setFrame(winFrame)
+
 end
 
 hs.hotkey.bind(hyper, "Left", function() -- RESIZE WINDOW TO HALF-LEFT / MAXIMIZE LEFT / SPLIT WINDOW / TILE WINDOW
-  moveWindow(-1)
+  MoveWindow(-1)
 end)
 
 
 hs.hotkey.bind(hyper, "Right", function() -- RESIZE WINDOW TO HALF-LEFT / MAXIMIZE LEFT / SPLIT WINDOW / TILE WINDOW
-  moveWindow(1)
+  MoveWindow(1)
 end)
-
--- hs.hotkey.bind(hyper, "Right", function() -- RESIZE WINDOW TO HALF-RIGHT
---   local win = hs.window.focusedWindow()
---   local leftSideFrame = leftSide(win)
---   local rightSideFrame = rightSide(win)
-  
---   if win:frame() == leftSideFrame then
---     win:maximize(0)
---   elseif win:frame() == rightSideFrame then
---     win:moveOneScreenEast{noResize=false,ensureInScreenBounds=true,duration=0 }
---     win:setFrame(leftSide(win),0)
---   else 
---     win:setFrame(rightSideFrame,0)
---   end
--- end)
 
 hs.hotkey.bind(hyper, "Up", function() -- MAXIMIZE CURRENT WINDOW
   local win = hs.window.focusedWindow()
@@ -304,13 +232,13 @@ hs.hotkey.bind(hyper, "Up", function() -- MAXIMIZE CURRENT WINDOW
 end)
 
 hs.hotkey.bind(hyper, "R", function() -- RELOAD HAMMERSPOON CONFIG
-hs.alert.show("Reloading config",2)
--- hs.timer.usleep(20000 * 1000) -- logitech gaming software will keep the hyper key pressed for 25 milliseconds I think so that will interfere with the Cmd-v below
-hs.reload()
+  hs.alert.show("Reloading config", 2)
+  -- hs.timer.usleep(20000 * 1000) -- logitech gaming software will keep the hyper key pressed for 25 milliseconds I think so that will interfere with the Cmd-v below
+  hs.reload()
 end)
 
 hs.hotkey.bind(hyper, 'X', function() -- PRETTIFY JSON IN CLIPBOARD
-  prettifyJsonInPasteboard()
+  PrettifyJsonInPasteboard()
   hs.alert.show("clipboard update with prettified JSON")
 end)
 
@@ -322,24 +250,24 @@ hs.hotkey.bind(hyper, 'V', function() -- CREATE A GIST WITH THE CONTENTS OF PAST
   -- hs.http https://www.hammerspoon.org/docs/hs.http.html
   -- hs.json https://www.hammerspoon.org/docs/hs.json.html
   local data = {
-    files={
-      ["file1.txt"]={
-        content=hs.pasteboard.readString()
+    files = {
+      ["file1.txt"] = {
+        content = hs.pasteboard.readString()
       }
     }
   }
-  local json = hs.json.encode(data,true)
+  local json = hs.json.encode(data, true)
   -- is.dialog.blockAlert(json, "json is")
   local headers = {
-    ["Authorization"]="token " .. credentials.gistCredentials.token,
-    ["Accept"]="application/vnd.github.v3+json",
+    ["Authorization"] = "token " .. credentials.gistCredentials.token,
+    ["Accept"] = "application/vnd.github.v3+json",
   }
 
   hs.alert.show("credentials.gistCredentials.endpoint " .. credentials.gistCredentials.endpoint)
   -- hs.alert.show("headers " .. headers)
   hs.alert.show("credentials.gistCredentials.token  " .. credentials.gistCredentials.token)
 
-  local code, body, headers = hs.http.post(credentials.gistCredentials.endpoint .. "/gists", json, headers)
+  local code, body, _ = hs.http.post(credentials.gistCredentials.endpoint .. "/gists", json, headers)
   -- hs.alert.show("code " .. code)
   -- hs.alert.show("ruben")
   -- hs.alert.show("body " .. body)
@@ -347,7 +275,7 @@ hs.hotkey.bind(hyper, 'V', function() -- CREATE A GIST WITH THE CONTENTS OF PAST
   local response = hs.json.decode(body)
 
   hs.alert.show("POST gist returned" .. code)
-  if ( code ~= 201) then
+  if (code ~= 201) then
     hs.pasteboard.setContents(json)
     hs.dialog.blockAlert(response, "code: " .. code)
   else
@@ -359,24 +287,24 @@ hs.hotkey.bind(hyper, 'V', function() -- CREATE A GIST WITH THE CONTENTS OF PAST
 end)
 
 hs.hotkey.bind(hyper, 'C', function() -- SCREENSHOT TO EVERNOTE
-hs.task.new("/usr/sbin/screencapture",
-  function()
-    hs.application.get('Evernote'):activate()
-    hs.eventtap.keyStroke({"cmd"}, "v")
-    hs.eventtap.keyStrokes(" \n")
+  hs.task.new("/usr/sbin/screencapture",
+    function()
+      hs.application.get('Evernote'):activate()
+      hs.eventtap.keyStroke({ "cmd" }, "v")
+      hs.eventtap.keyStrokes(" \n")
 
-    hs.alert.show("clipboard pasted to evernote")
-  end,
-  {"-ci"}
+      hs.alert.show("clipboard pasted to evernote")
+    end,
+    { "-ci" }
   ):start()
 end)
 
-hs.hotkey.bind({"alt", "ctrl", "shift"}, 'C', function() -- SCREENSHOT TO PASTEBOARD
-hs.task.new("/usr/sbin/screencapture",
-  function()
-    hs.alert.show("screenshot pasted to pasteboard")
-  end,
-  {"-ci"}
+hs.hotkey.bind({ "alt", "ctrl", "shift" }, 'C', function() -- SCREENSHOT TO PASTEBOARD
+  hs.task.new("/usr/sbin/screencapture",
+    function()
+      hs.alert.show("screenshot pasted to pasteboard")
+    end,
+    { "-ci" }
   ):start()
 end)
 
@@ -384,7 +312,7 @@ end)
 -- Hyper keys
 
 hs.hotkey.bind(hyper, '1', function() -- Neutral : I have no strong feelings one way or the other
-  noStrongOpinionAudio()
+  NoStrongOpinionAudio()
 end)
 
 hs.hotkey.bind(hyper, '2', function() -- iTunes play pause / Music play pause
@@ -396,18 +324,18 @@ hs.hotkey.bind(hyper, '3', function() -- iTunes next / Music.app next
 end)
 
 hs.hotkey.bind(hyper, '5', function() -- Google Chrome
-  focusAppOnMousePointer("Google Chrome")
+  FocusAppOnMousePointer("Google Chrome")
 end)
 
 hs.hotkey.bind(hyper, '6', function() -- Microsoft Teams
-  focusAppOnMousePointer("Microsoft Teams")
+  FocusAppOnMousePointer("Microsoft Teams")
 end)
 
 -- Open Evernote
 hs.hotkey.bind(hyper, '7', function() -- EVERNOTE
   --focusAppOnMousePointer("Evernote")
-  local app = hs.application.open("Evernote", 10,true) -- Launches an application or activates if already running, waits for first window to appear at least 10 seconds
-  hs.eventtap.keyStroke({"fn","control"}, "down") -- Mission control for this app only
+  local app = hs.application.open("Evernote", 10, true) -- Launches an application or activates if already running, waits for first window to appear at least 10 seconds
+  hs.eventtap.keyStroke({ "fn", "control" }, "down") -- Mission control for this app only
 end)
 
 -- hs.hotkey.bind(hyper, '8', function() -- SLACK
@@ -415,7 +343,7 @@ end)
 -- end)
 
 hs.hotkey.bind(hyper, '8', function() -- PyCharm
-  focusAppOnMousePointer("PyCharm")
+  FocusAppOnMousePointer("PyCharm")
 end)
 
 -- hs.hotkey.bind(hyper, '9', function() -- iTerm2
@@ -426,31 +354,31 @@ end)
 --hs.hotkey.bind(hyper, '0', toggleMuteOnMicrosoftTeams)
 hs.hotkey.bind(hyper, '0', function()
   -- local app = hs.application.open("Google Chrome",5,true) -- Launches an application or activates if already running, waits for first window to appear at least 10 seconds
-  local app = hs.application.open("com.google.Chrome",5,true) -- Launches an application or activates if already running, waits for first window to appear at least 10 seconds
+  local app = hs.application.open("com.google.Chrome", 5, true) -- Launches an application or activates if already running, waits for first window to appear at least 10 seconds
   -- hs.alert.show("application name " .. app:name())
   -- hs.alert.show("bundleID " .. app:bundleID())
   app:activate(true)
-  hs.eventtap.keyStroke({"fn","control"}, "down")
+  hs.eventtap.keyStroke({ "fn", "control" }, "down")
 end)
 
 
 hs.hotkey.bind(hyper, '-', function()
   hs.alert.show("activate iTerm2")
-  local app = hs.application.open("com.googlecode.iterm2", 10,true) -- Launches an application or activates if already running, waits for first window to appear at least 10 seconds
+  local app = hs.application.open("com.googlecode.iterm2", 10, true) -- Launches an application or activates if already running, waits for first window to appear at least 10 seconds
   app:activate()
-  hs.eventtap.keyStroke({"fn","control"}, "down")
+  hs.eventtap.keyStroke({ "fn", "control" }, "down")
 end)
 
 
-hs.hotkey.bind(hyper, 'e', function() 
+hs.hotkey.bind(hyper, 'e', function()
   hs.alert.show("Search evernote")
-  evernoteapp = hs.application.open("com.evernote.Evernote", 10,true) -- Launches an application or activates if already running, waits for first window to appear at least 10 seconds
+  local evernoteapp = hs.application.open("com.evernote.Evernote", 10, true) -- Launches an application or activates if already running, waits for first window to appear at least 10 seconds
   --evernoteapp:activate(true) -- https://www.hammerspoon.org/docs/hs.application.html#activate
   --evernoteapp:mainWindow():focus()
-  hs.eventtap.keyStroke({"cmd","ctrl"}, "e")
-  mytimer = hs.timer.doAfter(0.3, function()
-    hs.eventtap.keyStroke({"cmd"}, hs.keycodes.map.delete)
-    mytimer2 = hs.timer.doAfter(0.3, function()
+  hs.eventtap.keyStroke({ "cmd", "ctrl" }, "e")
+  local mytimer = hs.timer.doAfter(0.3, function()
+    hs.eventtap.keyStroke({ "cmd" }, hs.keycodes.map.delete)
+    local mytimer2 = hs.timer.doAfter(0.3, function()
       --hs.eventtap.keyStrokes("hello") -- https://www.hammerspoon.org/docs/hs.eventtap.html#keyStrokes
       --hs.eventtap.keyStroke({"cmd"}, "x",500000,evernoteapp)
 
@@ -461,7 +389,7 @@ hs.hotkey.bind(hyper, 'e', function()
       hs.eventtap.event.newKeyEvent("1", false):post()
       hs.eventtap.event.newKeyEvent(hs.keycodes.map.alt, false):post()
       hs.eventtap.event.newKeyEvent(hs.keycodes.map.cmd, false):post()
-      hs.eventtap.keyStroke({"cmd","ctrl"}, "e")
+      hs.eventtap.keyStroke({ "cmd", "ctrl" }, "e")
 
     end)
   end)
