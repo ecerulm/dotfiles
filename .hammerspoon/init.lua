@@ -163,6 +163,7 @@ function MoveWindow(direction)
   local win = hs.window.focusedWindow()
   local screen = win:screen()
   local screenframe = screen:frame()
+  -- https://www.hammerspoon.org/docs/hs.screen.html#absoluteToLocal
   local winFrame = screen:absoluteToLocal(win:frame())
   local winX = winFrame.x
   local winWidth = winFrame.w
@@ -193,19 +194,20 @@ function MoveWindow(direction)
 
   local targetIndex = currentIndex + direction
   if targetIndex < 1 then
-    targetIndex = 1
+    targetIndex = #arrayOfPositions
   end
 
 
   if targetIndex > #arrayOfPositions then
-    targetIndex = #arrayOfPositions
+    targetIndex = 1
   end
 
   winFrame.x = arrayOfPositions[targetIndex].x
   winFrame.y = screenframe.y
   winFrame.w = arrayOfPositions[targetIndex].width
   winFrame.h = screenframe.h
-  win:setFrame(winFrame)
+  -- https://www.hammerspoon.org/docs/hs.screen.html#localToAbsolute
+  win:setFrame(screen:localToAbsolute(winFrame), 0) -- duration == 0 no animation
 
 end
 
