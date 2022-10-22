@@ -211,9 +211,10 @@ function MoveWindow(direction)
 
 end
 
-hs.hotkey.bind(hyper, "Left", function() -- RESIZE WINDOW TO HALF-LEFT / MAXIMIZE LEFT / SPLIT WINDOW / TILE WINDOW
-  MoveWindow(-1)
-end)
+hs.hotkey.bind(hyper, "Left",
+  function() -- RESIZE WINDOW TO HALF-LEFT / MAXIMIZE LEFT / SPLIT WINDOW / TILE WINDOW / MOVE WINDOW / CYCLE WINDOW
+    MoveWindow(-1)
+  end)
 
 
 hs.hotkey.bind(hyper, "Right", function() -- RESIZE WINDOW TO HALF-LEFT / MAXIMIZE LEFT / SPLIT WINDOW / TILE WINDOW

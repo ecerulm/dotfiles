@@ -539,6 +539,7 @@
                   {
                     "identifiers": [
                       {
+                        "description": "Logitech G600",
                         "is_pointing_device": true,
                         "product_id": 49738,
                         "vendor_id": 1133
@@ -567,7 +568,8 @@
                   {
                     "identifiers": [
                       {
-                        "description": "Logitech G604",
+                        "description": "Logitech G600",
+                        "is_pointing_device": true,
                         "product_id": 49738,
                         "vendor_id": 1133
                       }
@@ -679,6 +681,41 @@
           {
             "manipulators": [
               {
+                "conditions": [
+                  {
+                    "identifiers": [
+                      {
+                        "description": "Logitech G604",
+                        "is_keyboard": true,
+                        "product_id": 50489,
+                        "vendor_id": 1133
+                      }
+                    ],
+                    "type": "device_if"
+                  }
+                ],
+                "description": "G604: Map G8 to Hyper+Rightarrow",
+                "from": {
+                  "key_code": "2"
+                },
+                "to": [
+                  {
+                    "key_code": "right_arrow",
+                    "modifiers": [
+                      "left_command",
+                      "left_control",
+                      "left_option",
+                      "left_shift"
+                    ]
+                  }
+                ],
+                "type": "basic"
+              }
+            ]
+          },
+          {
+            "manipulators": [
+              {
                 "description": "Change non_us_backslash to Hyper key command+control+option+shift.",
                 "from": {
                   "key_code": "non_us_backslash",
@@ -710,7 +747,28 @@
           },
           "ignore": false,
           "manipulate_caps_lock_led": false,
-          "simple_modifications": [],
+          "simple_modifications": [
+            {
+              "from": {
+                "pointing_button": "button4"
+              },
+              "to": [
+                {
+                  "consumer_key_code": "volume_decrement"
+                }
+              ]
+            },
+            {
+              "from": {
+                "pointing_button": "button5"
+              },
+              "to": [
+                {
+                  "consumer_key_code": "volume_increment"
+                }
+              ]
+            }
+          ],
           "treat_as_built_in_keyboard": false
         },
         {
@@ -909,9 +967,30 @@
             "product_id": 49738,
             "vendor_id": 1133
           },
-          "ignore": true,
+          "ignore": false,
           "manipulate_caps_lock_led": false,
-          "simple_modifications": [],
+          "simple_modifications": [
+            {
+              "from": {
+                "pointing_button": "button4"
+              },
+              "to": [
+                {
+                  "consumer_key_code": "volume_decrement"
+                }
+              ]
+            },
+            {
+              "from": {
+                "pointing_button": "button5"
+              },
+              "to": [
+                {
+                  "consumer_key_code": "volume_increment"
+                }
+              ]
+            }
+          ],
           "treat_as_built_in_keyboard": false
         },
         {
@@ -1064,6 +1143,34 @@
             "is_pointing_device": true,
             "product_id": 832,
             "vendor_id": 1452
+          },
+          "ignore": true,
+          "manipulate_caps_lock_led": false,
+          "simple_modifications": [],
+          "treat_as_built_in_keyboard": false
+        },
+        {
+          "disable_built_in_keyboard_if_exists": false,
+          "fn_function_keys": [],
+          "identifiers": {
+            "is_keyboard": true,
+            "is_pointing_device": false,
+            "product_id": 12316,
+            "vendor_id": 16700
+          },
+          "ignore": false,
+          "manipulate_caps_lock_led": true,
+          "simple_modifications": [],
+          "treat_as_built_in_keyboard": false
+        },
+        {
+          "disable_built_in_keyboard_if_exists": false,
+          "fn_function_keys": [],
+          "identifiers": {
+            "is_keyboard": false,
+            "is_pointing_device": true,
+            "product_id": 12316,
+            "vendor_id": 16700
           },
           "ignore": true,
           "manipulate_caps_lock_led": false,
