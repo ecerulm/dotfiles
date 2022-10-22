@@ -847,6 +847,17 @@ function ide2() {
   tmux select-pane -t "$TMUX_PANE" # give focus to the pane that invoked with script
 }
 
+function ideterraform() {
+  if [[ -z "$TMUX_PANE" ]]; then
+    echo "You must run this inside tmux"
+  fi
+  tmux select-pane -T 'NeoVim' # change pane title
+  export SHELL_TMUX_PANE=$(tmux split-window -h -l 20% -P -F "#{pane_id}") # create new horizontal split
+  # 
+  tmux select-pane -T "shell commands" # works because the new pane is the active pane
+  tmux select-pane -t "$TMUX_PANE" # give focus to the pane that invoked with script
+}
+
 function nvimconfig() {
   cd ~/.config/nvim || exit
   vim ~/.config/nvim
