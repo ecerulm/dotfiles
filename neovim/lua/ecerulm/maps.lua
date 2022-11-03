@@ -11,7 +11,7 @@ keymap.set('n', '-', '<C-x>')
 keymap.set('n', 'dw', 'vb"_d')
 
 -- Select all
-keymap.set('n', '<C-a>', 'gg<S-v>G')
+-- keymap.set('n', '<C-a>', 'gg<S-v>G') -- conflicts with increment C-a
 
 -- Save with root permission / does not work switch to suda.vim
 -- https://github.com/neovim/neovim/issues/12103
@@ -85,3 +85,20 @@ keymap.set('n', '<D-]', '>>')
 
 -- %% expands to buffer directory
 keymap.set('c', '%%', [[<C-R>=expand('%:h').'/'<cr>]], { remap = false })
+
+
+function SetTerraformMappings()
+  -- get buffer active
+  -- set buffer local TerraformMappings
+  local filepath = vim.api.nvim_buf_get_name(0) -- 0 means the current buffer
+  if vim.regex("\\.tf$"):match_str(filepath) then
+    vim.keymap.set('n', '<leader>t', ':Shell terraform plan -out latest.tfplan<cr>', { buffer = 0, remap = false })
+    vim.keymap.set('n', '<leader>r', ':Shell terraform apply latest.tfplan<cr>', { buffer = 0, remap = false })
+  end
+end
+
+local terraformGrp = vim.api.nvim_create_augroup("TerraformMappings", { clear = True })
+vim.api.nvim_create_autocmd({ "BufEnter", "BufFilePost" }, {
+  command = "lua SetTerraformMappings()",
+  group = terraformGrp,
+})
