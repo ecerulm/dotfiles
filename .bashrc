@@ -887,8 +887,15 @@ function pyactivate() {
   fi
   ACTIVATESCRIPT=${PREFIX}/bin/activate
   if [[ ! -e "$ACTIVATESCRIPT" ]]; then
-    echo "There is not activate script at ${ACTIVATESCRIPT}"
+    _OLD_VIRTUAL_PATH="${PATH}"
+    PATH="${PREFIX}/bin:${PATH}"
+    function deactivate() {
+      PATH="${_OLD_VIRTUAL_PATH}"
+      unset -f deactivate
+    }
+    # echo "There is not activate script at ${ACTIVATESCRIPT}"
     return
+  else
+    source "${ACTIVATESCRIPT}"
   fi
-  source $(pyenv prefix $1)/bin/activate
 }
