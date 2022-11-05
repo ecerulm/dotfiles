@@ -828,6 +828,7 @@ function colors() {
 function ide() {
   if [[ -z "$TMUX_PANE" ]]; then
     echo "You must run this inside tmux"
+    return
   fi
   tmux select-pane -T 'NeoVim'
   tmux split-window -v -l 20%
@@ -840,6 +841,7 @@ function ide() {
 function ide2() {
   if [[ -z "$TMUX_PANE" ]]; then
     echo "You must run this inside tmux"
+    return
   fi
   tmux select-pane -T 'NeoVim' # change pane title
   export SHELL_TMUX_PANE=$(tmux split-window -v -l 20% -P -F "#{pane_id}") # create new horizontal split
@@ -850,6 +852,7 @@ function ide2() {
 function ideterraform() {
   if [[ -z "$TMUX_PANE" ]]; then
     echo "You must run this inside tmux"
+    return
   fi
   tmux select-pane -T 'NeoVim' # change pane title
   export SHELL_TMUX_PANE=$(tmux split-window -h -l 20% -P -F "#{pane_id}") # create new horizontal split
@@ -870,3 +873,22 @@ export KREW_ROOT="${KREW_ROOT:-$HOME/.krew}"
 if [[ -d "${KREW_ROOT}/bin" ]]; then
   export PATH="${KREW_ROOT}/bin:$PATH"
 fi
+
+function pyactivate() {
+  if [ "$#" -ne 1 ]; then
+      echo "Usage: pyactivate <nameofvirtualenv>"
+      echo "pyenv versions # list virtualenvs"
+      return
+  fi
+  PREFIX=$(pyenv prefix $1)
+  if [ $? -ne 0 ]; then
+    echo "that pyenv version does not exist"
+    return
+  fi
+  ACTIVATESCRIPT=${PREFIX}/bin/activate
+  if [[ ! -e "$ACTIVATESCRIPT" ]]; then
+    echo "There is not activate script at ${ACTIVATESCRIPT}"
+    return
+  fi
+  source $(pyenv prefix $1)/bin/activate
+}
