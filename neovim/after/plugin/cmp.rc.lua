@@ -1,3 +1,4 @@
+# nvim-cmp / nvim_cmp
 local status, cmp = pcall(require, "cmp")
 if (not status) then return end
 local lspkind = require 'lspkind'
@@ -21,11 +22,14 @@ cmp.setup({
   sources = cmp.config.sources({
     { name = "nvim_lsp" }, -- nvim builtin lsp
     { name = "buffer" }, -- words in buffer
-    { name = "luasnip"}
+    { name = "luasnip" }
   }),
   formatting = {
     format = lspkind.cmp_format({ with_text = false, maxwidth = 50 })
-  }
+  },
+  completion = {
+    autocomplete = false,
+  },
 })
 
 vim.cmd [[
