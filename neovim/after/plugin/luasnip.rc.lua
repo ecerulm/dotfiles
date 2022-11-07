@@ -112,8 +112,15 @@ ls.add_snippets("javascript", {
 -- :help nvim_set_keymap()
 -- :help :map-arguments
 -- :help luasnip
-vim.keymap.set('i', '<Tab>', "luasnip#expand_or_jumpable() ? '<Plug>luasnip-expand-or-jump' : '<Tab>'",
-  { silent = true, expr = true })
+-- vim.keymap.set('i', '<Tab>', "luasnip#expand_or_jumpable() ? '<Plug>luasnip-expand-or-jump' : '<Tab>'",
+--   { silent = true, expr = true })
+vim.keymap.set('i', '<Tab>', function()
+  if ls.expand_or_jumpable() then
+    return '<Plug>luasnip-expand-or-jump' -- works because expr and recursive
+  else
+    return '<Tab>'
+  end
+end, { silent = true, expr = true, remap = true })
 vim.keymap.set('i', '<S-Tab>', function() ls.jump(-1) end, { silent = true })
 
 vim.keymap.set('s', '<Tab>', function() ls.jump(1) end, { silent = true })
@@ -129,3 +136,4 @@ vim.api.nvim_set_keymap("i", "<C-n>", "<Plug>luasnip-next-choice", {})
 vim.api.nvim_set_keymap("s", "<C-n>", "<Plug>luasnip-next-choice", {})
 vim.api.nvim_set_keymap("i", "<C-p>", "<Plug>luasnip-prev-choice", {})
 vim.api.nvim_set_keymap("s", "<C-p>", "<Plug>luasnip-prev-choice", {})
+--
