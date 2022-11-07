@@ -18,6 +18,7 @@ cmp.setup({
       behavior = cmp.ConfirmBehavior.Replace,
       select = true
     }),
+    -- ['Tab'] = cmp.mapping.complete(),
   }),
   sources = cmp.config.sources({
     { name = "nvim_lsp" }, -- nvim builtin lsp
