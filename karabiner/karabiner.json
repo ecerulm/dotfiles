@@ -666,7 +666,7 @@
                 ],
                 "description": "G604: Map G9 to Paste2",
                 "from": {
-                  "key_code": "keypad_1"
+                  "key_code": "1"
                 },
                 "to": [
                   {
