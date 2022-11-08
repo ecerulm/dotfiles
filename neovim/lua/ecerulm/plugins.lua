@@ -18,7 +18,7 @@ packer.startup(function(use)
   use 'hrsh7th/cmp-nvim-lsp' -- nvim-cpm source neovim's builtin LSP
   use 'hrsh7th/nvim-cmp' -- completion
   use 'neovim/nvim-lspconfig'
-  use 'L3MON4D3/LuaSnip'
+  use({ "L3MON4D3/LuaSnip", tag = "v<CurrentMajor>.*" })
   use {
     'nvim-treesitter/nvim-treesitter',
     run = ":TSUpdate"
