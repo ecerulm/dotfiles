@@ -899,3 +899,5 @@ function pyactivate() {
     source "${ACTIVATESCRIPT}"
   fi
 }
+
+export PATH="~/.local/bin:$PATH"
