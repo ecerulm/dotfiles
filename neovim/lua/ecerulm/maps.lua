@@ -58,8 +58,10 @@ keymap.set('n', '<c-l>', ':nohlsearch<cr><c-l>', { remap = false })
 keymap.set('n', '<Leader>lf', ':lua vim.lsp.buf.formatting()<cr>', { remap = false, silent = true })
 
 -- uppercase with <c-u>
-keymap.set('i', '<C-u>', '<Esc>viW~Ea', { remap = false })
-keymap.set('n', '<C-u>', 'g~iWE', { remap = false })
+-- keymap.set('i', '<C-u>', '<Esc>viW~Ea', { remap = false }) -- W and E: spaces separate words, punctuation does not
+-- keymap.set('n', '<C-u>', 'g~iWE', { remap = false }) -- W and E: spaces separate words, punctuation does not
+keymap.set('i', '<C-u>', '<Esc>viw~ea', { remap = false }) -- w and e : punctuation or spaces separate words
+keymap.set('n', '<C-u>', 'g~iwe', { remap = false }) -- w and e : punctuation or spaces separate words
 
 -- reselect last visual selection / last pasted text / last changed text
 --
