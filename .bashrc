@@ -787,12 +787,12 @@ shellpodns() {
 
 [ -f "/Users/ecerulm/.ghcup/env" ] && source "/Users/ecerulm/.ghcup/env" # ghcup-env
 
-[ -f $HOME/.bash_completion.d/breeze-complete ] && source $HOME/.bash_completion.d/breeze-complete
-# START: Added by Airflow Breeze autocomplete setup
-for bcfile in ~/.bash_completion.d/* ; do
-    . ${bcfile}
-done
-# END: Added by Airflow Breeze autocomplete setup
+# [ -f $HOME/.bash_completion.d/breeze-complete ] && source $HOME/.bash_completion.d/breeze-complete
+# # START: Added by Airflow Breeze autocomplete setup
+# for bcfile in ~/.bash_completion.d/* ; do
+#     . ${bcfile}
+# done
+# # END: Added by Airflow Breeze autocomplete setup
 
 shortname() {
   ldapsearch -LLL "(displayName=$*)" sAMAccountName 2>&1| grep sAMAccountName
