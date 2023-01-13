@@ -34,7 +34,13 @@ packer.startup(function(use)
   -- using packer.nvim
   use { 'akinsho/bufferline.nvim', tag = "v2.*", requires = 'kyazdani42/nvim-web-devicons' }
   use 'norcalli/nvim-colorizer.lua'
-  use 'glepnir/lspsaga.nvim'
+  use({ -- from :help lspsaga.nvim-packer
+    "glepnir/lspsaga.nvim",
+    branch = "main",
+    config = function()
+      require('lspsaga').setup({})
+    end,
+  })
   use 'jose-elias-alvarez/null-ls.nvim'
   -- use({
   --   'MunifTanjim/prettier.nvim',

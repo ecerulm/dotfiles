@@ -62,3 +62,5 @@ vim.api.nvim_create_autocmd("BufWinEnter", { -- BufReadPost won't work because f
 
 vim.api.nvim_create_user_command('Shell',
   [[silent! !tmux send-keys -t "${SHELL_TMUX_PANE}" c-u <q-args> enter]], { nargs = "*" })
+
+vim.opt.mouse = ''
