@@ -108,6 +108,17 @@ ls.add_snippets("javascript", {
     ]])
 })
 
+ls.add_snippets("python", {
+  s("ifmain", fmt([[
+  if __name__ == "__main__":
+    {}
+  ]], {
+    i(1, "fire.Fire()")
+  }))
+
+
+})
+
 -- Set the keymaps imap
 -- :help nvim_set_keymap()
 -- :help :map-arguments
