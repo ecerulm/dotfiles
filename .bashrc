@@ -639,6 +639,10 @@ function sshportforwarding {
   echo "the connection to remotehost:remoteport is initiated at the ssh remote side username@hostname, so the remotehost can be a DNS name that only exists at that side"
 }
 
+function awslistinstancetypes {
+  aws ec2 describe-instance-types --filters "Name=instance-type,Values=$1*" --query "InstanceTypes[].{Type: InstanceType, MaxENI: NetworkInfo.MaximumNetworkInterfaces, IPv4addr: NetworkInfo.Ipv4AddressesPerInterface}" --output table
+}
+
 function awslistinstance {
   aws ec2 describe-instances --output text --query 'Reservations[*].Instances[*]'
   # echo "git-bucket " `aws ec2 describe-instances --instance-id $AISIN_AWS_GITBUCKET_INSTANCEID  --profile dev-aisin --output text --query 'Reservations[*].Instances[*].[State.Name,PrivateIpAddress]'`
@@ -901,3 +905,4 @@ function pyactivate() {
 }
 
 export PATH="~/.local/bin:$PATH"
+. "$HOME/.cargo/env"
