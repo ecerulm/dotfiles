@@ -3,6 +3,7 @@
   name = Ruben Laguna
   email = ruben.laguna@gmail.com
 [diff]
+	tool = Kaleidoscope
 [color]
   ui = auto
 [alias]
@@ -70,7 +71,7 @@
 	track = "!f() { ([ $# -eq 2 ] && ( echo \"Setting tracking for branch \" $1 \" -> \" $2;git branch --set-upstream $1 $2; ) || ( git for-each-ref --format=\"local: %(refname:short) <--sync--> remote: %(upstream:short)\" refs/heads && echo --Remotes && git remote -v)); }; f"
 
 [merge]
-  tool = vimdiff
+	tool = meld
 	stat = true
 [http]
 	sslVerify = true
@@ -107,3 +108,31 @@
 	helper = /usr/local/share/gcm-core/git-credential-manager
 [credential "https://dev.azure.com"]
 	useHttpPath = true
+[difftool "Kaleidoscope"]
+	cmd = ksdiff --partial-changeset --relative-path \"$MERGED\" -- \"$LOCAL\" \"$REMOTE\"
+[difftool]
+	prompt = false
+	trustExitCode = true
+[mergetool "Kaleidoscope"]
+	cmd = ksdiff --merge --output \"$MERGED\" --base \"$BASE\" -- \"$LOCAL\" --snapshot \"$REMOTE\" --snapshot
+	trustExitCode = true
+[mergetool]
+	prompt = false
+[mergetool "diffmerge"]
+	trustExitCode = true
+	path = /usr/local/bin/diffmerge
+	cmd = diffmerge --merge --caption $(basename $MERGED)   -t1=FROM_BRANCH -t2=MERGED -t3=DEST_BRANCH --result=\"$MERGED\" \"$LOCAL\" \"$BASE\" \"$REMOTE\"
+[mergetool "kdiff3"]
+	path = /usr/local/bin/kdiff3
+	cmd = kdiff3 --L1 \"FORKPOINT\" --L2 \"SOURCE_BRANCH\" --L3 \"DESTINATION_BRANCH\" \"$BASE\" \"$LOCAL\" \"$REMOTE\" -o \"$MERGED\"
+	trustExitCode = true
+[mergetool "opendiff"]
+	path = /usr/bin/opendiff
+	cmd = "opendiff  \"$LOCAL\" \"$REMOTE\" -ancestor \"$BASE\" -merge \"$MERGED\" "
+	trustExitCode = false
+[mergetool "meld"]
+	path = /usr/local/bin/meld
+	cmd = "meld --auto-merge  \"$LOCAL\" \"$BASE\" \"$REMOTE\" --output \"$MERGED\" "
+	trustExitCode = false
+[gpg]
+	program = /usr/local/MacGPG2/bin/gpg2
