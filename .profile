@@ -13,3 +13,4 @@
 # Things that ONLY run in interactive (login shells) should be put in ~/.bash_profile
 # If it should be in both interactive and non-interactive shells then but it in ~/.bashrc (most of the stuff)
 
+. "$HOME/.cargo/env"
