@@ -905,4 +905,8 @@ function pyactivate() {
 }
 
 export PATH="~/.local/bin:$PATH"
+
+alias antlr="java -cp ~/antlr/antlr-4.11.1-complete.jar org.antlr.v4.Tool $*"
+alias grun="java -cp ~/antlr/antlr-4.11.1-complete.jar org.antlr.v4.gui.TestRig $*"
+
 . "$HOME/.cargo/env"
