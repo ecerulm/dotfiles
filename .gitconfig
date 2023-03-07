@@ -134,5 +134,7 @@
 	path = /usr/local/bin/meld
 	cmd = "meld --auto-merge  \"$LOCAL\" \"$BASE\" \"$REMOTE\" --output \"$MERGED\" "
 	trustExitCode = false
+[commit]
+	gpgsign = true
 [gpg]
-	program = /usr/local/MacGPG2/bin/gpg2
+	program = gpg
