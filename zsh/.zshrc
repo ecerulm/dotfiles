@@ -78,7 +78,7 @@ ZSH_THEME="powerlevel10k/powerlevel10k"
 # Custom plugins may be added to $ZSH_CUSTOM/plugins/
 # Example format: plugins=(rails git textmate ruby lighthouse)
 # Add wisely, as too many plugins slow down shell startup.
-plugins=(git macos)
+plugins=( macos)
 
 source $ZSH/oh-my-zsh.sh
 
@@ -118,5 +118,17 @@ export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || pr
 
 alias vi=nvim
 alias vim=nvim
-alias s="git status -sb"
 
+alias s="git st"
+alias gdc="git dc"
+alias gd="git d"
+alias gc="git commit -v"
+alias gca="git commit -v --amend"
+alias gau="git a" # git add -u
+alias gap="git a -p"
+alias glc="git rev-parse HEAD"
+alias gdm="git diff master"
+alias gdms="git diff --stat master"
+alias gdlc="git diff HEAD^ HEAD" # or git diff @~..@ 
+alias gfa="git fetch --all"
+alias gb="git branch --sort=-committerdate"
