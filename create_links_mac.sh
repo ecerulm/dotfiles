@@ -22,6 +22,11 @@ ln -Fvhfs ~/dotfiles/sbt/1.0/plugins/plugins.sbt ~/.sbt/1.0/plugins/
 # NeoVim config files
 ln -Fvhfs ~/dotfiles/neovim ~/.config/nvim
 
+
+# KiTTY config
+mkdir -p ~/.config/kitty
+ln -Fvhfs ~/dotfiles/kitty ~/.config/kitty
+
 # don't copy qtile config in mac it doesn't make sense in macosx
 #mkdir -p ~/.config/
 #ln -Fvhfs ~/dotfiles/qtile ~/.config/qtile
