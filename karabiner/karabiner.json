@@ -34,7 +34,7 @@
                 ],
                 "description": "Change G600 G9 to Ctrl+Option+Shift+C.",
                 "from": {
-                  "key_code": "keypad_1"
+                  "key_code": "1"
                 },
                 "to": [
                   {
@@ -63,7 +63,7 @@
                 ],
                 "description": "Change G600 Gshift + G9 to Hyper+7 (switch to evernote) ",
                 "from": {
-                  "key_code": "keypad_1",
+                  "key_code": "1",
                   "modifiers": {
                     "mandatory": ["left_control"]
                   }
@@ -100,7 +100,7 @@
                 ],
                 "description": "Change G600 G10 to Command+C",
                 "from": {
-                  "key_code": "keypad_2"
+                  "key_code": "2"
                 },
                 "to": [
                   {
@@ -129,7 +129,7 @@
                 ],
                 "description": "Change G600 Gshift+G10 to Cmd+B (Bold text)",
                 "from": {
-                  "key_code": "keypad_2",
+                  "key_code": "2",
                   "modifiers": {
                     "mandatory": "left_control"
                   }
@@ -161,7 +161,7 @@
                 ],
                 "description": "Change G600 Gshift+G11 to Cmd+B (Bold text)",
                 "from": {
-                  "key_code": "keypad_3",
+                  "key_code": "3",
                   "modifiers": {
                     "mandatory": "left_control"
                   }
@@ -193,7 +193,7 @@
                 ],
                 "description": "Change G600 G11 to Hyper+A (Paste downgrade to text or image)",
                 "from": {
-                  "key_code": "keypad_3"
+                  "key_code": "3"
                 },
                 "to": [
                   {
@@ -227,7 +227,7 @@
                 ],
                 "description": "Change G600 G12 to Control+up (Mission Control)",
                 "from": {
-                  "key_code": "keypad_4"
+                  "key_code": "4"
                 },
                 "to": [
                   {
@@ -256,7 +256,7 @@
                 ],
                 "description": "Change G600 G13 to Control+Left (Previous desktop)",
                 "from": {
-                  "key_code": "keypad_5"
+                  "key_code": "5"
                 },
                 "to": [
                   {
@@ -285,7 +285,7 @@
                 ],
                 "description": "Change G600 G14 to Control+right (Next desktop)",
                 "from": {
-                  "key_code": "keypad_6"
+                  "key_code": "6"
                 },
                 "to": [
                   {
@@ -314,7 +314,7 @@
                 ],
                 "description": "Change G600 G15 to Hyper+2 iTunes / Music play/pause",
                 "from": {
-                  "key_code": "keypad_7"
+                  "key_code": "7"
                 },
                 "to": [
                   {
@@ -348,7 +348,7 @@
                 ],
                 "description": "Change G600 Gshift + G15 to Hyper+3 iTunes/Music.app next song",
                 "from": {
-                  "key_code": "keypad_7",
+                  "key_code": "7",
                   "modifiers": {
                     "mandatory": ["left_control"]
                   }
@@ -385,7 +385,7 @@
                 ],
                 "description": "Change G600 G16 to Hyper+left (window resize half left)",
                 "from": {
-                  "key_code": "keypad_8"
+                  "key_code": "8"
                 },
                 "to": [
                   {
@@ -419,7 +419,7 @@
                 ],
                 "description": "Change G600 G17 to Hyper+left (window resize half right)",
                 "from": {
-                  "key_code": "keypad_9"
+                  "key_code": "9"
                 },
                 "to": [
                   {
@@ -453,7 +453,7 @@
                 ],
                 "description": "Change G600 G18 to Hyper+0 (Select Google Chrome window)",
                 "from": {
-                  "key_code": "keypad_0"
+                  "key_code": "0"
                 },
                 "to": [
                   {
@@ -487,7 +487,7 @@
                 ],
                 "description": "Change G600 G19 to Hyper+- (Select iTerm2 window)",
                 "from": {
-                  "key_code": "keypad_hyphen"
+                  "key_code": "hyphen"
                 },
                 "to": [
                   {
@@ -521,7 +521,7 @@
                 ],
                 "description": "Change G600 G20 (=) to End",
                 "from": {
-                  "key_code": "keypad_plus"
+                  "key_code": "equal_sign"
                 },
                 "to": [
                   {
@@ -767,7 +767,7 @@
             "vendor_id": 1133
           },
           "ignore": false,
-          "manipulate_caps_lock_led": false,
+          "manipulate_caps_lock_led": true,
           "simple_modifications": [
             {
               "from": {

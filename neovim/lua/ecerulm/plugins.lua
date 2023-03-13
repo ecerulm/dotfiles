@@ -1,3 +1,5 @@
+-- Plugins
+--
 local status, packer = pcall(require, "packer")
 if (not status) then
   print("Packer is not installed")
@@ -23,7 +25,7 @@ packer.startup(function(use)
     'nvim-treesitter/nvim-treesitter',
     run = ":TSUpdate"
   }
-  use "windwp/nvim-autopairs"
+  use "windwp/nvim-autopairs" -- auto close quotes / brackets /parens
   use 'windwp/nvim-ts-autotag'
   use {
     'nvim-telescope/telescope.nvim',
@@ -67,5 +69,6 @@ packer.startup(function(use)
   use 'nvim-treesitter/playground'
   use 'nvim-treesitter/nvim-treesitter-textobjects'
   use 'tommcdo/vim-exchange'
+  use 'dstein64/vim-startuptime'
 
 end)

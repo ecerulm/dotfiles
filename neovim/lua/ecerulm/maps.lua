@@ -89,6 +89,8 @@ keymap.set('n', '<D-]', '>>')
 keymap.set('c', '%%', [[<C-R>=expand('%:h').'/'<cr>]], { remap = false })
 
 
+-- the terraform mappings were moved to after/ftplugin/terraform.vim
+
 -- function SetTerraformMappings()
 --   -- get buffer active
 --   -- set buffer local TerraformMappings

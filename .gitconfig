@@ -1,7 +1,7 @@
 # vim: set expandtab:
 [user]
   name = Ruben Laguna
-  email = ruben.laguna@gmail.com
+  # email = ruben.laguna@gmail.com , set it in each project
 [diff]
 	tool = Kaleidoscope
 [color]
@@ -104,10 +104,6 @@
 	cmd = opendiff \"$LOCAL\" \"$REMOTE\"
 [credential "https://git-codecommit.eu-north-1.amazonaws.com"]
 	provider = generic
-[credential]
-	helper = /usr/local/share/gcm-core/git-credential-manager
-[credential "https://dev.azure.com"]
-	useHttpPath = true
 [difftool "Kaleidoscope"]
 	cmd = ksdiff --partial-changeset --relative-path \"$MERGED\" -- \"$LOCAL\" \"$REMOTE\"
 [difftool]
@@ -138,3 +134,9 @@
 	gpgsign = true
 [gpg]
 	program = gpg
+[credential]
+	helper = /usr/local/share/gcm-core/git-credential-manager
+[credential "https://dev.azure.com"]
+	useHttpPath = true
+[commit]
+	gpgsign = true
