@@ -118,3 +118,5 @@ export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || pr
 
 alias vi=nvim
 alias vim=nvim
+alias s="git status -sb"
+

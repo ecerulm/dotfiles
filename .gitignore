@@ -37,4 +37,6 @@ karabiner/automatic_backups
 node_modules/
 .env
 zsh/.zsh_sessions
+zsh/.zcompdump-*
+zsh/.zshrc.old
 *.pem
