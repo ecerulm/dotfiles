@@ -1,0 +1,23 @@
+if [ "$#" -ne 1 ]; then
+    echo "Usage: pyactivate <nameofvirtualenv>"
+    echo "pyenv versions # list virtualenvs"
+    return
+fi
+PREFIX=$(pyenv prefix $1)
+if [ $? -ne 0 ]; then
+  echo "that pyenv version does not exist"
+  return
+fi
+ACTIVATESCRIPT=${PREFIX}/bin/activate
+if [[ ! -e "$ACTIVATESCRIPT" ]]; then # handle nested calls
+  _OLD_VIRTUAL_PATH="${PATH}"
+  PATH="${PREFIX}/bin:${PATH}"
+  function deactivate() {
+    PATH="${_OLD_VIRTUAL_PATH}"
+    unset -f deactivate
+  }
+  # echo "There is not activate script at ${ACTIVATESCRIPT}"
+  return
+else
+  source "${ACTIVATESCRIPT}"
+fi

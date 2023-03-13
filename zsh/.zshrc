@@ -132,3 +132,8 @@ alias gdms="git diff --stat master"
 alias gdlc="git diff HEAD^ HEAD" # or git diff @~..@ 
 alias gfa="git fetch --all"
 alias gb="git branch --sort=-committerdate"
+
+autoload -Uz pyactivate
+autoload -Uz hello
+
+
