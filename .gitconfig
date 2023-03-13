@@ -129,13 +129,11 @@
 	path = /usr/local/bin/meld
 	cmd = "meld --auto-merge  \"$LOCAL\" \"$BASE\" \"$REMOTE\" --output \"$MERGED\" "
 	trustExitCode = false
-[commit]
-	gpgsign = true
 [gpg]
 	program = gpg
+[commit]
+	gpgsign = true
 [credential]
 	helper = /usr/local/share/gcm-core/git-credential-manager
 [credential "https://dev.azure.com"]
 	useHttpPath = true
-[commit]
-	gpgsign = true
