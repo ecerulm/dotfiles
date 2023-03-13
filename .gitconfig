@@ -1,7 +1,5 @@
 # vim: set expandtab:
 [user]
-  name = Ruben Laguna
-  # email = ruben.laguna@gmail.com , set it in each project
 [diff]
 	tool = Kaleidoscope
 [color]
