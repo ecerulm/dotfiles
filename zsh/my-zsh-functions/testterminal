@@ -1,0 +1,14 @@
+for i in {0..255}; do
+  printf "\u001b[48;5;${i}m   \u001b[0m \u001b[38;5;${i}m %3d\u001b[0m " "$i"
+  if [[ (( $i > 0)) && $(( $i % 16 )) = 0 ]]; then
+    echo -e "" 
+  fi
+  # echo -ne "\u001b[38;5;${i}m ${i} \u001b[0m"
+done
+echo -e ""
+echo -e "\e[1mbold\e[0m"
+echo -e "\e[3mitalic\e[0m"
+echo -e "\e[4munderline\e[0m"
+echo -e "\e[9mstrikethrough\e[0m"
+echo -e "\e[31mHello World\e[0m"
+echo -e "\x1B[31mHello World\e[0m"
