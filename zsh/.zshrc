@@ -136,4 +136,5 @@ alias gb="git branch --sort=-committerdate"
 autoload -Uz pyactivate
 autoload -Uz hello
 
+[ -x /opt/homebrew/bin/brew ] && eval $(/opt/homebrew/bin/brew shellenv)
 
