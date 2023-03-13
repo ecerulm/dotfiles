@@ -81,6 +81,7 @@
 	autocrlf = false
 	safecrlf = warn
 	longpaths = true
+	pager = less
 [init]
   templatedir = ~/.git_template
 	defaultBranch = master
