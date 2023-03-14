@@ -1,5 +1,4 @@
 # vim: set expandtab:
-[user]
 [diff]
 	tool = Kaleidoscope
 [color]
@@ -137,3 +136,7 @@
 	helper = /usr/local/share/gcm-core/git-credential-manager
 [credential "https://dev.azure.com"]
 	useHttpPath = true
+[pull]
+	rebase = true
+[user]
+	name = Ruben Laguna
