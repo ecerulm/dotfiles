@@ -133,6 +133,8 @@ alias gdlc="git diff HEAD^ HEAD" # or git diff @~..@
 alias gfa="git fetch --all"
 alias gb="git branch --sort=-committerdate"
 
+alias l="exa -l -s mod"
+
 autoload -Uz pyactivate
 autoload -Uz hello
 autoload -Uz testterminal
