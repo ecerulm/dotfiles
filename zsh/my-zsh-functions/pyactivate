@@ -9,13 +9,16 @@ if [ $? -ne 0 ]; then
   return
 fi
 PYACTIVATE_SCRIPT=${PYACTIVATE_PREFIX}/bin/activate
-if [[ ! -e "$PYACTIVATE_SCRIPT" ]]; then 
+if [[ ! -e "$PYACTIVATE_SCRIPT" ]]; then
   unset PYACTIVATE_SCRIPT
   _OLD_VIRTUAL_PATH="${PATH}"
+  #_OLD_PYTHON="${PYTHON}"
   PATH="${PYACTIVATE_PREFIX}/bin:${PATH}"
   unset PYACTIVATE_PREFIX
+  #export PYTHON=$(which python)
   function deactivate() {
     PATH="${_OLD_VIRTUAL_PATH}"
+    #PYTHON="${_OLD_PYTHON}"
     unset -f deactivate
   }
   # echo "There is not activate script at ${PYACTIVATE_SCRIPT}"
