@@ -70,5 +70,13 @@ packer.startup(function(use)
   use 'nvim-treesitter/nvim-treesitter-textobjects'
   use 'tommcdo/vim-exchange'
   use 'dstein64/vim-startuptime'
+  use {
+    'LukasPietzschmann/telescope-tabs',
+    requires = { 'nvim-telescope/telescope.nvim' },
+    config = function()
+      require 'telescope-tabs'.setup {
+      }
+    end
+  }
 
 end)

@@ -52,3 +52,5 @@ vim.keymap.set('n', 'sf',
   , opts)
 vim.keymap.set('n', ';s',
   '<cmd>lua require("telescope.builtin").git_status{on_complete = {function() vim.cmd"stopinsert" end }}<cr>', opts)
+
+vim.keymap.set('n', ';x', '<cmd>lua require("telescope-tabs").list_tabs()<cr>', opts)
