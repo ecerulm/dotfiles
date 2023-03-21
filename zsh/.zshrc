@@ -136,6 +136,8 @@ alias gb="git branch --sort=-committerdate"
 alias l="exa -l -s mod"
 alias t="exa -l -s mod -T --git-ignore"
 alias reuse-annotate="pipx run reuse annotate --year 2023 --copyright 'Ruben Laguna <ruben.laguna@gmail.com>' --license GPL-3.0-or-later"
+alias imgcat="kitty +kitten icat"
+alias icat="kitty +kitten icat"
 
 autoload -Uz pyactivate
 autoload -Uz hello
