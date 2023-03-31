@@ -140,3 +140,5 @@
 	rebase = true
 [user]
 	name = Ruben Laguna
+[include]
+  path = ~/.gitconfig.thismachine
