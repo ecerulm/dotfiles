@@ -80,7 +80,16 @@ HIST_STAMPS="yyyy-mm-dd"
 # Add wisely, as too many plugins slow down shell startup.
 plugins=( macos)
 
-HISTFILE="$HOME/.zsh_history"
+
+# HISTFILE="$HOME/.zsh_history" # the default is set on /etc/zshrc
+HISTSIZE=10000000
+SAVEHIST=10000000
+HISTORY_IGNORE="(#i)(ls*|pwd*|*password*)"
+zshaddhistory() {
+  emulate -L zsh
+  setopt extendedglob
+  [[ $1 != ${~HISTORY_IGNORE} ]]
+}
 source $ZSH/oh-my-zsh.sh
 
 # User configuration
@@ -106,7 +115,7 @@ fi
 # For a full list of active aliases, run `alias`.
 #
 # Example aliases
-# alias zshconfig="mate ~/.zshrc"
+alias zshconfig="nvim $ZDOTDIR/.zshrc"
 # alias ohmyzsh="mate ~/.oh-my-zsh"
 
 # To customize prompt, run `p10k configure` or edit ~/dotfiles/zsh/.p10k.zsh.
