@@ -142,7 +142,8 @@ alias gap="git a -p"
 alias glc="git rev-parse HEAD"
 alias gdm="git diff master"
 alias gdms="git diff --stat master"
-alias gdlc="git diff HEAD^ HEAD" # or git diff @~..@ 
+alias gdlc="git diff HEAD^ HEAD" # or git diff @~..@
+alias gdw="git diff"
 alias gfa="git fetch --all"
 alias gb="git branch --sort=-committerdate"
 
