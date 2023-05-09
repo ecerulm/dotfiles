@@ -8,6 +8,10 @@ test -e "${HOME}/.iterm2_shell_integration.bash" && source "${HOME}/.iterm2_shel
 . ~/.bashrc
 
 if brew --prefix asdf >/dev/null 2>&1; then
-. $(brew --prefix asdf)/libexec/asdf.sh
+  ASDFSX=$(brew --prefix asdf)/libexec/asdf.sh
+  if [ -x  "$ASDFSH" ]; then
+    . "$ASDFSH"
+  fi
 fi
+
 . "$HOME/.cargo/env"
