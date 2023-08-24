@@ -84,18 +84,20 @@ plugins=( macos)
 # HISTFILE="$HOME/.zsh_history" # the default is set on /etc/zshrc
 HISTSIZE=10000000
 SAVEHIST=10000000
-# HISTORY_IGNORE="(#i)(ls*|pwd*|*password*|s *)"
-zshaddhistory() {
-  emulate -L zsh
-  setopt LOCAL_OPTIONS
-  setopt EXTENDED_GLOB
-  unsetopt CASE_MATCH
-  COMMAND=${1[1,-2]}
-  PATTERN='^(ls|pwd|s|.*password.*)$'
-  # ! [[ ${COMMAND} =~ ${PATTERN} ]] && echo "$COMMAND will be added to history" || echo "$COMMAND will not be added to history"
-  ! [[ ${COMMAND} =~ ${PATTERN} ]]
 
-}
+# HISTORY_IGNORE="(#i)(ls*|pwd*|*password*|s *)"
+
+# zshaddhistory() {
+#   emulate -L zsh
+#   setopt LOCAL_OPTIONS
+#   setopt EXTENDED_GLOB
+#   unsetopt CASE_MATCH
+#   COMMAND=${1[1,-2]}
+#   PATTERN='^(ls|pwd|s|.*password.*)$'
+#   # ! [[ ${COMMAND} =~ ${PATTERN} ]] && echo "$COMMAND will be added to history" || echo "$COMMAND will not be added to history"
+#   ! [[ ${COMMAND} =~ ${PATTERN} ]]
+
+# }
 source $ZSH/oh-my-zsh.sh
 
 # User configuration
