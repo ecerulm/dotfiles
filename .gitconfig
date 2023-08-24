@@ -136,6 +136,7 @@
 	rebase = true
 [user]
 	name = Ruben Laguna
+	email = ruben.laguna@tele2.com
 [include]
   path = ~/.gitconfig.thismachine
 [credential]
