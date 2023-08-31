@@ -1,0 +1,5 @@
+-- .tf are detected as filetype terraform and that's ok
+-- we set the vim.treesitter.language.register('hcl', 'terraform') in after/plugins/treesitter.lua
+-- vim.filetype.add({
+--   tf = 'hcl'
+-- })

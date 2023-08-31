@@ -58,7 +58,7 @@ ts.setup {
       },
       selection_modes = {
         ['@parameter.outer'] = 'v', -- charwise
-        ['@function.outer'] = 'V', -- linewise
+        ['@function.outer'] = 'V',  -- linewise
         ['@class.outer'] = '<c-v>', -- blockwise
 
 
@@ -74,3 +74,5 @@ local parser_config = require "nvim-treesitter.parsers".get_parser_configs()
 parser_config.tsx.filetype_to_parsername = {
   "javascript", 'typescript.tsx'
 }
+
+vim.treesitter.language.register('hcl', 'terraform')
