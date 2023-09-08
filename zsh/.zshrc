@@ -85,6 +85,8 @@ plugins=( macos)
 HISTSIZE=10000000
 SAVEHIST=10000000
 
+
+
 # HISTORY_IGNORE="(#i)(ls*|pwd*|*password*|s *)"
 
 # zshaddhistory() {
@@ -99,6 +101,11 @@ SAVEHIST=10000000
 
 # }
 source $ZSH/oh-my-zsh.sh
+
+setopt APPEND_HISTORY
+unsetopt INC_APPEND_HISTORY
+unsetopt INC_APPEND_HISTORY_TIME
+unsetopt SHARE_HISTORY
 
 # User configuration
 
@@ -154,6 +161,8 @@ alias t="exa -l -s mod -T --git-ignore"
 alias reuse-annotate="pipx run reuse annotate --year 2023 --copyright 'Ruben Laguna <ruben.laguna@gmail.com>' --license GPL-3.0-or-later"
 alias imgcat="kitty +kitten icat"
 alias icat="kitty +kitten icat"
+alias tp="terraform plan -out latest.tfplan"
+alias ta="terraform apply latest.tfplan"
 
 autoload -Uz pyactivate
 autoload -Uz hello
