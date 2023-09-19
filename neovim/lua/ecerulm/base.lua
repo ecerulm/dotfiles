@@ -65,3 +65,6 @@ vim.api.nvim_create_user_command('Shell',
   [[silent! !tmux send-keys -t "${SHELL_TMUX_PANE}" c-u <q-args> enter]], { nargs = "*" })
 
 vim.opt.mouse = ''
+
+vim.opt.cursorcolumn = true -- :set cursorcolumn
+vim.opt.colorcolumn = "80"  -- :set cursorcolumn
