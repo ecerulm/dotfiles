@@ -40,3 +40,4 @@ zsh/.zsh_sessions
 zsh/.zcompdump-*
 zsh/.zshrc.old
 *.pem
+.vault_pass
