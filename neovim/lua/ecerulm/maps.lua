@@ -49,7 +49,7 @@ keymap.set('v', '<S-Tab>', '<gv')
 
 -- textobjects :help text-objects :help motion
 keymap.set('x', 'ae', ':<c-u>normal! ggVG<cr>', { remap = false, silent = true }) -- visual mode "ae" entire file
-keymap.set('o', 'ae', ':<c-u>normal Vae<cr>', { remap = true, silent = false }) -- ae entire file
+keymap.set('o', 'ae', ':<c-u>normal Vae<cr>', { remap = true, silent = false })   -- ae entire file
 
 -- keymap.set('n', '<Enter>', ':nohlsearch<cr>', {}) -- clear search results , do not remap <Enter> because <Enter> is used for other things like in :h cmdwink
 keymap.set('n', '<c-l>', ':nohlsearch<cr><c-l>', { remap = false })
@@ -61,7 +61,7 @@ keymap.set('n', '<Leader>lf', ':lua vim.lsp.buf.formatting()<cr>', { remap = fal
 -- keymap.set('i', '<C-u>', '<Esc>viW~Ea', { remap = false }) -- W and E: spaces separate words, punctuation does not
 -- keymap.set('n', '<C-u>', 'g~iWE', { remap = false }) -- W and E: spaces separate words, punctuation does not
 keymap.set('i', '<C-u>', '<Esc>viw~ea', { remap = false }) -- w and e : punctuation or spaces separate words
-keymap.set('n', '<C-u>', 'g~iwe', { remap = false }) -- w and e : punctuation or spaces separate words
+keymap.set('n', '<C-u>', 'g~iwe', { remap = false })       -- w and e : punctuation or spaces separate words
 
 -- reselect last visual selection / last pasted text / last changed text
 --
@@ -109,3 +109,22 @@ keymap.set('c', '%%', [[<C-R>=expand('%:h').'/'<cr>]], { remap = false })
 --   callback = SetTerraformMappings,
 --   group = terraformGrp,
 -- })
+--
+--
+
+
+-- move lines up and down with Alt-j and Alt-k
+--
+--nnoremap <A-j> :m .+1<CR>==
+-- nnoremap <A-k> :m .-2<CR>==
+--inoremap <A-j> <Esc>:m .+1<CR>==gi
+--inoremap <A-k> <Esc>:m .-2<CR>==gi
+--vnoremap <A-j> :m '>+1<CR>gv=gv
+--vnoremap <A-k> :m '<-2<CR>gv=gv
+--
+keymap.set('n', '<A-j>', ':m .+1<CR>==')
+keymap.set('n', '<A-k>', ':m .-2<CR>==')
+keymap.set('i', '<A-j>', '<esc>:m .+1<CR>==gi')
+keymap.set('i', '<A-k>', '<esc>:m .-2<CR>==gi')
+keymap.set('v', '<A-j>', ':m \'>+1<CR>gv=gv')
+keymap.set('v', '<A-k>', ':m \'<-2<CR>gv=gv')
