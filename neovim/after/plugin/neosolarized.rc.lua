@@ -5,14 +5,17 @@ n.setup({
   comment_italics = true,
 })
 
-local cb = require('colorbuddy.init')
-local Color = cb.Color
-local colors = cb.colors
-local Group = cb.Group
-local groups = cb.groups
-local styles = cb.styles
+local Color, colors, Group, groups, styles = require('colorbuddy').setup()
+-- local cb = require('colorbuddy.init')
+-- local Color = cb.Color
+-- local colors = cb.colors
+-- local Group = cb.Group
+-- local groups = cb.groups
+-- local styles = cb.styles
 
 Color.new('black', '#000000')
+Color.new('red', '#201010')
+Color.new('green', '#ccffcc')
 Group.new('CursorLine', colors.none, colors.base03, styles.NONE, colors.base1)
 Group.new('CursorLineNr', colors.yellow, colors.black, styles.NONE, colors.base1)
 Group.new('Visual', colors.none, colors.base03, styles.reverse)
@@ -30,3 +33,5 @@ Group.new("DiagnosticUnderlineError", colors.none, colors.none, styles.undercurl
 Group.new("DiagnosticUnderlineWarn", colors.none, colors.none, styles.undercurl, cWarn)
 Group.new("DiagnosticUnderlineInfo", colors.none, colors.none, styles.undercurl, cInfo)
 Group.new("DiagnosticUnderlineHint", colors.none, colors.none, styles.undercurl, cHint)
+Group.new('ColorColumn', colors.none, colors.red, styles.none, colors.base1)
+Group.new('CursorColumn', colors.none, colors.green, styles.reverse)

@@ -67,4 +67,10 @@ vim.api.nvim_create_user_command('Shell',
 vim.opt.mouse = ''
 
 vim.opt.cursorcolumn = true -- :set cursorcolumn
-vim.opt.colorcolumn = "80"  -- :set cursorcolumn
+
+vim.opt.colorcolumn = "80"  -- :set colorcolumn , see hl-ColorColumn
+-- we can't have this here because it gets overwritten latter
+-- vim.cmd([[
+--   highlight CursorColumn guibg=#200000 ctermbg=LightGreen
+--   highlight ColorColumn guibg='#200000' ctermbg=LightGreen
+-- ]])
