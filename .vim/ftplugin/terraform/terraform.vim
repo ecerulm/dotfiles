@@ -1,0 +1,1 @@
+terraform setlocal commentstring=#\ %s
