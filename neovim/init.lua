@@ -8,3 +8,5 @@ require('ecerulm.filetypes')
 if vim.fn.has('macunix') then
   require('ecerulm.macos')
 end
+
+vim.cmd("colorscheme gruvbox")

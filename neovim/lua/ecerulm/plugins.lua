@@ -14,6 +14,9 @@ packer.startup(function(use)
     'svrana/neosolarized.nvim',
     requires = { 'tjdevries/colorbuddy.nvim' }
   }
+
+  use 'morhetz/gruvbox'
+
   use 'nvim-lualine/lualine.nvim'
   use 'onsails/lspkind-nvim' -- vscode-like pictograms
   use 'hrsh7th/cmp-buffer'   -- nvim-cmp source for buffer words
