@@ -753,11 +753,11 @@ if [ -f ~/.bashrc.thismachine ]; then
 fi
 
 
-if [ -d "$HOME/.sdkman" ]; then
-  #THIS MUST BE AT THE END OF THE FILE FOR SDKMAN TO WORK!!!
-  export SDKMAN_DIR="$HOME/.sdkman"
-  [[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]] && source "$HOME/.sdkman/bin/sdkman-init.sh"
-fi
+#if [ -d "$HOME/.sdkman" ]; then
+#  #THIS MUST BE AT THE END OF THE FILE FOR SDKMAN TO WORK!!!
+#  export SDKMAN_DIR="$HOME/.sdkman"
+#  [[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]] && source "$HOME/.sdkman/bin/sdkman-init.sh"
+#fi
 
 # if command -v pyenv >/dev/null; then eval "$(pyenv init -)"; fi
 
@@ -910,3 +910,5 @@ alias antlr="java -cp ~/antlr/antlr-4.11.1-complete.jar org.antlr.v4.Tool $*"
 alias grun="java -cp ~/antlr/antlr-4.11.1-complete.jar org.antlr.v4.gui.TestRig $*"
 
 . "$HOME/.cargo/env"
+
+export PATH="/usr/local/opt/openjdk@17/bin:$PATH"

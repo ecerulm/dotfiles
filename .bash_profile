@@ -15,3 +15,7 @@ if brew --prefix asdf >/dev/null 2>&1; then
 fi
 
 . "$HOME/.cargo/env"
+
+# Add JBang to environment
+alias j!=jbang
+export PATH="$HOME/.jbang/bin:$PATH"
