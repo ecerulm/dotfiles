@@ -66,6 +66,7 @@ packer.startup(function(use)
       "neovim/nvim-lspconfig",
     }
   }
+  use 'mfussenegger/nvim-lint'
   use 'tpope/vim-commentary'
   use { 'saadparwaiz1/cmp_luasnip' } -- luasnip source for nvim-cmp
   use { "kylechui/nvim-surround" }
