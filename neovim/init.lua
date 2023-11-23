@@ -61,9 +61,7 @@ require("formatter").setup {
         }
       end
     },
-    json = {
-      require("formatter.filetypes.json").jq
-    },
+    json =require("formatter.filetypes.json").jq,
 
 
     -- Use the special "*" filetype for defining formatter configurations on
