@@ -83,4 +83,5 @@ packer.startup(function(use)
     end
   }
   use 'AndrewRadev/switch.vim'
+  use 'mhartington/formatter.nvim'
 end)
