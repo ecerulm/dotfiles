@@ -13,13 +13,17 @@ end
 
 vim.cmd("colorscheme gruvbox")
 
-require'lspconfig'.terraformls.setup{}
-vim.api.nvim_create_autocmd({"BufWritePre"}, {
-  pattern = {"*.tf", "*.tfvars"},
-  callback = function()
-    vim.lsp.buf.format()
-  end,
-})
+local lspconfig = require('lspconfig')
+
+
+lspconfig.terraformls.setup{}
+
+-- vim.api.nvim_create_autocmd({"BufWritePre"}, {
+--   pattern = {"*.tf", "*.tfvars"},
+--   callback = function()
+--     vim.lsp.buf.format()
+--   end,
+-- })
 
 -- Utilities for creating configurations
 local util = require "formatter.util"
@@ -62,6 +66,10 @@ require("formatter").setup {
       end
     },
     json =require("formatter.filetypes.json").jq,
+    -- terraform=require("formatter.filetypes.terraform").ddd, -- there is no formatter in formatter.nvim for terraform
+    terraform = function()
+      vim.lsp.buf.format({async=true})
+    end,
 
 
     -- Use the special "*" filetype for defining formatter configurations on
