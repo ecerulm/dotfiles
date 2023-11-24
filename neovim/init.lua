@@ -78,9 +78,11 @@ require("formatter").setup {
     },
     json =require("formatter.filetypes.json").jq,
     -- terraform=require("formatter.filetypes.terraform").ddd, -- there is no formatter in formatter.nvim for terraform
-    terraform = function()
-      vim.lsp.buf.format({async=true})
-    end,
+    -- terraform = function()
+    --   vim.lsp.buf.format({async=true})
+    -- end,
+    terraform = require("formatter.filetypes.terraform").tmp,
+    python = require("formatter.filetypes.python").black,
 
 
     -- Use the special "*" filetype for defining formatter configurations on
