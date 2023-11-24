@@ -94,3 +94,5 @@ require("formatter").setup {
     }
   }
 }
+
+vim.opt.grepprg='rg --vimgrep --no-heading --smart-case' -- see Practical Vim Chapter 18
