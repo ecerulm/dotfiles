@@ -81,8 +81,8 @@ require("formatter").setup {
     -- terraform = function()
     --   vim.lsp.buf.format({async=true})
     -- end,
-    terraform = require("formatter.filetypes.terraform").tmp,
-    python = require("formatter.filetypes.python").black,
+    terraform = require("formatter.filetypes.terraform").terraformfmt, -- https://github.com/mhartington/formatter.nvim/blob/master/lua/formatter/filetypes/terraform.lua
+    python = require("formatter.filetypes.python").black, -- https://github.com/mhartington/formatter.nvim/blob/91651e6afaf6f73b0ffb8b433c06cd4e06f90403/lua/formatter/filetypes/python.lua#L34-L40
 
 
     -- Use the special "*" filetype for defining formatter configurations on
