@@ -18,15 +18,15 @@ local lspconfig = require('lspconfig')
 
 lspconfig.terraformls.setup{}
 
-local formatAutoGroup = vim.api.nvim_create_augroup("FormatAutoGroup", {clear = true})
-vim.api.nvim_create_autocmd(
-  {"BufWritePost"}, -- events to react to
-  {
-    command = "FormatWrite",
-    group = formatAutoGroup,
-  }
+-- local formatAutoGroup = vim.api.nvim_create_augroup("FormatAutoGroup", {clear = true})
+-- vim.api.nvim_create_autocmd(
+--   {"BufWritePost"}, -- events to react to
+--   {
+--     command = "FormatWrite",
+--     group = formatAutoGroup,
+--   }
 
-)
+-- )
 
 
 -- vim.api.nvim_create_autocmd({"BufWritePre"}, {

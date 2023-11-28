@@ -20,12 +20,11 @@ require('lint').linters_by_ft =  {
 -- }
 
 
-local linterGrp = vim.api.nvim_create_augroup('Linters', {clear = true})
+-- local linterGrp = vim.api.nvim_create_augroup('Linters', {clear = true})
 
-
-vim.api.nvim_create_autocmd({ "BufWritePost" }, {
-  callback = function()
-    require("lint").try_lint()
-  end,
-  group = linterGrp,
-})
+-- vim.api.nvim_create_autocmd({ "BufWritePost" }, {
+--   callback = function()
+--     require("lint").try_lint()
+--   end,
+--   group = linterGrp,
+-- })
