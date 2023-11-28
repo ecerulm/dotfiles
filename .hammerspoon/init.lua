@@ -72,7 +72,7 @@ hs.hotkey.bind({ "cmd", "alt", "ctrl" }, "W", function()
 end)
 
 
--- PASTE EVERNOTE / removing formattig / copy and paste
+-- PASTE EVERNOTE / removing formatting / copy and paste
 hs.hotkey.bind(hyper, 'a', function() -- remove formatting from pasteboard and paste
   local allData = hs.pasteboard.readAllData()
   local htmlData = allData['public.html']
@@ -84,7 +84,7 @@ hs.hotkey.bind(hyper, 'a', function() -- remove formatting from pasteboard and p
   hs.alert.show('removed HTML from pasteboard')
   allData['public.html'] = htmlData
   allData['public.rtf'] = rtfData
-  hs.timer.doAfter(2, function()
+  hs.timer.doAfter(0.01, function()
     hs.pasteboard.writeAllData(allData)
     hs.alert.show('restore pasteboard')
   end)
