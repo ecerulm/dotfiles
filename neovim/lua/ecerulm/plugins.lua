@@ -8,6 +8,12 @@ end
 
 vim.cmd [[packadd packer.nvim]]
 
+packer.init({
+  git = {
+    clone_timeout = 240,
+  }
+})
+
 packer.startup(function(use)
   use 'wbthomason/packer.nvim'
   use {
@@ -23,7 +29,7 @@ packer.startup(function(use)
   use 'hrsh7th/cmp-nvim-lsp' -- nvim-cpm source neovim's builtin LSP
   use 'hrsh7th/nvim-cmp'     -- completion
   use 'neovim/nvim-lspconfig'
-  use({ "L3MON4D3/LuaSnip", tag = "v<CurrentMajor>.*" })
+  use({ "L3MON4D3/LuaSnip", tag = "v2.*" }) -- https://github.com/L3MON4D3/LuaSnip
   use {
     'nvim-treesitter/nvim-treesitter',
     run = ":TSUpdate"
@@ -84,4 +90,6 @@ packer.startup(function(use)
   }
   use 'AndrewRadev/switch.vim'
   use 'mhartington/formatter.nvim'
+  use 'github/copilot.vim'
+
 end)
