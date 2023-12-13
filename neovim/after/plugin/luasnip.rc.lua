@@ -115,9 +115,18 @@ ls.add_snippets("python", {
   ]], {
     i(1, "fire.Fire()")
   }))
-
-
 })
+
+ls.add_snippets("yaml",{
+  s("deployment", fmt([[
+    apiversion: apps/v1
+    kind: deployment
+
+  ]],{
+
+    }))
+})
+
 
 -- Set the keymaps imap
 -- :help nvim_set_keymap()
@@ -125,26 +134,43 @@ ls.add_snippets("python", {
 -- :help luasnip
 -- vim.keymap.set('i', '<Tab>', "luasnip#expand_or_jumpable() ? '<Plug>luasnip-expand-or-jump' : '<Tab>'",
 --   { silent = true, expr = true })
-vim.keymap.set('i', '<Tab>', function()
-  if ls.expand_or_jumpable() then
-    return '<Plug>luasnip-expand-or-jump' -- works because expr and recursive
-  else
-    return '<Tab>'
-  end
-end, { silent = true, expr = true, remap = true })
-vim.keymap.set('i', '<S-Tab>', function() ls.jump(-1) end, { silent = true })
-
-vim.keymap.set('s', '<Tab>', function() ls.jump(1) end, { silent = true })
-vim.keymap.set('s', '<S-Tab>', function() ls.jump(-1) end, { silent = true })
-
-vim.keymap.set({ 'i', 's' }, '<C-E>', "luasnip#choice_active() ? '<Plug>luasnip-next-choice' : '<C-E>'",
-  { silent = true, expr = true })
 
 
+--vim.keymap.set('i', '<Tab>', function()
+--  if ls.expand_or_jumpable() then
+--    return '<Plug>luasnip-expand-or-jump' -- works because expr and recursive
+--  else
+--    return '<Tab>'
+--  end
+--end, { silent = true, expr = true, remap = true })
 
--- set keybinds for both INSERT and VISUAL. cycle choice node
-vim.api.nvim_set_keymap("i", "<C-n>", "<Plug>luasnip-next-choice", {})
-vim.api.nvim_set_keymap("s", "<C-n>", "<Plug>luasnip-next-choice", {})
-vim.api.nvim_set_keymap("i", "<C-p>", "<Plug>luasnip-prev-choice", {})
-vim.api.nvim_set_keymap("s", "<C-p>", "<Plug>luasnip-prev-choice", {})
+--vim.keymap.set('i', '<S-Tab>', function() ls.jump(-1) end, { silent = true })
+
+--vim.keymap.set('s', '<Tab>', function() ls.jump(1) end, { silent = true })
+--vim.keymap.set('s', '<S-Tab>', function() ls.jump(-1) end, { silent = true })
+
+--vim.keymap.set({ 'i', 's' }, '<C-E>', "luasnip#choice_active() ? '<Plug>luasnip-next-choice' : '<C-E>'",
+--  { silent = true, expr = true })
+
+
+
+---- set keybinds for both INSERT and VISUAL. cycle choice node
+--vim.api.nvim_set_keymap("i", "<C-n>", "<Plug>luasnip-next-choice", {})
+--vim.api.nvim_set_keymap("s", "<C-n>", "<Plug>luasnip-next-choice", {})
+--vim.api.nvim_set_keymap("i", "<C-p>", "<Plug>luasnip-prev-choice", {})
+--vim.api.nvim_set_keymap("s", "<C-p>", "<Plug>luasnip-prev-choice", {})
+----
 --
+--
+
+
+
+vim.keymap.set({"i"}, "<C-K>", function() ls.expand() end, {silent = true})
+vim.keymap.set({"i", "s"}, "<C-L>", function() ls.jump( 1) end, {silent = true})
+vim.keymap.set({"i", "s"}, "<C-J>", function() ls.jump(-1) end, {silent = true})
+
+vim.keymap.set({"i", "s"}, "<C-E>", function()
+	if ls.choice_active() then
+		ls.change_choice(1)
+	end
+end, {silent = true})
