@@ -5,8 +5,8 @@ return {
 		fmt(
 			[[
     ---
-    apiversion: apps/v1
-    kind: deployment
+    apiVersion: apps/v1
+    kind: Deployment
     metadata:
       name: {name}
       labels:
@@ -21,7 +21,7 @@ return {
           labels:
             app: {name}
         spec:
-          container:
+          containers:
             - name: container-name
               image: nginx:latest
               ports:
@@ -42,8 +42,8 @@ return {
 		fmt(
 			[[
     ---
-    apiversion: v1
-    kind: service
+    apiVersion: v1
+    kind: Service
     metadata:
       name: {a}
     spec:
