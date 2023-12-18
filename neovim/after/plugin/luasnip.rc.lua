@@ -127,6 +127,8 @@ ls.add_snippets("yaml",{
     }))
 })
 
+require("luasnip.loaders.from_lua").load({ paths = "~/.config/nvim/snippets" })
+
 
 -- Set the keymaps imap
 -- :help nvim_set_keymap()
