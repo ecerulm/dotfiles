@@ -117,16 +117,6 @@ ls.add_snippets("python", {
   }))
 })
 
-ls.add_snippets("yaml",{
-  s("deployment", fmt([[
-    apiversion: apps/v1
-    kind: deployment
-
-  ]],{
-
-    }))
-})
-
 require("luasnip.loaders.from_lua").load({ paths = "~/.config/nvim/snippets" })
 
 
