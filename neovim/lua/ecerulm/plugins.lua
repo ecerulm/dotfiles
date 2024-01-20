@@ -31,22 +31,19 @@ packer.startup(function(use)
   }
   use "windwp/nvim-autopairs" -- auto close quotes / brackets /parens
   use 'windwp/nvim-ts-autotag'
-  use {
-    'nvim-telescope/telescope.nvim',
-    requires = { { 'nvim-lua/plenary.nvim' } }
-  }
-  use { "nvim-telescope/telescope-file-browser.nvim" }
   -- use 'kyazdani42/nvim-web-devicons' -- for icons in nvim-tree
   use 'nvim-tree/nvim-web-devicons' -- for icons in nvim-tree
   -- using packer.nvim
-  use { 'akinsho/bufferline.nvim', tag = "v2.*", requires = 'kyazdani42/nvim-web-devicons' }
+  use { 'akinsho/bufferline.nvim', tag = "v2.*", requires = 'kyazdani42/nvim-web-devicons' } -- tab bar
   use 'norcalli/nvim-colorizer.lua' -- colorize hex codes
+
+
+  -- git (begin)
   use 'lewis6991/gitsigns.nvim' -- git signs in gutter
-  -- test
-  -- use 'dinhhuy258/git.nvim'
   use 'tpope/vim-fugitive'
   use 'tpope/vim-rhubarb'
   use 'shumphrey/fugitive-gitlab.vim'
+  -- git (end)
 
 
   -- Autocomplete / completion engine (begin)
@@ -69,13 +66,17 @@ packer.startup(function(use)
   }
 
   -- LSP (end)
-  use 'mfussenegger/nvim-lint'
-  use 'tpope/vim-commentary'
-  use { "kylechui/nvim-surround" }
-  use 'nvim-treesitter/playground'
-  use 'nvim-treesitter/nvim-treesitter-textobjects'
-  use 'tommcdo/vim-exchange'
-  use 'dstein64/vim-startuptime'
+  --
+  --
+  --
+
+
+  -- Telescope (begin)
+  use {
+    'nvim-telescope/telescope.nvim',
+    requires = { { 'nvim-lua/plenary.nvim' } }
+  }
+  use { "nvim-telescope/telescope-file-browser.nvim" }
   use {
     'LukasPietzschmann/telescope-tabs',
     requires = { 'nvim-telescope/telescope.nvim' },
@@ -84,8 +85,18 @@ packer.startup(function(use)
       }
     end
   }
-  use 'AndrewRadev/switch.vim'
+  -- Telescope (end)
+
+  use 'mfussenegger/nvim-lint'
+  use 'tpope/vim-commentary'
+  use { "kylechui/nvim-surround" }
+  use 'nvim-treesitter/playground'
+  use 'nvim-treesitter/nvim-treesitter-textobjects'
+  use 'tommcdo/vim-exchange'
+  use 'dstein64/vim-startuptime'
+  use 'AndrewRadev/switch.vim' -- cycle through alternatives 
   use 'mhartington/formatter.nvim'
+
   use 'github/copilot.vim'
   use 'junegunn/vim-easy-align'
 
