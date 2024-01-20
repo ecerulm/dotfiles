@@ -11,6 +11,11 @@ if vim.fn.has('macunix') then
   require('ecerulm.macos')
 end
 
+vim.g.loaded_python3_provider = 0 -- Disable python3 support
+vim.g.loaded_ruby_provider = 0 -- Disable ruby support
+vim.g.loaded_node_provider = 0 -- Disable node support
+vim.g.loaded_perl_provider = 0 -- Disable perl support
+
 vim.cmd("colorscheme gruvbox")
 
 local lspconfig = require('lspconfig')

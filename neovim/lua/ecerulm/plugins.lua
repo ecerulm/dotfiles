@@ -23,14 +23,9 @@ packer.startup(function(use)
 
   use 'morhetz/gruvbox' -- theme
 
-  use 'nvim-lualine/lualine.nvim'
-  use 'onsails/lspkind-nvim' -- vscode-like pictograms
-  use 'hrsh7th/cmp-buffer'   -- nvim-cmp source for buffer words
-  use 'hrsh7th/cmp-nvim-lsp' -- nvim-cpm source neovim's builtin LSP
-  use 'hrsh7th/nvim-cmp'     -- completion
-  use 'neovim/nvim-lspconfig'
+  use 'nvim-lualine/lualine.nvim' -- statusline
   use({ "L3MON4D3/LuaSnip", tag = "v2.*" }) -- https://github.com/L3MON4D3/LuaSnip
-  use {
+  use { -- tree-sitter for syntax highlighting
     'nvim-treesitter/nvim-treesitter',
     run = ":TSUpdate"
   }
@@ -41,30 +36,30 @@ packer.startup(function(use)
     requires = { { 'nvim-lua/plenary.nvim' } }
   }
   use { "nvim-telescope/telescope-file-browser.nvim" }
-  use 'kyazdani42/nvim-web-devicons'
+  -- use 'kyazdani42/nvim-web-devicons' -- for icons in nvim-tree
+  use 'nvim-tree/nvim-web-devicons' -- for icons in nvim-tree
   -- using packer.nvim
   use { 'akinsho/bufferline.nvim', tag = "v2.*", requires = 'kyazdani42/nvim-web-devicons' }
-  use 'norcalli/nvim-colorizer.lua'
-  -- use({ -- from :help lspsaga.nvim-packer
-  --   "glepnir/lspsaga.nvim",
-  --   branch = "main",
-  --   config = function()
-  --     require('lspsaga').setup({})
-  --   end,
-  -- })
-  -- use 'jose-elias-alvarez/null-ls.nvim'
-  -- -- use({
-  -- --   'MunifTanjim/prettier.nvim',
-  -- --   requires = {
-  -- --     'neovim/nvim-lspconfig',
-  -- --     'jose-elias-alvarez/null-ls.nvim',
-  -- --   }
-  -- -- })
-  use 'lewis6991/gitsigns.nvim'
+  use 'norcalli/nvim-colorizer.lua' -- colorize hex codes
+  use 'lewis6991/gitsigns.nvim' -- git signs in gutter
+  -- test
   -- use 'dinhhuy258/git.nvim'
   use 'tpope/vim-fugitive'
   use 'tpope/vim-rhubarb'
   use 'shumphrey/fugitive-gitlab.vim'
+
+
+  -- Autocomplete / completion engine (begin)
+  -- use 'hrsh7th/cmp-buffer'   -- nvim-cmp source for buffer words
+  -- use 'hrsh7th/cmp-nvim-lsp' -- nvim-cpm source neovim's builtin LSP
+  -- use 'hrsh7th/nvim-cmp'     -- completion engine
+  -- use { 'saadparwaiz1/cmp_luasnip' } -- luasnip source for nvim-cmp
+  -- Autocomplete / completion engine (end)
+
+  --LSP (begin)
+
+  use 'onsails/lspkind-nvim' -- vscode-like pictograms that show on LSP autocomplete
+  use 'neovim/nvim-lspconfig'
   use "williamboman/mason.nvim"
   use {
     "williamboman/mason-lspconfig.nvim",
@@ -72,9 +67,10 @@ packer.startup(function(use)
       "neovim/nvim-lspconfig",
     }
   }
+
+  -- LSP (end)
   use 'mfussenegger/nvim-lint'
   use 'tpope/vim-commentary'
-  use { 'saadparwaiz1/cmp_luasnip' } -- luasnip source for nvim-cmp
   use { "kylechui/nvim-surround" }
   use 'nvim-treesitter/playground'
   use 'nvim-treesitter/nvim-treesitter-textobjects'
