@@ -128,3 +128,8 @@ keymap.set('i', '<A-j>', '<esc>:m .+1<CR>==gi')
 keymap.set('i', '<A-k>', '<esc>:m .-2<CR>==gi')
 keymap.set('v', '<A-j>', ':m \'>+1<CR>gv=gv')
 keymap.set('v', '<A-k>', ':m \'<-2<CR>gv=gv')
+
+
+-- vim-easy-align EasyAlign
+keymap.set('x', 'ga', '<Plug>(EasyAlign)')
+keymap.set('n', 'ga', '<Plug>(EasyAlign)')

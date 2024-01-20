@@ -21,7 +21,7 @@ packer.startup(function(use)
     requires = { 'tjdevries/colorbuddy.nvim' }
   }
 
-  use 'morhetz/gruvbox'
+  use 'morhetz/gruvbox' -- theme
 
   use 'nvim-lualine/lualine.nvim'
   use 'onsails/lspkind-nvim' -- vscode-like pictograms
@@ -91,5 +91,6 @@ packer.startup(function(use)
   use 'AndrewRadev/switch.vim'
   use 'mhartington/formatter.nvim'
   use 'github/copilot.vim'
+  use 'junegunn/vim-easy-align'
 
 end)
