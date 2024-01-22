@@ -89,6 +89,7 @@ require("formatter").setup {
     terraform = require("formatter.filetypes.terraform").terraformfmt, -- https://github.com/mhartington/formatter.nvim/blob/master/lua/formatter/filetypes/terraform.lua
     python = require("formatter.filetypes.python").black, -- https://github.com/mhartington/formatter.nvim/blob/91651e6afaf6f73b0ffb8b433c06cd4e06f90403/lua/formatter/filetypes/python.lua#L34-L40
 
+    ruby = require("formatter.filetypes.ruby").rubocop,
 
     -- Use the special "*" filetype for defining formatter configurations on
     -- any filetype
@@ -101,3 +102,18 @@ require("formatter").setup {
 }
 
 vim.opt.grepprg='rg --vimgrep --no-heading --smart-case' -- see Practical Vim Chapter 18
+
+
+
+local function source_file_if_exists(file_path)
+  local file = io.open(file_path, "r")
+  if file then
+    io.close(file)
+    dofile(file_path)
+  end
+end
+
+
+source_file_if_exists(vim.fn.stdpath('config') .. '/init.thismachine.lua')
+
+
