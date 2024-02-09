@@ -108,5 +108,6 @@ use({
 
   use 'github/copilot.vim'
   use 'junegunn/vim-easy-align'
+  use 'tpope/vim-unimpaired'
 
 end)
