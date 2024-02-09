@@ -204,6 +204,7 @@ unset FZF_COMPLETIONFILE
 
 [[ ! -f ~/.zshrc.thismachine ]] || source ~/.zshrc.thismachine
 
+[[ ! -f ~/.pyenv/bin/pyenv ]] || path+=~/.pyenv/bin
+# [[ ! -f ~/.pyenv/bin/pyenv ]] || eval "$(pyenv init -)"
+# [[ ! -f ~/.pyenv/bin/pyenv ]] || eval "$(pyenv virtualenv-init -)"
 export GPG_TTY=$TTY
-
-
