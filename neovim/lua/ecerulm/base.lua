@@ -35,6 +35,7 @@ vim.opt.path:append { '**' }
 vim.opt.wildignore:append { '*/node_modules/*' }
 vim.opt.smartcase = true -- ignore case if regex in lowercase, othewise case sensitive
 vim.opt.grepprg='rg --vimgrep --no-heading --smart-case' -- see Practical Vim Chapter 18
+vim.opt.list = true
 
 -- undercurl (it doesn't work on iTerm2
 vim.cmd([[let &t_Cs = "\e[4:3m"]])
