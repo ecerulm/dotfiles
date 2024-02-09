@@ -1,18 +1,17 @@
-require('ecerulm.plugins')
-require('ecerulm.base')
-require('ecerulm.highlights')
-require('ecerulm.maps')
-require('ecerulm.skeletons')
-require('ecerulm.filetypes')
-require('ecerulm.lsp')
-require('ecerulm.linters')
-require('ecerulm.treesitter') -- configure nvim-treesitter if it's loaded
+require("ecerulm.plugins")
+require("ecerulm.base")
+require("ecerulm.highlights")
+require("ecerulm.maps")
+require("ecerulm.skeletons")
+require("ecerulm.filetypes")
+require("ecerulm.lsp")
+require("ecerulm.linters")
+require("ecerulm.formatter") -- configure mhartington/formatter.nvim if it's loaded
+require("ecerulm.treesitter") -- configure nvim-treesitter if it's loaded
 
-if vim.fn.has('macunix') then
-  require('ecerulm.macos')
+if vim.fn.has("macunix") then
+	require("ecerulm.macos")
 end
-
-
 
 -- local formatAutoGroup = vim.api.nvim_create_augroup("FormatAutoGroup", {clear = true})
 -- vim.api.nvim_create_autocmd(
@@ -24,7 +23,6 @@ end
 
 -- )
 
-
 -- vim.api.nvim_create_autocmd({"BufWritePre"}, {
 --   pattern = {"*.tf", "*.tfvars"},
 --   callback = function()
@@ -33,19 +31,12 @@ end
 -- })
 --
 
-
-
-
-
 local function source_file_if_exists(file_path)
-  local file = io.open(file_path, "r")
-  if file then
-    io.close(file)
-    dofile(file_path)
-  end
+	local file = io.open(file_path, "r")
+	if file then
+		io.close(file)
+		dofile(file_path)
+	end
 end
 
-
-source_file_if_exists(vim.fn.stdpath('config') .. '/init.thismachine.lua')
-
-
+source_file_if_exists(vim.fn.stdpath("config") .. "/init.thismachine.lua")
