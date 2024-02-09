@@ -16,26 +16,22 @@ packer.init({
 
 packer.startup(function(use)
   use 'wbthomason/packer.nvim'
-  use {
-    'svrana/neosolarized.nvim',
+  use { 
+    'svrana/neosolarized.nvim', -- theme
     requires = { 'tjdevries/colorbuddy.nvim' }
   }
 
   use 'morhetz/gruvbox' -- theme
 
-  use 'nvim-lualine/lualine.nvim' -- statusline
-  use({ "L3MON4D3/LuaSnip", tag = "v2.*" }) -- https://github.com/L3MON4D3/LuaSnip
-  use { -- tree-sitter for syntax highlighting
-    'nvim-treesitter/nvim-treesitter',
-    run = ":TSUpdate"
-  }
-  use "windwp/nvim-autopairs" -- auto close quotes / brackets /parens
-  use 'windwp/nvim-ts-autotag'
+  -- use 'nvim-lualine/lualine.nvim' -- statusline
+  -- use({ "L3MON4D3/LuaSnip", tag = "v2.*" }) -- https://github.com/L3MON4D3/LuaSnip
+  -- use "windwp/nvim-autopairs" -- auto close quotes / brackets /parens
+  -- use 'windwp/nvim-ts-autotag'
   -- use 'kyazdani42/nvim-web-devicons' -- for icons in nvim-tree
-  use 'nvim-tree/nvim-web-devicons' -- for icons in nvim-tree
-  -- using packer.nvim
-  use { 'akinsho/bufferline.nvim', tag = "v2.*", requires = 'kyazdani42/nvim-web-devicons' } -- tab bar
-  use 'norcalli/nvim-colorizer.lua' -- colorize hex codes
+  -- use 'nvim-tree/nvim-web-devicons' -- for icons in nvim-tree
+  --
+  -- use { 'akinsho/bufferline.nvim', tag = "v2.*", requires = 'kyazdani42/nvim-web-devicons' } -- tab bar
+  -- use 'norcalli/nvim-colorizer.lua' -- colorize hex codes
 
 
   -- git (begin)
@@ -55,20 +51,35 @@ packer.startup(function(use)
 
   --LSP (begin)
 
-  use 'onsails/lspkind-nvim' -- vscode-like pictograms that show on LSP autocomplete
-  use 'neovim/nvim-lspconfig'
-  use "williamboman/mason.nvim"
-  use {
-    "williamboman/mason-lspconfig.nvim",
-    requires = {
-      "neovim/nvim-lspconfig",
-    }
-  }
+  -- use 'onsails/lspkind-nvim' -- vscode-like pictograms that show on LSP autocomplete
+  -- use 'neovim/nvim-lspconfig'
+  -- use "williamboman/mason.nvim"
+  -- use {
+  --   "williamboman/mason-lspconfig.nvim",
+  --   requires = {
+  --     "neovim/nvim-lspconfig",
+  --   }
+  -- }
 
   -- LSP (end)
   --
   --
   --
+
+
+
+
+-- syntax highlighting with treesitter  (begin)
+use { -- tree-sitter for syntax highlighting
+  'nvim-treesitter/nvim-treesitter',
+  run = ":TSUpdate",
+}
+
+use({
+  "nvim-treesitter/nvim-treesitter-textobjects",
+  requires = "nvim-treesitter/nvim-treesitter",
+})
+-- syntax highlighting (end)
 
 
   -- Telescope (begin)
@@ -90,8 +101,6 @@ packer.startup(function(use)
   use 'mfussenegger/nvim-lint'
   use 'tpope/vim-commentary'
   use { "kylechui/nvim-surround" }
-  use 'nvim-treesitter/playground'
-  use 'nvim-treesitter/nvim-treesitter-textobjects'
   use 'tommcdo/vim-exchange'
   use 'dstein64/vim-startuptime'
   use 'AndrewRadev/switch.vim' -- cycle through alternatives 

@@ -22,6 +22,8 @@ ts.setup {
     "html",
     "lua",
     "hcl",
+    "vim",
+    "vimdoc",
   },
   autotag = {
     enable = true,
@@ -60,11 +62,17 @@ ts.setup {
         ['@parameter.outer'] = 'v', -- charwise
         ['@function.outer'] = 'V',  -- linewise
         ['@class.outer'] = '<c-v>', -- blockwise
-
-
       },
       include_surrounding_whitespace = true,
-
+    },
+    swap = {
+      enable = true,
+      swap_next = {
+        ["<leader>a"] = "@parameter.inner",
+      },
+      swap_previous = {
+        ["<leader>A"] = "@parameter.inner",
+      },
     },
   },
 }

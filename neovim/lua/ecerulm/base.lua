@@ -1,6 +1,11 @@
 -- https://www.youtube.com/watch?v=ajmK0ZNcM4Q
 vim.cmd('autocmd!')
 
+vim.g.loaded_python3_provider = 0 -- Disable python3 support
+vim.g.loaded_ruby_provider = 0 -- Disable ruby support
+vim.g.loaded_node_provider = 0 -- Disable node support
+vim.g.loaded_perl_provider = 0 -- Disable perl support
+
 vim.scriptencoding = 'utf-8'
 vim.opt.encoding = 'utf-8'
 vim.opt.fileencoding = 'utf-8'
@@ -29,6 +34,7 @@ vim.opt.backspace = 'start,eol,indent'
 vim.opt.path:append { '**' }
 vim.opt.wildignore:append { '*/node_modules/*' }
 vim.opt.smartcase = true -- ignore case if regex in lowercase, othewise case sensitive
+vim.opt.grepprg='rg --vimgrep --no-heading --smart-case' -- see Practical Vim Chapter 18
 
 -- undercurl (it doesn't work on iTerm2
 vim.cmd([[let &t_Cs = "\e[4:3m"]])
@@ -74,3 +80,5 @@ vim.opt.colorcolumn = "80"  -- :set colorcolumn , see hl-ColorColumn
 --   highlight CursorColumn guibg=#200000 ctermbg=LightGreen
 --   highlight ColorColumn guibg='#200000' ctermbg=LightGreen
 -- ]])
+
+vim.cmd("colorscheme gruvbox")
