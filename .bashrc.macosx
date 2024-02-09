@@ -103,7 +103,9 @@ function installasciidoctor {
 }
 
 # export JAVA_HOME=`/usr/libexec/java_home -v 1.8`
-export BROWSER='/usr/bin/open -a "/Applications/Google Chrome.app" %s'
+# export BROWSER='/usr/bin/open -a "/Applications/Google Chrome.app" %s' # https://github.com/cli/cli/issues/8658
+export BROWSER='/usr/bin/open -a "/Applications/Google Chrome.app"' # remove the %s
+# export BROWSER='/usr/bin/open -a "/Applications/Safari.app"' # 
 export LESS='-FRX' # less support colors
 
 function reset_printer {
