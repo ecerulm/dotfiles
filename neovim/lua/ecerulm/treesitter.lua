@@ -16,6 +16,7 @@ ts.setup {
     "fish",
     "php",
     "json",
+    "jsonnet",
     "yaml",
     "swift",
     "css",

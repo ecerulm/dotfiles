@@ -13,6 +13,7 @@ if vim.fn.has("macunix") then
 	require("ecerulm.macos")
 end
 
+
 -- local formatAutoGroup = vim.api.nvim_create_augroup("FormatAutoGroup", {clear = true})
 -- vim.api.nvim_create_autocmd(
 --   {"BufWritePost"}, -- events to react to
@@ -40,3 +41,6 @@ local function source_file_if_exists(file_path)
 end
 
 source_file_if_exists(vim.fn.stdpath("config") .. "/init.thismachine.lua")
+
+-- vim.g.fugitive_gitlab_domains = { "gitlab.com" }
+-- vim.cmd("echom g:fugitive_gitlab_domains")

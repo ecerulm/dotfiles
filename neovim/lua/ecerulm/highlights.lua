@@ -14,4 +14,5 @@ vim.opt.listchars={
   precedes = '⟨',
 }
 
+
 vim.cmd[[highlight Whitespace gui=reverse guifg=#dc322f guibg=none guisp=none]]
