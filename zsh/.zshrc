@@ -182,3 +182,5 @@ export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || pr
 alias randompassword="LC_ALL=C tr -cd '[:alnum:]' < /dev/urandom | fold -w30 |head -n1"
 
 [[ ! -f .zshrc.thismachine ]] || source .zshrc.thismachine
+
+export GPG_TTY=$TTY
