@@ -185,6 +185,14 @@ if builtin command -v eza >/dev/null ;then
   alias ls="eza -l --git --icons --grid --time-style long-iso"
 fi
 
+FZF_KEYBINDINGFILE=$(brew --prefix fzf)/shell/key-bindings.zsh
+[ -e $FZF_KEYBINDINGFILE   ] && eval source $FZF_KEYBINDINGFILE
+unset FZF_KEYBINDINGFILE
+
+FZF_COMPLETIONFILE=$(brew --prefix fzf)/shell/completion.zsh
+[ -e $FZF_COMPLETIONFILE ] && eval source $FZF_COMPLETIONFILE
+unset FZF_COMPLETIONFILE
+
 [[ ! -f ~/.zshrc.thismachine ]] || source ~/.zshrc.thismachine
 
 export GPG_TTY=$TTY
