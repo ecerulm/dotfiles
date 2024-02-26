@@ -185,6 +185,10 @@ if builtin command -v eza >/dev/null ;then
   alias ls="eza -l --git --icons --grid --time-style long-iso"
 fi
 
+if builtin command -v bat >/dev/null ;then
+  alias cat=bat
+fi
+
 FZF_KEYBINDINGFILE=$(brew --prefix fzf)/shell/key-bindings.zsh
 [ -e $FZF_KEYBINDINGFILE   ] && eval source $FZF_KEYBINDINGFILE
 unset FZF_KEYBINDINGFILE
