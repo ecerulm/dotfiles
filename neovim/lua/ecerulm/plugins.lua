@@ -110,4 +110,7 @@ use({
   use 'junegunn/vim-easy-align'
   use 'tpope/vim-unimpaired'
 
+  use "williamboman/mason.nvim" -- install formatters and LSP language servers
+
+
 end)

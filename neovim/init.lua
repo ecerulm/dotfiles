@@ -6,6 +6,7 @@ require("ecerulm.skeletons")
 require("ecerulm.filetypes")
 require("ecerulm.lsp")
 require("ecerulm.linters")
+require("ecerulm.mason")
 require("ecerulm.formatter") -- configure mhartington/formatter.nvim if it's loaded
 require("ecerulm.treesitter") -- configure nvim-treesitter if it's loaded
 
