@@ -189,6 +189,11 @@ if builtin command -v bat >/dev/null ;then
   alias cat=bat
 fi
 
+if builtin command -v zoxide >/dev/null ;then
+  eval "$(zoxide init zsh)"
+  alias cd=z
+fi
+
 FZF_KEYBINDINGFILE=$(brew --prefix fzf)/shell/key-bindings.zsh
 [ -e $FZF_KEYBINDINGFILE   ] && eval source $FZF_KEYBINDINGFILE
 unset FZF_KEYBINDINGFILE
