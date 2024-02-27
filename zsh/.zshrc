@@ -202,6 +202,11 @@ FZF_COMPLETIONFILE=$(brew --prefix fzf)/shell/completion.zsh
 [ -e $FZF_COMPLETIONFILE ] && eval source $FZF_COMPLETIONFILE
 unset FZF_COMPLETIONFILE
 
+
+if builtin command -v fuck >/dev/null ;then
+ eval $(thefuck --alias)
+fi
+
 [[ ! -f ~/.zshrc.thismachine ]] || source ~/.zshrc.thismachine
 
 [[ ! -f ~/.pyenv/bin/pyenv ]] || path+=~/.pyenv/bin
