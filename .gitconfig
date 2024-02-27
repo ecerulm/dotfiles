@@ -78,7 +78,7 @@
 	autocrlf = false
 	safecrlf = warn
 	longpaths = true
-	pager = less
+	pager = diff-so-fancy | less --tabs=4 -RF
 [init]
   templatedir = ~/.git_template
 	defaultBranch = master
@@ -144,3 +144,5 @@
 	username = ruben.laguna@gmail.com
 [credential]
 	helper = osxkeychain
+[interactive]
+	diffFilter = diff-so-fancy --patch
