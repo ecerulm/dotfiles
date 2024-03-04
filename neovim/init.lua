@@ -9,6 +9,7 @@ require("ecerulm.linters")
 require("ecerulm.mason")
 require("ecerulm.formatter") -- configure mhartington/formatter.nvim if it's loaded
 require("ecerulm.treesitter") -- configure nvim-treesitter if it's loaded
+require("ecerulm.harpoon2") -- configure telescope.nvim if it's loaded
 
 if vim.fn.has("macunix") then
 	require("ecerulm.macos")

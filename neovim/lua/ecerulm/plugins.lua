@@ -112,5 +112,16 @@ use({
 
   use "williamboman/mason.nvim" -- install formatters and LSP language servers
 
+  use "nvim-lua/plenary.nvim" -- don't forget to add this one if you don't have it yet!
+  use {
+      "ThePrimeagen/harpoon",
+      branch = "harpoon2",
+      requires = { {"nvim-lua/plenary.nvim"} }
+  }
+
+  use {
+    "~/git/bookmarks.nvim",
+    requires = { "nvim-lua/plenary.nvim" },
+  }
 
 end)
