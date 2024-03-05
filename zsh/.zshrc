@@ -182,7 +182,7 @@ export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || pr
 alias randompassword="LC_ALL=C tr -cd '[:alnum:]' < /dev/urandom | fold -w30 |head -n1"
 
 if builtin command -v eza >/dev/null ;then
-  alias ls="eza -l --git --icons --grid --time-style long-iso"
+  alias ls="eza -l --git --icons --time-style long-iso -snew"
 fi
 
 if builtin command -v bat >/dev/null ;then
