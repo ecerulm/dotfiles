@@ -25,6 +25,7 @@ ts.setup {
     "hcl",
     "vim",
     "vimdoc",
+    "python",
   },
   autotag = {
     enable = true,
