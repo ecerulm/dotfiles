@@ -1,3 +1,12 @@
+local manpath = { -- we overwrite the system $MANPATH because sometime can contain too many path and it takes forever for apropos to give any output
+  "/usr/share/man",
+  "/usr/local/share/man",
+  "/opt/homebrew/share/man",
+}
+vim.env.MANPATH=table.concat(manpath,":") -- let $MANPATH="/usr/share/man" -- :help vim.env
+
+
+
 require("ecerulm.plugins")
 require("ecerulm.base")
 require("ecerulm.highlights")
