@@ -11,6 +11,9 @@ require("ecerulm.formatter") -- configure mhartington/formatter.nvim if it's loa
 require("ecerulm.treesitter") -- configure nvim-treesitter if it's loaded
 require("ecerulm.harpoon2") -- configure telescope.nvim if it's loaded
 
+require('ecerulm.telescope')
+require('telescope').load_extension('vim_bookmarks')
+
 if vim.fn.has("macunix") then
 	require("ecerulm.macos")
 end

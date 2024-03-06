@@ -124,4 +124,8 @@ use({
     requires = { "nvim-lua/plenary.nvim" },
   }
 
+  use "MattesGroeger/vim-bookmarks"
+  use "tom-anders/telescope-vim-bookmarks.nvim"
+  use "nvim-telescope/telescope-symbols.nvim"
+
 end)
