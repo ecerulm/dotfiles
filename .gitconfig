@@ -1,6 +1,4 @@
 # vim: set expandtab:
-[diff]
-	tool = Kaleidoscope
 [color]
 	ui = true
 [alias]
@@ -67,6 +65,10 @@
 	god = log --graph --oneline --decorate
 	track = "!f() { ([ $# -eq 2 ] && ( echo \"Setting tracking for branch \" $1 \" -> \" $2;git branch --set-upstream $1 $2; ) || ( git for-each-ref --format=\"local: %(refname:short) <--sync--> remote: %(upstream:short)\" refs/heads && echo --Remotes && git remote -v)); }; f"
 
+  # difftool diffstastic
+  dft = difftool
+  dlog = "!f() { GIT_EXTERNAL_DIFF=difft git log -p --ext-diff $@;}; f"
+
 [merge]
 	tool = meld
 	stat = true
@@ -83,6 +85,7 @@
   templatedir = ~/.git_template
 	defaultBranch = master
 [pager]
+	difftool = true
 [push]
 	default = current
 	followTags = true
@@ -96,7 +99,7 @@
 [diff]
 	mnemonicprefix = true
 	renames = copies
-	tool = vimdiff
+	tool = difftastic
 [http "https://gopkg.in"]
 	followRedirects = true
 [difftool "filemerge"]
@@ -105,6 +108,8 @@
 	provider = generic
 [difftool "Kaleidoscope"]
 	cmd = ksdiff --partial-changeset --relative-path \"$MERGED\" -- \"$LOCAL\" \"$REMOTE\"
+[difftool "difftastic"]
+  cmd = difft "$LOCAL" "$REMOTE"
 [difftool]
 	prompt = false
 	trustExitCode = true
