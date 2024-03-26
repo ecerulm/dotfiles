@@ -10,7 +10,13 @@ ts.setup {
     enable = true,
     disable = {},
   },
+  -- 
   ensure_installed = {
+    "c",
+    "lua",
+    "vim",
+    "vimdoc",
+    "query",
     "tsx",
     "toml",
     "fish",
@@ -23,9 +29,8 @@ ts.setup {
     "html",
     "lua",
     "hcl",
-    "vim",
-    "vimdoc",
     "python",
+    "go",
   },
   autotag = {
     enable = true,
@@ -59,6 +64,8 @@ ts.setup {
         ["if"] = "@function.inner",
         ["ac"] = "@class.outer",
         ["ic"] = "@class.inner",
+        ["ia"] = "@parameter.inner",
+        ["aa"] = "@parameter.outer",
       },
       selection_modes = {
         ['@parameter.outer'] = 'v', -- charwise
