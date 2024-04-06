@@ -6,7 +6,7 @@
 -- also supports treesitter nodes
 -- ysiw)  surround word with ()
 --
-local surround = require("surround")
+local surround = require("nvim-surround")
 surround.setup({
 
 })
