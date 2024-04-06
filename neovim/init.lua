@@ -85,9 +85,9 @@ require("ecerulm.treesitter") -- configure nvim-treesitter if it's loaded
 require("ecerulm.harpoon2") -- configure telescope.nvim if it's loaded
 require("ecerulm.nvim-surround")
 require("ecerulm.gitsigns")
-
 require("ecerulm.telescope")
 require("telescope").load_extension("vim_bookmarks")
+require("ecerulm.vim-fugitive")
 
 if vim.fn.has("macunix") then
 	require("ecerulm.macos")
