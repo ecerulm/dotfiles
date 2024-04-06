@@ -83,6 +83,7 @@ require("ecerulm.lsp")
 require("ecerulm.formatter") -- configure mhartington/formatter.nvim if it's loaded
 require("ecerulm.treesitter") -- configure nvim-treesitter if it's loaded
 require("ecerulm.harpoon2") -- configure telescope.nvim if it's loaded
+require("ecerulm.nvim-surround")
 
 require("ecerulm.telescope")
 require("telescope").load_extension("vim_bookmarks")
