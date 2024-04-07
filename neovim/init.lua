@@ -13,10 +13,10 @@ vim.opt.rtp:prepend(lazypath)
 
 --- Initialize lazy with dynamic loading of anything in the plugins directory
 require("lazy").setup("ecerulm.plugins", {
-   change_detection = {
-    enabled = true, -- automatically check for config file changes and reload the ui
-    notify = false, -- turn off notifications whenever plugin changes are made
-  },
+	change_detection = {
+		enabled = true, -- automatically check for config file changes and reload the ui
+		notify = false, -- turn off notifications whenever plugin changes are made
+	},
 })
 
 local manpath =
@@ -27,7 +27,6 @@ local manpath =
 	}
 vim.env.MANPATH = table.concat(manpath, ":") -- let $MANPATH="/usr/share/man" -- :help vim.env
 
-
 -- require("ecerulm.plugins")
 require("ecerulm.base")
 require("ecerulm.highlights")
@@ -35,13 +34,11 @@ require("ecerulm.maps")
 require("ecerulm.skeletons")
 require("ecerulm.filetypes")
 require("ecerulm.linters")
-require("ecerulm.formatter") -- configure mhartington/formatter.nvim if it's loaded
+-- require("ecerulm.formatter") -- configure mhartington/formatter.nvim if it's loaded
 require("ecerulm.treesitter") -- configure nvim-treesitter if it's loaded
 require("ecerulm.harpoon2") -- configure telescope.nvim if it's loaded
 require("ecerulm.nvim-surround")
 require("ecerulm.vim-fugitive")
-
-
 
 if vim.fn.has("macunix") then
 	require("ecerulm.macos")
