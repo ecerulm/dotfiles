@@ -3,7 +3,6 @@ local plugins = {
 	{ "tpope/vim-rhubarb" },
 	{ "shumphrey/fugitive-gitlab.vim" },
 	{ "nvim-telescope/telescope-file-browser.nvim" },
-	{ "mfussenegger/nvim-lint" },
 	{ "tpope/vim-commentary" },
 	{ "kylechui/nvim-surround" },
 	{ "tommcdo/vim-exchange" },

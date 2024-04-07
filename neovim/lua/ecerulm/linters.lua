@@ -1,11 +1,3 @@
-require('lint').linters_by_ft =  {
-  markdown = {'markdownlint','vale'},
-  sh = {'shellcheck'},
-  lua = {'luacheck'},
-  -- gitcommit = {'commitlint'},
-
-}
-
 
 -- require('lint').linters.commitlint = {
 --   name = 'commitlint',
