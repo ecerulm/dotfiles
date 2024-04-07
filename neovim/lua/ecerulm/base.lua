@@ -1,5 +1,4 @@
 -- https://www.youtube.com/watch?v=ajmK0ZNcM4Q
-vim.cmd('autocmd!')
 
 vim.g.loaded_python3_provider = 0 -- Disable python3 support
 vim.g.loaded_ruby_provider = 0 -- Disable ruby support

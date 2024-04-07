@@ -3,6 +3,7 @@ return {
   -- LSP Configuration
   -- https://github.com/neovim/nvim-lspconfig
   'neovim/nvim-lspconfig',
+  lazy = false,
   event = 'VeryLazy',
   dependencies = {
     -- LSP Management
@@ -34,7 +35,6 @@ return {
         'quick_lint_js',
         -- 'tsserver', -- requires npm to be installed
         -- 'yamlls', -- requires npm to be installed
-        'stylua',
         'rust_analyzer',
         'pyright',
       }

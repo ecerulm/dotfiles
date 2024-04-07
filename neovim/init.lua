@@ -19,7 +19,6 @@ require("lazy").setup("ecerulm.plugins", {
   },
 })
 
----[[
 local manpath =
 	{ -- we overwrite the system $MANPATH because sometime can contain too many path and it takes forever for apropos to give any output
 		"/usr/share/man",
@@ -27,6 +26,7 @@ local manpath =
 		"/opt/homebrew/share/man",
 	}
 vim.env.MANPATH = table.concat(manpath, ":") -- let $MANPATH="/usr/share/man" -- :help vim.env
+
 
 -- require("ecerulm.plugins")
 require("ecerulm.base")
@@ -78,4 +78,3 @@ source_file_if_exists(vim.fn.stdpath("config") .. "/init.thismachine.lua")
 
 -- vim.g.fugitive_gitlab_domains = { "gitlab.com" }
 -- vim.cmd("echom g:fugitive_gitlab_domains")
---]]
