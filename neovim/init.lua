@@ -39,7 +39,6 @@ require("ecerulm.formatter") -- configure mhartington/formatter.nvim if it's loa
 require("ecerulm.treesitter") -- configure nvim-treesitter if it's loaded
 require("ecerulm.harpoon2") -- configure telescope.nvim if it's loaded
 require("ecerulm.nvim-surround")
-require("ecerulm.telescope")
 require("ecerulm.vim-fugitive")
 
 
