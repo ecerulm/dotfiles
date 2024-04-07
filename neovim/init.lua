@@ -11,56 +11,13 @@ if not vim.loop.fs_stat(lazypath) then
 end
 vim.opt.rtp:prepend(lazypath)
 
--- local plugins = require("ecerulm.plugins")
-
----[[
-local plugins = {
-	{ "morhetz/gruvbox", lazy=false, },
-	{ "lewis6991/gitsigns.nvim" },
-	{ "tpope/vim-fugitive" },
-	{ "tpope/vim-rhubarb" },
-	{ "shumphrey/fugitive-gitlab.vim" },
-	{ 
-    "nvim-treesitter/nvim-treesitter",
+--- Initialize lazy with dynamic loading of anything in the plugins directory
+require("lazy").setup("ecerulm.plugins", {
+   change_detection = {
+    enabled = true, -- automatically check for config file changes and reload the ui
+    notify = false, -- turn off notifications whenever plugin changes are made
   },
-	{ "nvim-treesitter/nvim-treesitter-textobjects" },
-	{
-		"nvim-telescope/telescope.nvim",
-		dependencies = {
-			"nvim-lua/plenary.nvim",
-		},
-	},
-	{ "nvim-telescope/telescope-file-browser.nvim" },
-	{
-		"LukasPietzschmann/telescope-tabs",
-		dependencies = {
-			"nvim-telescope/telescope.nvim",
-		},
-		config = function()
-			require("telescope-tabs").setup({})
-		end,
-	},
-	{ "mfussenegger/nvim-lint" },
-	{ "tpope/vim-commentary" },
-	{ "kylechui/nvim-surround" },
-	{ "tommcdo/vim-exchange" },
-	{ "dstein64/vim-startuptime" },
-	{ "AndrewRadev/switch.vim" },
-	{ "mhartington/formatter.nvim" },
-	{ "github/copilot.vim" },
-	{ "junegunn/vim-easy-align" },
-	{ "tpope/vim-unimpaired" },
-	{ "williamboman/mason.nvim" },
-	{ "williamboman/mason-lspconfig.nvim" },
-	{ "MattesGroeger/vim-bookmarks" },
-	{ "tom-anders/telescope-vim-bookmarks.nvim" },
-	{ "nvim-telescope/telescope-symbols.nvim" },
-	{ "neovim/nvim-lspconfig" },
-
-}
---]]
-
-require("lazy").setup(plugins, {})
+})
 
 ---[[
 local manpath =
@@ -84,17 +41,9 @@ require("ecerulm.harpoon2") -- configure telescope.nvim if it's loaded
 require("ecerulm.nvim-surround")
 require("ecerulm.gitsigns")
 require("ecerulm.telescope")
-require("telescope").load_extension("vim_bookmarks")
 require("ecerulm.vim-fugitive")
 
 
-
-require("mason").setup()
-require("mason-lspconfig").setup({
-ensure_installed = { "lua_ls", "rust_analyzer", "pyright"}
-})
-require("lspconfig").lua_ls.setup {}
-require("lspconfig").pyright.setup {}
 
 if vim.fn.has("macunix") then
 	require("ecerulm.macos")

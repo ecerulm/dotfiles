@@ -82,4 +82,4 @@ vim.opt.colorcolumn = "80"  -- :set colorcolumn , see hl-ColorColumn
 --   highlight ColorColumn guibg='#200000' ctermbg=LightGreen
 -- ]])
 
-vim.cmd("colorscheme gruvbox")
+-- vim.cmd("colorscheme gruvbox")
