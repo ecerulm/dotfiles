@@ -78,8 +78,6 @@ require("ecerulm.maps")
 require("ecerulm.skeletons")
 require("ecerulm.filetypes")
 require("ecerulm.linters")
-require("ecerulm.mason")
-require("ecerulm.lsp")
 require("ecerulm.formatter") -- configure mhartington/formatter.nvim if it's loaded
 require("ecerulm.treesitter") -- configure nvim-treesitter if it's loaded
 require("ecerulm.harpoon2") -- configure telescope.nvim if it's loaded
@@ -88,6 +86,15 @@ require("ecerulm.gitsigns")
 require("ecerulm.telescope")
 require("telescope").load_extension("vim_bookmarks")
 require("ecerulm.vim-fugitive")
+
+
+
+require("mason").setup()
+require("mason-lspconfig").setup({
+ensure_installed = { "lua_ls", "rust_analyzer", "pyright"}
+})
+require("lspconfig").lua_ls.setup {}
+require("lspconfig").pyright.setup {}
 
 if vim.fn.has("macunix") then
 	require("ecerulm.macos")
