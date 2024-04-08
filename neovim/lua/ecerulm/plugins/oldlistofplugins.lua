@@ -8,7 +8,6 @@ local plugins = {
 	{ "tommcdo/vim-exchange" },
 	{ "dstein64/vim-startuptime" },
 	{ "AndrewRadev/switch.vim" },
-	{ "github/copilot.vim" },
 	{ "junegunn/vim-easy-align" },
 	{ "tpope/vim-unimpaired" },
 	{ "MattesGroeger/vim-bookmarks" },
