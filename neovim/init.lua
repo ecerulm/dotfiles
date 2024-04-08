@@ -30,7 +30,7 @@ vim.env.MANPATH = table.concat(manpath, ":") -- let $MANPATH="/usr/share/man" --
 -- require("ecerulm.plugins")
 require("ecerulm.base")
 require("ecerulm.highlights")
-require("ecerulm.maps")
+require("ecerulm.keymaps")
 require("ecerulm.skeletons")
 require("ecerulm.filetypes")
 -- require("ecerulm.linters")
