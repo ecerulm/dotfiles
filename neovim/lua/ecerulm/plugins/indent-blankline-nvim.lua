@@ -2,7 +2,7 @@
 return {
   -- https://github.com/lukas-reineke/indent-blankline.nvim
   "lukas-reineke/indent-blankline.nvim",
-  event = 'VeryLazy',
+  -- event = 'VeryLazy',
   main = "ibl",
   opts = {
     enabled = true,

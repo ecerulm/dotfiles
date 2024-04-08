@@ -4,7 +4,7 @@ return {
 	-- https://github.com/neovim/nvim-lspconfig
 	"neovim/nvim-lspconfig",
 	lazy = false,
-	event = "VeryLazy",
+	-- event = "VeryLazy",
 	dependencies = {
 		-- LSP Management
 		-- https://github.com/williamboman/mason.nvim

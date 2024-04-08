@@ -2,7 +2,8 @@
 return {
   -- https://github.com/rcarriga/nvim-dap-ui
   'rcarriga/nvim-dap-ui',
-  event = 'VeryLazy',
+  lazy = false,
+  -- event = 'VeryLazy',
   dependencies = {
     -- https://github.com/mfussenegger/nvim-dap
     'mfussenegger/nvim-dap',
@@ -10,7 +11,7 @@ return {
     'theHamsta/nvim-dap-virtual-text', -- inline variable text while debugging
     -- https://github.com/nvim-telescope/telescope-dap.nvim
     'nvim-telescope/telescope-dap.nvim', -- telescope integration with dap
- "nvim-neotest/nvim-nio", 
+ "nvim-neotest/nvim-nio",
   },
   opts = {
     controls = {

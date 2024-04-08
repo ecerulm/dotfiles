@@ -2,7 +2,8 @@
 return {
   -- https://github.com/diepm/vim-rest-console
   'diepm/vim-rest-console',
-  event = 'VeryLazy',
+  enable = false,
+  -- event = 'VeryLazy',
   config = function ()
     -- Turn off the default key binding
     vim.g.vrc_set_default_mapping = 0
