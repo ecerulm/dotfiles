@@ -28,7 +28,7 @@ return {
 	config = function()
 		local cmp = require("cmp")
 		local luasnip = require("luasnip")
-    local lspkind = require("lspkind")
+		local lspkind = require("lspkind")
 		require("luasnip.loaders.from_vscode").lazy_load()
 		luasnip.config.setup({})
 
@@ -47,6 +47,7 @@ return {
 				end,
 			},
 			completion = {
+				autocomplete = false, -- manually trigger the completion with <C-Space>
 				completeopt = "menu,menuone,noinsert",
 			},
 			mapping = cmp.mapping.preset.insert({
@@ -103,16 +104,16 @@ return {
 			},
 
 			formatting = {
-        format = lspkind.cmp_format({}),
-			-- 	format = lspkind.cmp_format({
-			-- 		mode = "symbol",
-			-- 		maxwidth = 80,
-			-- 		ellipsis_char = "...",
-			-- 		show_labelDetails = true,
-			-- 		before = function(entry, vim_item)
-			-- 			return vim_item
-			-- 		end,
-			-- 	}),
+				format = lspkind.cmp_format({}),
+				-- 	format = lspkind.cmp_format({
+				-- 		mode = "symbol",
+				-- 		maxwidth = 80,
+				-- 		ellipsis_char = "...",
+				-- 		show_labelDetails = true,
+				-- 		before = function(entry, vim_item)
+				-- 			return vim_item
+				-- 		end,
+				-- 	}),
 			},
 		})
 	end,

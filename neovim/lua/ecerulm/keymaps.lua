@@ -163,4 +163,10 @@ vim.keymap.set('n', '<Leader>gc', '<cmd>.GBrowse!<cr>', { noremap = true, silent
 vim.keymap.set('v', '<Leader>go', ':GBrowse<cr>', { noremap = true })
 vim.keymap.set('v', '<Leader>gc', ':GBrowse!<cr>', { noremap = true })
 
+
+-- nvim-cmp
+
+-- keymap.set('i', '<C-Space>', 'cmp.complete()', { expr = true, noremap = true, silent = true })
+
+
 -- Telescope
