@@ -32,7 +32,6 @@ require("ecerulm.base")
 require("ecerulm.highlights")
 require("ecerulm.keymaps")
 require("ecerulm.skeletons")
-require("ecerulm.filetypes")
 require("ecerulm.harpoon2") -- configure telescope.nvim if it's loaded
 
 if vim.fn.has("macunix") then
