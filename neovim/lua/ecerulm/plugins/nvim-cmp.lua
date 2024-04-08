@@ -23,10 +23,12 @@ return {
 		"hrsh7th/cmp-path",
 		-- https://github.com/hrsh7th/cmp-cmdline
 		"hrsh7th/cmp-cmdline",
+		"onsails/lspkind.nvim",
 	},
 	config = function()
 		local cmp = require("cmp")
 		local luasnip = require("luasnip")
+    local lspkind = require("lspkind")
 		require("luasnip.loaders.from_vscode").lazy_load()
 		luasnip.config.setup({})
 
@@ -67,15 +69,15 @@ return {
 				--     fallback()
 				--   end
 				-- end, { 'i', 's' }),
-        ["<Tab>"] = vim.schedule_wrap(function(fallback)
-          if cmp.visible() and has_words_before() then
-            cmp.select_next_item({ behavior = cmp.SelectBehavior.Select })
-          elseif luasnip.expand_or_jumpable() then
-            luasnip.expand_or_jump()
-          else
-            fallback()
-          end
-        end),
+				["<Tab>"] = vim.schedule_wrap(function(fallback)
+					if cmp.visible() and has_words_before() then
+						cmp.select_next_item({ behavior = cmp.SelectBehavior.Select })
+					elseif luasnip.expand_or_jumpable() then
+						luasnip.expand_or_jump()
+					else
+						fallback()
+					end
+				end),
 				-- Tab backwards through suggestions or when a snippet is active, tab to the next argument
 				["<S-Tab>"] = cmp.mapping(function(fallback)
 					if cmp.visible() then
@@ -98,6 +100,19 @@ return {
 				-- Add borders to completions popups
 				completion = cmp.config.window.bordered(),
 				documentation = cmp.config.window.bordered(),
+			},
+
+			formatting = {
+        format = lspkind.cmp_format({}),
+			-- 	format = lspkind.cmp_format({
+			-- 		mode = "symbol",
+			-- 		maxwidth = 80,
+			-- 		ellipsis_char = "...",
+			-- 		show_labelDetails = true,
+			-- 		before = function(entry, vim_item)
+			-- 			return vim_item
+			-- 		end,
+			-- 	}),
 			},
 		})
 	end,
