@@ -38,7 +38,6 @@ require("ecerulm.filetypes")
 require("ecerulm.treesitter") -- configure nvim-treesitter if it's loaded
 require("ecerulm.harpoon2") -- configure telescope.nvim if it's loaded
 require("ecerulm.nvim-surround")
-require("ecerulm.vim-fugitive")
 
 if vim.fn.has("macunix") then
 	require("ecerulm.macos")
@@ -72,5 +71,3 @@ end
 
 source_file_if_exists(vim.fn.stdpath("config") .. "/init.thismachine.lua")
 
--- vim.g.fugitive_gitlab_domains = { "gitlab.com" }
--- vim.cmd("echom g:fugitive_gitlab_domains")

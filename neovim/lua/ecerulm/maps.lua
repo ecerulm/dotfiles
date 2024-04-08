@@ -24,8 +24,11 @@ keymap.set('n', 'te', ':tabedit')
 keymap.set('n', 'ss', ':split<Return><C-w>w')
 keymap.set('n', 'sv', ':vsplit<Return><C-w>w')
 
--- Switch between  windows/splits
-keymap.set('n', '<Space>', '<C-w>w')
+-- Switch between  windows/splits / cycle window split
+keymap.set('n', '<Space>', '<C-w>w') -- nnoremap <Space> <C-w>w -- cycle window direction below/right
+keymap.set('n', '<Tab>', '<C-w>w') -- nnoremap <Tab> <C-w>w  -- cycle window direction below/right
+keymap.set('n', '<bs>', '<C-w>W') -- nnoremap <bs> <C-w>W -- cycle windows direction above/left
+
 keymap.set('n', 'sh', '<C-w>h')
 keymap.set('n', 'sk', '<C-w>k')
 keymap.set('n', 'sj', '<C-w>j')
@@ -153,5 +156,11 @@ keymap.set('n', '<leader>gn', '<cmd>lua vim.diagnostic.goto_next()<CR>')
 keymap.set('n', '<leader>tr', '<cmd>lua vim.lsp.buf.document_symbol()<CR>')
 keymap.set('i', '<C-Space>', '<cmd>lua vim.lsp.buf.completion()<CR>')
 
+-- vim-fugitive
+
+vim.keymap.set('n', '<Leader>go', '<cmd>.GBrowse<cr>', { noremap = true, silent = true })
+vim.keymap.set('n', '<Leader>gc', '<cmd>.GBrowse!<cr>', { noremap = true, silent = true })
+vim.keymap.set('v', '<Leader>go', ':GBrowse<cr>', { noremap = true })
+vim.keymap.set('v', '<Leader>gc', ':GBrowse!<cr>', { noremap = true })
 
 -- Telescope
