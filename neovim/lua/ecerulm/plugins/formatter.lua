@@ -1,6 +1,6 @@
 return {
 	"mhartington/formatter.nvim",
-  lazy = true,
+  -- lazy = true,
   cmd = "Format",
 	config = function()
 		-- Utilities for creating configurations

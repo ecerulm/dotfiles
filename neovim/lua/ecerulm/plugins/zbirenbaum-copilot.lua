@@ -1,6 +1,6 @@
 return {
 	"zbirenbaum/copilot.lua",
-	lazy = true,
+	-- lazy = true,
 	cmd = "Copilot",
 	event = "InsertEnter",
 	dependencies = {
