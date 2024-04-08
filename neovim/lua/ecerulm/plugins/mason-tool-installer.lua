@@ -38,7 +38,7 @@ return {
 				"shfmt",
 				"staticcheck",
 				"vint",
-        "cspell",
+        -- "cspell",
 			},
 
 			-- if set to true this will check each tool for updates. If updates
