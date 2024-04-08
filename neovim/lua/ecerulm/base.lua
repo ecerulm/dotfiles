@@ -82,3 +82,19 @@ vim.opt.colorcolumn = "80"  -- :set colorcolumn , see hl-ColorColumn
 -- ]])
 
 -- vim.cmd("colorscheme gruvbox")
+vim.opt.cursorline = true
+vim.opt.termguicolors = true
+vim.opt.winblend = 0 --  enable pseudo transparency on floating windows. :help 'winblend'
+vim.opt.wildoptions = 'pum' -- Display the completion matches using the popup menu :help 'wildoptions'
+vim.opt.pumblend = 5 -- pseudo transparency on popup menu :help 'pumblend'
+-- vim.opt.background = 'dark'
+vim.opt.showbreak='↪ '
+vim.opt.listchars={
+  tab = '→ ',
+  eol = '↲',
+  nbsp = '␣',
+  trail = '•',
+  extends = '⟩',
+  precedes = '⟨',
+}
+
