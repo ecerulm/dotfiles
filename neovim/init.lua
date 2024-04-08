@@ -10,9 +10,15 @@ if not vim.loop.fs_stat(lazypath) then
 	})
 end
 vim.opt.rtp:prepend(lazypath)
-
+vim.opt.rtp:remove("/usr/local/Cellar/neovim/0.9.5/lib/nvim") -- avoid treesitter plugins from this path
 --- Initialize lazy with dynamic loading of anything in the plugins directory
 require("lazy").setup("ecerulm.plugins", {
+	-- https://github.com/folke/lazy.nvim
+	performance = {
+		rtp = {
+			reset = false, -- otherwise it will readd the /usr/loca/Cellar/neovim/0.9.5/lib/nvim
+		},
+	},
 	change_detection = {
 		enabled = true, -- automatically check for config file changes and reload the ui
 		notify = false, -- turn off notifications whenever plugin changes are made
@@ -65,4 +71,3 @@ local function source_file_if_exists(file_path)
 end
 
 source_file_if_exists(vim.fn.stdpath("config") .. "/init.thismachine.lua")
-
