@@ -44,7 +44,6 @@ if vim.fn.has("macunix") then
 	require("ecerulm.macos")
 end
 
--- local formatAutoGroup = vim.api.nvim_create_augroup("FormatAutoGroup", {clear = true})
 -- vim.api.nvim_create_autocmd(
 --   {"BufWritePost"}, -- events to react to
 --   {
