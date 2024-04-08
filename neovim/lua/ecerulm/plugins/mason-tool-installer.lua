@@ -1,6 +1,7 @@
 return {
 	-- https://github.com/WhoIsSethDaniel/mason-tool-installer.nvim
 	"WhoIsSethDaniel/mason-tool-installer.nvim",
+  enabled = true,
 	lazy = false,
 	dependencies = {
 		-- https://github.com/williamboman/mason.nvim

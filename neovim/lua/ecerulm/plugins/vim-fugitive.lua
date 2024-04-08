@@ -1,6 +1,8 @@
 return {
 	-- https://github.com/tpope/vim-fugitive
 	"tpope/vim-fugitive",
+  enabled = true, 
+  lazy = false,
 	config = function()
 		-- vim.g.fugitive_gitlab_domains = {'https://gitlab.mycompany.com', ''}
 		-- vim.g.fugitive_gitlab_domains = {'', ''} -- put the private gitlab domains in ~/.config/nvim/init.thismachine.lua

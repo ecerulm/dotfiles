@@ -3,6 +3,7 @@ return {
   -- https://github.com/diepm/vim-rest-console
   'diepm/vim-rest-console',
   enable = false,
+  lazy = false,
   -- event = 'VeryLazy',
   config = function ()
     -- Turn off the default key binding

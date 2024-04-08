@@ -2,6 +2,7 @@
 return {
 	-- https://github.com/nvim-treesitter/nvim-treesitter
 	"nvim-treesitter/nvim-treesitter",
+  enabled = true,
   lazy = false,
 	-- event = "VeryLazy",
 	dependencies = {

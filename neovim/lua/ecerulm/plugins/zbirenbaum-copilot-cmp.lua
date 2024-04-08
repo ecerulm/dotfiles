@@ -1,5 +1,7 @@
 return {
   "zbirenbaum/copilot-cmp",
+  enabled = true,
+  lazy = false,
   dependencies = {
     "zbirenbaum/copilot.lua",
   },

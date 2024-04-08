@@ -6,6 +6,8 @@ return {
 	-- ysiw)  surround word with ()
 	--
 	"kylechui/nvim-surround",
+  enabled = true,
+  lazy = false,
 	version = "*", -- Use for stability; omit to use `main` branch for the latest features
 	-- event = "VeryLazy",
 	opts = {},

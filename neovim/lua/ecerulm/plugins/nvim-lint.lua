@@ -2,6 +2,8 @@
 return {
 
 	"mfussenegger/nvim-lint",
+  enabled = false,
+  lazy = false,
 	config = function()
 		require("lint").linters_by_ft = {
 			markdown = { "markdownlint", "vale" },

@@ -11,6 +11,7 @@ if not vim.loop.fs_stat(lazypath) then
 end
 vim.opt.rtp:prepend(lazypath)
 --- Initialize lazy with dynamic loading of anything in the plugins directory
+
 require("lazy").setup("ecerulm.plugins", {
 	-- https://github.com/folke/lazy.nvim
 	change_detection = {

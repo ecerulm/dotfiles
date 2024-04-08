@@ -1,6 +1,8 @@
 -- https://github.com/MattesGroeger/vim-bookmarks
 return {
   'MattesGroeger/vim-bookmarks',
+  enabled = true,
+  lazy = false,
   config = function()
     vim.cmd[[highlight BookmarkSign ctermbg=NONE ctermfg=160]]
     vim.cmd[[highlight BookmarkLine ctermbg=194 ctermfg=NONE]]

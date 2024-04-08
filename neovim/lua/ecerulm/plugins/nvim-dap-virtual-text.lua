@@ -2,7 +2,8 @@
 return {
   -- https://github.com/theHamsta/nvim-dap-virtual-text
   'theHamsta/nvim-dap-virtual-text',
-  -- lazy = true,
+  enabled = false,
+  lazy = false,
   opts = {
     -- Display debug text as a comment
     commented = true,

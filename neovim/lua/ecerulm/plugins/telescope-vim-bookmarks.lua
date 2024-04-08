@@ -2,6 +2,8 @@
 
 return {
 	"tom-anders/telescope-vim-bookmarks.nvim",
+  enabled = true,
+  lazy = false,
 	config = function()
     require('telescope').load_extension('vim_bookmarks')
   end,

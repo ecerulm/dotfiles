@@ -2,6 +2,7 @@
 return {
   -- https://github.com/rcarriga/nvim-dap-ui
   'rcarriga/nvim-dap-ui',
+  enabled = false,
   lazy = false,
   -- event = 'VeryLazy',
   dependencies = {

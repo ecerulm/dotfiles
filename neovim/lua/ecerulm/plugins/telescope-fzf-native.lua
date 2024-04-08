@@ -1,5 +1,7 @@
 return {
 	"nvim-telescope/telescope-fzf-native.nvim",
+  enabled = false,
+  lazy = false,
 	build = "make",
 	config = function()
 		-- You dont need to set any of these options. These are the default ones. Only
