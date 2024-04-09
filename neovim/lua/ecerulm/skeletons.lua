@@ -10,6 +10,7 @@ local skeletons = {
 	"gradle.build", -- ~/.vim/skeleton.gradle.build
 	"pom.xml", -- ~/.vim/skeleton.pom.xml
 	"stack.yaml", -- ~/.vim/skeleton.stack.yaml
+  ".isort.cfg", -- ~/.vim/skeleton.isort.cfg
 }
 
 for _, skeleton in pairs(skeletons) do
