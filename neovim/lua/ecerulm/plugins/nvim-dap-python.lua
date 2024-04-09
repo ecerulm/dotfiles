@@ -3,8 +3,10 @@ return {
   "mfussenegger/nvim-dap-python",
   enabled = true,
   lazy = false,
-  config = function(_,opts)
-    require('dap-python').setup('/Users/rubelagu/.pyenv/versions/debugpy/bin/python')
+  config = function()
+    -- use the debugpy virtual environment created by :MasonInstall debugpy
+    local python_path = table.concat({ vim.fn.stdpath('data'),  'mason', 'packages', 'debugpy', 'venv', 'bin', 'python'}, '/'):gsub('//+', '/')
+    require('dap-python').setup(python_path)
   end,
   dependencies = {
     'mfussenegger/nvim-dap',
