@@ -20,6 +20,7 @@ return {
 		-- Additional lua configuration, makes nvim stuff amazing!
 		-- https://github.com/folke/neodev.nvim
 		{ "folke/neodev.nvim" },
+    { "SmiteshP/nvim-navic" },
 	},
 	config = function()
 		require("mason").setup()
@@ -44,6 +45,9 @@ return {
 		local lspconfig = require("lspconfig")
 		local lsp_capabilities = require("cmp_nvim_lsp").default_capabilities()
 		local lsp_attach = function(client, bufnr)
+      if client.server_capabilities.documentSymbolProvider then
+        require("navic").attach(client, bufnr)
+      end
 			-- Create your keybindings here...
 		end
 
@@ -69,25 +73,14 @@ return {
 			},
 		})
 
-		-- Globally configure all LSP floating preview popups (like hover, signature help, etc)
-		local open_floating_preview = vim.lsp.util.open_floating_preview
-		function vim.lsp.util.open_floating_preview(contents, syntax, opts, ...)
-			opts = opts or {}
-			opts.border = opts.border or "rounded" -- Set border to rounded
-			return open_floating_preview(contents, syntax, opts, ...)
-		end
 
-		require("lspconfig").lua_ls.setup({
-			-- https://github.com/neovim/nvim-lspconfig/blob/master/doc/server_configurations.md#lua_ls
-			settings = {
-				Lua = {
-					diagnostics = {
-						-- Get the language server to recognize the `vim` global
-						globals = { "vim" },
-					},
-				},
-			},
-		})
-		require("lspconfig").pyright.setup({})
+		-- Globally configure all LSP floating preview popups (like hover, signature help, etc)
+		-- local open_floating_preview = vim.lsp.util.open_floating_preview
+		-- function vim.lsp.util.open_floating_preview(contents, syntax, opts, ...)
+		-- 	opts = opts or {}
+		-- 	opts.border = opts.border or "rounded" -- Set border to rounded
+		-- 	return open_floating_preview(contents, syntax, opts, ...)
+		-- end
+
 	end,
 }
