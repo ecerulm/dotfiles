@@ -5,9 +5,7 @@ vim.g.loaded_ruby_provider = 0 -- Disable ruby support
 vim.g.loaded_node_provider = 0 -- Disable node support
 vim.g.loaded_perl_provider = 0 -- Disable perl support
 
-vim.scriptencoding = 'utf-8'
-vim.opt.encoding = 'utf-8'
-vim.opt.fileencoding = 'utf-8'
+vim.opt.encoding = 'utf-8' -- Unicode,  fileencodings  set automatically to ucs-bom,utf-8,default,latin1
 
 vim.wo.number = true
 vim.opt.title = true
