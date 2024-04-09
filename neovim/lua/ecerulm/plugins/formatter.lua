@@ -19,7 +19,10 @@ return {
 				lua = require("formatter.filetypes.lua").stylua,
 				json = require("formatter.filetypes.json").jq,
 				terraform = require("formatter.filetypes.terraform").terraformfmt, -- https://github.com/mhartington/formatter.nvim/blob/master/lua/formatter/filetypes/terraform.lua
-				python = require("formatter.filetypes.python").black, -- https://github.com/mhartington/formatter.nvim/blob/91651e6afaf6f73b0ffb8b433c06cd4e06f90403/lua/formatter/filetypes/python.lua#L34-L40
+				python = {
+					require("formatter.filetypes.python").black, -- https://github.com/mhartington/formatter.nvim/blob/91651e6afaf6f73b0ffb8b433c06cd4e06f90403/lua/formatter/filetypes/python.lua#L34-L40
+					require("formatter.filetypes.python").isort,
+				},
 				ruby = require("formatter.filetypes.ruby").rubocop,
 
 				-- Use the special "*" filetype for defining formatter configurations on
