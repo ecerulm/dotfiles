@@ -2,7 +2,7 @@
 return {
   -- https://github.com/diepm/vim-rest-console
   'diepm/vim-rest-console',
-  enable = false,
+  enabled = false,
   lazy = false,
   -- event = 'VeryLazy',
   config = function ()
