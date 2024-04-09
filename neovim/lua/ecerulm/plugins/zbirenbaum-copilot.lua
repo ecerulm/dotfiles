@@ -44,8 +44,31 @@ return {
 		--   end
 		-- end, {desc = "[copilot] accepts or next suggestion"})
 		require("copilot").setup({
-			suggestion = { enabled = false },
-			panel = { enabled = false },
+			suggestion = {
+				enabled = true,
+				auto_trigger = true,
+
+				-- default keymaps
+				keymap = {
+					accept = "<M-l>", -- defaut: "<M-l>" left alt + l
+					accept_word = false,
+					accept_line = false,
+					next = "<M-]>",
+					prev = "<M-[>",
+					dismiss = "<C-[>",
+				},
+			},
+			panel = {
+				enabled = true,
+        auto_refresh = false,
+				keymap = {
+					accept = "<CR>",
+					jump_prev = "[[",
+					jump_next = "]]",
+					refresh = "gr",
+					open = "<M-CR>", -- default: "<M-CR>" left alt + enter, only while on insert mode
+				},
+			},
 		})
 	end,
 }

@@ -1,7 +1,7 @@
 return {
 	-- https://github.com/github/copilot.vim/blob/release/doc/copilot.txt
 	"github/copilot.vim",
-	enabled = true,
+	enabled = false,
 	lazy = false,
 	config = function()
 		vim.keymap.set("i", "<C-J>", 'copilot#Accept("\\<CR>")', {
