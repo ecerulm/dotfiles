@@ -1,6 +1,8 @@
 -- Display LSP-based breadcrumbs
 return {
 	-- https://github.com/utilyre/barbecue.nvim
+  -- nvim-navic does not alter the status line or winbar by itself
+  -- you need barbecue or nvim-navbuddy to display the breadcrumbs
 	"utilyre/barbecue.nvim",
 	enabled = true,
 	lazy = false,
@@ -12,7 +14,7 @@ return {
 		-- https://github.com/nvim-tree/nvim-web-devicons
 		"nvim-tree/nvim-web-devicons", -- optional dependency
 	},
-	opts = {
+	opts = { -- lazy.nvim will call require("barbecue").setup(opts)
 		-- configurations go here
 	},
 }
