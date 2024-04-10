@@ -1,8 +1,11 @@
 return {
 	"nvim-telescope/telescope-fzf-native.nvim",
-  enabled = false,
-  lazy = false,
+	enabled = false,
+	lazy = false,
 	build = "make",
+	cond = function()
+		return vim.fn.executable("make") == 1
+	end,
 	config = function()
 		-- You dont need to set any of these options. These are the default ones. Only
 		-- the loading is important

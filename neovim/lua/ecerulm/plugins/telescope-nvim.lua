@@ -2,20 +2,15 @@
 return {
 	-- https://github.com/nvim-telescope/telescope.nvim
 	"nvim-telescope/telescope.nvim",
-  enabled = true,
+	enabled = true,
 	lazy = false,
+	cmd = "Telescope",
 	branch = "0.1.x",
 	dependencies = {
 		-- https://github.com/nvim-lua/plenary.nvim
 		{ "nvim-lua/plenary.nvim" },
-		{
-			-- https://github.com/nvim-telescope/telescope-fzf-native.nvim
-			"nvim-telescope/telescope-fzf-native.nvim",
-			build = "make",
-			cond = function()
-				return vim.fn.executable("make") == 1
-			end,
-		},
+		{ "nvim-telescope/telescope-fzf-native.nvim" },
+		{ "nvim-treesitter/nvim-treesitter", },
 	},
 	opts = {
 		defaults = {
@@ -43,7 +38,7 @@ return {
 				},
 			},
 			extensions = {
-           -- removed file_browser because you are using nvim-tree
+				-- removed file_browser because you are using nvim-tree
 				-- file_browser = {
 				-- 	theme = "dropdown",
 				-- 	-- disable netrw and use telescope-file-browser instead

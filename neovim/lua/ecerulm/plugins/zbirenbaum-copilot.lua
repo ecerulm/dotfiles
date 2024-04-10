@@ -1,6 +1,5 @@
 return {
 	"zbirenbaum/copilot.lua",
-	-- lazy = true,
 	enabled = true,
 	lazy = false,
 	cmd = "Copilot",

@@ -1,6 +1,5 @@
 return {
 	"mhartington/formatter.nvim",
-	-- lazy = true,
 	enabled = true,
 	lazy = false,
 	cmd = "Format",
