@@ -63,7 +63,7 @@ keymap.set("n", "<Leader>lf", ":lua vim.lsp.buf.formatting()<cr>", { remap = fal
 -- keymap.set('i', '<C-u>', '<Esc>viW~Ea', { remap = false }) -- W and E: spaces separate words, punctuation does not
 -- keymap.set('n', '<C-u>', 'g~iWE', { remap = false }) -- W and E: spaces separate words, punctuation does not
 keymap.set("i", "<C-u>", "<Esc>viw~ea", { remap = false }) -- w and e : punctuation or spaces separate words
-keymap.set("n", "<C-u>", "g~iwe", { remap = false }) -- w and e : punctuation or spaces separate words
+-- keymap.set("n", "<C-u>", "g~iwe", { remap = false }) -- w and e : punctuation or spaces separate words
 
 -- reselect last visual selection / last pasted text / last changed text
 --
@@ -239,4 +239,20 @@ end)
 vim.keymap.set("n", "<Leader>ds", function()
 	local widgets = require("dap.ui.widgets")
 	widgets.centered_float(widgets.scopes)
+end)
+
+
+---
+-- Keymaps for python tests 
+
+keymap.set("n", "<leader>tc", function()
+  if vim.bo.filetype == "python" then
+    require('dap-python').test_class() -- dap-python comes from mfussenegger/nvim-dap-python
+  end
+end)
+
+keymap.set("n", "<leader>tm", function()
+  if vim.bo.filetype == "python" then
+    require('dap-python').test_method() -- dap-python comes from mfussenegger/nvim-dap-python
+  end
 end)
