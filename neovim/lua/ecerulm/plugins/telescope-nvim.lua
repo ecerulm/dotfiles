@@ -10,7 +10,7 @@ return {
 		-- https://github.com/nvim-lua/plenary.nvim
 		{ "nvim-lua/plenary.nvim" },
 		{ "nvim-telescope/telescope-fzf-native.nvim" },
-		{ "nvim-treesitter/nvim-treesitter", },
+		{ "nvim-treesitter/nvim-treesitter" },
 	},
 	opts = {
 		defaults = {
@@ -35,9 +35,9 @@ return {
 					n = {
 						["q"] = actions.close,
 					},
-          i = {
-            ["<esc>"] = actions.close,
-          }
+					i = {
+						["<esc>"] = actions.close,
+					},
 				},
 			},
 			extensions = {
