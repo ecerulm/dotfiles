@@ -213,3 +213,5 @@ fi
 # [[ ! -f ~/.pyenv/bin/pyenv ]] || eval "$(pyenv init -)"
 # [[ ! -f ~/.pyenv/bin/pyenv ]] || eval "$(pyenv virtualenv-init -)"
 export GPG_TTY=$TTY
+
+path+=(~/go/bin)
