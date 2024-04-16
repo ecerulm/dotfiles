@@ -23,6 +23,12 @@ return {
 					require("formatter.filetypes.python").isort,
 				},
 				ruby = require("formatter.filetypes.ruby").rubocop,
+				go = {
+					require("formatter.filetypes.go").gofmt,
+					-- require("formatter.filetypes.go").goimports,
+					-- require("formatter.filetypes.go").gofumpt,
+					-- require("formatter.filetypes.go").golines,
+				},
 
 				-- Use the special "*" filetype for defining formatter configurations on
 				-- any filetype
