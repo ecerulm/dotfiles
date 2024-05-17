@@ -10,6 +10,7 @@ vim.opt.encoding = 'utf-8' -- Unicode,  fileencodings  set automatically to ucs-
 vim.wo.number = true
 vim.opt.title = true
 vim.opt.autoindent = true
+vim.opt.autoread = true
 vim.opt.hlsearch = true
 vim.opt.backup = false
 vim.opt.showcmd = true
@@ -38,6 +39,19 @@ vim.opt.list = false
 vim.cmd([[let &t_Cs = "\e[4:3m"]])
 vim.cmd([[let &t_Ce = "\e[4:0m"]])
 -- undercurl finish
+
+-- Check if file has changed outside of vim
+vim.api.nvim_create_autocmd({"FocusGained","BufEnter","VimResume","CursorHold"}, {
+  pattern = '*',
+  command = 'checktime'
+})
+
+-- Autosave when leaving focus
+-- vim.api.nvim_create_autocmd("FocusLost,WinLeave", {
+--   pattern = '*',
+--   command = 'w'
+-- })
+
 
 -- Turn off paste mode when leaving insert
 vim.api.nvim_create_autocmd("InsertLeave", {
