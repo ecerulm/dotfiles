@@ -256,3 +256,7 @@ keymap.set("n", "<leader>tm", function()
     require('dap-python').test_method() -- dap-python comes from mfussenegger/nvim-dap-python
   end
 end)
+
+keymap.set("t", "<Esc>", "<C-\\><C-n>", {remap = false}) -- :tnoremap <esc> <c-\><c-n> exit terminal mode with <Esc>
+keymap.set("t", "<C-v><Esc>", "<Esc>", {remap = false}) -- exit terminal mode with <Esc>
+
