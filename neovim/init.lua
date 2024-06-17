@@ -65,3 +65,8 @@ local function source_file_if_exists(file_path)
 end
 
 source_file_if_exists(vim.fn.stdpath("config") .. "/init.thismachine.lua")
+vim.filetype.add({
+  extension = {
+    tf = "terraform"
+  }
+})
