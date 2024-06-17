@@ -20,6 +20,7 @@ return {
 		sync_install = false,
 		ignore_install = {},
 		ensure_installed = {
+			"java",
 			"c",
 			"lua",
 			"vim",
@@ -39,6 +40,7 @@ return {
 			"hcl",
 			"python",
 			"go",
+			"terraform",
 		},
 		autotag = {
 			enable = true,
