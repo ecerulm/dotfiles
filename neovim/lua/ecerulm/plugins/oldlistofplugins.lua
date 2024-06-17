@@ -7,7 +7,6 @@ local plugins = {
 	{ "kylechui/nvim-surround" },
 	{ "tommcdo/vim-exchange" },
 	{ "dstein64/vim-startuptime" },
-	{ "AndrewRadev/switch.vim" },
 	{ "junegunn/vim-easy-align" },
 	{ "tpope/vim-unimpaired" },
 	{ "MattesGroeger/vim-bookmarks" },
