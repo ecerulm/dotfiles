@@ -24,7 +24,6 @@ return {
 				"gomodifytags",
 				"gotests",
 				"impl",
-				"json-to-struct",
 				"luacheck",
 				"misspell",
 				"revive",

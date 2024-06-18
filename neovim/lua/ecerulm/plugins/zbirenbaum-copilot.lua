@@ -1,6 +1,9 @@
 return {
+  -- https://github.com/zbirenbaum/copilot.lua
+  -- Preferred over github/copilot.vim because
+  -- it is more configurable, 
 	"zbirenbaum/copilot.lua",
-	enabled = true,
+	enabled = false, -- DISABLED because you are trying Codeium
 	lazy = false,
 	cmd = "Copilot",
 	event = "InsertEnter",
