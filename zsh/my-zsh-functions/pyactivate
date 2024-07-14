@@ -1,7 +1,12 @@
 if [ "$#" -ne 1 ]; then
-    echo "Usage: pyactivate <nameofvirtualenv>"
-    echo "pyenv versions # list virtualenvs"
-    return
+    echo "revert ot .python-version"
+    if [ ! -f .python-version ]; then 
+        echo "No .python-version file found"
+        echo "Usage: pyactivate <nameofvirtualenv>"
+        echo "pyenv versions # list virtualenvs"
+        return
+    fi
+    1=$(cat .python-version)
 fi
 PYACTIVATE_PREFIX=$(pyenv prefix $1)
 if [ $? -ne 0 ]; then
