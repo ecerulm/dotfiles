@@ -149,6 +149,7 @@
 	username = ruben.laguna@gmail.com
 [credential]
 	helper = osxkeychain
+	helper = /usr/local/share/gcm-core/git-credential-manager
 [interactive]
 	diffFilter = diff-so-fancy --patch
 [color "diff-highlight"]
@@ -164,3 +165,5 @@
 	old = red bold
 	new = green bold
 	whitespace = red reverse
+[credential "https://dev.azure.com"]
+	useHttpPath = true
