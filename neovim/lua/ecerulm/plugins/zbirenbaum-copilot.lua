@@ -3,7 +3,8 @@ return {
   -- Preferred over github/copilot.vim because
   -- it is more configurable, 
 	"zbirenbaum/copilot.lua",
-	enabled = false, -- DISABLED because you are trying Codeium
+
+	enabled = THISMACHINESETTINGS["zbirenbaum_copilot_enabled"], -- DISABLED because you are trying Codeium
 	lazy = false,
 	cmd = "Copilot",
 	event = "InsertEnter",

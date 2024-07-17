@@ -1,3 +1,20 @@
+function file_exists(name)
+   local f = io.open(name, "r")
+   return f ~= nil
+end
+
+
+THISMACHINESETTINGS = {
+  copilot_enabled=false, -- enables github/copilot
+  zbirenbaum_copilot_enabled=false, -- enables zbirenbaum/copilot
+  codeium_enabled=false,
+}
+
+if file_exists(".thismachine.lua") then
+  local loaded_values = assert(loadfile(".thismachine.lua"))()
+  for k,v in pairs(loaded_values) do THISMACHINESETTINGS[k] = v end
+end
+
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
 if not vim.loop.fs_stat(lazypath) then
 	vim.fn.system({

@@ -1,10 +1,10 @@
 return {
 	-- https://github.com/github/copilot.vim/blob/release/doc/copilot.txt
 	"github/copilot.vim",
-	enabled = false, -- THIS IS DISABLED
+	enabled = THISMACHINESETTINGS["copilot_enabled"], -- THIS IS DISABLED
 	lazy = false,
 	config = function()
-		vim.keymap.set("i", "<C-J>", 'copilot#Accept("\\<CR>")', {
+		vim.keymap.set("i", "<M-l>", 'copilot#Accept("\\<CR>")', {
 			expr = true,
 			replace_keycodes = false,
 		})
