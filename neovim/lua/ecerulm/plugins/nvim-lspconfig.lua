@@ -3,7 +3,7 @@ return {
 	-- LSP Configuration
 	-- https://github.com/neovim/nvim-lspconfig
 	"neovim/nvim-lspconfig",
-  enabled = true,
+	enabled = true,
 	lazy = false,
 	-- event = "VeryLazy",
 	dependencies = {
@@ -37,16 +37,16 @@ return {
 				-- 'tsserver', -- requires npm to be installed
 				-- 'yamlls', -- requires npm to be installed
 				"rust_analyzer",
-				"pyright",
+				"pyright", --
 			},
 		})
 
 		local lspconfig = require("lspconfig")
 		local lsp_capabilities = require("cmp_nvim_lsp").default_capabilities()
 		-- local lsp_attach = function(client, bufnr)
-      -- if client.server_capabilities.documentSymbolProvider then
-        -- require("navic").attach(client, bufnr)
-      -- end
+		-- if client.server_capabilities.documentSymbolProvider then
+		-- require("navic").attach(client, bufnr)
+		-- end
 		-- 	-- Create your keybindings here...
 		-- end
 
@@ -72,6 +72,7 @@ return {
 			},
 		})
 
+		require("lspconfig").pyright.setup({})
 
 		-- Globally configure all LSP floating preview popups (like hover, signature help, etc)
 		-- local open_floating_preview = vim.lsp.util.open_floating_preview
@@ -80,6 +81,5 @@ return {
 		-- 	opts.border = opts.border or "rounded" -- Set border to rounded
 		-- 	return open_floating_preview(contents, syntax, opts, ...)
 		-- end
-
 	end,
 }
