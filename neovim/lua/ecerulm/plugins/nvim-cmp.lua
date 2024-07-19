@@ -98,6 +98,7 @@ return {
 				{ name = "buffer" }, -- text within current buffer
 				{ name = "path" }, -- file system paths
 				{ name = "copilot" }, -- from zbirenbaum/copilot-cmp
+				{ name = "codeium" }, -- 
 			}),
 			window = {
 				-- Add borders to completions popups
