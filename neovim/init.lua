@@ -3,17 +3,25 @@ function file_exists(name)
    return f ~= nil
 end
 
-
 THISMACHINESETTINGS = {
   copilot_enabled=false, -- enables github/copilot
   zbirenbaum_copilot_enabled=false, -- enables zbirenbaum/copilot
-  codeium_enabled=false,
+  codeium_vim_enabled=false,
+  codeium_nvim_enabled=false,
 }
 
-if file_exists(".thismachine.lua") then
-  local loaded_values = assert(loadfile(".thismachine.lua"))()
-  for k,v in pairs(loaded_values) do THISMACHINESETTINGS[k] = v end
+
+local function source_file_if_exists(file_path)
+	local file = io.open(file_path, "r")
+	if file then
+		io.close(file)
+		dofile(file_path)
+	end
 end
+
+source_file_if_exists(vim.fn.stdpath("config") .. "/init.thismachine.lua")
+
+
 
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
 if not vim.loop.fs_stat(lazypath) then
@@ -74,15 +82,7 @@ end
 -- })
 --
 
-local function source_file_if_exists(file_path)
-	local file = io.open(file_path, "r")
-	if file then
-		io.close(file)
-		dofile(file_path)
-	end
-end
 
-source_file_if_exists(vim.fn.stdpath("config") .. "/init.thismachine.lua")
 vim.filetype.add({
   extension = {
     tf = "terraform"

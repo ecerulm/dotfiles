@@ -1,7 +1,7 @@
 return {
 	-- https://github.com/Exafunction/codeium.vim?tab=readme-ov-file
 	"Exafunction/codeium.nvim", -- beware there is Exafunction/codeium.vim and codeium.nvim they are different
-	enabled = false,
+	enabled = THISMACHINESETTINGS.codeium_nvim_enabled,
 	lazy = false,
 	dependencies = {
 		"nvim-lua/plenary.nvim",

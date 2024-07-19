@@ -1,7 +1,7 @@
 return {
   -- https://github.com/Exafunction/codeium.vim
 	"Exafunction/codeium.vim", -- beware codedium.vim and codeium.nvim are different
-	enabled = true,
+	enabled = THISMACHINESETTINGS.codeium_vim_enabled,
 	lazy = false,
 	dependencies = {
 	},
