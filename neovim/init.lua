@@ -4,7 +4,7 @@ function file_exists(name)
 end
 
 THISMACHINESETTINGS = {
-  copilot_enabled=false, -- enables github/copilot
+  github_copilot_enabled=false, -- enables github/copilot
   zbirenbaum_copilot_enabled=false, -- enables zbirenbaum/copilot
   codeium_vim_enabled=false,
   codeium_nvim_enabled=false,

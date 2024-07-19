@@ -4,7 +4,8 @@ return {
   -- it is more configurable, 
 	"zbirenbaum/copilot.lua",
 
-	enabled = THISMACHINESETTINGS["zbirenbaum_copilot_enabled"], -- DISABLED because you are trying Codeium
+	enabled = true,
+  cond = THISMACHINESETTINGS.zbirenbaum_copilot_enabled and not THISMACHINESETTINGS.github_copilot_enabled,
 	lazy = false,
 	cmd = "Copilot",
 	event = "InsertEnter",
@@ -46,9 +47,13 @@ return {
 		--     suggestion.next()
 		--   end
 		-- end, {desc = "[copilot] accepts or next suggestion"})
+
+    local as_nvim_cmp = THISMACHINESETTINGS.zbirenbaum_copilot_as_nvim_cmp
+    local suggestion_enabled = not as_nvim_cmp
+
 		require("copilot").setup({
 			suggestion = {
-				enabled = true,
+				enabled = suggestion_enabled,
 				auto_trigger = true,
 
 				-- default keymaps
@@ -62,7 +67,7 @@ return {
 				},
 			},
 			panel = {
-				enabled = true,
+				enabled = suggestion_enabled,
         auto_refresh = false,
 				keymap = {
 					accept = "<CR>",
