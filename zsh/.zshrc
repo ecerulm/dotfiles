@@ -84,6 +84,7 @@ plugins=( macos)
 # HISTFILE="$HOME/.zsh_history" # the default is set on /etc/zshrc
 HISTSIZE=10000000
 SAVEHIST=10000000
+setopt appendhistory
 
 
 
