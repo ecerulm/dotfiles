@@ -38,6 +38,7 @@ return {
 				-- 'yamlls', -- requires npm to be installed
 				"rust_analyzer",
 				"pyright", --
+				"jdtls", -- java language server LSP
 			},
 		})
 
