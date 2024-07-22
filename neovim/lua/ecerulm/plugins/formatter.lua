@@ -1,4 +1,5 @@
 return {
+  -- https://github.com/mhartington/formatter.nvim
 	"mhartington/formatter.nvim",
 	enabled = true,
 	lazy = false,
@@ -30,6 +31,7 @@ return {
 					-- require("formatter.filetypes.go").gofumpt,
 					-- require("formatter.filetypes.go").golines,
 				},
+        java = require("formatter.filetypes.java").google_java_format, -- https://github.com/mhartington/formatter.nvim
 
 				-- Use the special "*" filetype for defining formatter configurations on
 				-- any filetype
