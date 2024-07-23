@@ -4,6 +4,7 @@ return {
 	-- https://github.com/neovim/nvim-lspconfig
 	"neovim/nvim-lspconfig",
 	enabled = true,
+	cond = true,
 	lazy = false,
 	-- event = "VeryLazy",
 	dependencies = {
@@ -44,6 +45,10 @@ return {
 
 		local lspconfig = require("lspconfig")
 		local lsp_capabilities = require("cmp_nvim_lsp").default_capabilities()
+
+		-- now you approach is only start_or_attach from the ftpluing/xxx.lua
+		-- delay as much as you can
+
 		-- local lsp_attach = function(client, bufnr)
 		-- if client.server_capabilities.documentSymbolProvider then
 		-- require("navic").attach(client, bufnr)
@@ -52,14 +57,14 @@ return {
 		-- end
 
 		-- Call setup on each LSP server
-		require("mason-lspconfig").setup_handlers({
-			function(server_name)
-				lspconfig[server_name].setup({
-					-- on_attach = lsp_attach,
-					capabilities = lsp_capabilities,
-				})
-			end,
-		})
+		-- require("mason-lspconfig").setup_handlers({
+		-- 	function(server_name)
+		-- 		lspconfig[server_name].setup({
+		-- 			-- on_attach = lsp_attach,
+		-- 			capabilities = lsp_capabilities,
+		-- 		})
+		-- 	end,
+		-- })
 
 		-- Lua LSP settings
 		lspconfig.lua_ls.setup({
@@ -74,6 +79,7 @@ return {
 		})
 
 		require("lspconfig").pyright.setup({})
+		-- require("lspconfig").jdtls.setup({})
 
 		-- Globally configure all LSP floating preview popups (like hover, signature help, etc)
 		-- local open_floating_preview = vim.lsp.util.open_floating_preview
