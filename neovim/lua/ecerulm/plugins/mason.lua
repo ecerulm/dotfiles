@@ -16,7 +16,7 @@ return {
         -- local server_name, version = Package.Parse(package_name)
       local package = registry.get_package(package_name)
       if not package:is_installed() then
-          to_install.insert(package_name)
+          table.insert(to_install, package_name)
       end
     end
     if next(to_install) then
