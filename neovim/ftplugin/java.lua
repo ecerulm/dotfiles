@@ -4,16 +4,15 @@ local config = {
   settings = {
     java = {
       configuration = {
-        runtimes = {
-          {
-            name = "JavaSE-21",
-            -- path = "/usr/local/opt/openjdk@21",
-            path = "/usr/local/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home"
-          },
-        },
+        -- runtimes = {
+        --   {
+        --     name = "JavaSE-21",
+        --     -- path = "/usr/local/opt/openjdk@21",
+        --     path = "/usr/local/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home"
+        --   },
+        -- },
       },
     },
   },
 }
-print(config.root_dir)
 require('jdtls').start_or_attach(config)
