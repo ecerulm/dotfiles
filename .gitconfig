@@ -145,10 +145,9 @@
 	email = ruben.laguna@tele2.com
 [include]
   path = ~/.gitconfig.thismachine
-[credential "https://github.com"]
-	username = ruben.laguna@gmail.com
 [credential]
-	helper = osxkeychain
+	; helper = osxkeychain
+	credentialStore = keychain
 	helper = /usr/local/share/gcm-core/git-credential-manager
 [interactive]
 	diffFilter = diff-so-fancy --patch
