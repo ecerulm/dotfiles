@@ -15,7 +15,7 @@ return {
 			enable = true,
 			disable = {},
 		},
-		indent = { enable = true, disable = {} },
+		indent = { enable = false, disable = {} }, -- this will set indentexpr=nvim_treesitter#indent()
 		auto_install = false,
 		sync_install = false,
 		ignore_install = {},

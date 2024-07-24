@@ -9,7 +9,8 @@ vim.opt.encoding = 'utf-8' -- Unicode,  fileencodings  set automatically to ucs-
 
 vim.wo.number = true
 vim.opt.title = true
-vim.opt.autoindent = true
+vim.opt.autoindent = true -- this may conflict with nvim-treesitter indentexpr thing, disable nvim-treesitter indent
+vim.opt.smartindent = true -- this may conflic with nvim-treesitter indentexpr thing, disable nvim-treesitter indent
 vim.opt.autoread = true
 vim.opt.hlsearch = true
 vim.opt.backup = false
@@ -26,7 +27,6 @@ vim.opt.smarttab = true
 vim.opt.breakindent = true
 vim.opt.shiftwidth = 2
 vim.opt.tabstop = 2
-vim.opt.smartindent = true
 vim.opt.wrap = false
 vim.opt.backspace = 'start,eol,indent'
 vim.opt.path:append { '**' }
