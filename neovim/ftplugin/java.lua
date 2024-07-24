@@ -4,13 +4,7 @@ local config = {
   settings = {
     java = {
       configuration = {
-        -- runtimes = {
-        --   {
-        --     name = "JavaSE-21",
-        --     -- path = "/usr/local/opt/openjdk@21",
-        --     path = "/usr/local/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home"
-        --   },
-        -- },
+        runtimes = THISMACHINESETTINGS.java_runtimes, -- from ~/.config/nvim/init.thismachine.lua
       },
     },
   },
