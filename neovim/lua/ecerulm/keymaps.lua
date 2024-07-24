@@ -244,28 +244,28 @@ vim.keymap.set("n", "<Leader>ds", function()
 	widgets.centered_float(widgets.scopes)
 end)
 
-
 ---
--- Keymaps for python tests 
+-- Keymaps for python tests
 
 keymap.set("n", "<leader>tc", function()
-  if vim.bo.filetype == "python" then
-    require('dap-python').test_class() -- dap-python comes from mfussenegger/nvim-dap-python
-  end
+	if vim.bo.filetype == "python" then
+		require("dap-python").test_class() -- dap-python comes from mfussenegger/nvim-dap-python
+	end
 end)
 
 keymap.set("n", "<leader>tm", function()
-  if vim.bo.filetype == "python" then
-    require('dap-python').test_method() -- dap-python comes from mfussenegger/nvim-dap-python
-  end
+	if vim.bo.filetype == "python" then
+		require("dap-python").test_method() -- dap-python comes from mfussenegger/nvim-dap-python
+	end
 end)
 
-keymap.set("t", "<Esc>", "<C-\\><C-n>", {remap = false}) -- :tnoremap <esc> <c-\><c-n> exit terminal mode with <Esc>
-keymap.set("t", "<C-v><Esc>", "<Esc>", {remap = false}) -- exit terminal mode with <Esc>
-
-
+keymap.set("t", "<Esc>", "<C-\\><C-n>", { remap = false }) -- :tnoremap <esc> <c-\><c-n> exit terminal mode with <Esc>
+keymap.set("t", "<C-v><Esc>", "<Esc>", { remap = false }) -- exit terminal mode with <Esc>
 
 keymap.set("x", "p", '"_dp', { remap = false, silent = false }) -- do not mess with the clipboard during paste
 
-
-keymap.set('n', '<Leader>ca', vim.lsp.buf.code_action)
+-- keymap.set('n', '<Leader>ca', vim.lsp.buf.code_action)
+vim.keymap.set("n", "grn", vim.lsp.buf.rename, { desc = "vim.lsp.buf.rename()" })
+vim.keymap.set("n", "gra", vim.lsp.buf.code_action, { desc = "vim.lsp.buf.rename()" })
+vim.keymap.set("n", "grr", vim.lsp.buf.references, { desc = "vim.lsp.buf.rename()" })
+vim.keymap.set("i", "<C-s>", vim.lsp.buf.signature_help, { desc = "vim.lsp.buf.rename()" })
