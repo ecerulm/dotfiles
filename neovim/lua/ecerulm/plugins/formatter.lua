@@ -1,5 +1,5 @@
 return {
-  -- https://github.com/mhartington/formatter.nvim
+	-- https://github.com/mhartington/formatter.nvim
 	"mhartington/formatter.nvim",
 	enabled = true,
 	lazy = false,
@@ -31,7 +31,7 @@ return {
 					-- require("formatter.filetypes.go").gofumpt,
 					-- require("formatter.filetypes.go").golines,
 				},
-        java = require("formatter.filetypes.java").google_java_format, -- https://github.com/mhartington/formatter.nvim
+				java = require("formatter.filetypes.java").google_java_format, -- https://github.com/mhartington/formatter.nvim
 
 				-- Use the special "*" filetype for defining formatter configurations on
 				-- any filetype
@@ -42,5 +42,15 @@ return {
 				},
 			},
 		})
+		-- now overwrite  format
+		--
+		OLD_FORMAT = require("formatter.format").format
+		require("formatter.format").format = function(args, mods, start_line, end_line, opts)
+			if vim.api.nvim_get_option_value("modified", { scope = "local" }) then
+				vim.api.nvim_err_writeln("Attempt to :Format an modified buffer, save first")
+				return false
+			end
+			return OLD_FORMAT(args, mods, start_line, end_line, opts)
+		end
 	end,
 }
