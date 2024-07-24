@@ -10,6 +10,7 @@ return {
 		-- https://github.com/nvim-lua/plenary.nvim
 		{ "nvim-lua/plenary.nvim" },
 		{ "nvim-telescope/telescope-fzf-native.nvim" },
+		{ "nvim-telescope/telescope-ui-select.nvim" },
 		{ "nvim-treesitter/nvim-treesitter" },
 	},
 	opts = {
@@ -41,6 +42,9 @@ return {
 				},
 			},
 			extensions = {
+				["ui-select"] = {
+					require("telescope.themes").get_dropdown({}),
+				},
 				-- removed file_browser because you are using nvim-tree
 				-- file_browser = {
 				-- 	theme = "dropdown",
@@ -64,5 +68,6 @@ return {
 			},
 		})
 		-- require('telescope').load_extension("file_browser") -- removed because you are using nvim-tree
+		require("telescope").load_extension("ui-select")
 	end,
 }

@@ -264,4 +264,8 @@ keymap.set("t", "<Esc>", "<C-\\><C-n>", {remap = false}) -- :tnoremap <esc> <c-\
 keymap.set("t", "<C-v><Esc>", "<Esc>", {remap = false}) -- exit terminal mode with <Esc>
 
 
+
 keymap.set("x", "p", '"_dp', { remap = false, silent = false }) -- do not mess with the clipboard during paste
+
+
+keymap.set('n', '<Leader>ca', vim.lsp.buf.code_action)
