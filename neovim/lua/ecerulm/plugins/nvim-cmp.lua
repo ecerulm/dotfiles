@@ -140,7 +140,7 @@ return {
 				{ name = "buffer", group_index = 10, max_item_count = 5 }, -- text within current buffer
 				{ name = "path", group_index = 10, max_item_count = 5 }, -- file system paths
 				{ name = "copilot", group_index = 10, max_item_count = 5 }, -- from zbirenbaum/copilot-cmp
-				{ name = "codeium", group_index = 10, max_item_count = 5 }, -- from Exafunction/codeium.nvim
+				{ name = "codeium", group_index = 30, max_item_count = 5 }, -- from Exafunction/codeium.nvim
 			}),
 			window = {
 				-- Add borders to completions popups
