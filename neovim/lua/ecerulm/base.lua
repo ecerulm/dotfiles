@@ -60,7 +60,10 @@ vim.api.nvim_create_autocmd("InsertLeave", {
 })
 
 -- Add asterisk in block comments
-vim.opt.formatoptions:append { 'r' }
+-- vim.opt.formatoptions:append { 'r' }
+
+-- Prevent vim from adding comment leader on pressing enter in insert mode or 'o' in normalmode
+vim.opt.formatoptions:remove{'c','r','o'} -- this will be overwritten by system ftplugin/java.vim for example
 
 -- :h restore-cursor
 -- :h last-position-jump
