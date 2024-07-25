@@ -70,7 +70,6 @@ return {
 	},
 	config = function(_, opts)
 		require("kanagawa").setup(opts) -- Replace this with your favorite colorscheme
-		vim.cmd("colorscheme kanagawa") -- Replace this with your favorite colorscheme
 
 		-- Custom diff colors
 		vim.cmd([[
@@ -84,7 +83,22 @@ return {
 		vim.cmd([[
       autocmd ColorScheme * hi NormalFloat guifg=#F9E7C0 guibg=#1F1F1F
       autocmd ColorScheme * hi FloatBorder guifg=#F9E7C0 guibg=#1F1F1F
+
     ]])
+
+		vim.api.nvim_create_autocmd("ColorScheme", {
+			callback = function()
+				-- ns_id 0 means highlight group globally
+				vim.api.nvim_set_hl(0, "@lsp.type.parameter", { fg = "Purple" }) -- ns_id 0 means globally
+				vim.api.nvim_set_hl(0, "@lsp.mod.readonly", { italic = true, bold = true })
+				vim.api.nvim_set_hl(0, "@lsp.type.function", { fg = "Yellow" })
+				vim.api.nvim_set_hl(0, "@lsp.mod.deprecated", { strikethrough = true })
+				vim.api.nvim_set_hl(0, "@lsp.typemod.function.async", { fg = "Blue" })
+			end,
+		})
+
+		-- we need to set the colorscheme AFTER the autocmd ColorScheme
+		vim.cmd("colorscheme kanagawa") -- Replace this with your favorite colorscheme
 	end,
 }
 
