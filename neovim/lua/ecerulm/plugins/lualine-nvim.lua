@@ -12,8 +12,13 @@ return {
 		-- https://github.com/linrongbin16/lsp-progress.nvim
 		"linrongbin16/lsp-progress.nvim", -- LSP loading progress
 	},
-	config = function()
-		require("lualine").setup({})
+	opts = { -- lazy.nvim will automatically call require("lualine").setup(opts)
+		options = {
+			theme = THISMACHINESETTINGS.colorscheme,
+		},
+	},
+	config = function(_, opts)
+		require("lualine").setup(opts)
 	end,
 	-- opts = {
 	-- 	options = {

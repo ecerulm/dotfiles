@@ -16,5 +16,6 @@ return {
 	},
 	opts = { -- lazy.nvim will call require("barbecue").setup(opts)
 		-- configurations go here
+    theme = THISMACHINESETTINGS.colorscheme
 	},
 }
