@@ -216,3 +216,7 @@ fi
 export GPG_TTY=$TTY
 
 path+=(~/go/bin)
+# path+=~/.local/bin # this puts ~/.local/bin the last 
+# path=("$HOME/.local/bin" $path) # put ~/.local/bin at the beginning
+path=(~/.local/bin $path) # put ~/.local/bin at the beginning
+export PATH
