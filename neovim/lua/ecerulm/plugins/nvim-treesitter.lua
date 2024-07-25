@@ -3,6 +3,7 @@ return {
 	-- https://github.com/nvim-treesitter/nvim-treesitter
 	"nvim-treesitter/nvim-treesitter",
 	enabled = true,
+  cond = false,
 	lazy = false,
 	event = "VeryLazy",
 	dependencies = {
@@ -95,12 +96,12 @@ return {
 			},
 		},
 		incremental_selection = {
-			enable = true,
+			enable = false, -- this conflic with neovim LSP grn, gra, grr
 			keymaps = {
-				init_selection = "gnn",
-				node_incremental = "grn",
-				scope_incremental = "grc",
-				node_decremental = "grm",
+				-- init_selection = "gnn", -- these conflict with neovim LSP grn , gra, grr
+				-- node_incremental = "grn",
+				-- scope_incremental = "grc",
+				-- node_decremental = "grm",
 			},
 		},
 	},
