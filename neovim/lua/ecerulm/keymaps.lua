@@ -168,6 +168,8 @@ local opts = { noremap = true, silent = true }
 -- keymap.set("n", "<leader>ts", "<cmd>Telescope lsp_dynamic_workspace_symbols<cr>", { noremap = true, silent = true })
 keymap.set("n", "<leader>ts", require("telescope.builtin").lsp_dynamic_workspace_symbols, opts)
 keymap.set("n", "<leader>td", require("telescope.builtin").lsp_document_symbols, opts)
+keymap.set("n", "<leader>lm", function() require("telescope.builtin").lsp_document_symbols({symbols={"method"}}) end, opts)
+
 
 vim.keymap.set(
 	"n",
