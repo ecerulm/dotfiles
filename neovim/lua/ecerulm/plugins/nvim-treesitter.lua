@@ -3,7 +3,7 @@ return {
 	-- https://github.com/nvim-treesitter/nvim-treesitter
 	"nvim-treesitter/nvim-treesitter",
 	enabled = true,
-  cond = true,
+	cond = true,
 	lazy = false,
 	event = "VeryLazy",
 	dependencies = {
@@ -16,7 +16,10 @@ return {
 			enable = true,
 			disable = {},
 		},
-		indent = { enable = false, disable = {} }, -- this will set indentexpr=nvim_treesitter#indent()
+		-- treesitter indentation is EXPERIMENTAL
+		-- setting indent.enable will change indentexpr=nvim_treesitter#indent()
+		-- https://github.com/nvim-treesitter/nvim-treesitter?tab=readme-ov-file#indentation
+		indent = { enable = false },
 		auto_install = false,
 		sync_install = false,
 		ignore_install = {},
