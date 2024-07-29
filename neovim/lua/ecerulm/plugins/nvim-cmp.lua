@@ -136,7 +136,8 @@ return {
 				{ name = "luasnip", group_index = 1, max_item_count = 5 }, -- snippets
 				{ name = "buffer", group_index = 10, max_item_count = 5 }, -- text within current buffer
 				{ name = "path", group_index = 10, max_item_count = 5 }, -- file system paths
-				{ name = "copilot", group_index = 10, max_item_count = 5 }, -- from zbirenbaum/copilot-cmp
+				{ name = "copilot", group_index = 30, max_item_count = 5 }, -- from zbirenbaum/copilot-cmp
+				{ name = "Copilot", group_index = 30, max_item_count = 5 }, -- 
 				{ name = "codeium", group_index = 30, max_item_count = 5 }, -- from Exafunction/codeium.nvim
 			}),
 			window = {
