@@ -5,6 +5,7 @@ local config = {
     java = {
       configuration = {
         runtimes = THISMACHINESETTINGS.java_runtimes, -- from ~/.config/nvim/init.thismachine.lua
+        -- echo $(brew --prefix openjdk@21)/libexec/openjdk.jdk/Contents/Home
       },
     },
   },

@@ -91,9 +91,6 @@ return {
 				["<C-f>"] = cmp.mapping.scroll_docs(4), -- scroll forward
 				["<C-Space>"] = cmp.mapping.complete({
 					config = {
-						experimental = {
-							ghost_text = true,
-						},
 						sources = {
 							{ name = "codeium" },
 						},
