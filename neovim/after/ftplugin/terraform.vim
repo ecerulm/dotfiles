@@ -9,3 +9,5 @@ let b:switch_custom_definitions = [
         \['128Gi', '256Gi', '384Gi'],
         \['4Gi', '8Gi', '12Gi', '16Gi', '32Gi'],
 \]
+
+set formatoptions-=ro

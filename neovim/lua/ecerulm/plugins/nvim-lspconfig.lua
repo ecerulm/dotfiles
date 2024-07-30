@@ -39,6 +39,7 @@ return {
 				-- 'yamlls', -- requires npm to be installed
 				"rust_analyzer",
 				"pyright", --
+        "terraformls",
 				"jdtls", -- java language server LSP
 			},
 		})
@@ -79,7 +80,10 @@ return {
 		})
 
 		require("lspconfig").pyright.setup({})
-		-- require("lspconfig").jdtls.setup({})
+		require("lspconfig").terraformls.setup({})
+
+
+		-- require("lspconfig").jdtls.setup({}) -- we moved the loading of to the ~/.config/nvim/ftplugin/java.lua
 
 		-- Globally configure all LSP floating preview popups (like hover, signature help, etc)
 		-- local open_floating_preview = vim.lsp.util.open_floating_preview
