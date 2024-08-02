@@ -10,7 +10,7 @@ git ls-files | \
   #     echo "$file"
   #   fi
   # done | \
-  ctags --links=no --tag-relative -L - -f"$dir/$$.tags" --languages=-javascript,sql
+  ctags --links=no --tag-relative -L - -f"$dir/$$.tags" --languages=-javascript,sql --fields=+zK
 # -L - read filenames from stdin
 # -f  output file
 # --languages=-javascript don't generate tags for javascript or sql
