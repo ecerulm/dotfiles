@@ -1,16 +1,15 @@
 function file_exists(name)
-   local f = io.open(name, "r")
-   return f ~= nil
+	local f = io.open(name, "r")
+	return f ~= nil
 end
 
 THISMACHINESETTINGS = {
-  github_copilot_enabled=false, -- enables github/copilot
-  zbirenbaum_copilot_enabled=false, -- enables zbirenbaum/copilot
-  codeium_vim_enabled=false,
-  codeium_nvim_enabled=false,
-  colorscheme = "tokyonight",
+	github_copilot_enabled = false, -- enables github/copilot
+	zbirenbaum_copilot_enabled = false, -- enables zbirenbaum/copilot
+	codeium_vim_enabled = false,
+	codeium_nvim_enabled = false,
+	colorscheme = "tokyonight",
 }
-
 
 local function source_file_if_exists(file_path)
 	local file = io.open(file_path, "r")
@@ -21,8 +20,6 @@ local function source_file_if_exists(file_path)
 end
 
 source_file_if_exists(vim.fn.stdpath("config") .. "/init.thismachine.lua")
-
-
 
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
 if not vim.loop.fs_stat(lazypath) then
@@ -40,9 +37,12 @@ vim.opt.rtp:prepend(lazypath)
 
 require("lazy").setup("ecerulm.plugins", {
 	-- https://github.com/folke/lazy.nvim
+	dev = {
+		path = "~/git",
+	},
 	change_detection = {
 		enabled = true, -- automatically check for config file changes and reload the ui
-		notify = false, -- turn off notifications whenever plugin changes are made
+		notify = true, -- turn off notifications whenever plugin changes are made
 	},
 })
 
@@ -83,9 +83,8 @@ end
 -- })
 --
 
-
 vim.filetype.add({
-  extension = {
-    tf = "terraform"
-  }
+	extension = {
+		tf = "terraform",
+	},
 })
