@@ -169,9 +169,10 @@ local opts = { noremap = true, silent = true }
 keymap.set("n", "<leader>ts", require("telescope.builtin").lsp_dynamic_workspace_symbols, opts)
 keymap.set("n", "<leader>td", require("telescope.builtin").lsp_document_symbols, opts)
 keymap.set("n", "<leader>ls", require("telescope.builtin").lsp_document_symbols, opts)
-keymap.set("n", "<leader>lm", function() require("telescope.builtin").lsp_document_symbols({symbols={"method", "function"}}) end, opts)
+keymap.set("n", "<leader>lm", function()
+	require("telescope.builtin").lsp_document_symbols({ symbols = { "method", "function" } })
+end, opts)
 keymap.set("n", "<leader>lds", require("telescope.builtin").lsp_dynamic_workspace_symbols, opts)
-
 
 vim.keymap.set(
 	"n",
@@ -185,6 +186,11 @@ vim.keymap.set("n", ";t", '<cmd>lua require("telescope.builtin").help_tags()<cr>
 vim.keymap.set("n", ";;", '<cmd>lua require("telescope.builtin").resume()<cr>', opts)
 vim.keymap.set("n", ";e", '<cmd>lua require("telescope.builtin").diagnostics()<cr>', opts)
 vim.keymap.set("n", ";m", require("telescope.builtin").marks, opts)
+vim.keymap.set("n", ";c", function()
+	require("telescope.builtin").tags({ only_sort_tags = true, show_line = false, path_display = {"filename_first"} })
+end, opts)
+
+-- options for path_display are "hidden", "tail", "absolute", "smart", "shorten", "truncate", "filename_first", see :h telescope.defaults.path_display
 
 vim.keymap.set(
 	"n",
