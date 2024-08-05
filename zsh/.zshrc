@@ -220,3 +220,5 @@ path+=(~/go/bin)
 # path=("$HOME/.local/bin" $path) # put ~/.local/bin at the beginning
 path=(~/.local/bin $path) # put ~/.local/bin at the beginning
 export PATH
+
+alias ctags="ctags -R --fields=+zK"
