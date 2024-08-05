@@ -44,6 +44,8 @@ return {
 						["<esc>"] = actions.close,
 					},
 				},
+				-- :h telescope.defaults.path_display
+				path_display = { "filename_first" },
 			},
 			extensions = {
 				["ui-select"] = {
