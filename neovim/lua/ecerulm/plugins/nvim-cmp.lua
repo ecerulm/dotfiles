@@ -84,7 +84,7 @@ return {
 				--   - Only work in combination with menu or menuone
 				--   - Overrides preview
 			},
-			mapping = cmp.mapping.preset.insert({
+			mapping = cmp.mapping.preset.insert({ -- keymaps / keymapping
 				["<C-j>"] = cmp.mapping.select_next_item(), -- next suggestion
 				["<C-k>"] = cmp.mapping.select_prev_item(), -- previous suggestion
 				["<C-b>"] = cmp.mapping.scroll_docs(-4), -- scroll backward
@@ -134,10 +134,23 @@ return {
 			sources = cmp.config.sources({
 				{ name = "nvim_lsp", group_index = 20, max_item_count = 5 }, -- lsp
 				{ name = "luasnip", group_index = 1, max_item_count = 5 }, -- snippets
-				{ name = "buffer", group_index = 10, max_item_count = 5 }, -- text within current buffer
+				{
+					name = "buffer",
+					group_index = 10,
+					max_item_count = 5,
+					option = {
+						get_bufnrs = function()
+							local bufs = {}
+							for _, win in ipairs(vim.api.nvim_list_wins()) do
+								bufs[vim.api.nvim_win_get_buf(win)] = true
+							end
+							return vim.tbl_keys(bufs)
+						end,
+					},
+				}, -- text within current buffer
 				{ name = "path", group_index = 10, max_item_count = 5 }, -- file system paths
 				{ name = "copilot", group_index = 30, max_item_count = 5 }, -- from zbirenbaum/copilot-cmp
-				{ name = "Copilot", group_index = 30, max_item_count = 5 }, -- 
+				{ name = "Copilot", group_index = 30, max_item_count = 5 }, --
 				{ name = "codeium", group_index = 30, max_item_count = 5 }, -- from Exafunction/codeium.nvim
 			}),
 			window = {
