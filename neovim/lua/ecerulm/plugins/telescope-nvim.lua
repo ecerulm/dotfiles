@@ -2,7 +2,7 @@
 return {
 	-- https://github.com/nvim-telescope/telescope.nvim
 	"nvim-telescope/telescope.nvim",
-	dev = true, -- if ~/git/telescope.nvim exists will use that
+	dev = vim.fn.isdirectory(vim.fn.expand("~/git/telescope.nvim")), -- if ~/git/telescope.nvim exists will use that
 	enabled = true,
 	lazy = false,
 	cmd = "Telescope",

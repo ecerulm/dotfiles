@@ -188,9 +188,8 @@ vim.keymap.set("n", ";e", '<cmd>lua require("telescope.builtin").diagnostics()<c
 vim.keymap.set("n", ";m", require("telescope.builtin").marks, opts)
 vim.keymap.set("n", ";c", function()
 	require("telescope.builtin").tags({ only_sort_tags = true, show_line = false, path_display = {"filename_first"} })
+  -- options for path_display are "hidden", "tail", "absolute", "smart", "shorten", "truncate", "filename_first", see :h telescope.defaults.path_display
 end, opts)
-
--- options for path_display are "hidden", "tail", "absolute", "smart", "shorten", "truncate", "filename_first", see :h telescope.defaults.path_display
 
 vim.keymap.set(
 	"n",
