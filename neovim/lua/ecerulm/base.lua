@@ -113,3 +113,5 @@ vim.opt.listchars={
   precedes = '⟨',
 }
 
+
+vim.opt.tags={'./tags', 'tags'}
