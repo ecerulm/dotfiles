@@ -3,6 +3,7 @@ function file_exists(name)
 	return f ~= nil
 end
 
+
 THISMACHINESETTINGS = {
 	github_copilot_enabled = false, -- enables github/copilot
 	zbirenbaum_copilot_enabled = false, -- enables zbirenbaum/copilot
