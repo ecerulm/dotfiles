@@ -59,6 +59,6 @@ symbol_map U+23FB-U+23FE,U+2665,U+26A1,U+2B58,U+E000-U+E00A,U+E0A0-U+E0A3,U+E0B0
 
 
 # BEGIN_KITTY_THEME
-# Default
+# Tokyo Night
 include current-theme.conf
 # END_KITTY_THEME
