@@ -11,5 +11,6 @@ return {
 		"nvim-treesitter/nvim-treesitter",
 	},
   opts={
+    mode = "cursor",
   },
 }
