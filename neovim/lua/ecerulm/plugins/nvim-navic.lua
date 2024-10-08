@@ -19,5 +19,8 @@ return {
 		require("lspconfig").jsonls.setup({ -- https://github.com/neovim/nvim-lspconfig/blob/master/lua/lspconfig/configs/jsonls.lua
 			on_attach = on_attach, -- :LspInstall jsonls
 		})
+		-- require("lspconfig").ansiblels.setup({ -- https://github.com/neovim/nvim-lspconfig/blob/master/lua/lspconfig/configs/jsonls.lua
+		-- 	on_attach = on_attach, -- :LspInstall jsonls
+		-- })
 	end,
 }

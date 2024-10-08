@@ -6,12 +6,13 @@ return {
 	dependencies = {
 		"williamboman/mason.nvim",
 	},
-  opts={
-    ensure_installed={
-      "jsonls", -- :LspInstall jsonls
-      "clangd", -- :LspInstall clangd
-
-    },
-    automatic_installation = true,
-  }
+	opts = {
+		ensure_installed = { -- LSP servers
+			"jsonls", -- :LspInstall jsonls
+			"clangd", -- :LspInstall clangd
+			"lua_ls",
+			"ansiblels",
+		},
+		automatic_installation = false,
+	},
 }
