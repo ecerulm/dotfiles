@@ -11,5 +11,7 @@ return {
 		-- https://github.com/nvim-treesitter/nvim-treesitter-textobjects
 		"nvim-treesitter/nvim-treesitter",
 	},
-	opts = {},
+	opts = {
+		mode = "cursor",
+	},
 }
