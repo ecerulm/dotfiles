@@ -2,11 +2,12 @@
 return {
 	-- https://github.com/nvim-telescope/telescope.nvim
 	"nvim-telescope/telescope.nvim",
-	dev = vim.fn.isdirectory(vim.fn.expand("~/git/telescope.nvim")), -- if ~/git/telescope.nvim exists will use that
+	-- dev = vim.fn.isdirectory(vim.fn.expand("~/git/telescope.nvim")), -- if ~/git/telescope.nvim exists will use that
+  -- dev = true,
 	enabled = true,
 	lazy = false,
 	cmd = "Telescope",
-	branch = "0.1.x",
+	-- branch = "0.1.x",
 	dependencies = {
 		-- https://github.com/nvim-lua/plenary.nvim
 		{ "nvim-lua/plenary.nvim" },
