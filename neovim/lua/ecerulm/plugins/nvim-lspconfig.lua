@@ -41,6 +41,7 @@ return {
 				"pyright", --
         "terraformls",
 				"jdtls", -- java language server LSP
+        "gopls",
 			},
 		})
 
@@ -81,6 +82,7 @@ return {
 
 		require("lspconfig").pyright.setup({})
 		require("lspconfig").terraformls.setup({})
+    require("lspconfig").gopls.setup({})
 
 
 		-- require("lspconfig").jdtls.setup({}) -- we moved the loading of to the ~/.config/nvim/ftplugin/java.lua

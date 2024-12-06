@@ -174,6 +174,9 @@ keymap.set("n", "<leader>lm", function()
 end, opts)
 keymap.set("n", "<leader>lds", require("telescope.builtin").lsp_dynamic_workspace_symbols, opts)
 
+-- telescope ctags builtin picker https://github.com/nvim-telescope/telescope.nvim?tab=readme-ov-file#pickers
+keymap.set("n", "<leader>ct", require("telescope.builtin").tags, opts)
+
 vim.keymap.set(
 	"n",
 	";f",
