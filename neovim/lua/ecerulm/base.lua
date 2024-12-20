@@ -35,6 +35,10 @@ vim.opt.smartcase = true -- ignore case if regex in lowercase, othewise case sen
 vim.opt.grepprg='rg --vimgrep --no-heading --smart-case' -- see Practical Vim Chapter 18
 vim.opt.list = false
 
+if vim.fn.exists("&messagesopt") == 1 then -- NVIM 0.10.2 does NOT have this option
+vim.opt.messagesopt='wait:2000,history:50' -- :h 'messagesopt' -- the default is 'hit-enter;history:500'
+end
+
 -- undercurl (it doesn't work on iTerm2
 vim.cmd([[let &t_Cs = "\e[4:3m"]])
 vim.cmd([[let &t_Ce = "\e[4:0m"]])
