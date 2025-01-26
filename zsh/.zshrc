@@ -186,9 +186,9 @@ if builtin command -v eza >/dev/null ;then
   alias ls="eza -l --git --icons --time-style long-iso -snew"
 fi
 
-if builtin command -v bat >/dev/null ;then
-  alias cat=bat
-fi
+# if builtin command -v bat >/dev/null ;then
+#   alias cat=bat
+# fi
 
 if builtin command -v zoxide >/dev/null ;then
   eval "$(zoxide init zsh)"
