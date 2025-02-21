@@ -222,3 +222,4 @@ path=(~/.local/bin $path) # put ~/.local/bin at the beginning
 export PATH
 
 alias ctags="ctags -R --fields=+zK"
+export LC_ALL="en_US.utf-8"
