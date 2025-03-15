@@ -120,5 +120,16 @@ vim.opt.listchars={
 
 
 vim.opt.tags={'./tags', 'tags'}
+vim.opt.signcolumn = 'yes'
 
 vim.cmd [[colorscheme tokyonight-night]]
+
+
+vim.diagnostic.config({
+  signs = true,
+  virtual_text = true,
+  float = {
+    border = 'rounded',
+  },
+})
+
