@@ -149,10 +149,10 @@ keymap.set("n", "<leader>gp", "<cmd>lua vim.diagnostic.goto_prev()<CR>")
 keymap.set("n", "<leader>gn", "<cmd>lua vim.diagnostic.goto_next()<CR>")
 keymap.set("n", "<leader>tr", "<cmd>lua vim.lsp.buf.document_symbol()<CR>")
 -- keymap.set('n', '<Leader>ca', vim.lsp.buf.code_action)
-vim.keymap.set("n", "grn", vim.lsp.buf.rename, { desc = "vim.lsp.buf.rename()" })
-vim.keymap.set("n", "gra", vim.lsp.buf.code_action, { desc = "vim.lsp.buf.code_action()" })
-vim.keymap.set("n", "grr", vim.lsp.buf.references, { desc = "vim.lsp.buf.references()" })
--- vim.keymap.set("i", "<C-s>", vim.lsp.buf.signature_help, { desc = "vim.lsp.buf.signature_help()" }) -- c-space , c-s
+-- vim.keymap.set("n", "grn", vim.lsp.buf.rename, { desc = "vim.lsp.buf.rename()" }) -- this are already on NVIM 0.11
+-- vim.keymap.set("n", "gra", vim.lsp.buf.code_action, { desc = "vim.lsp.buf.code_action()" }) -- this are already on NVIM 0.11
+-- vim.keymap.set("n", "grr", vim.lsp.buf.references, { desc = "vim.lsp.buf.references()" }) -- this are already on NVIM 0.11
+-- vim.keymap.set("i", "<C-s>", vim.lsp.buf.signature_help, { desc = "vim.lsp.buf.signature_help()" }) --  control-s  (the letter s) not control-space this is the default already on NVIM 0.11
 -- vim.keymap.set("i", "<C-Space>", "<cmd>lua vim.lsp.buf.completion()<CR>") -- c-space, c-s
 -- vim.keymap.set("i", "<C-Space>", vim.lsp.completion.trigger, { desc = "lsp completion"})
 
