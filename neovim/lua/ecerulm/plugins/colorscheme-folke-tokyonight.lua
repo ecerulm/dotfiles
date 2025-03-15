@@ -1,7 +1,7 @@
 return {
 	"folke/tokyonight.nvim",
 	enabled = true,
-	cond = THISMACHINESETTINGS.colorscheme == "tokyonight",
+	-- cond = THISMACHINESETTINGS.colorscheme == "tokyonight",
 	lazy = false,
 	priority = 1000,
 	opts = {},

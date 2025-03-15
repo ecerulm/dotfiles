@@ -278,6 +278,6 @@ keymap.set("x", "p", '"_dp', { remap = false, silent = false }) -- do not mess w
 
 -- keymap.set('n', '<Leader>ca', vim.lsp.buf.code_action)
 vim.keymap.set("n", "grn", vim.lsp.buf.rename, { desc = "vim.lsp.buf.rename()" })
-vim.keymap.set("n", "gra", vim.lsp.buf.code_action, { desc = "vim.lsp.buf.rename()" })
-vim.keymap.set("n", "grr", vim.lsp.buf.references, { desc = "vim.lsp.buf.rename()" })
-vim.keymap.set("i", "<C-s>", vim.lsp.buf.signature_help, { desc = "vim.lsp.buf.rename()" })
+vim.keymap.set("n", "gra", vim.lsp.buf.code_action, { desc = "vim.lsp.buf.code_action()" })
+vim.keymap.set("n", "grr", vim.lsp.buf.references, { desc = "vim.lsp.buf.references()" })
+vim.keymap.set("i", "<C-s>", vim.lsp.buf.signature_help, { desc = "vim.lsp.buf.signature_help()" })
