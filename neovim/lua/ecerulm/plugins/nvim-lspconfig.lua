@@ -39,9 +39,9 @@ return {
 				-- 'yamlls', -- requires npm to be installed
 				"rust_analyzer",
 				"pyright", --
-        "terraformls",
+				"terraformls",
 				"jdtls", -- java language server LSP
-        "gopls",
+				"gopls",
 			},
 		})
 
@@ -82,8 +82,10 @@ return {
 
 		require("lspconfig").pyright.setup({})
 		require("lspconfig").terraformls.setup({})
-    require("lspconfig").gopls.setup({})
+		require("lspconfig").gopls.setup({})
 
+		-- https://github.com/neovim/nvim-lspconfig/blob/master/doc/configs.md
+		-- require("jdtls").jdtls.setup({}) -- https://github.com/neovim/nvim-lspconfig/blob/master/lua/lspconfig/configs/jdtls.lua
 
 		-- require("lspconfig").jdtls.setup({}) -- we moved the loading of to the ~/.config/nvim/ftplugin/java.lua
 

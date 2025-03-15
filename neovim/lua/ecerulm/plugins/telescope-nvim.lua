@@ -76,6 +76,6 @@ return {
 			},
 		})
 		-- require('telescope').load_extension("file_browser") -- removed because you are using nvim-tree
-		require("telescope").load_extension("ui-select")
+		-- require("telescope").load_extension("ui-select")
 	end,
 }
