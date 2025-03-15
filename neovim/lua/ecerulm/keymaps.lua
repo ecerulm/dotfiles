@@ -148,7 +148,13 @@ keymap.set("n", "<leader>gl", "<cmd>lua vim.diagnostic.open_float()<CR>")
 keymap.set("n", "<leader>gp", "<cmd>lua vim.diagnostic.goto_prev()<CR>")
 keymap.set("n", "<leader>gn", "<cmd>lua vim.diagnostic.goto_next()<CR>")
 keymap.set("n", "<leader>tr", "<cmd>lua vim.lsp.buf.document_symbol()<CR>")
-keymap.set("i", "<C-Space>", "<cmd>lua vim.lsp.buf.completion()<CR>")
+-- keymap.set('n', '<Leader>ca', vim.lsp.buf.code_action)
+vim.keymap.set("n", "grn", vim.lsp.buf.rename, { desc = "vim.lsp.buf.rename()" })
+vim.keymap.set("n", "gra", vim.lsp.buf.code_action, { desc = "vim.lsp.buf.code_action()" })
+vim.keymap.set("n", "grr", vim.lsp.buf.references, { desc = "vim.lsp.buf.references()" })
+-- vim.keymap.set("i", "<C-s>", vim.lsp.buf.signature_help, { desc = "vim.lsp.buf.signature_help()" }) -- c-space , c-s
+-- vim.keymap.set("i", "<C-Space>", "<cmd>lua vim.lsp.buf.completion()<CR>") -- c-space, c-s
+-- vim.keymap.set("i", "<C-Space>", vim.lsp.completion.trigger, { desc = "lsp completion"})
 
 -- vim-fugitive
 
@@ -278,8 +284,3 @@ keymap.set("t", "<C-v><Esc>", "<Esc>", { remap = false }) -- exit terminal mode 
 vim.api.nvim_set_keymap('x', 'p', '"_dP', {noremap = true, silent = true}) -- delete visual selection into blackhole register "_ , then paste
 vim.api.nvim_set_keymap('x', 'P', '"_dp', {noremap = true, silent = true}) -- delete visual selection into blackhole register "_ , then paste
 
--- keymap.set('n', '<Leader>ca', vim.lsp.buf.code_action)
-vim.keymap.set("n", "grn", vim.lsp.buf.rename, { desc = "vim.lsp.buf.rename()" })
-vim.keymap.set("n", "gra", vim.lsp.buf.code_action, { desc = "vim.lsp.buf.code_action()" })
-vim.keymap.set("n", "grr", vim.lsp.buf.references, { desc = "vim.lsp.buf.references()" })
-vim.keymap.set("i", "<C-s>", vim.lsp.buf.signature_help, { desc = "vim.lsp.buf.signature_help()" })
