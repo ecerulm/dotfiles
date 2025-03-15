@@ -120,3 +120,5 @@ vim.opt.listchars={
 
 
 vim.opt.tags={'./tags', 'tags'}
+
+vim.cmd [[colorscheme tokyonight-night]]

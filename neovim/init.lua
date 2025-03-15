@@ -9,7 +9,7 @@ THISMACHINESETTINGS = {
 	zbirenbaum_copilot_enabled = false, -- enables zbirenbaum/copilot
 	codeium_vim_enabled = false,
 	codeium_nvim_enabled = false,
-	colorscheme = "tokyonight",
+	colorscheme = "tokyonight-night", -- darker
 }
 
 local function source_file_if_exists(file_path)
