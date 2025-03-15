@@ -15,7 +15,7 @@ export ZSH="$HOME/.oh-my-zsh"
 # load a random theme each time oh-my-zsh is loaded, in which case,
 # to know which specific one was loaded, run: echo $RANDOM_THEME
 # See https://github.com/ohmyzsh/ohmyzsh/wiki/Themes
-ZSH_THEME="robbyrussell"
+# ZSH_THEME="robbyrussell"
 ZSH_THEME="powerlevel10k/powerlevel10k"
 
 # Set list of themes to pick from when loading at random
@@ -216,10 +216,16 @@ fi
 export GPG_TTY=$TTY
 
 path+=(~/go/bin)
-# path+=~/.local/bin # this puts ~/.local/bin the last 
 # path=("$HOME/.local/bin" $path) # put ~/.local/bin at the beginning
 path=(~/.local/bin $path) # put ~/.local/bin at the beginning
+# path+=~/.local/bin # this puts ~/.local/bin the last 
+path+=/usr/local/bin # add it to the end
+# path+=$HOME/Library/Application\ Support/Coursier/bin/
+path+=~/Library/Application\ Support/Coursier/bin/
 export PATH
 
 alias ctags="ctags -R --fields=+zK"
 export LC_ALL="en_US.utf-8"
+
+#THIS MUST BE AT THE END OF THE FILE FOR SDKMAN TO WORK!!!
+[[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]] && source "$HOME/.sdkman/bin/sdkman-init.sh"
