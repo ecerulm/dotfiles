@@ -26,8 +26,8 @@ keymap.set("n", "sv", ":vsplit<Return><C-w>w")
 
 -- Switch between  windows/splits / cycle window split
 keymap.set("n", "<Space>", "<C-w>w") -- nnoremap <Space> <C-w>w -- cycle window direction below/right
-keymap.set("n", "<Tab>", "<C-w>w") -- nnoremap <Tab> <C-w>w  -- cycle window direction below/right
-keymap.set("n", "<bs>", "<C-w>W") -- nnoremap <bs> <C-w>W -- cycle windows direction above/left
+keymap.set("n", "<Tab>", "<C-w>w")   -- nnoremap <Tab> <C-w>w  -- cycle window direction below/right
+keymap.set("n", "<bs>", "<C-w>W")    -- nnoremap <bs> <C-w>W -- cycle windows direction above/left
 
 keymap.set("n", "sh", "<C-w>h")
 keymap.set("n", "sk", "<C-w>k")
@@ -51,13 +51,11 @@ keymap.set("v", "<S-Tab>", "<gv")
 
 -- textobjects :help text-objects :help motion
 keymap.set("x", "ae", ":<c-u>normal! ggVG<cr>", { remap = false, silent = true }) -- visual mode "ae" entire file
-keymap.set("o", "ae", ":<c-u>normal Vae<cr>", { remap = true, silent = false }) -- ae entire file
+keymap.set("o", "ae", ":<c-u>normal Vae<cr>", { remap = true, silent = false })   -- ae entire file
 
 -- keymap.set('n', '<Enter>', ':nohlsearch<cr>', {}) -- clear search results , do not remap <Enter> because <Enter> is used for other things like in :h cmdwin
 keymap.set("n", "<c-l>", ":nohlsearch<cr><c-l>", { remap = false })
 
--- formatting a file
-keymap.set("n", "<Leader>lf", ":lua vim.lsp.buf.formatting()<cr>", { remap = false, silent = true })
 
 -- uppercase with <c-u>
 -- keymap.set('i', '<C-u>', '<Esc>viW~Ea', { remap = false }) -- W and E: spaces separate words, punctuation does not
@@ -133,7 +131,39 @@ keymap.set("x", "ga", "<Plug>(EasyAlign)")
 keymap.set("n", "ga", "<Plug>(EasyAlign)")
 
 -- LSP
-keymap.set("n", "<leader>gg", "<cmd>lua vim.lsp.buf.hover()<CR>")
+
+-- NVIM include some default keymappings :help lsp-defaults
+-- grn    -> vim.lsp.buf.rename()
+-- gra    -> vim.lsp.buf.code_action()
+-- grr    -> vim.lsp.buf.references()
+-- gri    -> vim.lsp.buf.implementation()
+-- gO     -> vim.lsp.buf.document_symbol()
+-- CTRL-S -> vim.lsp.buf.signature_help()
+
+
+-- This should be set only on LspAttach
+-- from :help lsp-default-disable
+-- :help LspAttach
+-- :help lsp-config
+vim.api.nvim_create_autocmd('LspAttach', {
+  callback = function(args)
+    local client = vim.lsp.get_client_by_id(args.data.client_id)
+    -- print("client_id", args.data.client_id)
+    -- print("LspAttach", client.name)
+    -- print("buffer", args.buf)
+    -- print("support for textDocument/hover", client:supports_method(vim.lsp.protocol.Methods.textDocument_hover))
+    if client:supports_method(vim.lsp.protocol.Methods.textDocument_hover) then
+      -- it seems that this never true, not for copilot not for jdtls
+      -- jdtls uses dynamic registration / registerCapability so you can't check for that on LspAttach
+      keymap.set("n", "K", function() vim.lsp.buf.hover({ border = 'rounded' }) end,
+        { desc = "show documentation", buffer = args.buf })
+    end
+  end,
+})
+
+--
+-- keymap.set("n", "<leader>gg", "<cmd>lua vim.lsp.buf.hover()<CR>")
+keymap.set("n", "<leader>gg", function() vim.lsp.buf.hover({ border = 'rounded' }) end, { remap = false })
 keymap.set("n", "<leader>gd", "<cmd>lua vim.lsp.buf.definition()<CR>")
 keymap.set("n", "<leader>gD", "<cmd>lua vim.lsp.buf.declaration()<CR>")
 keymap.set("n", "<leader>gi", "<cmd>lua vim.lsp.buf.implementation()<CR>")
@@ -143,6 +173,7 @@ keymap.set("n", "<leader>gs", "<cmd>lua vim.lsp.buf.signature_help()<CR>")
 keymap.set("n", "<leader>rr", "<cmd>lua vim.lsp.buf.rename()<CR>")
 keymap.set("n", "<leader>gf", "<cmd>lua vim.lsp.buf.format({async = true})<CR>")
 keymap.set("v", "<leader>gf", "<cmd>lua vim.lsp.buf.format({async = true})<CR>")
+keymap.set("n", "<Leader>lf", ":lua vim.lsp.buf.formatting()<cr>", { remap = false, silent = true }) -- format a file
 keymap.set("n", "<leader>ga", "<cmd>lua vim.lsp.buf.code_action()<CR>")
 keymap.set("n", "<leader>gl", "<cmd>lua vim.diagnostic.open_float()<CR>")
 keymap.set("n", "<leader>gp", "<cmd>lua vim.diagnostic.goto_prev()<CR>")
@@ -176,7 +207,7 @@ keymap.set("n", "<leader>ts", require("telescope.builtin").lsp_dynamic_workspace
 keymap.set("n", "<leader>td", require("telescope.builtin").lsp_document_symbols, opts)
 keymap.set("n", "<leader>ls", require("telescope.builtin").lsp_document_symbols, opts)
 keymap.set("n", "<leader>lm", function()
-	require("telescope.builtin").lsp_document_symbols({ symbols = { "method", "function" } })
+  require("telescope.builtin").lsp_document_symbols({ symbols = { "method", "function" } })
 end, opts)
 keymap.set("n", "<leader>lds", require("telescope.builtin").lsp_dynamic_workspace_symbols, opts)
 
@@ -184,10 +215,10 @@ keymap.set("n", "<leader>lds", require("telescope.builtin").lsp_dynamic_workspac
 keymap.set("n", "<leader>ct", require("telescope.builtin").tags, opts)
 
 vim.keymap.set(
-	"n",
-	";f",
-	'<cmd>lua require("telescope.builtin").find_files({ no_ignore = false, hidden = true})<cr>',
-	opts
+  "n",
+  ";f",
+  '<cmd>lua require("telescope.builtin").find_files({ no_ignore = false, hidden = true})<cr>',
+  opts
 )
 vim.keymap.set("n", ";r", '<cmd>lua require("telescope.builtin").live_grep()<cr>', opts)
 vim.keymap.set("n", "\\\\", '<cmd>lua require("telescope.builtin").buffers()<cr>', opts)
@@ -196,21 +227,21 @@ vim.keymap.set("n", ";;", '<cmd>lua require("telescope.builtin").resume()<cr>', 
 vim.keymap.set("n", ";e", '<cmd>lua require("telescope.builtin").diagnostics()<cr>', opts)
 vim.keymap.set("n", ";m", require("telescope.builtin").marks, opts)
 vim.keymap.set("n", ";c", function()
-	require("telescope.builtin").tags({ only_sort_tags = true, show_line = true, path_display = {"filename_first"}, })
+  require("telescope.builtin").tags({ only_sort_tags = true, show_line = true, path_display = { "filename_first" }, })
   -- options for path_display are "hidden", "tail", "absolute", "smart", "shorten", "truncate", "filename_first", see :h telescope.defaults.path_display
 end, opts)
 
 vim.keymap.set(
-	"n",
-	"sf",
-	'<cmd>lua require("telescope").extensions.file_browser.file_browser({ path = "%:p:h", cwd = telescope_buffer_dir(), respect_git_ignore=false, hidden=true, grouped = true, previewer = false, initial_mode = "normal", layout_config = {height = 40 }})<cr>',
-	opts
+  "n",
+  "sf",
+  '<cmd>lua require("telescope").extensions.file_browser.file_browser({ path = "%:p:h", cwd = telescope_buffer_dir(), respect_git_ignore=false, hidden=true, grouped = true, previewer = false, initial_mode = "normal", layout_config = {height = 40 }})<cr>',
+  opts
 )
 vim.keymap.set(
-	"n",
-	";s",
-	'<cmd>lua require("telescope.builtin").git_status{on_complete = {function() vim.cmd"stopinsert" end }}<cr>',
-	opts
+  "n",
+  ";s",
+  '<cmd>lua require("telescope.builtin").git_status{on_complete = {function() vim.cmd"stopinsert" end }}<cr>',
+  opts
 )
 
 vim.keymap.set("n", ";x", '<cmd>lua require("telescope-tabs").list_tabs()<cr>', opts)
@@ -218,69 +249,68 @@ vim.keymap.set("n", ";x", '<cmd>lua require("telescope-tabs").list_tabs()<cr>', 
 -- DAP / Debugging
 
 vim.keymap.set("n", "<F5>", function()
-	require("dap").continue()
+  require("dap").continue()
 end)
 vim.keymap.set("n", "<F10>", function()
-	require("dap").step_over()
+  require("dap").step_over()
 end)
 vim.keymap.set("n", "<F11>", function()
-	require("dap").step_into()
+  require("dap").step_into()
 end)
 vim.keymap.set("n", "<F12>", function()
-	require("dap").step_out()
+  require("dap").step_out()
 end)
 vim.keymap.set("n", "<Leader>b", function()
-	require("dap").toggle_breakpoint()
+  require("dap").toggle_breakpoint()
 end)
 vim.keymap.set("n", "<Leader>B", function()
-	require("dap").set_breakpoint()
+  require("dap").set_breakpoint()
 end)
 vim.keymap.set("n", "<Leader>lp", function()
-	require("dap").set_breakpoint(nil, nil, vim.fn.input("Log point message: "))
+  require("dap").set_breakpoint(nil, nil, vim.fn.input("Log point message: "))
 end)
 vim.keymap.set("n", "<Leader>dr", function()
-	require("dap").repl.open()
+  require("dap").repl.open()
 end)
 vim.keymap.set("n", "<Leader>dl", function()
-	require("dap").run_last()
+  require("dap").run_last()
 end)
 vim.keymap.set({ "n", "v" }, "<Leader>dh", function()
-	require("dap.ui.widgets").hover()
+  require("dap.ui.widgets").hover()
 end)
 vim.keymap.set({ "n", "v" }, "<Leader>dp", function()
-	require("dap.ui.widgets").preview()
+  require("dap.ui.widgets").preview()
 end)
 vim.keymap.set({ "n", "v" }, "<Leader>dt", function()
-	require("dap").terminate()
+  require("dap").terminate()
 end)
 vim.keymap.set("n", "<Leader>df", function()
-	local widgets = require("dap.ui.widgets")
-	widgets.centered_float(widgets.frames)
+  local widgets = require("dap.ui.widgets")
+  widgets.centered_float(widgets.frames)
 end)
 vim.keymap.set("n", "<Leader>ds", function()
-	local widgets = require("dap.ui.widgets")
-	widgets.centered_float(widgets.scopes)
+  local widgets = require("dap.ui.widgets")
+  widgets.centered_float(widgets.scopes)
 end)
 
 ---
 -- Keymaps for python tests
 
 keymap.set("n", "<leader>tc", function()
-	if vim.bo.filetype == "python" then
-		require("dap-python").test_class() -- dap-python comes from mfussenegger/nvim-dap-python
-	end
+  if vim.bo.filetype == "python" then
+    require("dap-python").test_class() -- dap-python comes from mfussenegger/nvim-dap-python
+  end
 end)
 
 keymap.set("n", "<leader>tm", function()
-	if vim.bo.filetype == "python" then
-		require("dap-python").test_method() -- dap-python comes from mfussenegger/nvim-dap-python
-	end
+  if vim.bo.filetype == "python" then
+    require("dap-python").test_method() -- dap-python comes from mfussenegger/nvim-dap-python
+  end
 end)
 
 keymap.set("t", "<Esc>", "<C-\\><C-n>", { remap = false }) -- :tnoremap <esc> <c-\><c-n> exit terminal mode with <Esc>
-keymap.set("t", "<C-v><Esc>", "<Esc>", { remap = false }) -- exit terminal mode with <Esc>
+keymap.set("t", "<C-v><Esc>", "<Esc>", { remap = false })  -- exit terminal mode with <Esc>
 
 -- keymap.set("x", "p", '"_dp', { remap = false, silent = false }) -- do not mess with the clipboard during paste
-vim.api.nvim_set_keymap('x', 'p', '"_dP', {noremap = true, silent = true}) -- delete visual selection into blackhole register "_ , then paste
-vim.api.nvim_set_keymap('x', 'P', '"_dp', {noremap = true, silent = true}) -- delete visual selection into blackhole register "_ , then paste
-
+vim.api.nvim_set_keymap('x', 'p', '"_dP', { noremap = true, silent = true }) -- delete visual selection into blackhole register "_ , then paste
+vim.api.nvim_set_keymap('x', 'P', '"_dp', { noremap = true, silent = true }) -- delete visual selection into blackhole register "_ , then paste
