@@ -83,9 +83,10 @@ return {
 		require("lspconfig").pyright.setup({})
 		require("lspconfig").terraformls.setup({})
 		require("lspconfig").gopls.setup({})
+    -- require("lspconfig").metals.setup({}) -- use nvim-metals instead
 
 		-- https://github.com/neovim/nvim-lspconfig/blob/master/doc/configs.md
-		-- require("jdtls").jdtls.setup({}) -- https://github.com/neovim/nvim-lspconfig/blob/master/lua/lspconfig/configs/jdtls.lua
+		-- require("jdtls").jdtls.setup({}) -- https://github.com/neovim/nvim-lspconfig/blob/master/lua/lspconfig/configs/jdtls.lua you are using nvim-jdtls instead
 
 		-- require("lspconfig").jdtls.setup({}) -- we moved the loading of to the ~/.config/nvim/ftplugin/java.lua
 
