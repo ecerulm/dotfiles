@@ -1,5 +1,7 @@
 return {
   "scalameta/nvim-metals",
+  lazy = false,
+  enabled = true,
   dependencies = {
     "nvim-lua/plenary.nvim",
   },

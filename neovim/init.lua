@@ -62,6 +62,7 @@ require("ecerulm.keymaps")
 require("ecerulm.skeletons")
 require("ecerulm.harpoon2") -- configure telescope.nvim if it's loaded
 require("ecerulm.rename").setup()
+require("ecerulm.commands")
 
 if vim.fn.has("macunix") then
 	require("ecerulm.macos")
