@@ -1,6 +1,6 @@
 return {
 	"LukasPietzschmann/telescope-tabs",
-	enabled = true,
+	enabled = false,
 	lazy = false,
 	config = function()
 		require("telescope").load_extension("telescope-tabs")

@@ -203,48 +203,53 @@ vim.keymap.set("v", "<Leader>gc", ":GBrowse!<cr>", { noremap = true })
 local opts = { noremap = true, silent = true }
 -- keymap.set("n", "<leader>ts", "<cmd>Telescope lsp_dynamic_workspace_symbols<cr>", { noremap = true, silent = true })
 -- keymap.set("n", "<leader>ts", "<cmd>Telescope lsp_dynamic_workspace_symbols<cr>", { noremap = true, silent = true })
-keymap.set("n", "<leader>ts", require("telescope.builtin").lsp_dynamic_workspace_symbols, opts)
-keymap.set("n", "<leader>td", require("telescope.builtin").lsp_document_symbols, opts)
-keymap.set("n", "<leader>ls", require("telescope.builtin").lsp_document_symbols, opts)
-keymap.set("n", "<leader>lm", function()
-  require("telescope.builtin").lsp_document_symbols({ symbols = { "method", "function" } })
-end, opts)
-keymap.set("n", "<leader>lds", require("telescope.builtin").lsp_dynamic_workspace_symbols, opts)
 
--- telescope ctags builtin picker https://github.com/nvim-telescope/telescope.nvim?tab=readme-ov-file#pickers
-keymap.set("n", "<leader>ct", require("telescope.builtin").tags, opts)
+if pcall(require, 'telescope.builtin') then
+  keymap.set("n", "<leader>ts", require("telescope.builtin").lsp_dynamic_workspace_symbols, opts)
+  keymap.set("n", "<leader>td", require("telescope.builtin").lsp_document_symbols, opts)
+  keymap.set("n", "<leader>ls", require("telescope.builtin").lsp_document_symbols, opts)
+  keymap.set("n", "<leader>lm", function()
+    require("telescope.builtin").lsp_document_symbols({ symbols = { "method", "function" } })
+  end, opts)
+  keymap.set("n", "<leader>lds", require("telescope.builtin").lsp_dynamic_workspace_symbols, opts)
 
-vim.keymap.set(
-  "n",
-  ";f",
-  '<cmd>lua require("telescope.builtin").find_files({ no_ignore = false, hidden = true})<cr>',
-  opts
-)
-vim.keymap.set("n", ";r", '<cmd>lua require("telescope.builtin").live_grep()<cr>', opts)
-vim.keymap.set("n", "\\\\", '<cmd>lua require("telescope.builtin").buffers()<cr>', opts)
-vim.keymap.set("n", ";t", '<cmd>lua require("telescope.builtin").help_tags()<cr>', opts)
-vim.keymap.set("n", ";;", '<cmd>lua require("telescope.builtin").resume()<cr>', opts)
-vim.keymap.set("n", ";e", '<cmd>lua require("telescope.builtin").diagnostics()<cr>', opts)
-vim.keymap.set("n", ";m", require("telescope.builtin").marks, opts)
-vim.keymap.set("n", ";c", function()
-  require("telescope.builtin").tags({ only_sort_tags = true, show_line = true, path_display = { "filename_first" }, })
-  -- options for path_display are "hidden", "tail", "absolute", "smart", "shorten", "truncate", "filename_first", see :h telescope.defaults.path_display
-end, opts)
+  -- telescope ctags builtin picker https://github.com/nvim-telescope/telescope.nvim?tab=readme-ov-file#pickers
+  keymap.set("n", "<leader>ct", require("telescope.builtin").tags, opts)
 
-vim.keymap.set(
-  "n",
-  "sf",
-  '<cmd>lua require("telescope").extensions.file_browser.file_browser({ path = "%:p:h", cwd = telescope_buffer_dir(), respect_git_ignore=false, hidden=true, grouped = true, previewer = false, initial_mode = "normal", layout_config = {height = 40 }})<cr>',
-  opts
-)
-vim.keymap.set(
-  "n",
-  ";s",
-  '<cmd>lua require("telescope.builtin").git_status{on_complete = {function() vim.cmd"stopinsert" end }}<cr>',
-  opts
-)
+  vim.keymap.set(
+    "n",
+    ";f",
+    '<cmd>lua require("telescope.builtin").find_files({ no_ignore = false, hidden = true})<cr>',
+    opts
+  )
+  vim.keymap.set("n", ";r", '<cmd>lua require("telescope.builtin").live_grep()<cr>', opts)
+  vim.keymap.set("n", "\\\\", '<cmd>lua require("telescope.builtin").buffers()<cr>', opts)
+  vim.keymap.set("n", ";t", '<cmd>lua require("telescope.builtin").help_tags()<cr>', opts)
+  vim.keymap.set("n", ";;", '<cmd>lua require("telescope.builtin").resume()<cr>', opts)
+  vim.keymap.set("n", ";e", '<cmd>lua require("telescope.builtin").diagnostics()<cr>', opts)
+  vim.keymap.set("n", ";m", require("telescope.builtin").marks, opts)
+  vim.keymap.set("n", ";c", function()
+    require("telescope.builtin").tags({ only_sort_tags = true, show_line = true, path_display = { "filename_first" }, })
+    -- options for path_display are "hidden", "tail", "absolute", "smart", "shorten", "truncate", "filename_first", see :h telescope.defaults.path_display
+  end, opts)
 
-vim.keymap.set("n", ";x", '<cmd>lua require("telescope-tabs").list_tabs()<cr>', opts)
+  vim.keymap.set(
+    "n",
+    "sf",
+    '<cmd>lua require("telescope").extensions.file_browser.file_browser({ path = "%:p:h", cwd = telescope_buffer_dir(), respect_git_ignore=false, hidden=true, grouped = true, previewer = false, initial_mode = "normal", layout_config = {height = 40 }})<cr>',
+    opts
+  )
+  vim.keymap.set(
+    "n",
+    ";s",
+    '<cmd>lua require("telescope.builtin").git_status{on_complete = {function() vim.cmd"stopinsert" end }}<cr>',
+    opts
+  )
+end
+
+if pcall(require, 'telescope-tabs') then
+  vim.keymap.set("n", ";x", '<cmd>lua require("telescope-tabs").list_tabs()<cr>', opts)
+end
 
 -- DAP / Debugging
 
