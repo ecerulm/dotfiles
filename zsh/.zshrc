@@ -221,7 +221,7 @@ path=(~/.local/bin $path) # put ~/.local/bin at the beginning
 # path+=~/.local/bin # this puts ~/.local/bin the last 
 path+=/usr/local/bin # add it to the end
 # path+=$HOME/Library/Application\ Support/Coursier/bin/
-path+=~/Library/Application\ Support/Coursier/bin/
+path+=~/Library/Application\ Support/Coursier/bin
 export PATH
 
 alias ctags="ctags -R --fields=+zK"
