@@ -23,3 +23,9 @@ export PATH="$HOME/.jbang/bin:$PATH"
 #THIS MUST BE AT THE END OF THE FILE FOR SDKMAN TO WORK!!!
 export SDKMAN_DIR="$HOME/.sdkman"
 [[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]] && source "$HOME/.sdkman/bin/sdkman-init.sh"
+
+# The next line updates PATH for the Google Cloud SDK.
+if [ -f '/Users/ecerulm/.local/google-cloud-sdk/path.bash.inc' ]; then . '/Users/ecerulm/.local/google-cloud-sdk/path.bash.inc'; fi
+
+# The next line enables shell command completion for gcloud.
+if [ -f '/Users/ecerulm/.local/google-cloud-sdk/completion.bash.inc' ]; then . '/Users/ecerulm/.local/google-cloud-sdk/completion.bash.inc'; fi
