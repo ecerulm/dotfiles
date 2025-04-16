@@ -1,5 +1,13 @@
 #!/bin/bash
 
+
+# ln -Fvhfs
+# -s : Create symbolic link
+# -F : If the target file already exists and is a directory, the remove it so that the link may occur. This option need to be use together with -f or -i
+# -f : force (opposed to -i which means interactive, as in present a prompt to the user)
+# -v : verbose
+# -h : If the target_file or target_dir is a symbolic link, do not follow it. This is useful together with -f to replace a symlink which may point to a directory
+
 # dotfiles in the home dir
 ls -A | grep "^\." | grep -v "^\.git$" | grep -v "^\.tmux.conf." | xargs -n1 -I'{}' ln -Fvhfs ~/dotfiles/'{}' ~/'{}'
 
@@ -36,7 +44,6 @@ mkdir -p ~/bin
 ls bin | xargs -n1 -I'{}' ln -Fvhfs ~/dotfiles/bin/'{}' ~/bin/'{}'
 
 #create system specific symlinks
-ln -Fvhfs ~/dotfiles/.gitconfig_osx .gitconfig_platform_specific
 ln -Fvhfs ~/dotfiles/.gitconfig_osx ~/.gitconfig_platform_specific
 ln -Fvhfs ~/dotfiles/.tmux.conf.macosx ~/.tmux.conf.extra
 ln -Fvhfs ~/dotfiles/.bashrc.macosx ~/.bashrc.extra
