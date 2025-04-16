@@ -95,7 +95,8 @@
   smudge = git-media-smudge %f
 [include]
   ; need to be git 1.9.2 for includes to work
-  path = .gitconfig_platform_specific
+  ; path = .gitconfig_platform_specific
+  path = .gitconfig_this_machine
 [diff]
 	mnemonicprefix = true
 	renames = copies
@@ -140,15 +141,8 @@
 	gpgsign = true
 [pull]
 	rebase = true
-[user]
-	name = Ruben Laguna
-	email = ruben.laguna@tele2.com
 [include]
   path = ~/.gitconfig.thismachine
-[credential]
-	; helper = osxkeychain
-	credentialStore = keychain
-	helper = /usr/local/share/gcm-core/git-credential-manager
 [interactive]
 	diffFilter = diff-so-fancy --patch
 [color "diff-highlight"]
@@ -164,5 +158,3 @@
 	old = red bold
 	new = green bold
 	whitespace = red reverse
-[credential "https://dev.azure.com"]
-	useHttpPath = true
