@@ -1,7 +1,6 @@
 return {
-  'onsails/lspkind-nvim',
-  enabled = true,
-  lazy = false,
-  config = function()
-  end
+	"onsails/lspkind-nvim",
+	enabled = true,
+	lazy = false,
+	config = function() end,
 }

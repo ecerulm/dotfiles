@@ -11,7 +11,7 @@ return {
 		require("mason-tool-installer").setup({
 
 			ensure_installed = {
-				{ "golangci-lint", version = "v1.47.0" },
+				{ "golangci-lint",        version = "v1.47.0" },
 				{ "bash-language-server", auto_update = true },
 				"lua-language-server",
 				"vim-language-server",

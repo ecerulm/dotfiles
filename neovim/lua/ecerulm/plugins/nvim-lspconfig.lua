@@ -16,7 +16,7 @@ return {
 
 		-- Useful status updates for LSP
 		-- https://github.com/j-hui/fidget.nvim
-		{ "j-hui/fidget.nvim", opts = {} },
+		{ "j-hui/fidget.nvim",                opts = {} },
 
 		-- Additional lua configuration, makes nvim stuff amazing!
 		-- https://github.com/folke/neodev.nvim
@@ -83,7 +83,7 @@ return {
 		require("lspconfig").pyright.setup({})
 		require("lspconfig").terraformls.setup({})
 		require("lspconfig").gopls.setup({})
-    -- require("lspconfig").metals.setup({}) -- use nvim-metals instead
+		-- require("lspconfig").metals.setup({}) -- use nvim-metals instead
 
 		-- https://github.com/neovim/nvim-lspconfig/blob/master/doc/configs.md
 		-- require("jdtls").jdtls.setup({}) -- https://github.com/neovim/nvim-lspconfig/blob/master/lua/lspconfig/configs/jdtls.lua you are using nvim-jdtls instead

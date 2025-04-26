@@ -1,4 +1,4 @@
-local enabled = THISMACHINESETTINGS.github_copilot_enabled and (not THISMACHINESETTINGS.zbirenbaum_copilot_enabled)
+local enabled = THISMACHINESETTINGS.github_copilot_enabled and not THISMACHINESETTINGS.zbirenbaum_copilot_enabled
 
 return {
 	-- https://github.com/github/copilot.vim/blob/release/doc/copilot.txt

@@ -10,6 +10,5 @@ local plugins = {
 	{ "junegunn/vim-easy-align" },
 	{ "tpope/vim-unimpaired" },
 	{ "MattesGroeger/vim-bookmarks" },
-
 }
 return plugins

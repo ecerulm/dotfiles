@@ -5,7 +5,7 @@ return {
 	lazy = false,
 	priority = 1000,
 	opts = {},
-	config = function() 
+	config = function()
 		vim.api.nvim_create_autocmd("ColorScheme", {
 			callback = function()
 				-- ns_id 0 means highlight group globally
@@ -17,7 +17,6 @@ return {
 			end,
 		})
 
-
-    vim.cmd[[colorscheme tokyonight]]
-  end,
+		vim.cmd([[colorscheme tokyonight]])
+	end,
 }

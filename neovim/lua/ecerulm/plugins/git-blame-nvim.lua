@@ -7,7 +7,7 @@ return {
 	lazy = false,
 	-- event = 'VeryLazy',
 	opts = {
-		enabled = false, -- disable by default, enabled only on keymap
+		enabled = false,     -- disable by default, enabled only on keymap
 		date_format = "%m/%d/%y %H:%M:%S", -- more concise date format
 	},
 }

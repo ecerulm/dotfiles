@@ -3,8 +3,8 @@ return {
 	enabled = true,
 	lazy = false,
 	dependencies = {
-      "neovim/nvim-lspconfig",
-      "williamboman/mason-lspconfig.nvim",
+		"neovim/nvim-lspconfig",
+		"williamboman/mason-lspconfig.nvim",
 	},
 	config = function()
 		local navic = require("nvim-navic")

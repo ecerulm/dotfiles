@@ -1,11 +1,11 @@
 return {
-  -- https://github.com/zbirenbaum/copilot.lua
-  -- Preferred over github/copilot.vim because
-  -- it is more configurable, 
+	-- https://github.com/zbirenbaum/copilot.lua
+	-- Preferred over github/copilot.vim because
+	-- it is more configurable,
 	"zbirenbaum/copilot.lua",
 
 	enabled = true,
-  cond = THISMACHINESETTINGS.zbirenbaum_copilot_enabled and not THISMACHINESETTINGS.github_copilot_enabled,
+	cond = THISMACHINESETTINGS.zbirenbaum_copilot_enabled and not THISMACHINESETTINGS.github_copilot_enabled,
 	lazy = false,
 	cmd = "Copilot",
 	event = "InsertEnter",
@@ -48,8 +48,8 @@ return {
 		--   end
 		-- end, {desc = "[copilot] accepts or next suggestion"})
 
-    local as_nvim_cmp = THISMACHINESETTINGS.zbirenbaum_copilot_as_nvim_cmp
-    local suggestion_enabled = not as_nvim_cmp
+		local as_nvim_cmp = THISMACHINESETTINGS.zbirenbaum_copilot_as_nvim_cmp
+		local suggestion_enabled = not as_nvim_cmp
 
 		require("copilot").setup({
 			suggestion = {
@@ -68,7 +68,7 @@ return {
 			},
 			panel = {
 				enabled = suggestion_enabled,
-        auto_refresh = false,
+				auto_refresh = false,
 				keymap = {
 					accept = "<CR>",
 					jump_prev = "[[",

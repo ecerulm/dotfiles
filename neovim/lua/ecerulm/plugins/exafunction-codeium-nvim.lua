@@ -13,8 +13,7 @@ return {
 	end,
 
 	config = function()
-    require("codeium").setup({
-    })
+		require("codeium").setup({})
 
 		-- -- ACCEPT
 		-- vim.keymap.set("i", "<M-l>", function()

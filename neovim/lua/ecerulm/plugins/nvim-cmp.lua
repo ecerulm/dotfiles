@@ -40,7 +40,8 @@ return {
 				return false
 			end
 			local line, col = unpack(vim.api.nvim_win_get_cursor(0))
-			return col ~= 0 and vim.api.nvim_buf_get_text(0, line - 1, 0, line - 1, col, {})[1]:match("^%s*$") == nil
+			return col ~= 0 and
+			vim.api.nvim_buf_get_text(0, line - 1, 0, line - 1, col, {})[1]:match("^%s*$") == nil
 		end
 
 		cmp.setup({
@@ -95,7 +96,7 @@ return {
 							{ name = "codeium" },
 						},
 					},
-				}), -- show completion suggestions
+				}),       -- show completion suggestions
 				["<Tab>"] = cmp.mapping.complete({}), -- show completion suggestions
 				["<CR>"] = cmp.mapping.confirm({
 					behavior = cmp.ConfirmBehavior.Replace,
@@ -133,7 +134,7 @@ return {
 			}),
 			sources = cmp.config.sources({
 				{ name = "nvim_lsp", group_index = 20, max_item_count = 5 }, -- lsp
-				{ name = "luasnip", group_index = 1, max_item_count = 5 }, -- snippets
+				{ name = "luasnip",  group_index = 1,  max_item_count = 5 }, -- snippets
 				{
 					name = "buffer",
 					group_index = 10,
@@ -147,8 +148,8 @@ return {
 							return vim.tbl_keys(bufs)
 						end,
 					},
-				}, -- text within current buffer
-				{ name = "path", group_index = 10, max_item_count = 5 }, -- file system paths
+				},                              -- text within current buffer
+				{ name = "path",    group_index = 10, max_item_count = 5 }, -- file system paths
 				{ name = "copilot", group_index = 30, max_item_count = 5 }, -- from zbirenbaum/copilot-cmp
 				{ name = "Copilot", group_index = 30, max_item_count = 5 }, --
 				{ name = "codeium", group_index = 30, max_item_count = 5 }, -- from Exafunction/codeium.nvim
