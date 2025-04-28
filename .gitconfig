@@ -83,7 +83,7 @@
 	pager = diff-so-fancy | less --tabs=4 -RF
 [init]
   templatedir = ~/.git_template
-	defaultBranch = master
+  defaultBranch = master
 [pager]
 	difftool = true
 [push]
