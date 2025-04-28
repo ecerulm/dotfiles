@@ -37,7 +37,8 @@ vim.opt.list = false
 vim.opt.splitright = true
 
 if vim.fn.exists("&messagesopt") == 1 then -- NVIM 0.10.2 does NOT have this option
-	vim.opt.messagesopt = "wait:3000,history:50" -- :h 'messagesopt' -- the default is 'hit-enter;history:500'
+	-- vim.opt.messagesopt = "wait:3000,history:50" -- :h 'messagesopt' -- the default is 'hit-enter;history:500'
+	vim.opt.messagesopt = "hit-enter,history:50" -- :h 'messagesopt' -- wait:3000 was a bad idea it makes impossible to use :messages
 end
 
 -- undercurl (it doesn't work on iTerm2
