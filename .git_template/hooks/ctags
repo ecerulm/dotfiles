@@ -1,6 +1,6 @@
 #!/bin/sh
 set -e
-PATH="/usr/local/bin:$PATH"
+PATH="/opt/homebrew/opt/universal-ctags/bin/:$PATH"
 # dir="`git rev-parse --git-dir`"
 dir="."
 trap 'rm -f "$dir/$$.tags"' EXIT
