@@ -8,7 +8,7 @@ return {
     bigfile = { enabled = true },
     dashboard = { enabled = true },
     explorer = { enabled = true },
-    indent = { enabled = true },
+    indent = { enabled = false }, -- this add the vertical pipe, this can obscure the listchars when doing :set list,  enable back with <leader>ug
     input = { enabled = true },
     notifier = {
       enabled = true,
