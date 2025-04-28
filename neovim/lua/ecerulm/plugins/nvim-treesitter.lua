@@ -80,6 +80,7 @@ return {
 					["ic"] = "@class.inner",
 					["ia"] = "@parameter.inner",
 					["aa"] = "@parameter.outer",
+					["as"] = "@statement.outer",
 				},
 				selection_modes = {
 					["@parameter.outer"] = "v", -- charwise
