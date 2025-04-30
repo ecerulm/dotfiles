@@ -10,7 +10,10 @@ return {
 		local Optional = require("mason-core.optional")
 		local Package = require("mason-core.package")
 
-		local ensure_installed = { "google-java-format" }
+		local ensure_installed = { 
+      "google-java-format",
+      -- "python-lsp-server", -- python-language-server pylsp -- this is installed via mason-lspconfig
+    }
 		local to_install = {}
 		for i, package_name in ipairs(ensure_installed) do
 			-- local server_name, version = Package.Parse(package_name)

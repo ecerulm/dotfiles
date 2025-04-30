@@ -39,6 +39,7 @@ return {
 				-- 'yamlls', -- requires npm to be installed
 				"rust_analyzer",
 				"pyright", --
+        "pylsp",
 				"terraformls",
 				"jdtls", -- java language server LSP
 				"gopls",
@@ -80,9 +81,33 @@ return {
 			},
 		})
 
-		require("lspconfig").pyright.setup({})
-		require("lspconfig").terraformls.setup({})
-		require("lspconfig").gopls.setup({})
+    -- Python LSP
+    -- code formatting: no
+    -- lsp_workspace_symbols: yes
+    vim.lsp.config('pyright',{})
+    vim.lsp.enable('pyright') -- pylsp does provide code formatting
+
+    -- Python LSO - pylsp 
+    -- code formatting: yes
+    -- symbols, go to definition: not very good 
+    -- no lsp_workspace_symbols only sumbols local file
+    vim.lsp.config('pylsp', {
+      settings = {
+        pylsp = {
+          plugins = {
+            pycodestyle = {
+              ignore = {'W391'},
+              maxLineLength = 100
+            }
+          }
+        }
+      }
+    })
+    vim.lsp.enable('pylsp')
+
+
+		-- require("lspconfig").terraformls.setup({})
+		-- require("lspconfig").gopls.setup({})
 		-- require("lspconfig").metals.setup({}) -- use nvim-metals instead
 
 		-- https://github.com/neovim/nvim-lspconfig/blob/master/doc/configs.md

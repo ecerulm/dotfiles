@@ -12,6 +12,7 @@ return {
 			"clangd", -- :LspInstall clangd
 			"lua_ls",
 			"ansiblels",
+			"pyright",
 		},
 		automatic_installation = false,
 	},
