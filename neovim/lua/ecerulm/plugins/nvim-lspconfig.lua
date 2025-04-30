@@ -16,7 +16,7 @@ return {
 
 		-- Useful status updates for LSP
 		-- https://github.com/j-hui/fidget.nvim
-		{ "j-hui/fidget.nvim",                opts = {} },
+		{ "j-hui/fidget.nvim", opts = {} },
 
 		-- Additional lua configuration, makes nvim stuff amazing!
 		-- https://github.com/folke/neodev.nvim
@@ -38,8 +38,8 @@ return {
 				-- 'tsserver', -- requires npm to be installed
 				-- 'yamlls', -- requires npm to be installed
 				"rust_analyzer",
-				"pyright", --
-        "pylsp",
+				"pyright", -- python LSP
+				"pylsp", -- python LSP / python-lsp-server pylsp
 				"terraformls",
 				"jdtls", -- java language server LSP
 				"gopls",
@@ -81,30 +81,29 @@ return {
 			},
 		})
 
-    -- Python LSP
-    -- code formatting: no
-    -- lsp_workspace_symbols: yes
-    vim.lsp.config('pyright',{})
-    vim.lsp.enable('pyright') -- pylsp does provide code formatting
+		-- Python LSP
+		-- code formatting: no
+		-- lsp_workspace_symbols: yes
+		vim.lsp.config("pyright", {})
+		vim.lsp.enable("pyright") -- pylsp does provide code formatting
 
-    -- Python LSO - pylsp 
-    -- code formatting: yes
-    -- symbols, go to definition: not very good 
-    -- no lsp_workspace_symbols only sumbols local file
-    vim.lsp.config('pylsp', {
-      settings = {
-        pylsp = {
-          plugins = {
-            pycodestyle = {
-              ignore = {'W391'},
-              maxLineLength = 100
-            }
-          }
-        }
-      }
-    })
-    vim.lsp.enable('pylsp')
-
+		-- Python LSO - pylsp
+		-- code formatting: yes
+		-- symbols, go to definition: not very good
+		-- no lsp_workspace_symbols only sumbols local file
+		vim.lsp.config("pylsp", {
+			settings = {
+				pylsp = {
+					plugins = {
+						pycodestyle = {
+							ignore = { "W391" },
+							maxLineLength = 100,
+						},
+					},
+				},
+			},
+		})
+		vim.lsp.enable("pylsp")
 
 		-- require("lspconfig").terraformls.setup({})
 		-- require("lspconfig").gopls.setup({})
