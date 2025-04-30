@@ -1,5 +1,6 @@
 return {
 	-- https://github.com/mhartington/formatter.nvim
+	-- provides :Format
 	"mhartington/formatter.nvim",
 	enabled = true,
 	lazy = false,
