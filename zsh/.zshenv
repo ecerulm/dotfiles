@@ -13,3 +13,6 @@ if [ -f '/Users/ecerulm/.local/google-cloud-sdk/path.zsh.inc' ]; then . '/Users/
 
 # The next line enables shell command completion for gcloud.
 if [ -f '/Users/ecerulm/.local/google-cloud-sdk/completion.zsh.inc' ]; then . '/Users/ecerulm/.local/google-cloud-sdk/completion.zsh.inc'; fi
+
+# Rust / Rustup / Cargo
+. "$HOME/.cargo/env"
