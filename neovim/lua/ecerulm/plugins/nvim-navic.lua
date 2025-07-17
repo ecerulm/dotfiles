@@ -1,6 +1,9 @@
 return {
+  -- https://github.com/SmiteshP/nvim-navic
+  -- breadcrumb / winbar at the top that shows where you are class X > method Y, etc
+  -- uses LSP
 	"SmiteshP/nvim-navic",
-	enabled = true,
+	enabled = false,
 	lazy = false,
 	dependencies = {
 		"neovim/nvim-lspconfig",

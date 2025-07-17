@@ -4,7 +4,7 @@ return {
 	-- nvim-navic does not alter the status line or winbar by itself
 	-- you need barbecue or nvim-navbuddy to display the breadcrumbs
 	"utilyre/barbecue.nvim",
-	enabled = true,
+	enabled = false,
 	lazy = false,
 	name = "barbecue",
 	version = "*",
