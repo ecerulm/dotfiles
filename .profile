@@ -18,3 +18,8 @@
 # added by Snowflake SnowSQL installer v1.2
 #export PATH=/Users/rubelagu/Applications/SnowSQL.app/Contents/MacOS:$PATH
 # export PATH="/usr/local/opt/openjdk@17/bin:$PATH"
+
+# Added by LM Studio CLI (lms)
+export PATH="$PATH:/Users/ecerulm/.lmstudio/bin"
+# End of LM Studio CLI section
+

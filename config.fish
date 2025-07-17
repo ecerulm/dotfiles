@@ -119,3 +119,8 @@ end
 stty -ixon  # Disable flow control
 
 
+
+# Added by LM Studio CLI (lms)
+set -gx PATH $PATH /Users/ecerulm/.lmstudio/bin
+# End of LM Studio CLI section
+

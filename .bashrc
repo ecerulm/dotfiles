@@ -912,3 +912,8 @@ alias grun="java -cp ~/antlr/antlr-4.11.1-complete.jar org.antlr.v4.gui.TestRig 
 . "$HOME/.cargo/env"
 
 export PATH="/usr/local/opt/openjdk@17/bin:$PATH"
+
+# Added by LM Studio CLI (lms)
+export PATH="$PATH:/Users/ecerulm/.lmstudio/bin"
+# End of LM Studio CLI section
+
