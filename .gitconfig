@@ -69,6 +69,9 @@
   dft = difftool
   dlog = "!f() { GIT_EXTERNAL_DIFF=difft git log -p --ext-diff $@;}; f"
 
+  # remote local branch with no remote branches
+  dlocal = "!f() { git fetch --prune; git for-each-ref --format='%(if:equals=[gone])%(upstream:track)%(then)%(refname:short)%(end)' refs/heads | xargs git branch -D; echo "Deleted local branches where the upstream is deleted"; }; f"
+
 [merge]
 	tool = meld
 	stat = true
