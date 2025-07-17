@@ -105,6 +105,12 @@ return {
 		})
 		vim.lsp.enable("pylsp")
 
+
+    -- DART
+    -- dart comes LSP server dart language-server --protocol=lsp
+    vim.lsp.enable('dartls')
+
+
 		-- require("lspconfig").terraformls.setup({})
 		-- require("lspconfig").gopls.setup({})
 		-- require("lspconfig").metals.setup({}) -- use nvim-metals instead
