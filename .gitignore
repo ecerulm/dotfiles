@@ -42,3 +42,8 @@ zsh/.zshrc.old
 *.pem
 .vault_pass
 tags
+.terraform/
+terraform.tfstate
+terraform.tfstate.backup
+.terraform.lock.hcl
+latest.tfplan
