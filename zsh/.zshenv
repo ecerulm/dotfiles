@@ -15,4 +15,4 @@ if [ -f '/Users/ecerulm/.local/google-cloud-sdk/path.zsh.inc' ]; then . '/Users/
 if [ -f '/Users/ecerulm/.local/google-cloud-sdk/completion.zsh.inc' ]; then . '/Users/ecerulm/.local/google-cloud-sdk/completion.zsh.inc'; fi
 
 # Rust / Rustup / Cargo
-. "$HOME/.cargo/env"
+[ -f "$HOME/.cargo/env" ] && . "${HOME}/.cargo/env"
