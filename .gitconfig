@@ -96,10 +96,6 @@
 [filter "media"]
   clean = git-media-clean %f
   smudge = git-media-smudge %f
-[include]
-  ; need to be git 1.9.2 for includes to work
-  ; path = .gitconfig_platform_specific
-  path = .gitconfig_this_machine
 [diff]
 	mnemonicprefix = true
 	renames = copies
@@ -145,6 +141,8 @@
 [pull]
 	rebase = true
 [include]
+  ; need to be git 1.9.2 for includes to work
+  ; path = .gitconfig_platform_specific
   path = ~/.gitconfig.thismachine
 [interactive]
 	diffFilter = diff-so-fancy --patch
