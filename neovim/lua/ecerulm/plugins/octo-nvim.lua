@@ -1,4 +1,5 @@
 return {
+  enabled = false, -- To get rid of the Error loading picker provider telescope
   -- https://github.com/pwntester/octo.nvim
   'pwntester/octo.nvim',
   requires = {
