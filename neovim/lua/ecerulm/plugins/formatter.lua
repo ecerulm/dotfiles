@@ -35,6 +35,7 @@ return {
 				java = require("formatter.filetypes.java").google_java_format, -- stdin https://github.com/mhartington/formatter.nvim
 				html = require("formatter.filetypes.html").prettier, -- https://github.com/mhartington/formatter.nvim/blob/master/lua/formatter/filetypes/html.lua
         rust = require("formatter.filetypes.rust").rustfmt, -- https://github.com/mhartington/formatter.nvim/blob/master/lua/formatter/filetypes/rust.lua
+        markdown = require("formatter.filetypes.markdown").mdformat, --  https://github.com/mhartington/formatter.nvim/blob/b9d7f853da1197b83b8edb4cc4952f7ad3a42e41/lua/formatter/filetypes/markdown.lua#L10-L16
 
 				-- Use the special "*" filetype for defining formatter configurations on
 				-- any filetype
