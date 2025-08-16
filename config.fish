@@ -92,7 +92,7 @@ if status --is-interactive
   # end
 
   # If opam in the path
-  type opam >/dev/null ^/dev/null
+  type opam >/dev/null 2>/dev/null
   if test $status -eq 0
     . (opam config env|psub)
   end
