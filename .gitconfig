@@ -72,6 +72,9 @@
   # remote local branch with no remote branches
   dlocal = "!f() { git fetch --prune; git for-each-ref --format='%(if:equals=[gone])%(upstream:track)%(then)%(refname:short)%(end)' refs/heads | xargs git branch -D; echo "Deleted local branches where the upstream is deleted"; }; f"
 
+  # sort files by modification time
+  ls = "!f() { git ls-tree -r --name-only HEAD -z | xargs -0n1 -I{} git --no-pager log -n 1 --format=\"%ad {}\" --date=unix -- {}|sort -r -n -k1| cut -d ' ' -f 2| xargs -n1 -I{} git log --date=relative -n 1  --format=\"%ad {}\" -- {}; }; f"
+
 [merge]
 	tool = meld
 	stat = true
