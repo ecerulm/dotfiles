@@ -11,10 +11,9 @@ return {
 		-- Useful status updates for LSP
 		-- https://github.com/j-hui/fidget.nvim
 		{ "j-hui/fidget.nvim", opts = {} },
-
-
-  },
+	},
 	config = function()
-		vim.lsp.enable("pyright")
+		-- vim.lsp.enable("pyright")
+		vim.lsp.enable("pylsp")
 	end,
 }
