@@ -7,8 +7,10 @@ return { -- optional blink completion source for require statements and module a
 	version = "1.*",
 	enabled = true,
 	dependencies = {
+		-- https://cmp.saghen.dev/configuration/sources.html
 		"fang2hou/blink-copilot",
 		"disrupted/blink-cmp-conventional-commits",
+		"Dynge/gitmoji.nvim", -- https://github.com/Dynge/gitmoji.nvim/
 	},
 	opts = {
 		completion = {
@@ -20,9 +22,9 @@ return { -- optional blink completion source for require statements and module a
 			},
 		},
 		sources = {
+			-- https://cmp.saghen.dev/configuration/sources.html
 			-- add lazydev to your completion providers
 			default = {
-				"conventional_commits",
 				"copilot",
 				"lsp",
 				"path",
@@ -32,6 +34,8 @@ return { -- optional blink completion source for require statements and module a
 
 			per_filetype = {
 				lua = { inherit_defaults = true, "lazydev" },
+				gitcommit = { inherti_defaults = true, "gitmoji", "conventional_commits" },
+				jj = { inherti_defaults = true, "gitmoji", "conventional_commits" },
 			},
 
 			providers = {
@@ -51,12 +55,19 @@ return { -- optional blink completion source for require statements and module a
 				conventional_commits = {
 					name = "Conventional Commits",
 					module = "blink-cmp-conventional-commits",
-					enabled = function()
-						return vim.bo.filetype == "gitcommit"
-					end,
+					-- enabled = function()
+					-- 	return vim.bo.filetype == "gitcommit"
+					-- end,
 					---@module 'blink-cmp-conventional-commits'
 					---@type blink-cmp-conventional-commits.Options
 					opts = {}, -- none so far
+				},
+				gitmoji = {
+					name = "gitmoji",
+					module = "gitmoji.blink",
+					opts = { -- gitmoji config values goes here
+						filetypes = { "gitcommit", "jj" },
+					},
 				},
 			},
 		},
