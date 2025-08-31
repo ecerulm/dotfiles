@@ -1,7 +1,7 @@
 return {
 	-- https://github.com/mfussenegger/nvim-dap-python
 	"mfussenegger/nvim-dap-python",
-	enabled = true,
+	enabled = false,
 	lazy = false,
 	config = function()
 		-- use the debugpy virtual environment created by :MasonInstall debugpy

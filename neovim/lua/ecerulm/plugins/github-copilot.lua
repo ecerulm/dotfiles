@@ -3,7 +3,7 @@ local enabled = THISMACHINESETTINGS.github_copilot_enabled and not THISMACHINESE
 return {
 	-- https://github.com/github/copilot.vim/blob/release/doc/copilot.txt
 	"github/copilot.vim",
-	enabled = true,
+	enabled = false,
 	cond = enabled,
 	lazy = false,
 	config = function()

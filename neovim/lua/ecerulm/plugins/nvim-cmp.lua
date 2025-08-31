@@ -2,7 +2,7 @@
 return {
 	-- https://github.com/hrsh7th/nvim-cmp
 	"hrsh7th/nvim-cmp",
-	enabled = true,
+	enabled = false, -- you are trying blink.cmp instead
 	lazy = false,
 	event = "InsertEnter",
 	dependencies = {
