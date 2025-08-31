@@ -6,6 +6,7 @@ return { -- optional blink completion source for require statements and module a
 	"saghen/blink.cmp",
 	version = "1.*",
 	enabled = true,
+	dependencies = { "fang2hou/blink-copilot" },
 	opts = {
 		completion = {
 			menu = {
@@ -17,21 +18,33 @@ return { -- optional blink completion source for require statements and module a
 		},
 		sources = {
 			-- add lazydev to your completion providers
-			default = { "lazydev", "lsp", "path", "snippets", "buffer" },
+			default = { "copilot", "lsp", "path", "snippets", "buffer" },
+
+			per_filetype = {
+				lua = { inherit_defaults = true, "lazydev" },
+			},
+
 			providers = {
+				-- https://cmp.saghen.dev/configuration/sources.html#providers
 				lazydev = {
 					name = "LazyDev",
 					module = "lazydev.integrations.blink",
 					-- make lazydev completions top priority (see `:h blink.cmp`)
 					score_offset = 100,
 				},
+				copilot = {
+					name = "copilot",
+					module = "blink-copilot",
+					score_offset = 100,
+					async = true,
+				},
 			},
 		},
-    keymap = {
-      -- https://cmp.saghen.dev/configuration/keymap#presets
-      preset = 'default',
-      -- <C-space> show the autocompletion menu
-      -- <C-y> accept the completion
-    },
+		keymap = {
+			-- https://cmp.saghen.dev/configuration/keymap#presets
+			preset = "default",
+			-- <C-space> show the autocompletion menu
+			-- <C-y> accept the completion
+		},
 	},
 }
