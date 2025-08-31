@@ -6,7 +6,10 @@ return { -- optional blink completion source for require statements and module a
 	"saghen/blink.cmp",
 	version = "1.*",
 	enabled = true,
-	dependencies = { "fang2hou/blink-copilot" },
+	dependencies = {
+		"fang2hou/blink-copilot",
+		"disrupted/blink-cmp-conventional-commits",
+	},
 	opts = {
 		completion = {
 			menu = {
@@ -18,7 +21,14 @@ return { -- optional blink completion source for require statements and module a
 		},
 		sources = {
 			-- add lazydev to your completion providers
-			default = { "copilot", "lsp", "path", "snippets", "buffer" },
+			default = {
+				"conventional_commits",
+				"copilot",
+				"lsp",
+				"path",
+				"snippets",
+				"buffer",
+			},
 
 			per_filetype = {
 				lua = { inherit_defaults = true, "lazydev" },
@@ -37,6 +47,16 @@ return { -- optional blink completion source for require statements and module a
 					module = "blink-copilot",
 					score_offset = 100,
 					async = true,
+				},
+				conventional_commits = {
+					name = "Conventional Commits",
+					module = "blink-cmp-conventional-commits",
+					enabled = function()
+						return vim.bo.filetype == "gitcommit"
+					end,
+					---@module 'blink-cmp-conventional-commits'
+					---@type blink-cmp-conventional-commits.Options
+					opts = {}, -- none so far
 				},
 			},
 		},
