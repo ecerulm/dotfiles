@@ -151,6 +151,7 @@ alias gc="git commit -v"
 alias gca="git commit -v --amend"
 alias gau="git a" # git add -u
 alias gap="git a -p"
+alias gas="git as" # Add files that are already staged
 alias glc="git rev-parse HEAD"
 alias gdm="git diff master"
 alias gdms="git diff --stat master"
