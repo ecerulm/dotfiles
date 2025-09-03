@@ -3,14 +3,7 @@ function file_exists(name)
 	return f ~= nil
 end
 
-
-THISMACHINESETTINGS = {
-	github_copilot_enabled = false, -- enables github/copilot
-	zbirenbaum_copilot_enabled = false, -- enables zbirenbaum/copilot
-	codeium_vim_enabled = false,
-	codeium_nvim_enabled = false,
-	colorscheme = "tokyonight-night", -- darker
-}
+THISMACHINESETTINGS = {}
 
 local function source_file_if_exists(file_path)
 	local file = io.open(file_path, "r")

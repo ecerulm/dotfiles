@@ -4,7 +4,7 @@ return {
 	-- it is more configurable,
 	"zbirenbaum/copilot.lua",
 
-	enabled = true,
+	enabled = false,
 	cond = THISMACHINESETTINGS.zbirenbaum_copilot_enabled and not THISMACHINESETTINGS.github_copilot_enabled,
 	lazy = false,
 	cmd = "Copilot",
