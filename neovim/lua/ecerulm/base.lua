@@ -1,3 +1,4 @@
+-- neovim options
 -- https://www.youtube.com/watch?v=ajmK0ZNcM4Q
 
 vim.g.loaded_python3_provider = 0 -- Disable python3 support
@@ -127,6 +128,10 @@ vim.opt.tags = { "./tags", "tags" }
 vim.opt.signcolumn = "yes"
 vim.opt.formatoptions:remove({ "c", "r", "o" })
 vim.opt.shortmess:remove("F")
+
+vim.opt.eol = true --  endofline, eol, noendofline, noeol
+vim.opt.fixeol = true -- fixendofline, eol, nofixeol, nofixendofline
+
 
 vim.cmd([[colorscheme tokyonight-night]])
 
