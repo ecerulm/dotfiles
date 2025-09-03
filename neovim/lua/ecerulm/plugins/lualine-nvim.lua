@@ -3,8 +3,8 @@ return {
 	-- https://github.com/nvim-lualine/lualine.nvim
 	-- this plugins somehow clear the screen
 	"nvim-lualine/lualine.nvim",
-	enabled = true,
-	lazy = true,
+	enabled = false,
+	lazy = false,
 	event = "BufRead",
 	dependencies = {
 		-- https://github.com/nvim-tree/nvim-web-devicons
@@ -14,7 +14,7 @@ return {
 	},
 	opts = {                    -- lazy.nvim will automatically call require("lualine").setup(opts)
 		options = {
-			theme = THISMACHINESETTINGS.colorscheme,
+			-- theme = THISMACHINESETTINGS.colorscheme,
 		},
 	},
 	config = function(_, opts)
