@@ -15,7 +15,7 @@ return { -- optional blink completion source for require statements and module a
 	opts = {
 		completion = {
 			menu = {
-				auto_show = false,
+				auto_show = true,
 			},
 			ghost_text = {
 				enabled = true,
@@ -34,8 +34,16 @@ return { -- optional blink completion source for require statements and module a
 
 			per_filetype = {
 				lua = { inherit_defaults = true, "lazydev" },
-				gitcommit = { inherti_defaults = true, "gitmoji", "conventional_commits" },
-				jj = { inherti_defaults = true, "gitmoji", "conventional_commits" },
+				gitcommit = {
+					inherit_defaults = true,
+					"gitmoji",
+					"conventional_commits",
+				},
+				jj = {
+					inherit_defaults = true,
+					"gitmoji",
+					"conventional_commits",
+				},
 			},
 
 			providers = {
@@ -55,18 +63,18 @@ return { -- optional blink completion source for require statements and module a
 				conventional_commits = {
 					name = "Conventional Commits",
 					module = "blink-cmp-conventional-commits",
-					-- enabled = function()
-					-- 	return vim.bo.filetype == "gitcommit"
-					-- end,
-					---@module 'blink-cmp-conventional-commits'
-					---@type blink-cmp-conventional-commits.Options
-					opts = {}, -- none so far
+					enabled = true,
 				},
 				gitmoji = {
 					name = "gitmoji",
 					module = "gitmoji.blink",
-					opts = { -- gitmoji config values goes here
+					enabled = true,
+					opts = {
 						filetypes = { "gitcommit", "jj" },
+						completion = {
+							append_space = true,
+							complete_as = "emoji",
+						},
 					},
 				},
 			},
