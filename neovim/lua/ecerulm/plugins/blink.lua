@@ -82,6 +82,9 @@ return { -- optional blink completion source for require statements and module a
 		keymap = {
 			-- https://cmp.saghen.dev/configuration/keymap#presets
 			preset = "default",
+			["<C-y>"] = { "select_and_accept" },
+			["<CR>"] = { "accept", "fallback" },
+
 			-- <C-space> show the autocompletion menu
 			-- <C-y> accept the completion
 		},
