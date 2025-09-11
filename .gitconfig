@@ -90,6 +90,8 @@
 	safecrlf = warn
 	longpaths = true
 	pager = diff-so-fancy | less --tabs=4 -RF
+	untrackedcache = true
+	fsmonitor = true
 [init]
   templatedir = ~/.git_template
   defaultBranch = master
@@ -167,6 +169,7 @@
 	whitespace = red reverse
 [fetch]
 	prune = true
+	writeCommitGraph = true
 [filter "lfs"]
 	required = true
 	clean = git-lfs clean -- %f
@@ -174,3 +177,9 @@
 	process = git-lfs filter-process
 [rerere]
 	enabled = true
+[column]
+	ui = auto
+[branch]
+	sort = -committerdate
+[maintenance]
+	repo = /Users/rubenlaguna/git/data-platform-infra
