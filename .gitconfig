@@ -148,10 +148,6 @@
 	gpgsign = true
 [pull]
 	rebase = true
-[include]
-  ; need to be git 1.9.2 for includes to work
-  ; path = .gitconfig_platform_specific
-  path = ~/.gitconfig.thismachine
 [interactive]
 	diffFilter = diff-so-fancy --patch
 [color "diff-highlight"]
@@ -181,5 +177,13 @@
 	ui = auto
 [branch]
 	sort = -committerdate
-[maintenance]
-	repo = /Users/rubenlaguna/git/data-platform-infra
+[include]
+  ; need to be git 1.9.2 for includes to work
+  ; path = .gitconfig_platform_specific
+  path = ~/.gitconfig.thismachine
+[includeIf "gitdir:~/git/personal/"]
+path = ~/git/personal/.gitconfig
+[includeIf "gitdir:~/git/work/"]
+path = ~/git/work/.gitconfig
+[includeIf "gitdir:~/git/foss/"]
+path = ~/git/foss/.gitconfig
