@@ -67,8 +67,11 @@ ln -Fvhfs ~/dotfiles/gpg.conf ~/.gnupg/gpg.conf
 
 # Ghostty
 mkdir -p ~/.config/ghostty
-
 ln -Fvhfs ~/dotfiles/ghostty.conf ~/.config/ghostty/config
+
+# SSH config
+mkdir -p ~/.ssh/
+ln -Fvhfs ~/dotfiles/sshconfig ~/.ssh/config
 
 
 # create tmp dirs
