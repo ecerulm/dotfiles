@@ -61,6 +61,16 @@ ln -Fvhfs ~/dotfiles/emacs.d ~/.emacs.d
 # dircolors
 ln -Fvhfs ~/dotfiles/.dircolors ~/.dircolors
 
+# GPG configuration
+mkdir -p ~/.gnupg
+ln -Fvhfs ~/dotfiles/gpg.conf ~/.gnupg/gpg.conf
+
+# Ghostty
+mkdir -p ~/.config/ghostty
+
+ln -Fvhfs ~/dotfiles/ghostty.conf ~/.config/ghostty/config
+
+
 # create tmp dirs
 mkdir -p ~/.vim-tmp
 mkdir -p ~/.tmp
@@ -94,5 +104,5 @@ mkdir -p ~/tmp
 
 brew install neovim tree-sitter tree-sitter-cli node wget go \
   rust microsoft-openjdk@21 php composer diff-so-fancy julia \
-  ripgrep fzf gpg
+  ripgrep fzf gpg pinentry-mac
 # :checkhealt lazy mason
