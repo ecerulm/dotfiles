@@ -103,7 +103,10 @@ setopt appendhistory
 #   ! [[ ${COMMAND} =~ ${PATTERN} ]]
 
 # }
-source $ZSH/oh-my-zsh.sh
+
+
+# if file exists then
+[[ -f "$ZSH/oh-my-zsh.sh" ]] && source "$ZSH/oh-my-zsh.sh"
 
 setopt APPEND_HISTORY
 unsetopt INC_APPEND_HISTORY

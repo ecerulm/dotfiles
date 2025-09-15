@@ -77,17 +77,22 @@ mkdir -p ~/tmp
 # echo "creating systags"
 # ctags -R -f ~/.vim/systags /usr/include /usr/local/include
 
-echo "update the plugins"
-echo "submodule update"
-(cd ~/dotfiles; git submodule init; git submodule update)
+# echo "update the plugins"
+# echo "submodule update"
+# (cd ~/dotfiles; git submodule init; git submodule update)
 # echo "Generate help tags for ~/.vim/doc"
 # (vim -u NONE -N "+helptags ~/.vim/doc" "+qall")
-echo "Install vim plugins with vim-plug"
+# echo "Install vim plugins with vim-plug"
 # (vim -u ~/.vim/vundle.vim -N +PluginInstall +PluginClean +qall)
 #neovim
-(nvim -N +PlugInstall +PlugClean +qall)
-(nvim +UpdateRemotePlugins +qall)
+#(nvim -N +PlugInstall +PlugClean +qall)
+# (nvim +UpdateRemotePlugins +qall)
 # echo "install vimproc"
 # (cd ~/.vim/bundle/vimproc.vim && make)
 # echo "install YouCompleteMe"
 # (cd ~/.vim/bundle/YouCompleteMe && ./install.py --clang-completer) # python is implied
+
+brew install neovim tree-sitter tree-sitter-cli node wget go \
+  rust microsoft-openjdk@21 php composer diff-so-fancy julia \
+  ripgrep fzf gpg
+# :checkhealt lazy mason

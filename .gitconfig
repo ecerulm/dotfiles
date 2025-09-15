@@ -187,3 +187,5 @@ path = ~/git/personal/.gitconfig
 path = ~/git/work/.gitconfig
 [includeIf "gitdir:~/git/foss/"]
 path = ~/git/foss/.gitconfig
+[tag]
+	gpgsign = true
