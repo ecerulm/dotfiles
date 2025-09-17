@@ -107,5 +107,5 @@ mkdir -p ~/tmp
 
 brew install neovim tree-sitter tree-sitter-cli node wget go \
   rust microsoft-openjdk@21 php composer diff-so-fancy julia \
-  ripgrep fzf gpg pinentry-mac
+  ripgrep fzf gpg pinentry-mac zoxide
 # :checkhealt lazy mason
