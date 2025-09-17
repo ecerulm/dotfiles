@@ -189,3 +189,5 @@ path = ~/git/work/.gitconfig
 path = ~/git/foss/.gitconfig
 [tag]
 	gpgsign = true
+[rebase]
+	updateRefs = true
