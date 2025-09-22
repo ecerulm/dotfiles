@@ -191,3 +191,5 @@ path = ~/git/foss/.gitconfig
 	gpgsign = true
 [rebase]
 	updateRefs = true
+[user]
+	name = Rubén Laguna
