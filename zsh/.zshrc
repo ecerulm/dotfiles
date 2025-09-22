@@ -248,3 +248,9 @@ if [ -f "$HOME/.local/google-cloud-sdk/completion.zsh.inc" ]; then . "$HOME/.loc
 
 # Key bindingins / bindkeys
 bindkey ' ' magic-space
+
+
+# If Visual Studio Code is installed / vscode
+if [ -x "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code" ]; then
+  path+="/Applications/Visual Studio Code.app/Contents/Resources/app/bin"
+fi
