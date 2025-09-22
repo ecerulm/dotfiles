@@ -1,2 +1,3 @@
+Include config.thismachine
 Host *
   UseKeyChain yes
