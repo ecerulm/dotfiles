@@ -254,3 +254,9 @@ bindkey ' ' magic-space
 if [ -x "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code" ]; then
   path+="/Applications/Visual Studio Code.app/Contents/Resources/app/bin"
 fi
+
+if [ -x "/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home/bin/javac" ]; then
+  export JAVA_HOME="/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home"
+  # path+="${JAVA_HOME}/bin" # append
+  path=("${JAVA_HOME}/bin" $path) # prepend
+fi
