@@ -108,6 +108,7 @@
 	mnemonicprefix = true
 	renames = copies
 	tool = difftastic
+	submodule = log
 [http "https://gopkg.in"]
 	followRedirects = true
 [difftool "filemerge"]
@@ -191,5 +192,6 @@ path = ~/git/foss/.gitconfig
 	gpgsign = true
 [rebase]
 	updateRefs = true
+	autostash = true
 [user]
 	name = Rubén Laguna
