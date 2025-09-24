@@ -108,6 +108,6 @@ mkdir -p ~/tmp
 brew install neovim tree-sitter tree-sitter-cli node wget go \
   rust microsoft-openjdk@21 php composer diff-so-fancy julia \
   ripgrep fd fzf gpg pinentry-mac zoxide pre-commit \
-  gh pyenv gradle maven openjdk@21 node@18 yarn \
+  gh pyenv gradle maven openjdk@21 node@18 node@22 yarn \
   direnv colima docker docker-compose
 # :checkhealt lazy mason
