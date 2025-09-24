@@ -263,6 +263,5 @@ fi
 
 
 if [ -f "${HOME}/powerlevel10k/powerlevel10k.zsh-theme" ]; then
-  echo "test"
   source "${HOME}/powerlevel10k/powerlevel10k.zsh-theme"
 fi
