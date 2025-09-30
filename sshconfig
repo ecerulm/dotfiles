@@ -1,3 +1,5 @@
+Include /Users/rubenlaguna/.colima/ssh_config
+
 Include /Users/ecerulm/.colima/ssh_config
 
 Include ~/.ssh/config.thismachine
