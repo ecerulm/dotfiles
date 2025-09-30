@@ -149,6 +149,7 @@
 	gpgsign = true
 [pull]
 	rebase = true
+	autoStash = true
 [interactive]
 	diffFilter = diff-so-fancy --patch
 [color "diff-highlight"]
