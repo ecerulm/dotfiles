@@ -180,6 +180,7 @@ autoload -Uz dnsflush
 autoload -Uz openports
 autoload -Uz pyclean
 autoload -Uz randompassword
+autoload -Uz mkpw
 
 [ -x /opt/homebrew/bin/brew ] && eval $(/opt/homebrew/bin/brew shellenv)
 [ -x /usr/local/bin/brew ] && eval $(/usr/local/bin/brew shellenv)
@@ -189,6 +190,7 @@ export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || pr
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" # This loads nvm
 
 alias randompassword="LC_ALL=C tr -cd '[:alnum:]' < /dev/urandom | fold -w30 |head -n1"
+
 
 if builtin command -v eza >/dev/null ;then
   alias ls="eza -l --git --icons --time-style long-iso -snew"

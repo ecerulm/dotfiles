@@ -1,0 +1,7 @@
+  function mkpw () {
+      if (( $# == 0 )) then
+          head /dev/urandom | uuencode -m - | sed -n 2p | cut -c1-${1:-12}
+      else
+          head /dev/urandom | uuencode -m - | sed -n 2p | cut -c1-${1:-$1}
+      fi
+  }
