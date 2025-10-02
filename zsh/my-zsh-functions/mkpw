@@ -1,7 +1,3 @@
   function mkpw () {
-      if (( $# == 0 )) then
-          head /dev/urandom | uuencode -m - | sed -n 2p | cut -c1-${1:-12}
-      else
-          head /dev/urandom | uuencode -m - | sed -n 2p | cut -c1-${1:-$1}
-      fi
+      LC_ALL=C tr -cd '[:alnum:]' < /dev/urandom | head -c ${1:-14}
   }
