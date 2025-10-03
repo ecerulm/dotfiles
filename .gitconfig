@@ -194,5 +194,6 @@ path = ~/git/foss/.gitconfig
 [rebase]
 	updateRefs = true
 	autoStash = true
+	autoSquash = true
 [user]
 	name = Rubén Laguna
