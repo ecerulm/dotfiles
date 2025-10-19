@@ -124,3 +124,5 @@ stty -ixon  # Disable flow control
 set -gx PATH $PATH /Users/ecerulm/.lmstudio/bin
 # End of LM Studio CLI section
 
+
+string match -q "$TERM_PROGRAM" "kiro" and . (kiro --locate-shell-integration-path fish)

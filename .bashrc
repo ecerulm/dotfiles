@@ -917,3 +917,5 @@ export PATH="/usr/local/opt/openjdk@17/bin:$PATH"
 export PATH="$PATH:/Users/ecerulm/.lmstudio/bin"
 # End of LM Studio CLI section
 
+
+[[ "$TERM_PROGRAM" == "kiro" ]] && . "$(kiro --locate-shell-integration-path bash)"
