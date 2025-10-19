@@ -262,8 +262,3 @@ if [ -x "/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home/bin/java
   # path+="${JAVA_HOME}/bin" # append
   path=("${JAVA_HOME}/bin" $path) # prepend
 fi
-
-
-if [ -f "${HOME}/powerlevel10k/powerlevel10k.zsh-theme" ]; then
-  source "${HOME}/powerlevel10k/powerlevel10k.zsh-theme"
-fi
