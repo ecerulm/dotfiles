@@ -109,5 +109,5 @@ brew install neovim tree-sitter tree-sitter-cli node wget go \
   rust microsoft-openjdk@21 php composer diff-so-fancy julia \
   ripgrep fd fzf gpg pinentry-mac zoxide pre-commit \
   gh pyenv gradle maven openjdk@21 node@18 node@22 yarn \
-  direnv colima docker docker-compose
+  direnv colima docker docker-compose mysql pkg-config
 # :checkhealt lazy mason
