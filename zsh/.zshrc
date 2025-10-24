@@ -262,3 +262,21 @@ if [ -x "/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home/bin/java
   # path+="${JAVA_HOME}/bin" # append
   path=("${JAVA_HOME}/bin" $path) # prepend
 fi
+
+autoload -Uz vcs_info
+# precmd_vcs_info() { vcs_info }
+# precmd_functions+=( precmd_vcs_info )
+setopt prompt_subst # setopp PROMPT_SUBST is required to enable prompt substitution
+
+zstyle ':vcs_info:git*' formats " %F{blue}%b%f %m%u%c %a "
+zstyle ':vcs_info:*' enable git
+zstyle ':vcs_info:*' check-for-changes true
+zstyle ':vcs_info:*' stagedstr ' %F{green}✚%f'
+zstyle ':vcs_info:*' unstagedstr ' %F{red}●%f'
+
+precmd() {
+    vcs_info
+    print -P '%B%~%b ${vcs_info_msg_0_}'
+}
+
+PROMPT='%B%(!.#.$)%b '
