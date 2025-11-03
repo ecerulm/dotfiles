@@ -17,9 +17,9 @@ return {
 			disable = {},
 		},
 		-- treesitter indentation is EXPERIMENTAL
-		-- setting indent.enable will change indentexpr=nvim_treesitter#indent()
+		-- setting indent.enable will change indentexpr=nvim_treesitter#indent(), overrides python#GetIndent(v:lnum)
 		-- https://github.com/nvim-treesitter/nvim-treesitter?tab=readme-ov-file#indentation
-		indent = { enable = false },
+		indent = { enable = true },
 		auto_install = false,
 		sync_install = false,
 		ignore_install = {},
