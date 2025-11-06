@@ -15,10 +15,10 @@ return { -- optional blink completion source for require statements and module a
 	opts = {
 		completion = {
 			menu = {
-				auto_show = true,
+				auto_show = false,
 			},
 			ghost_text = {
-				enabled = true,
+				enabled = false,
 			},
 		},
 		sources = {
