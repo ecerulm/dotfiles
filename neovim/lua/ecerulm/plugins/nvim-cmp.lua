@@ -40,8 +40,7 @@ return {
 				return false
 			end
 			local line, col = unpack(vim.api.nvim_win_get_cursor(0))
-			return col ~= 0 and
-			vim.api.nvim_buf_get_text(0, line - 1, 0, line - 1, col, {})[1]:match("^%s*$") == nil
+			return col ~= 0 and vim.api.nvim_buf_get_text(0, line - 1, 0, line - 1, col, {})[1]:match("^%s*$") == nil
 		end
 
 		cmp.setup({
@@ -49,7 +48,7 @@ return {
 				-- ghost_text={
 				--   hl_group="Nontext",
 				-- },
-				ghost_text = true,
+				ghost_text = false, -- this featrue conflic with copilot.vim preview
 			},
 			snippet = {
 				expand = function(args)
@@ -86,6 +85,13 @@ return {
 				--   - Overrides preview
 			},
 			mapping = cmp.mapping.preset.insert({ -- keymaps / keymapping
+				["<C-g>"] = cmp.mapping(function(fallback)
+					vim.api.nvim_feedkeys(
+						vim.fn["copilot#Accept"](vim.api.nvim_replace_termcodes("<Tab>", true, true, true)),
+						"n",
+						true
+					)
+				end),
 				["<C-j>"] = cmp.mapping.select_next_item(), -- next suggestion
 				["<C-k>"] = cmp.mapping.select_prev_item(), -- previous suggestion
 				["<C-b>"] = cmp.mapping.scroll_docs(-4), -- scroll backward
@@ -93,10 +99,11 @@ return {
 				["<C-Space>"] = cmp.mapping.complete({
 					config = {
 						sources = {
-							{ name = "codeium" },
+							-- { name = "codeium" },
+							{ name = "Copilot" },
 						},
 					},
-				}),       -- show completion suggestions
+				}), -- show completion suggestions
 				["<Tab>"] = cmp.mapping.complete({}), -- show completion suggestions
 				["<CR>"] = cmp.mapping.confirm({
 					behavior = cmp.ConfirmBehavior.Replace,
@@ -134,7 +141,7 @@ return {
 			}),
 			sources = cmp.config.sources({
 				{ name = "nvim_lsp", group_index = 20, max_item_count = 5 }, -- lsp
-				{ name = "luasnip",  group_index = 1,  max_item_count = 5 }, -- snippets
+				{ name = "luasnip", group_index = 1, max_item_count = 5 }, -- snippets
 				{
 					name = "buffer",
 					group_index = 10,
@@ -148,11 +155,11 @@ return {
 							return vim.tbl_keys(bufs)
 						end,
 					},
-				},                              -- text within current buffer
-				{ name = "path",    group_index = 10, max_item_count = 5 }, -- file system paths
+				}, -- text within current buffer
+				{ name = "path", group_index = 10, max_item_count = 5 }, -- file system paths
 				{ name = "copilot", group_index = 30, max_item_count = 5 }, -- from zbirenbaum/copilot-cmp
 				{ name = "Copilot", group_index = 30, max_item_count = 5 }, --
-				{ name = "codeium", group_index = 30, max_item_count = 5 }, -- from Exafunction/codeium.nvim
+				-- { name = "codeium", group_index = 30, max_item_count = 5 }, -- from Exafunction/codeium.nvim
 			}),
 			window = {
 				-- Add borders to completions popups
