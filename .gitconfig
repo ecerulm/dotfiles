@@ -1,82 +1,82 @@
-# vim: set expandtab:
+# vim: set noexpandtab:
 [color]
 	ui = true
 [alias]
-  st = status -sb
-  ci = commit -v
-  co = checkout
-  di = diff
-  dc = diff --cached
-  amend = commit --amend
-  a = add -u
-  aa = add --all
-  # Add files that are already staged
-  as = !git add $(git diff --name-only --cached --relative)
-  ff = merge --ff-only
-  pullff = pull --ff-only
-  noff = merge --no-ff
-  fa = fetch --all
-  pom = push origin master
-  b = branch
-  d = diff -w
-  ds = diff --stat=160,120
-  dh1 = diff HEAD~1
-  di = diff
+	st = status -sb
+	ci = commit -v
+	co = checkout
+	di = diff
+	dc = diff --cached
+	amend = commit --amend
+	a = add -u
+	aa = add --all
+	# Add files that are already staged
+	as = !git add $(git diff --name-only --cached --relative)
+	ff = merge --ff-only
+	pullff = pull --ff-only
+	noff = merge --no-ff
+	fa = fetch --all
+	pom = push origin master
+	b = branch
+	d = diff -w
+	ds = diff --stat=160,120
+	dh1 = diff HEAD~1
+	di = diff
 
-  #Divergence (commits we added and commits remote added)
-  div = divergence
+	#Divergence (commits we added and commits remote added)
+	div = divergence
 
-  #Goodness (summary of diff lines added/removed/total)
-  gn = goodness
-  gnc = goodness --cached
+	#Goodness (summary of diff lines added/removed/total)
+	gn = goodness
+	gnc = goodness --cached
 
-  # Fancy logging
-  #   h = head
-  #   hp = head with patch
-  #   r = recent commits, only current branch
-  #   ra = recent commits, all reachable refs
-  #   l = all commits, all reachable refs
+	# Fancy logging
+	#		h = head
+	#		hp = head with patch
+	#		r = recent commits, only current branch
+	#		ra = recent commits, all reachable refs
+	#		l = all commits, all reachable refs
 
-  head = !git l -1
-  h = !git head
-  hp = "!/bin/bash -c 'source ~/.githelpers && show_git_head'"
-  r = !git l -30
-  ra = !git r --all
-  l = "!/bin/bash -c 'source ~/.githelpers && pretty_git_log'"
-  la = !git l --all
-  lc = rev-parse HEAD
-  ctags = !.git/hooks/ctags
-  standup = log --since=yesterday --author 'ecerulm\\|ruben\\|Ruben'
-  lol = log --graph --decorate --pretty=oneline --abbrev-commit
-  lola = log --graph --decorate --pretty=oneline --abbrev-commit --all
-  purr = pull --rebase
-  ready = rebase -i @{u}
-  rebasebranch = !git rebase -i $(git merge-base HEAD master)
-  fold = !sh -c '_CURRENT_BRANCH=$(git symbolic-ref --short HEAD)  && git checkout ${1-master} && git merge --no-ff ${2-$_CURRENT_BRANCH}' -
-  undomerge = reset --merge ORIG_HEAD
-  diffbase = !cd ${GIT_PREFIX:-.} && git diff $(git merge-base HEAD ${1-origin/master}) ${1-origin/master}
-  pristine = !sh -c 'git reset --hard $1 && git clean -qdfx && git status' -
-  diffmaster = !git diff $(git merge-base --fork-point master) # Current branch from fork point
+	head = !git l -1
+	h = !git head
+	hp = "!/bin/bash -c 'source ~/.githelpers && show_git_head'"
+	r = !git l -30
+	ra = !git r --all
+	l = "!/bin/bash -c 'source ~/.githelpers && pretty_git_log'"
+	la = !git l --all
+	lc = rev-parse HEAD
+	ctags = !.git/hooks/ctags
+	standup = log --since=yesterday --author 'ecerulm\\|ruben\\|Ruben'
+	lol = log --graph --decorate --pretty=oneline --abbrev-commit
+	lola = log --graph --decorate --pretty=oneline --abbrev-commit --all
+	purr = pull --rebase
+	ready = rebase -i @{u}
+	rebasebranch = !git rebase -i $(git merge-base HEAD master)
+	fold = !sh -c '_CURRENT_BRANCH=$(git symbolic-ref --short HEAD)  && git checkout ${1-master} && git merge --no-ff ${2-$_CURRENT_BRANCH}' -
+	undomerge = reset --merge ORIG_HEAD
+	diffbase = !cd ${GIT_PREFIX:-.} && git diff $(git merge-base HEAD ${1-origin/master}) ${1-origin/master}
+	pristine = !sh -c 'git reset --hard $1 && git clean -qdfx && git status' -
+	diffmaster = !git diff $(git merge-base --fork-point master) # Current branch from fork point
 
-  # From https://robots.thoughtbot.com/streamline-your-git-workflow-with-aliases
-  c = commit -m
-  cob = checkout -b
-  up = !git fetch origin && git rebase origin/master
-  ir = !git rebase -i origin/master
-  done = !git fetch && git rebase origin/master && git checkout master && git merge @{-1}
+	# From https://robots.thoughtbot.com/streamline-your-git-workflow-with-aliases
+	c = commit -m
+	cob = checkout -b
+	up = !git fetch origin && git rebase origin/master
+	ir = !git rebase -i origin/master
+	done = !git fetch && git rebase origin/master && git checkout master && git merge @{-1}
 	god = log --graph --oneline --decorate
 	track = "!f() { ([ $# -eq 2 ] && ( echo \"Setting tracking for branch \" $1 \" -> \" $2;git branch --set-upstream $1 $2; ) || ( git for-each-ref --format=\"local: %(refname:short) <--sync--> remote: %(upstream:short)\" refs/heads && echo --Remotes && git remote -v)); }; f"
 
-  # difftool diffstastic
-  dft = difftool
-  dlog = "!f() { GIT_EXTERNAL_DIFF=difft git log -p --ext-diff $@;}; f"
+	# difftool diffstastic
+	dft = difftool
+	dlog = "!f() { GIT_EXTERNAL_DIFF=difft git log -p --ext-diff $@;}; f"
 
-  # remote local branch with no remote branches
-  dlocal = "!f() { git fetch --prune; git for-each-ref --format='%(if:equals=[gone])%(upstream:track)%(then)%(refname:short)%(end)' refs/heads | xargs git branch -D; echo "Deleted local branches where the upstream is deleted"; }; f"
+	# remote local branch with no remote branches
+	dlocal = "!f() { git fetch --prune; git for-each-ref --format='%(if:equals=[gone])%(upstream:track)%(then)%(refname:short)%(end)' refs/heads | xargs git branch -D; echo "Deleted local branches where the upstream is deleted"; }; f"
 
-  # sort files by modification time
-  ls = "!f() { cd -- \"${GIT_PREFIX:-.}\"; git ls-tree -r --name-only HEAD -z . | xargs -0n1 -I{} git --no-pager log -n 1 --format=\"%ad {}\" --date=unix -- {}|sort -n -k1| cut -d ' ' -f 2| xargs -n1 -I{} git log --date=relative -n 1  --format=\"%ad {}\" -- {}; }; f"
-  lsr = "!f() { cd -- \"${GIT_PREFIX:-.}\"; git ls-tree -r --name-only HEAD -z . | xargs -0n1 -I{} git --no-pager log -n 1 --format=\"%ad {}\" --date=unix -- {}|sort -r -n -k1| cut -d ' ' -f 2| xargs -n1 -I{} git log --date=relative -n 1  --format=\"%ad {}\" -- {}; }; f"
+	# sort files by modification time
+	ls = "!f() { cd -- \"${GIT_PREFIX:-.}\"; git ls-tree -r --name-only HEAD -z . | xargs -0n1 -I{} git --no-pager log -n 1 --format=\"%ad {}\" --date=unix -- {}|sort -n -k1| cut -d ' ' -f 2| xargs -n1 -I{} git log --date=relative -n 1  --format=\"%ad {}\" -- {}; }; f"
+	lsr = "!f() { cd -- \"${GIT_PREFIX:-.}\"; git ls-tree -r --name-only HEAD -z . | xargs -0n1 -I{} git --no-pager log -n 1 --format=\"%ad {}\" --date=unix -- {}|sort -r -n -k1| cut -d ' ' -f 2| xargs -n1 -I{} git log --date=relative -n 1  --format=\"%ad {}\" -- {}; }; f"
 
 [merge]
 	tool = meld
@@ -93,8 +93,8 @@
 	untrackedcache = true
 	fsmonitor = true
 [init]
-  templatedir = ~/.git_template
-  defaultBranch = master
+	templatedir = ~/.git_template
+	defaultBranch = main
 [pager]
 	difftool = true
 [push]
@@ -102,8 +102,8 @@
 	followTags = true
 	autoSetupRemote = true
 [filter "media"]
-  clean = git-media-clean %f
-  smudge = git-media-smudge %f
+	clean = git-media-clean %f
+	smudge = git-media-smudge %f
 [diff]
 	mnemonicprefix = true
 	renames = copies
@@ -118,7 +118,7 @@
 [difftool "Kaleidoscope"]
 	cmd = ksdiff --partial-changeset --relative-path \"$MERGED\" -- \"$LOCAL\" \"$REMOTE\"
 [difftool "difftastic"]
-  cmd = difft "$LOCAL" "$REMOTE"
+	cmd = difft "$LOCAL" "$REMOTE"
 [difftool]
 	prompt = false
 	trustExitCode = true
@@ -130,7 +130,7 @@
 [mergetool "diffmerge"]
 	trustExitCode = true
 	path = /usr/local/bin/diffmerge
-	cmd = diffmerge --merge --caption $(basename $MERGED)   -t1=FROM_BRANCH -t2=MERGED -t3=DEST_BRANCH --result=\"$MERGED\" \"$LOCAL\" \"$BASE\" \"$REMOTE\"
+	cmd = diffmerge --merge --caption $(basename $MERGED)		-t1=FROM_BRANCH -t2=MERGED -t3=DEST_BRANCH --result=\"$MERGED\" \"$LOCAL\" \"$BASE\" \"$REMOTE\"
 [mergetool "kdiff3"]
 	path = /usr/local/bin/kdiff3
 	cmd = kdiff3 --L1 \"FORKPOINT\" --L2 \"SOURCE_BRANCH\" --L3 \"DESTINATION_BRANCH\" \"$BASE\" \"$LOCAL\" \"$REMOTE\" -o \"$MERGED\"
@@ -141,7 +141,7 @@
 	trustExitCode = false
 [mergetool "meld"]
 	path = /usr/local/bin/meld
-	cmd = "meld --auto-merge  \"$LOCAL\" \"$BASE\" \"$REMOTE\" --output \"$MERGED\" "
+	cmd = "meld --auto-merge	\"$LOCAL\" \"$BASE\" \"$REMOTE\" --output \"$MERGED\" "
 	trustExitCode = false
 [gpg]
 	program = gpg
@@ -180,9 +180,9 @@
 [branch]
 	sort = -committerdate
 [include]
-  ; need to be git 1.9.2 for includes to work
-  ; path = .gitconfig_platform_specific
-  path = ~/.gitconfig.thismachine
+	; need to be git 1.9.2 for includes to work
+	; path = .gitconfig_platform_specific
+	path = ~/.gitconfig.thismachine
 [includeIf "gitdir:~/git/personal/"]
 path = ~/git/personal/.gitconfig
 [includeIf "gitdir:~/git/work/"]
