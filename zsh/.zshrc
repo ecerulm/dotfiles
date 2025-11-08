@@ -267,6 +267,7 @@ autoload -Uz vcs_info
 # precmd_vcs_info() { vcs_info }
 # precmd_functions+=( precmd_vcs_info )
 setopt prompt_subst # setopp PROMPT_SUBST is required to enable prompt substitution
+setopt interactivecomments # so you can use # in the shell when you copy and paste 
 
 zstyle ':vcs_info:git*' formats " %F{blue}%b%f %m%u%c %a "
 zstyle ':vcs_info:*' enable git
