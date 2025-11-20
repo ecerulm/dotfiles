@@ -55,9 +55,10 @@
 	rebasebranch = !git rebase -i $(git merge-base HEAD master)
 	fold = !sh -c '_CURRENT_BRANCH=$(git symbolic-ref --short HEAD)  && git checkout ${1-master} && git merge --no-ff ${2-$_CURRENT_BRANCH}' -
 	undomerge = reset --merge ORIG_HEAD
-	diffbase = !cd ${GIT_PREFIX:-.} && git diff $(git merge-base HEAD ${1-origin/master}) ${1-origin/master}
+	diffbase = !cd ${GIT_PREFIX:-.} && git diff $(git merge-base HEAD ${1-origin/main}) ${1-origin/main}
 	pristine = !sh -c 'git reset --hard $1 && git clean -qdfx && git status' -
 	diffmaster = !git diff $(git merge-base --fork-point master) # Current branch from fork point
+	diffmain = !git diff $(git merge-base --fork-point main) # Current branch from fork point
 
 	# From https://robots.thoughtbot.com/streamline-your-git-workflow-with-aliases
 	c = commit -m
@@ -67,6 +68,7 @@
 	done = !git fetch && git rebase origin/master && git checkout master && git merge @{-1}
 	god = log --graph --oneline --decorate
 	track = "!f() { ([ $# -eq 2 ] && ( echo \"Setting tracking for branch \" $1 \" -> \" $2;git branch --set-upstream $1 $2; ) || ( git for-each-ref --format=\"local: %(refname:short) <--sync--> remote: %(upstream:short)\" refs/heads && echo --Remotes && git remote -v)); }; f"
+	recheckout = "!f() { git read-tree --reset -u $(git mktree </dev/null); git read-tree --reset -u HEAD; }; f"
 
 	# difftool diffstastic
 	dft = difftool
@@ -78,6 +80,7 @@
 	# sort files by modification time
 	ls = "!f() { cd -- \"${GIT_PREFIX:-.}\"; git ls-tree -r --name-only HEAD -z . | xargs -0n1 -I{} git --no-pager log -n 1 --format=\"%ad {}\" --date=unix -- {}|sort -n -k1| cut -d ' ' -f 2| xargs -n1 -I{} git log --date=relative -n 1  --format=\"%ad {}\" -- {}; }; f"
 	lsr = "!f() { cd -- \"${GIT_PREFIX:-.}\"; git ls-tree -r --name-only HEAD -z . | xargs -0n1 -I{} git --no-pager log -n 1 --format=\"%ad {}\" --date=unix -- {}|sort -r -n -k1| cut -d ' ' -f 2| xargs -n1 -I{} git log --date=relative -n 1  --format=\"%ad {}\" -- {}; }; f"
+	root = rev-parse --show-toplevel
 
 [merge]
 	tool = meld
