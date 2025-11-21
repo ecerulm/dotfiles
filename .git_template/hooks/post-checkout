@@ -1,3 +1,8 @@
 #!/bin/sh
-set -e
-.git/hooks/ctags >/dev/null 2>&1 &
+set -euo pipefail
+
+
+# Force to run the filter on file that has them, by deleting the file and checkout-index after
+git ls-files | git check-attr --stdin filter | grep ": filter: version$"| awk -F: '{print $1}' | xargs rm
+git checkout-index -a
+

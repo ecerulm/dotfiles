@@ -1,0 +1,4 @@
+[filter "version"]
+	smudge = filter_expandvars_smudge.sh
+	clean = filter_expandvars_clean.sh
+	required = true
