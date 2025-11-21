@@ -81,6 +81,7 @@
 	ls = "!f() { cd -- \"${GIT_PREFIX:-.}\"; git ls-tree -r --name-only HEAD -z . | xargs -0n1 -I{} git --no-pager log -n 1 --format=\"%ad {}\" --date=unix -- {}|sort -n -k1| cut -d ' ' -f 2| xargs -n1 -I{} git log --date=relative -n 1  --format=\"%ad {}\" -- {}; }; f"
 	lsr = "!f() { cd -- \"${GIT_PREFIX:-.}\"; git ls-tree -r --name-only HEAD -z . | xargs -0n1 -I{} git --no-pager log -n 1 --format=\"%ad {}\" --date=unix -- {}|sort -r -n -k1| cut -d ' ' -f 2| xargs -n1 -I{} git log --date=relative -n 1  --format=\"%ad {}\" -- {}; }; f"
 	root = rev-parse --show-toplevel
+	initialcommit = rev-list --max-parents=0 HEAD
 
 [merge]
 	tool = meld
