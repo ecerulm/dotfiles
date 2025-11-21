@@ -83,10 +83,6 @@ path+=(/opt/homebrew/bin)
 plugins=(macos direnv)
 
 
-# HISTFILE="$HOME/.zsh_history" # the default is set on /etc/zshrc
-HISTSIZE=10000000
-SAVEHIST=10000000
-setopt appendhistory
 
 
 
@@ -108,10 +104,17 @@ setopt appendhistory
 # if file exists then
 [[ -f "$ZSH/oh-my-zsh.sh" ]] && source "$ZSH/oh-my-zsh.sh"
 
-setopt APPEND_HISTORY
+# history file
+# INC_APPEND_HISTORY_TIME,  INC_APPEND_HISTORY and SHARE_HISTORY should be considered mutually exclusive.
+# HISTFILE="$HOME/.zsh_history" # the default is set on /etc/zshrc
+HISTSIZE=10000000
+SAVEHIST=10000000
+unsetopt APPEND_HISTORY # https://zsh.sourceforge.io/Doc/Release/Options.html
 unsetopt INC_APPEND_HISTORY
 unsetopt INC_APPEND_HISTORY_TIME
 unsetopt SHARE_HISTORY
+
+setopt SHARE_HISTORY # appends to history inmmediately, history is automatically read as well
 
 # User configuration
 
