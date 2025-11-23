@@ -15,5 +15,7 @@ return {
 	config = function()
 		-- vim.lsp.enable("pyright")
 		vim.lsp.enable("pylsp")
+    vim.lsp.config("gopls", {})
+    vim.lsp.enable("gopls")
 	end,
 }
