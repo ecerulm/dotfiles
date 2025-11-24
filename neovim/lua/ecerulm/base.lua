@@ -36,6 +36,8 @@ vim.opt.smartcase = true -- ignore case if regex in lowercase, othewise case sen
 vim.opt.grepprg = "rg --vimgrep --no-heading --smart-case" -- see Practical Vim Chapter 18
 vim.opt.list = false
 vim.opt.splitright = true
+vim.opt.undofile = true -- persistent undo / undo persistence
+
 
 if vim.fn.exists("&messagesopt") == 1 then -- NVIM 0.10.2 does NOT have this option
 	-- vim.opt.messagesopt = "wait:3000,history:50" -- :h 'messagesopt' -- the default is 'hit-enter;history:500'
