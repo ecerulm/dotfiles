@@ -74,7 +74,7 @@
 	dft = difftool
 	dlog = "!f() { GIT_EXTERNAL_DIFF=difft git log -p --ext-diff $@;}; f"
 
-	# remote local branch with no remote branches
+	# remote local branch with no remote branches / delete local branches that has been deleted from remote
 	dlocal = "!f() { git fetch --prune; git for-each-ref --format='%(if:equals=[gone])%(upstream:track)%(then)%(refname:short)%(end)' refs/heads | xargs git branch -D; echo "Deleted local branches where the upstream is deleted"; }; f"
 
 	# sort files by modification time
