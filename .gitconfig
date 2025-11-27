@@ -11,7 +11,7 @@
 	a = add -u
 	aa = add --all
 	# Add files that are already staged
-	as = !git add $(git diff --name-only --cached --relative)
+	as = !git add $(git diff --name-only --cached --relative --diff-filter=d)
 	ff = merge --ff-only
 	pullff = pull --ff-only
 	noff = merge --no-ff
