@@ -80,7 +80,9 @@ HIST_STAMPS="yyyy-mm-dd"
 # Example format: plugins=(rails git textmate ruby lighthouse)
 # Add wisely, as too many plugins slow down shell startup.
 path+=(/opt/homebrew/bin)
-plugins=(macos direnv)
+plugins=(macos direnv) # for oh-my-zsh only
+
+eval "$(direnv hook zsh)"
 
 
 
@@ -284,3 +286,10 @@ precmd() {
 }
 
 PROMPT='%B%(!.#.$)%b '
+
+
+# If Google Antigravity is installed / vscode
+if [ -x "/Applications/Antigravity.app/Contents/Resources/app/bin/antigravity" ]; then
+  path+="/Applications/Antigravity.app/Contents/Resources/app/bin/"
+  alias agy="antigravity"
+fi
