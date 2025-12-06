@@ -3,7 +3,7 @@
 return {
 	-- https://github.com/github/copilot.vim/blob/release/doc/copilot.txt
 	"github/copilot.vim",
-	enabled = true,
+	enabled = false,
 	cond = true,
 	lazy = false,
   event = "BufWinEnter",
