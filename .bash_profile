@@ -34,3 +34,9 @@ if [ -f '/Users/ecerulm/.local/google-cloud-sdk/completion.bash.inc' ]; then . '
 export PATH="$PATH:/Users/ecerulm/.lmstudio/bin"
 # End of LM Studio CLI section
 
+
+AGY_PATH="$HOME/.antigravity/antigravity/bin"
+if [ -d "$AGY_PATH" ]; then
+  export PATH="$AGY_PATH:$PATH"
+fi
+# Added by Antigravity
