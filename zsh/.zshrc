@@ -289,7 +289,11 @@ PROMPT='%B%(!.#.$)%b '
 
 
 # If Google Antigravity is installed / vscode
-if [ -x "/Applications/Antigravity.app/Contents/Resources/app/bin/antigravity" ]; then
-  path+="/Applications/Antigravity.app/Contents/Resources/app/bin/"
-  alias agy="antigravity"
+# if [ -x "/Applications/Antigravity.app/Contents/Resources/app/bin/antigravity" ]; then
+#   path+="/Applications/Antigravity.app/Contents/Resources/app/bin/"
+#   alias agy="antigravity"
+# fi
+AGY_PATH="$HOME/.antigravity/antigravity/bin"
+if [ -d "$AGY_PATH" ]; then
+  path+="$AGY_PATH"
 fi
