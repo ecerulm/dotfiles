@@ -8,6 +8,7 @@ return {
 	config = function()
 		vim.g.switch_custom_definitions = {
 			{ 'Enabled', 'Disabled' },
+			{ '==', '!=' },
 		}
 	end,
 }
