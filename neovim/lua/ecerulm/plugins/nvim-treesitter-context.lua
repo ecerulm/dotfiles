@@ -4,6 +4,7 @@ return {
 	--  of the class , first line of the  method , first line of the if , etc
 	"nvim-treesitter/nvim-treesitter-context",
 	enabled = true,
+  branch="master",
 	dev = false,
 	cond = true,
 	lazy = false,

@@ -3,13 +3,14 @@ return {
 	-- https://github.com/nvim-treesitter/nvim-treesitter
 	"nvim-treesitter/nvim-treesitter",
 	enabled = true,
-  tag = "v0.10.0",
+  branch='main',
+  -- tag = "v0.10.0",
 	cond = true,
 	lazy = false,
 	-- event = "VeryLazy",
 	dependencies = {
 		-- https://github.com/nvim-treesitter/nvim-treesitter-textobjects
-    {"nvim-treesitter/nvim-treesitter-textobjects", branch="master"}
+    -- {"nvim-treesitter/nvim-treesitter-textobjects", branch="main"} -- 
 	},
 	build = ":TSUpdate",
 	opts = {
@@ -20,7 +21,7 @@ return {
 		-- treesitter indentation is EXPERIMENTAL
 		-- setting indent.enable will change indentexpr=nvim_treesitter#indent(), overrides python#GetIndent(v:lnum)
 		-- https://github.com/nvim-treesitter/nvim-treesitter?tab=readme-ov-file#indentation
-		indent = { enable = true },
+		indent = { enable = false },
 		auto_install = false,
 		sync_install = false,
 		ignore_install = {},
@@ -110,8 +111,8 @@ return {
 			},
 		},
 	},
-	config = function(_, opts)
-		local configs = require("nvim-treesitter.configs")
-		configs.setup(opts)
-	end,
+	-- config = function(_, opts)
+	-- 	local configs = require("nvim-treesitter.configs")
+	-- 	configs.setup(opts)
+	-- end,
 }
