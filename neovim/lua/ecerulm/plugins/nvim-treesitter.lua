@@ -3,12 +3,13 @@ return {
 	-- https://github.com/nvim-treesitter/nvim-treesitter
 	"nvim-treesitter/nvim-treesitter",
 	enabled = true,
+  tag = "v0.10.0",
 	cond = true,
 	lazy = false,
-	event = "VeryLazy",
+	-- event = "VeryLazy",
 	dependencies = {
 		-- https://github.com/nvim-treesitter/nvim-treesitter-textobjects
-		"nvim-treesitter/nvim-treesitter-textobjects",
+    {"nvim-treesitter/nvim-treesitter-textobjects", branch="master"}
 	},
 	build = ":TSUpdate",
 	opts = {
