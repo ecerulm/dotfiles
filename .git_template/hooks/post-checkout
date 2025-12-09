@@ -1,5 +1,6 @@
 #!/bin/sh
-set -euo pipefail
+# set -euo pipefail
+set -eu
 
 
 # Force to run the filter on file that has them, by deleting the file and checkout-index after
