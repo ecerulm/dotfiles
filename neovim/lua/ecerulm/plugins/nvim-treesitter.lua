@@ -22,8 +22,8 @@ return {
 		-- setting indent.enable will change indentexpr=nvim_treesitter#indent(), overrides python#GetIndent(v:lnum)
 		-- https://github.com/nvim-treesitter/nvim-treesitter?tab=readme-ov-file#indentation
 		indent = { enable = false },
-		auto_install = false,
-		sync_install = false,
+		auto_install = true,
+		sync_install = true,
 		ignore_install = {},
 		ensure_installed = {
 			"java",
