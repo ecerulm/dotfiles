@@ -1,0 +1,29 @@
+# docker-compose.yml
+version: "2"
+services:
+  a:
+    image: tutum/hello-world
+    networks:
+      - frontend
+  b:
+    image: tutum/hello-world
+    networks:
+      - frontend
+      - backend
+    volumes:
+      - namedvolume:/dirinsidecontainer:rw
+  c:
+    image: tutum/hello-world
+    networks:
+      - backend
+    volumes_from:
+      - b:ro
+networks:
+  frontend:
+    driver: bridge
+  backend:
+    driver: bridge
+
+
+volumes:
+  namedvolume:

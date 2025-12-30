@@ -21,7 +21,7 @@ for _, skeleton in pairs(skeletons) do
 	end
 	vim.api.nvim_create_autocmd({ "BufNewFile" }, {
 		pattern = patterns,
-		command = "r ~/.vim/skeleton." .. skeleton .. " | normal ggdd",
+		command = "r ~/.config/nvim/skeletons/skeleton." .. skeleton .. " | normal ggdd",
 	})
 end
 
