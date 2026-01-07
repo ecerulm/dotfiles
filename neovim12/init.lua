@@ -2,6 +2,7 @@ vim.pack.add({
 	"https://github.com/neovim/nvim-lspconfig",
 	{ src = "https://github.com/nvim-treesitter/nvim-treesitter", version = "main" },
 	"https://github.com/stevearc/conform.nvim",
+	"https://github.com/folke/snacks.nvim",
 })
 
 -- nvim-lspconfig
@@ -101,8 +102,33 @@ require("conform").setup({
 })
 vim.opt.formatexpr = "v:lua.require'conform'.formatexpr()" -- enables gq , like gqae
 
+-- Snacks.nvim / pickers / telescope
+require("snacks").setup({
+	gitbrowse = {
+		remote_patterns = {
+			{ "^(https?://.*)%.git$", "%1" },
+			{ "^git@github%-ecerulm:(.+)%.git$", "https://github.com/%1" }, -- %- escapes the `-` as it has special meaning in a regex
+			{ "^git@(.+):(.+)%.git$", "https://%1/%2" },
+			{ "^git@(.+):(.+)$", "https://%1/%2" },
+			{ "^git@(.+)/(.+)$", "https://%1/%2" },
+			{ "^org%-%d+@(.+):(.+)%.git$", "https://%1/%2" },
+			{ "^ssh://git@(.*)$", "https://%1" },
+			{ "^ssh://([^:/]+)(:%d+)/(.*)$", "https://%1/%3" },
+			{ "^ssh://([^/]+)/(.*)$", "https://%1/%2" },
+			{ "ssh%.dev%.azure%.com/v3/(.*)/(.*)$", "dev.azure.com/%1/_git/%2" },
+			{ "^https://%w*@(.*)", "https://%1" },
+			{ "^git@(.*)", "https://%1" },
+			{ ":%d+", "" },
+			{ "%.git$", "" },
+		},
+	},
+})
+
 -- Keymaps
 vim.keymap.set("i", "jk", "<Esc>")
+vim.keymap.set({ "n", "v" }, "<leader>gB", function()
+	Snacks.gitbrowse()
+end, { desc = "Git Browse" })
 
 -- textobject / text objects / text-objects / motions
 vim.keymap.set({ "o", "v" }, "ae", ":<C-u>normal! m'ggVG<cr>", { noremap = true, silent = true }) -- "o" is the operator pending mode :help omap-info, :help mapmode-o
