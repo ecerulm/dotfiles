@@ -1,9 +1,9 @@
 vim.pack.add({
-
 	"https://github.com/neovim/nvim-lspconfig",
 	{ src = "https://github.com/nvim-treesitter/nvim-treesitter", version = "main" },
 	"https://github.com/stevearc/conform.nvim",
 	"https://github.com/folke/snacks.nvim",
+	"https://github.com/nvim-treesitter/nvim-treesitter-context",
 })
 
 -- nvim-lspconfig
@@ -250,4 +250,3 @@ vim.keymap.set({ "o", "v" }, "ae", ":<C-u>normal! m'ggVG<cr>", { noremap = true,
 vim.opt.clipboard = "unnamedplus" -- paste from system clipboard
 vim.opt.foldlevel = 3 -- zi disable folding, za toggle fold on current line, zc close fold, zR open recursive, zM close recursive, zv reveal cursor
 vim.opt.conceallevel = 2
---
