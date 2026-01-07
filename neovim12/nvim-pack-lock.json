@@ -8,6 +8,10 @@
       "rev": "0b38bc74487e73489624d61396af7805af9cc75f",
       "src": "https://github.com/neovim/nvim-lspconfig"
     },
+    "nvim-surround": {
+      "rev": "1098d7b3c34adcfa7feb3289ee434529abd4afd1",
+      "src": "https://github.com/kylechui/nvim-surround"
+    },
     "nvim-treesitter": {
       "rev": "b033ab331ca0bccbd93c3c2b4f886fdfc09abec0",
       "src": "https://github.com/nvim-treesitter/nvim-treesitter",
