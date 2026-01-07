@@ -249,4 +249,5 @@ vim.keymap.set({ "o", "v" }, "ae", ":<C-u>normal! m'ggVG<cr>", { noremap = true,
 -- global options
 vim.opt.clipboard = "unnamedplus" -- paste from system clipboard
 vim.opt.foldlevel = 3 -- zi disable folding, za toggle fold on current line, zc close fold, zR open recursive, zM close recursive, zv reveal cursor
+vim.opt.conceallevel = 2
 --
