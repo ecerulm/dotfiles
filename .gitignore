@@ -20,7 +20,6 @@ __pycache__/
 .cache/
 .eggs/
 emacs.d/url/
-.git
 .eggs/
 .lein/self-installs
 emacs.d/ido.last

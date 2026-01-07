@@ -122,6 +122,7 @@ require("snacks").setup({
 			{ "%.git$", "" },
 		},
 	},
+	picker = {},
 })
 
 -- Keymaps
@@ -129,6 +130,36 @@ vim.keymap.set("i", "jk", "<Esc>")
 vim.keymap.set({ "n", "v" }, "<leader>gB", function()
 	Snacks.gitbrowse()
 end, { desc = "Git Browse" })
+
+-- vim.keymap.set({ "n", "v" }, "<leader>gb", function()
+-- 	Snacks.git.blame_line()
+-- end, { desc = "Git Blame" })
+
+-- snacks.nvim pickers
+vim.keymap.set("n", "<leader>fb", function()
+	Snacks.picker.buffers()
+end, { desc = "Find buffers" })
+vim.keymap.set("n", "<leader>ff", function()
+	Snacks.picker.files()
+end, { desc = "Find files" })
+vim.keymap.set("n", "<leader>fg", function()
+	Snacks.picker.git_files()
+end, { desc = "Find Git tracked files in the whole repo" })
+vim.keymap.set("n", "<leader>fr", function()
+	Snacks.picker.recent()
+end, { desc = "Recent files" })
+vim.keymap.set("n", "<leader>fp", function()
+	Snacks.picker.projects({
+		finder = "recent_projects",
+		dev = {
+			"~/git/personal",
+			"~/git/work",
+		},
+		max_depth = 3,
+		patterns = { ".git", "Makefile", "pyproject.toml", ".test" },
+		recent = false, --  include project directories of recent files
+	})
+end, { desc = "Recent projects" })
 
 -- textobject / text objects / text-objects / motions
 vim.keymap.set({ "o", "v" }, "ae", ":<C-u>normal! m'ggVG<cr>", { noremap = true, silent = true }) -- "o" is the operator pending mode :help omap-info, :help mapmode-o
