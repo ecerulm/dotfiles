@@ -200,7 +200,7 @@ end
 
 -- Globally configure all LSP floating preview popups (like hover, signature help, etc)
 local open_floating_preview = vim.lsp.util.open_floating_preview
-function vim.lsp.util.open_floating_preview(contents, syntax, opts, ...)
+function vim.lsp.uhttps://github.com/kylechui/nvim-surround/discussions/53til.open_floating_preview(contents, syntax, opts, ...)
 	opts = opts or {}
 	opts.border = opts.border or "rounded" -- Set border to rounded
 	return open_floating_preview(contents, syntax, opts, ...)

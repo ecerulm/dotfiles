@@ -1,5 +1,7 @@
 #!/bin/bash
 
+brew install lazygit
+
 # LSP servers
 brew install lua-language-server # lua_ls
 brew install basedpyright
