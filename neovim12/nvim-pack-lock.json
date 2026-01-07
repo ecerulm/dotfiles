@@ -24,6 +24,10 @@
     "snacks.nvim": {
       "rev": "fe7cfe9800a182274d0f868a74b7263b8c0c020b",
       "src": "https://github.com/folke/snacks.nvim"
+    },
+    "switch.vim": {
+      "rev": "0fe38fd3fa6433101f4e173f681bb134e175c022",
+      "src": "https://github.com/AndrewRadev/switch.vim"
     }
   }
 }

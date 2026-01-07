@@ -5,6 +5,7 @@ vim.pack.add({
 	"https://github.com/folke/snacks.nvim",
 	"https://github.com/nvim-treesitter/nvim-treesitter-context",
 	"https://github.com/kylechui/nvim-surround", -- like tpope vim-surround but implemented in lua, it cause nvim-treesitter for simpler config
+	"https://github.com/AndrewRadev/switch.vim", -- cycle between alternatives true->false, enabled->disabled, etc
 })
 
 -- nvim-surround
@@ -463,3 +464,12 @@ for _, skeleton in pairs(skeletons) do
 		command = [[r ]] .. vim.fn.stdpath("config") .. [[/skeletons/skeleton.]] .. skeleton .. [[ | normal ggdd]],
 	})
 end
+
+vim.g.switch_mapping = "gs"
+vim.g.switch_custom_definitions = {
+	vim.fn["switch#NormalizedCase"]({ "enabled", "disabled" }),
+	{ "==", "!=" },
+	vim.fn["switch#NormalizedCase"]({ "one", "two" }), -- xxoness <-> xxtwoss,
+	vim.fn["switch#Words"]({ "three", "four" }),
+	vim.fn["switch#NormalizedCaseWords"]({ "five", "six" }),
+}
