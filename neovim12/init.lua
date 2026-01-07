@@ -1,4 +1,5 @@
 vim.pack.add({
+
 	"https://github.com/neovim/nvim-lspconfig",
 	{ src = "https://github.com/nvim-treesitter/nvim-treesitter", version = "main" },
 	"https://github.com/stevearc/conform.nvim",
@@ -161,11 +162,91 @@ vim.keymap.set("n", "<leader>fp", function()
 	})
 end, { desc = "Recent projects" })
 
+--
+-- snacks.nvim git pickers
+--
+vim.keymap.set("n", "<leader>gb", function()
+	Snacks.picker.git_branches()
+end, { desc = "Git Branches" })
+
+vim.keymap.set("n", "<leader>gl", function()
+	Snacks.picker.git_log()
+end, { desc = "Git Log" })
+
+vim.keymap.set("n", "<leader>gL", function()
+	Snacks.picker.git_log_line()
+end, { desc = "Git Log Line, show commits that affect this line" })
+
+vim.keymap.set("n", "<leader>gs", function()
+	Snacks.picker.git_status()
+end, { desc = "Git status" })
+
+vim.keymap.set("n", "<leader>gS", function()
+	Snacks.picker.git_stash()
+end, { desc = "Git stash" })
+
+vim.keymap.set("n", "<leader>gd", function()
+	Snacks.picker.git_diff()
+end, { desc = "Git diff (hunks)" })
+
+vim.keymap.set("n", "<leader>gf", function()
+	Snacks.picker.git_log_file()
+end, { desc = "Git Log file, show commits that affects this file" })
+
+vim.keymap.set("n", "<leader>gf", function()
+	Snacks.picker.git_log_file()
+end, { desc = "Git Log file, show commits that affects this file" })
+
+vim.keymap.set("n", "<leader>gg", function()
+	Snacks.picker.lazygit()
+end, { desc = "Lazygit UI" })
+
+-- snacks.nvim search pickers
+
+vim.keymap.set("n", "<leader>sd", function()
+	Snacks.picker.diagnostics()
+end, { desc = "Search diagnostics" })
+
+vim.keymap.set("n", "<leader>sD", function()
+	Snacks.picker.diagnostics_buffer()
+end, { desc = "Search diagnostics in this buffer" })
+
+vim.keymap.set("n", "<leader>sh", function()
+	Snacks.picker.help()
+end, { desc = "Search help pages" })
+
+vim.keymap.set("n", "<leader>sk", function()
+	Snacks.picker.keymaps()
+end, { desc = "Search vim keymaps / keyboards shortcut" })
+
+-- snacks.nvim other keymaps
+vim.keymap.set("n", "<leader>cR", function()
+	Snacks.rename.rename_file()
+end, { desc = "Rename file" })
+
+vim.keymap.set("n", "<leader>.", function()
+	Snacks.scratch()
+end, { desc = "Toggle Scratch buffer" })
+
+vim.keymap.set("n", "<leader>n", function()
+	Snacks.notifier.show_history()
+end, { desc = "Show notification history / error messages" })
+vim.keymap.set("n", "<leader>un", function()
+	Snacks.notifier.hide()
+end, { desc = "Dismiss all notifications / error messages" })
+
+-- toggle options like with vim-unimpaired
+Snacks.toggle.option("list", { name = "List" }):map("yol")
+Snacks.toggle.option("number", { name = "Line Numbers" }):map("yon")
+Snacks.toggle.option("relativenumber", { name = "Relative Line Numbers" }):map("yor")
+Snacks.toggle.option("hlsearch", { name = "Highlight search" }):map("yoh")
+Snacks.toggle.diagnostics():map("<leader>ud") -- keymap to enable disable diagnostics
+Snacks.toggle.treesitter():map("<leader>uT") -- keymap to enable disable treesitter
+
 -- textobject / text objects / text-objects / motions
 vim.keymap.set({ "o", "v" }, "ae", ":<C-u>normal! m'ggVG<cr>", { noremap = true, silent = true }) -- "o" is the operator pending mode :help omap-info, :help mapmode-o
 
 -- global options
 vim.opt.clipboard = "unnamedplus" -- paste from system clipboard
 vim.opt.foldlevel = 3 -- zi disable folding, za toggle fold on current line, zc close fold, zR open recursive, zM close recursive, zv reveal cursor
-
 --
