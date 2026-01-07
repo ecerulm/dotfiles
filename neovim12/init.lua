@@ -59,9 +59,42 @@ vim.lsp.config('lua_ls', {
 vim.lsp.enable('lua_ls')
 
 
+-- nvim-treesitter , provides syntax highlighting groups, folding and indentation based on treesitter queries
+-- https://github.com/nvim-treesitter/nvim-treesitter
+require'nvim-treesitter'.install { 
+	'lua',
+	'c',
+	'go',
+	'gomod',
+	'gosum', 
+	'gotmpl', 
+	'gowork',
+	'hcl',
+	'terraform',
+	'python',
+	'vim', 
+	'vimdoc',
+	'yaml',
+	'toml', 
+	'json',
+	'json5',
+	'jsonnet',
+	'zsh', 
+	'bash', 
+	'dart',
+	'git_config',
+	'gitignore',
+} -- languages to install https://github.com/nvim-treesitter/nvim-treesitter/blob/main/SUPPORTED_LANGUAGES.md
+
+
+-- Keymaps
 vim.keymap.set("i", "jk", "<Esc>")
 
 
 
+-- global options
 vim.opt.clipboard = "unnamedplus" -- paste from system clipboard
+vim.opt.foldlevel=3 -- zi disable folding, za toggle fold on current line, zc close fold, zR open recursive, zM close recursive, zv reveal cursor 
+
+
 
