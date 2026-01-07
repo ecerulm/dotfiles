@@ -1,0 +1,40 @@
+
+before_script:
+    - echo "AWS_ACCESS_KEY = $AWS_ACCESS_KEY_ID"
+    - echo "AWS_REPOSITORY = $AWS_REPOSITORY"
+    - echo "CI_PROJECT_DIR = $CI_PROJECT_DIR"
+    - echo "CI_COMMIT_TAG = $CI_COMMIT_TAG"
+
+stages:
+  - download
+  - pre-build
+  - build
+
+download-kubectl:
+  stage: download
+  image: curlimages/curl:7.69.0
+  script:
+    - curl -LO https://storage.googleapis.com/kubernetes-release/release/v1.16.0/bin/linux/amd64/kubectl
+  artifacts:
+    paths:
+      - kubectl
+
+show-aws-identity:
+  stage: pre-build
+  image:
+    name: amazon/aws-cli
+  script:
+    - aws sts get-caller-identity
+
+build-docker-image:
+  stage: build
+  image:
+    name: gcr.io/kaniko-project/executor:debug
+    entrypoint: [""]
+  script:
+    - echo "{\"credsStore\":\"ecr-login\",\"credHelpers\":{\"$AWS_ACCOUNT_ID.dkr.ecr.eu-west-1.amazonaws.com\":\"ecr-login\"}}" > /kaniko/.docker/config.json
+    - /kaniko/executor --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/Dockerfile --destination $AWS_REPOSITORY:$CI_COMMIT_TAG
+  only:
+    - tags
+
+    

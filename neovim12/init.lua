@@ -7,7 +7,7 @@ vim.pack.add({
 	"https://github.com/kylechui/nvim-surround", -- like tpope vim-surround but implemented in lua, it cause nvim-treesitter for simpler config
 })
 
--- nvim-surround 
+-- nvim-surround
 require("nvim-surround").setup()
 
 -- nvim-lspconfig lua
@@ -436,3 +436,30 @@ vim.keymap.set("t", "<C-v><Esc>", "<Esc>", { remap = false }) -- exit terminal m
 -- see :h v_p and v_P
 vim.keymap.set("x", "p", [[P]], { noremap = true, silent = true }) -- the default P (v_P) does not set the default register, we map p to P because that is the default you want to use
 vim.keymap.set("x", "P", [[p]], { noremap = true, silent = true })
+
+local skeletons = {
+	"Makefile", -- ~/.vim/skeleton.Makefile
+	{ skeleton = "index.html", patterns = { "*.html" } }, -- ~/.vim/index.html
+	"config.py", -- ~/.vim/skeleton.config.py
+	"gitlab-ci.yml", -- ~/.vim/skeleton.gitlab-ci.yml
+	"setup.py", -- ~/.vim/skeleton.setup.py
+	"tox.ini", -- ~/.vim/skeleton.tox.ini
+	"ansible.cfg", -- ~/.vim/skeleton.ansible.cfg
+	"docker-compose.yml", -- ~/.vim/skeleton.docker-compose.yml
+	"gradle.build", -- ~/.vim/skeleton.gradle.build
+	"pom.xml", -- ~/.vim/skeleton.pom.xml
+	"stack.yaml", -- ~/.vim/skeleton.stack.yaml
+	".isort.cfg", -- ~/.vim/skeleton.isort.cfg
+}
+
+for _, skeleton in pairs(skeletons) do
+	local patterns = { skeleton }
+	if type(skeleton) == "table" then
+		patterns = skeleton["patterns"]
+		skeleton = skeleton["skeleton"]
+	end
+	vim.api.nvim_create_autocmd({ "BufNewFile" }, {
+		pattern = patterns,
+		command = [[r ]] .. vim.fn.stdpath("config") .. [[/skeletons/skeleton.]] .. skeleton .. [[ | normal ggdd]],
+	})
+end
