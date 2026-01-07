@@ -38,13 +38,13 @@ vim.opt.list = false
 vim.opt.splitright = true
 vim.opt.undofile = true -- persistent undo / undo persistence
 
-
 if vim.fn.exists("&messagesopt") == 1 then -- NVIM 0.10.2 does NOT have this option
 	-- vim.opt.messagesopt = "wait:3000,history:50" -- :h 'messagesopt' -- the default is 'hit-enter;history:500'
 	vim.opt.messagesopt = "hit-enter,history:50" -- :h 'messagesopt' -- wait:3000 was a bad idea it makes impossible to use :messages
 end
 
 -- undercurl (it doesn't work on iTerm2
+-- squiggly red lines for highlighting errors, typos, etc
 vim.cmd([[let &t_Cs = "\e[4:3m"]])
 vim.cmd([[let &t_Ce = "\e[4:0m"]])
 -- undercurl finish
@@ -134,7 +134,6 @@ vim.opt.shortmess:remove("F")
 vim.opt.eol = true --  endofline, eol, noendofline, noeol
 vim.opt.fixeol = true -- fixendofline, eol, nofixeol, nofixendofline
 
-
 vim.cmd([[colorscheme tokyonight-night]])
 
 vim.diagnostic.config({
@@ -177,9 +176,9 @@ local register_capability = vim.lsp.handlers[methods.client_registerCapability]
 local function on_attach(client, buf)
 	-- https://github.com/TheLeoP/nvim-config/blob/3e02dd59c38e525cc5e255957580828b9831081e/lua/personal/config/lsp.lua#L25-L97
 
-  -- you no longer need to register this mapping because you only did it to
-  -- add the border='rouneded' and not you are overwriting open_floating_preview
-  -- with a version that just add border=rounded to all floating windows
+	-- you no longer need to register this mapping because you only did it to
+	-- add the border='rouneded' and not you are overwriting open_floating_preview
+	-- with a version that just add border=rounded to all floating windows
 
 	-- if client:supports_method(methods.textDocument_hover) then
 	-- 	keymap.set("n", "K", function()
@@ -199,11 +198,10 @@ vim.lsp.handlers[vim.lsp.protocol.Methods.client_registerCapability] = function(
 	return return_value
 end
 
-
 -- Globally configure all LSP floating preview popups (like hover, signature help, etc)
 local open_floating_preview = vim.lsp.util.open_floating_preview
 function vim.lsp.util.open_floating_preview(contents, syntax, opts, ...)
-  opts = opts or {}
-  opts.border = opts.border or "rounded" -- Set border to rounded
-  return open_floating_preview(contents, syntax, opts, ...)
+	opts = opts or {}
+	opts.border = opts.border or "rounded" -- Set border to rounded
+	return open_floating_preview(contents, syntax, opts, ...)
 end
