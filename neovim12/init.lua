@@ -120,6 +120,7 @@ require("conform").setup({
 		python = { "isort", "black" }, -- brew install isort black
 		terraform = { "terraform_fmt" }, -- terraform fmt comes with terraform
 		go = { "gofmt" }, -- go fmt comes with golang
+		markdown = { "markdownfmt" }, -- go install github.com/shurcooL/markdownfmt@latest, ~/go/bin/markdownfmt in the path
 	},
 	format_on_save = {
 		timeout_ms = 1500,
