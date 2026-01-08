@@ -24,3 +24,5 @@ DONE
 
 -	cycle words
 -	add skeleton file
+-   Copy github url  / snacks.nvim has gitbrowse, but is there a url copy? Yes you can
+    use Snacks.gitbrowse(open=function(url) end) to copy to the clipboard / pasteboard

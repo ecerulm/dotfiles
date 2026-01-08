@@ -176,6 +176,17 @@ require("snacks").setup({
 
 -- Keymaps
 vim.keymap.set("i", "jk", "<Esc>")
+
+-- copy github remote link / copy remote url
+vim.keymap.set({ "n", "v" }, "<leader>gc", function()
+	Snacks.gitbrowse({
+		notify = true,
+		open = function(url)
+			vim.fn.setreg("*", url)
+		end,
+	})
+end, { desc = "Git Browse" })
+
 vim.keymap.set({ "n", "v" }, "<leader>gB", function()
 	Snacks.gitbrowse()
 end, { desc = "Git Browse" })
