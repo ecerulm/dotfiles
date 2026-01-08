@@ -539,3 +539,5 @@ require("mini.snippets").setup({
 
 require("mini.splitjoin").setup() -- gS :h MiniSplitjoin
 require("mini.surround").setup() -- replaces nvim-surround / saw" / sd" / sr"'
+require("mini.bracketed").setup({}) -- b] , b[
+require("mini.files").setup({}) -- b] , b[
