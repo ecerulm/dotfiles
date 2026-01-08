@@ -4,6 +4,10 @@
       "rev": "8314f4c9e205e7f30b62147069729f9a1227d8bf",
       "src": "https://github.com/stevearc/conform.nvim"
     },
+    "mini.nvim": {
+      "rev": "29b9e13f891f9c83f44ff5bf44d22daa1af1dc71",
+      "src": "https://github.com/nvim-mini/mini.nvim"
+    },
     "nvim-lspconfig": {
       "rev": "0b38bc74487e73489624d61396af7805af9cc75f",
       "src": "https://github.com/neovim/nvim-lspconfig"

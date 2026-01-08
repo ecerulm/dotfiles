@@ -16,12 +16,12 @@ TODO
 -	Add indentation settings for python filetype, terraform
 -	add snippets manager / LuaSnip
 -	vim-fugitive (do we need this or it's better to use lazygit for this kind of stuff)
--	EasyAlign / vim-lion / mini.nvim
+-   completion engine / nvim-cmp / mini.completion
 
 DONE
 ====
 
--	cycle words
+-	cycle words / with  switch.vim
 -	add skeleton file
 -	Copy github url / snacks.nvim has gitbrowse, but is there a url copy? Yes you can use Snacks.gitbrowse(open=function(url) end) to copy to the clipboard / pasteboard
 -	Remember the last position in file
@@ -32,3 +32,6 @@ DONE
 -	vim-fugitive
 -	cycle words
 -	add skeleton file
+-	EasyAlign / vim-lion / mini.align
+-   mini.comment / gcc
+

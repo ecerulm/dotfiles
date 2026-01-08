@@ -6,6 +6,7 @@ vim.pack.add({
 	"https://github.com/nvim-treesitter/nvim-treesitter-context",
 	"https://github.com/kylechui/nvim-surround", -- like tpope vim-surround but implemented in lua, it cause nvim-treesitter for simpler config
 	"https://github.com/AndrewRadev/switch.vim", -- cycle between alternatives true->false, enabled->disabled, etc
+	"https://github.com/nvim-mini/mini.nvim", --  mini.completion, mini.align
 })
 
 -- nvim-surround
@@ -512,3 +513,6 @@ vim.g.switch_custom_definitions = {
 	vim.fn["switch#Words"]({ "three", "four" }),
 	vim.fn["switch#NormalizedCaseWords"]({ "five", "six" }),
 }
+
+require("mini.align").setup() -- gAiP :h MiniAlign-modifiers-builtin and :h MiniAlign-examples.
+require("mini.comment").setup() --  gc, gcc
