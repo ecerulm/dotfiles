@@ -9,6 +9,10 @@ Plugins
 -	snacks.nvim for picker / fzf / search files / buffers / etc
 -	switch.vim for cycle between enable/disable, true/false, etc
 -	nvim-surround
+-   mini.align
+-   mini.comment
+-   mini.ai , improved text objects
+-   mini.move, use alt + hjkl
 
 TODO
 ====
@@ -17,6 +21,8 @@ TODO
 -	add snippets manager / LuaSnip
 -	vim-fugitive (do we need this or it's better to use lazygit for this kind of stuff)
 -   completion engine / nvim-cmp / mini.completion
+-   nvim-cmp / blink.cmp
+
 
 DONE
 ====
@@ -34,4 +40,5 @@ DONE
 -	add skeleton file
 -	EasyAlign / vim-lion / mini.align
 -   mini.comment / gcc
+-   mini
 

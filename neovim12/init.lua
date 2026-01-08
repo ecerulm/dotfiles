@@ -516,3 +516,5 @@ vim.g.switch_custom_definitions = {
 
 require("mini.align").setup() -- gAiP :h MiniAlign-modifiers-builtin and :h MiniAlign-examples.
 require("mini.comment").setup() --  gc, gcc
+require("mini.ai").setup()
+require("mini.move").setup() -- Alt + hjkl
