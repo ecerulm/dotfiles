@@ -182,7 +182,8 @@ vim.keymap.set({ "n", "v" }, "<leader>gc", function()
 	Snacks.gitbrowse({
 		notify = true,
 		open = function(url)
-			vim.fn.setreg("*", url)
+			-- vim.fn.setreg("*", url) -- PRIMARY selection :h quotestar
+			vim.fn.setreg("+", url) -- CLIPBOARD selection :h quoteplus
 		end,
 	})
 end, { desc = "Git Browse" })
