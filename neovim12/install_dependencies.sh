@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # LSP servers
-brew install lua_ls
+brew install lua-language-server # lua_ls
 brew install basedpyright
 brew install gopls
 
