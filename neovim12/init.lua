@@ -131,7 +131,7 @@ require("conform").setup({
 			return
 		end
 		-- disable autoformat on save for files in a certain path
-		local bufname = vim.api.nvim_buf_get_name(bufn)
+		local bufname = vim.api.nvim_buf_get_name(bufnr)
 		if bufname:match("/node_modules/") then
 			return
 		end
