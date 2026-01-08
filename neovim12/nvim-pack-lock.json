@@ -4,6 +4,10 @@
       "rev": "8314f4c9e205e7f30b62147069729f9a1227d8bf",
       "src": "https://github.com/stevearc/conform.nvim"
     },
+    "friendly-snippets": {
+      "rev": "572f5660cf05f8cd8834e096d7b4c921ba18e175",
+      "src": "https://github.com/rafamadriz/friendly-snippets"
+    },
     "mini.nvim": {
       "rev": "29b9e13f891f9c83f44ff5bf44d22daa1af1dc71",
       "src": "https://github.com/nvim-mini/mini.nvim"

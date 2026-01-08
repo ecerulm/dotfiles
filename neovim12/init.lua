@@ -7,6 +7,7 @@ vim.pack.add({
 	"https://github.com/kylechui/nvim-surround", -- like tpope vim-surround but implemented in lua, it cause nvim-treesitter for simpler config
 	"https://github.com/AndrewRadev/switch.vim", -- cycle between alternatives true->false, enabled->disabled, etc
 	"https://github.com/nvim-mini/mini.nvim", --  mini.completion, mini.align
+	"https://github.com/rafamadriz/friendly-snippets",
 })
 
 -- nvim-surround
@@ -519,3 +520,19 @@ require("mini.comment").setup() --  gc, gcc
 require("mini.ai").setup()
 require("mini.move").setup() -- Alt + hjkl
 require("mini.operators").setup() -- replace with gr, grr /  exchange text regions gx / sort gs / multiply gm
+
+-- mini.operators / :h MiniSnippets-examples
+-- trigger<c-j>
+-- next tabstop <c-l>
+-- prev tabstop <c-h>
+local gen_loader = require("mini.snippets").gen_loader
+require("mini.snippets").setup({
+	snippets = {
+		-- Load custom file with global snippets first
+		gen_loader.from_file(vim.fn.stdpath("config") .. "/snippets/global.json"),
+
+		-- Load snippets based on current language by reading files from
+		-- "snippets/" subdirectories from 'runtimepath' directories.
+		gen_loader.from_lang(),
+	},
+})

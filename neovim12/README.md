@@ -13,6 +13,7 @@ Plugins
 -   mini.comment
 -   mini.ai , improved text objects
 -   mini.move, use alt + hjkl
+-   mini.snippets / friendly-snippets / ~/.config/nvim/snippets/<filetype>.json
 
 TODO
 ====
