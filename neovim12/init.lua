@@ -122,12 +122,34 @@ require("conform").setup({
 		go = { "gofmt" }, -- go fmt comes with golang
 		markdown = { "markdownfmt" }, -- go install github.com/shurcooL/markdownfmt@latest, ~/go/bin/markdownfmt in the path
 	},
-	format_on_save = {
-		timeout_ms = 1500,
-		lsp_format = "fallback",
-	},
+	format_on_save = function(bufnr)
+		local ignore_filetypes = { "markdown", "sql", "java" }
+		if vim.tbl_contains(ignore_filetypes, vim.bo[bufnr].filetype) then
+			return
+		end
+		if vim.g.disable_autoformat or vim.b[bufnr].disable_autoformat then
+			return
+		end
+		-- disable autoformat on save for files in a certain path
+		local bufname = vim.api.nvim_buf_get_name(bufn)
+		if bufname:match("/node_modules/") then
+			return
+		end
+		return { timeout = 1500, lsp_format = "fallback" }
+	end,
 })
 vim.opt.formatexpr = "v:lua.require'conform'.formatexpr()" -- enables gq , like gqae
+vim.api.nvim_create_user_command("Format", function(args) -- adds :Format command
+	local range = nil
+	if args.count ~= -1 then
+		local end_line = vim.api.nvim_buf_get_lines(0, args.line2 - 1, args.line2, true)[1]
+		range = {
+			start = { args.line1, 0 },
+			["end"] = { args.line2, end_line:len() },
+		}
+	end
+	require("conform").format({ async = true, lsp_format = "fallback", range = range })
+end, { range = true })
 
 -- Snacks.nvim / pickers / telescope
 require("snacks").setup({
