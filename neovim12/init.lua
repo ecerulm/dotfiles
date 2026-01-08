@@ -4,14 +4,14 @@ vim.pack.add({
 	"https://github.com/stevearc/conform.nvim",
 	"https://github.com/folke/snacks.nvim",
 	"https://github.com/nvim-treesitter/nvim-treesitter-context",
-	"https://github.com/kylechui/nvim-surround", -- like tpope vim-surround but implemented in lua, it cause nvim-treesitter for simpler config
+	-- "https://github.com/kylechui/nvim-surround", -- like tpope vim-surround but implemented in lua, it cause nvim-treesitter for simpler config
 	"https://github.com/AndrewRadev/switch.vim", -- cycle between alternatives true->false, enabled->disabled, etc
 	"https://github.com/nvim-mini/mini.nvim", --  mini.completion, mini.align
 	"https://github.com/rafamadriz/friendly-snippets",
 })
 
 -- nvim-surround
-require("nvim-surround").setup()
+-- require("nvim-surround").setup() -- replaced by mini.surround
 
 -- nvim-lspconfig lua
 -- https://github.com/neovim/nvim-lspconfig/blob/master/doc/configs.md#lua_ls
@@ -536,3 +536,6 @@ require("mini.snippets").setup({
 		gen_loader.from_lang(),
 	},
 })
+
+require("mini.splitjoin").setup() -- gS :h MiniSplitjoin
+require("mini.surround").setup() -- replaces nvim-surround / saw" / sd" / sr"'
