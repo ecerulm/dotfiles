@@ -10,3 +10,4 @@ brew install gopls
 # Formatters
 brew install stylua
 brew install isort black
+go install github.com/shurcooL/markdownfmt@latest
