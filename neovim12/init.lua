@@ -304,15 +304,12 @@ vim.opt.encoding = "utf-8" -- Unicode,  fileencodings  set automatically to ucs-
 
 vim.wo.number = true
 vim.opt.title = true
-vim.opt.autoindent = true -- this may conflict with nvim-treesitter indentexpr thing, disable nvim-treesitter indent
-vim.opt.smartindent = true -- this may conflic with nvim-treesitter indentexpr thing, disable nvim-treesitter indent
 vim.opt.autoread = true -- reload file if changed outside of vim
 vim.opt.hlsearch = true -- highlight search, yoh to toggle
 vim.opt.backup = false -- make a backup before overwriting a file
 vim.opt.showcmd = true -- show command on last line of the screen
 vim.opt.cmdheight = 1 -- lines to use for command-line
 vim.opt.laststatus = 2 -- last window always have status line
-vim.opt.expandtab = true -- insert spaces instead of tabs
 vim.opt.scrolloff = 10 --  minimal number of lines to keep above and below cursor
 vim.opt.shell = "bash"
 vim.opt.backupskip = "/tmp/*,/private/tmp/*"
@@ -320,9 +317,16 @@ vim.opt.inccommand = "split" -- show the effects of search/etc as you type
 vim.opt.ignorecase = true -- ignore case in search
 -- vim.opt.smarttab = true --  softtabstop is a better option
 vim.opt.breakindent = true
-vim.opt.shiftwidth = 2
-vim.opt.tabstop = 2
-vim.opt.softtabstop = 2
+
+-- indent / indentation related settings
+vim.opt.autoindent = true -- this may conflict with nvim-treesitter indentexpr thing, disable nvim-treesitter indent
+vim.opt.smartindent = true -- this may conflict with nvim-treesitter indentexpr thing, disable nvim-treesitter indent, if smartindent, autoindent must be also on
+-- autoindent/smartident are alternatives to cindent/indentexpr, if indentexpr is set it overrides autoindent/smartindent
+-- vim.opt.expandtab = true -- insert spaces instead of tabs
+-- vim.opt.shiftwidth = 2
+-- vim.opt.tabstop = 2
+-- vim.opt.softtabstop = 2
+
 vim.opt.wrap = false -- toggle with
 vim.opt.backspace = "start,eol,indent"
 vim.opt.path:append({ "**" }) -- where does the gf search for files
