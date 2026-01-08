@@ -518,3 +518,4 @@ require("mini.align").setup() -- gAiP :h MiniAlign-modifiers-builtin and :h Mini
 require("mini.comment").setup() --  gc, gcc
 require("mini.ai").setup()
 require("mini.move").setup() -- Alt + hjkl
+require("mini.operators").setup() -- replace with gr, grr /  exchange text regions gx / sort gs / multiply gm
