@@ -140,7 +140,11 @@ require("conform").setup({
 		if bufname:match("/node_modules/") then
 			return
 		end
-		return { timeout = 1500, lsp_format = "fallback" }
+		local timeout = 1500
+		if vim.tbl_contains({ "python" }, vim.bo[bufnr].filetype) then
+			timeout = 3000
+		end
+		return { timeout = timeout, lsp_format = "fallback" }
 	end,
 })
 vim.opt.formatexpr = "v:lua.require'conform'.formatexpr()" -- enables gq , like gqae
