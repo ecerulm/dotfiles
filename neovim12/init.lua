@@ -569,3 +569,10 @@ end, { desc = "Toggle the mini.diff overlay" })
 
 require("mini.basics").setup() -- prefix \w -> toggle wrap, this will change <leader> to <space>
 vim.g.mapleader = "\\" -- restore \ as <leader>, nvim.basics rewrites it with " " (space)
+vim.opt.mouse = ""
+vim.keymap.set("n", "<leader>m", function()
+	vim.opt.mouse = (vim.opt.mouse == "" and "a" or "")
+end, { desc = "Toggle mouse" })
+
+vim.opt.timeout = true
+vim.opt.timeoutlen = 1500 -- :h timeoutlen, how much to wait between keypresses in a map
