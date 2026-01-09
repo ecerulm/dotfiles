@@ -531,7 +531,10 @@ require("mini.comment").setup() --  gc, gcc
 require("mini.ai").setup()
 require("mini.move").setup() -- Alt + hjkl
 -- the mini.operators gx overrides the gx that you used for open url link under cursor
-require("mini.operators").setup() -- replace with gr, grr /  exchange text regions gx / sort gs / multiply gm
+-- replace with gr, grr (gr conflict with grn for rename)  / you changed the prefix from gr to cr
+-- exchange text regions gx / sort gs / multiply gm
+require("mini.operators").setup({ replace = { prefix = "cr" } })
+
 vim.keymap.set("n", "gX", function()
 	vim.ui.open(vim.fn.expand("<cfile>")) -- :h <cfile> , it expands to the filename or url under cursor
 end, { desc = "Open url under cursor" })
