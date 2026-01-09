@@ -526,7 +526,11 @@ require("mini.align").setup() -- gAiP :h MiniAlign-modifiers-builtin and :h Mini
 require("mini.comment").setup() --  gc, gcc
 require("mini.ai").setup()
 require("mini.move").setup() -- Alt + hjkl
+-- the mini.operators gx overrides the gx that you used for open url link under cursor
 require("mini.operators").setup() -- replace with gr, grr /  exchange text regions gx / sort gs / multiply gm
+vim.keymap.set("n", "gX", function()
+	vim.ui.open(vim.fn.expand("<cfile>")) -- :h <cfile> , it expands to the filename or url under cursor
+end, { desc = "Open url under cursor" })
 
 -- mini.operators / :h MiniSnippets-examples
 -- trigger<c-j>
