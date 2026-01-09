@@ -74,6 +74,7 @@ TODO
 -   Check [Oil.nvim](https://github.com/stevearc/oil.nvim)
 -   Replace switch.nvim with mini.cycle (not implemented yet)
 -   vim-gutter / gitsigns.nvim / sign column / :h signs / :h gutter
+-   use nvim.basic to toggle options on an off instead of Snacks.nvim
 
 
 DONE

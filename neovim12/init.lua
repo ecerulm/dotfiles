@@ -566,3 +566,6 @@ require("mini.diff").setup()
 vim.keymap.set("n", "<leader>d", function()
 	MiniDiff.toggle_overlay()
 end, { desc = "Toggle the mini.diff overlay" })
+
+require("mini.basics").setup() -- prefix \w -> toggle wrap, this will change <leader> to <space>
+vim.g.mapleader = "\\" -- restore \ as <leader>, nvim.basics rewrites it with " " (space)
