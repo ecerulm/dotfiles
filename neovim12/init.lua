@@ -10,6 +10,9 @@ vim.pack.add({
 	"https://github.com/rafamadriz/friendly-snippets",
 })
 
+require("mini.icons").setup()
+require("mini.git").setup()
+
 -- nvim-surround
 -- require("nvim-surround").setup() -- replaced by mini.surround
 

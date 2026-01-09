@@ -54,6 +54,8 @@ Update the plugins by running `:lua vim.pack.update()`
 `<c-h>`: previous tabstop (in mini.snippets expanded text)
 `<c-l>`: nex tabstop (in mini.snippets expanded text)
 `gS`: splitjoin / mini.splitjoin 
+`gs`: cycle between word alternatives / switch.nvim
+
 
 
 TODO
@@ -65,6 +67,32 @@ TODO
 -   completion engine / nvim-cmp / mini.completion
 -   nvim-cmp / blink.cmp
 -   Check [Oil.nvim](https://github.com/stevearc/oil.nvim)
+-   Replace switch.nvim with mini.cycle
+
+
+TODO
+====
+
+-	Add indentation settings for python filetype, terraform
+-	add snippets manager / LuaSnip
+
+
+TODO
+====
+
+-	Add indentation settings for python filetype, terraform
+-	add snippets manager / LuaSnip
+-	vim-fugitive (do we need this or it's better to use lazygit for this kind of stuff)
+-   completion engine / nvim-cmp / mini.completion
+-   nvim-cmp / blink.cmp
+-   Check [Oil.nvim](https://github.com/stevearc/oil.nvim)
+-   Replace switch.nvim with mini.cycle
+
+-	vim-fugitive (do we need this or it's better to use lazygit for this kind of stuff)
+-   completion engine / nvim-cmp / mini.completion
+-   nvim-cmp / blink.cmp
+-   Check [Oil.nvim](https://github.com/stevearc/oil.nvim)
+-   Replace switch.nvim with mini.cycle (not implemented yet)
 
 
 DONE
