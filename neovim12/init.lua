@@ -433,8 +433,12 @@ end, {
 })
 
 -- highlight whitespace at the end of the line
-vim.cmd([[match ExtraWhitespace /\s\+$/]])
-vim.cmd([[highlight ExtraWhitespace ctermbg=red guibg=red]])
+-- vim.cmd([[match ExtraWhitespace /\s\+$/]])
+-- vim.cmd([[highlight ExtraWhitespace ctermbg=red guibg=red]])
+require("mini.trailspace").setup()
+vim.api.nvim_create_user_command("TrimTrailingWhitespace", function(args) -- adds :TrimTrailingWhitespace command
+	MiniTrailspace.trim()
+end, {})
 
 -- other keymaps
 
