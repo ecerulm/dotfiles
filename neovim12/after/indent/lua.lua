@@ -1,5 +1,5 @@
--- vim.opt_local.indentexpr = "v:lua.require'nvim-treesitter'.indentrepr()" -- nvim-treesitter indent does not work very well for lua files
-vim.opt_local.indentexpr = nil -- nvim-treesitter indent does not work very well for lua files
+vim.opt_local.indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()" -- nvim-treesitter indent does not work very well for lua files
+-- vim.opt_local.indentexpr = nil -- nvim-treesitter indent does not work very well for lua files
 
 vim.opt_local.autoindent = true
 vim.opt_local.smartindent = true
