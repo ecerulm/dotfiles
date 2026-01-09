@@ -540,4 +540,11 @@ require("mini.snippets").setup({
 require("mini.splitjoin").setup() -- gS :h MiniSplitjoin
 require("mini.surround").setup() -- replaces nvim-surround / saw" / sd" / sr"'
 require("mini.bracketed").setup({}) -- b] , b[
-require("mini.files").setup({}) -- b] , b[
+require("mini.files").setup({}) -- :lua MiniFiles.open()
+
+vim.keymap.set("n", "-", function()
+	local buf_name = vim.api.nvim_buf_get_name(0)
+	local path = vim.fn.filereadable(buf_name) == 1 and buf_name or vim.fn.getcwd()
+	MiniFiles.open(path)
+	MiniFiles.reveal_cwd()
+end, { desc = "Open Mini Files" })

@@ -1,5 +1,11 @@
+
+
+
+
 Plugins
 =======
+
+Update the plugins by running `:lua vim.pack.update()`
 
 -	nvim-lspconfig
 	-	lua, python, golang
@@ -15,6 +21,41 @@ Plugins
 -   mini.move, use alt + hjkl
 -   mini.snippets / friendly-snippets / ~/.config/nvim/snippets/<filetype>.json
 
+
+# Keymaps
+
+## Search / find / pickers
+
+`<leader>fb`: search for open buffers
+`<leader>ff`: Search for files
+`<leader>fg`: search for git tracked files only
+`<leader>fp`: search for projects
+`<leader>fr`: search for recently opened files only
+`<leader>sh`: search for vim help pages
+`<leader>ss`: search for vim diagnostics
+
+
+
+## Other
+
+`saiw"`: surround a word with "
+`sd"`: delete surrounding "
+`sr)"`: replace surrounding ) with"
+`<leader>gc`: copy github remote link
+`gqae`: format entire file
+:Format
+`<leader>gg` : Open lazygit
+`gs`: sort mini.operators
+`gr`: replace with clipboard / mini.operators
+`gx`: exchange text / mini.operators
+`gm`: multiply selected text / mini.operators
+`gc`: comment / mini.comment
+`i_<c-j>`: trigger snippet completion / mini.snippets 
+`<c-h>`: previous tabstop (in mini.snippets expanded text)
+`<c-l>`: nex tabstop (in mini.snippets expanded text)
+`gS`: splitjoin / mini.splitjoin 
+
+
 TODO
 ====
 
@@ -23,6 +64,7 @@ TODO
 -	vim-fugitive (do we need this or it's better to use lazygit for this kind of stuff)
 -   completion engine / nvim-cmp / mini.completion
 -   nvim-cmp / blink.cmp
+-   Check [Oil.nvim](https://github.com/stevearc/oil.nvim)
 
 
 DONE
