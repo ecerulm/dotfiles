@@ -1,7 +1,3 @@
-
-
-
-
 Plugins
 =======
 
@@ -50,31 +46,15 @@ Update the plugins by running `:lua vim.pack.update()`
 `gx`: exchange text / mini.operators
 `gm`: multiply selected text / mini.operators
 `gc`: comment / mini.comment
-`i_<c-j>`: trigger snippet completion / mini.snippets 
+`i_<c-j>`: trigger snippet completion / mini.snippets
 `<c-h>`: previous tabstop (in mini.snippets expanded text)
 `<c-l>`: nex tabstop (in mini.snippets expanded text)
-`gS`: splitjoin / mini.splitjoin 
+`gS`: splitjoin / mini.splitjoin
 `gs`: cycle between word alternatives / switch.nvim
+`<leader>d`: Toggle mini.diff overlay
+`ghgh`: apply hunk (gh is the operator and the other gh is the text object)
+`gH`: reset hunk
 
-
-
-TODO
-====
-
--	Add indentation settings for python filetype, terraform
--	add snippets manager / LuaSnip
--	vim-fugitive (do we need this or it's better to use lazygit for this kind of stuff)
--   completion engine / nvim-cmp / mini.completion
--   nvim-cmp / blink.cmp
--   Check [Oil.nvim](https://github.com/stevearc/oil.nvim)
--   Replace switch.nvim with mini.cycle
-
-
-TODO
-====
-
--	Add indentation settings for python filetype, terraform
--	add snippets manager / LuaSnip
 
 
 TODO
@@ -93,6 +73,7 @@ TODO
 -   nvim-cmp / blink.cmp
 -   Check [Oil.nvim](https://github.com/stevearc/oil.nvim)
 -   Replace switch.nvim with mini.cycle (not implemented yet)
+-   vim-gutter / gitsigns.nvim / sign column / :h signs / :h gutter
 
 
 DONE

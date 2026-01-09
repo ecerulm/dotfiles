@@ -555,3 +555,10 @@ vim.keymap.set("n", "-", function()
 	MiniFiles.open(path)
 	MiniFiles.reveal_cwd()
 end, { desc = "Open Mini Files" })
+
+require("mini.statusline").setup({})
+require("mini.diff").setup()
+
+vim.keymap.set("n", "<leader>d", function()
+	MiniDiff.toggle_overlay()
+end, { desc = "Toggle the mini.diff overlay" })
