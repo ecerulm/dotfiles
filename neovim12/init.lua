@@ -530,6 +530,8 @@ require("mini.align").setup() -- gAiP :h MiniAlign-modifiers-builtin and :h Mini
 require("mini.comment").setup() --  gc, gcc
 require("mini.ai").setup()
 require("mini.move").setup() -- Alt + hjkl
+
+-- mini.operators
 -- the mini.operators gx overrides the gx that you used for open url link under cursor
 -- replace with gr, grr (gr conflict with grn for rename)  / you changed the prefix from gr to cr
 -- exchange text regions gx / sort gs / multiply gm
@@ -583,3 +585,5 @@ end, { desc = "Toggle mouse" })
 
 vim.opt.timeout = true
 vim.opt.timeoutlen = 1500 -- :h timeoutlen, how much to wait between keypresses in a map
+
+require("mini.completion").setup({})

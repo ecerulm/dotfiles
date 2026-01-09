@@ -31,6 +31,10 @@ Update the plugins by running `:lua vim.pack.update()`
 `<leader>ss`: search for vim diagnostics
 
 
+## Completion / mini.completion / completefunc / omnifunc
+https://github.com/nvim-mini/mini.nvim/blob/main/doc/mini-completion.txt
+
+* 
 
 ## Other
 
