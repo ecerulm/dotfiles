@@ -64,6 +64,7 @@ https://github.com/nvim-mini/mini.nvim/blob/main/doc/mini-completion.txt
 TODO
 ====
 
+-   Replace Snacks.nvim with [mini.nvim](https://github.com/nvim-mini/mini.nvim)
 -	Add indentation settings for python filetype, terraform
 -	add snippets manager / LuaSnip
 -	vim-fugitive (do we need this or it's better to use lazygit for this kind of stuff)
