@@ -127,6 +127,9 @@ require("conform").setup({
 		go = { "gofmt" }, -- go fmt comes with golang
 		markdown = { "markdownfmt" }, -- go install github.com/shurcooL/markdownfmt@latest, ~/go/bin/markdownfmt in the path
 		json = { "jq" }, -- https://github.com/stevearc/conform.nvim/blob/master/lua/conform/formatters/jq.lua
+		c = { "clang-format" },
+		cpp = { "clang-format" },
+		make = { "bake" },
 	},
 	format_on_save = function(bufnr)
 		local ignore_filetypes = { "markdown", "sql", "java" }

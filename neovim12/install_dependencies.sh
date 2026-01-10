@@ -11,3 +11,4 @@ brew install gopls
 brew install stylua
 brew install isort black
 go install github.com/shurcooL/markdownfmt@latest
+pipx install mbake # bake makefile formatter
