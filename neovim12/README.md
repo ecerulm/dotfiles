@@ -34,7 +34,12 @@ Update the plugins by running `:lua vim.pack.update()`
 ## Completion / mini.completion / completefunc / omnifunc
 https://github.com/nvim-mini/mini.nvim/blob/main/doc/mini-completion.txt
 
-* 
+*
+
+## diagnostics
+
+<c-w>d : mappend to vim.diagnostics.open\_float()
+
 
 ## Other
 
