@@ -60,6 +60,50 @@ https://github.com/nvim-mini/mini.nvim/blob/main/doc/mini-completion.txt
 `gH`: reset hunk
 
 
+LSP, indentation, syntax highlighting for a new language
+========================================================
+
+
+* https://github.com/neovim/nvim-lspconfig provides the highlights.scm, folds.scm 
+  and context.scm 
+  for most languages and adds them to the runtimepath (`:h rtp`)
+
+For a new language start by adding a `~/.config/nvim/after/indent/<filetype>.lua`:
+
+```
+vim.opt_local.indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()" -- nvim-treesitter indent does not work very well for lua files
+vim.opt_local.autoindent = true -- indentexpr overrides this
+vim.opt_local.smartindent = true -- indentexpr overrides this
+vim.opt_local.shiftwidth = 2 -- default: 8
+vim.opt_local.shiftround = true -- default: false
+vim.opt_local.tabstop = 2 -- default: 8
+vim.opt_local.expandtab = false -- default: noexpandtab
+-- vim.opt_local.softtabstop = 2  -- default: 0
+```
+
+
+Then add `~/.config/nvim/after/ftplugin/<filetype>.lua`:
+
+```
+vim.opt_local.foldexpr = "v:lua.vim.treesitter.foldexpr()"
+vim.opt_local.foldmethod = "expr"
+vim.treesitter.start() -- Starts treesitter highlighting for a buffer
+```
+
+
+For the LSP
+
+```
+vim.lsp.config('jdtls', {
+  cmd = { '/path/to/jdtls' },
+})
+vim.lsp.enable("")
+```
+
+
+For the formatter / conform.nvima in init.lua, look for the `require("conform").setup()`
+on the `formatters_by_ft` add the new language
+
 
 TODO
 ====
