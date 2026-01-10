@@ -297,3 +297,6 @@ AGY_PATH="$HOME/.antigravity/antigravity/bin"
 if [ -d "$AGY_PATH" ]; then
   path+="$AGY_PATH"
 fi
+
+
+alias pus="pulumi up --skip-preview"
