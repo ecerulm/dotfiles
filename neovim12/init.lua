@@ -130,6 +130,7 @@ require("conform").setup({
 		c = { "clang-format" },
 		cpp = { "clang-format" },
 		make = { "bake" },
+		dart = { "dart_format" },
 	},
 	format_on_save = function(bufnr)
 		local ignore_filetypes = { "markdown", "sql", "java" }
