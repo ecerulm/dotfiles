@@ -592,3 +592,7 @@ vim.opt.timeout = true
 vim.opt.timeoutlen = 1500 -- :h timeoutlen, how much to wait between keypresses in a map
 
 require("mini.completion").setup({})
+
+vim.keymap.set("n", "grd", function() -- Go to definition / Go to declaration / Go to implementation
+	vim.lsp.buf.definition()
+end, { desc = "Go to definition/implmentation" })
