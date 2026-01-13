@@ -533,7 +533,7 @@ vim.g.switch_custom_definitions = {
 
 require("mini.align").setup() -- gAiP :h MiniAlign-modifiers-builtin and :h MiniAlign-examples.
 require("mini.comment").setup() --  gc, gcc
-require("mini.ai").setup()
+-- require("mini.ai").setup() -- balanced textobjects
 require("mini.move").setup() -- Alt + hjkl
 
 -- mini.operators
@@ -596,3 +596,21 @@ require("mini.completion").setup({})
 vim.keymap.set("n", "grd", function() -- Go to definition / Go to declaration / Go to implementation
 	vim.lsp.buf.definition()
 end, { desc = "Go to definition/implmentation" })
+
+local align_blame = function(au_data)
+	if au_data.data.git_subcommand ~= "blame" then
+		return
+	end
+
+	-- Align blame output with source
+	local win_src = au_data.data.win_source
+	vim.wo.wrap = false
+	vim.fn.winrestview({ topline = vim.fn.line("w0", win_src) })
+	vim.api.nvim_win_set_cursor(0, { vim.fn.line(".", win_src), 0 })
+
+	-- Bind both windows so that they scroll together
+	vim.wo[win_src].scrollbind, vim.wo.scrollbind = true, true
+end
+
+local au_opts = { pattern = "MiniGitCommandSplit", callback = align_blame }
+vim.api.nvim_create_autocmd("User", au_opts)
