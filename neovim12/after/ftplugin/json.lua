@@ -3,3 +3,5 @@ vim.opt_local.foldmethod = "expr"
 vim.treesitter.start()
 -- vim.opt_local.formatexpr = ""
 -- vim.opt_local.formatprg = "jq"
+
+vim.b.miniai_disable = true
