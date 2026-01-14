@@ -1,0 +1,14 @@
+{
+  "pulumi gcp iam member": {
+    "prefix": "gcpiammember",
+    "body": [
+      "${1:member} = gcp.${2:projects}.${3:}IamMember(",
+      "\t\"${4:xxx}\",",
+      "\t${5:project}=\"\",",
+      "\trole=\"roles/${6:cloudql.schemaViewer}\",",
+      "\tmember=\"serviceAccount:xxxx\",",
+      "\tdescription=\"\",",
+      ")"
+    ]
+  }
+}
