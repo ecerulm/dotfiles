@@ -299,4 +299,6 @@ if [ -d "$AGY_PATH" ]; then
 fi
 
 
+alias pu="pulumi up"
 alias pus="pulumi up --skip-preview"
+
