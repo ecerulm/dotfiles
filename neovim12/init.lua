@@ -589,7 +589,7 @@ vim.keymap.set("n", "<leader>m", function()
 end, { desc = "Toggle mouse" })
 
 vim.opt.timeout = true
-vim.opt.timeoutlen = 1000 -- :h timeoutlen, how much to wait between keypresses in a map, 2026-01-16: 1500ms is too much
+vim.opt.timeoutlen = 700 -- :h timeoutlen, how much to wait between keypresses in a map, 2026-01-16: 1500ms is too much, 1000ms is too much as well
 
 require("mini.completion").setup({})
 
