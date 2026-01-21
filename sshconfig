@@ -5,3 +5,4 @@ Include /Users/ecerulm/.colima/ssh_config
 Include ~/.ssh/config.thismachine
 Host *
   UseKeyChain yes
+  # VisualHostKey yes
