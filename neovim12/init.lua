@@ -615,3 +615,13 @@ end
 
 local au_opts = { pattern = "MiniGitCommandSplit", callback = align_blame }
 vim.api.nvim_create_autocmd("User", au_opts)
+
+vim.opt.showbreak = "↪ " -- added to lines that have been wrapped
+vim.opt.listchars = { -- set list / yol
+	tab = "→ ",
+	eol = "↲",
+	nbsp = "␣",
+	trail = "•",
+	extends = "⟩",
+	precedes = "⟨",
+}
