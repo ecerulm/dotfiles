@@ -47,3 +47,5 @@ terraform.tfstate.backup
 .terraform.lock.hcl
 latest.tfplan
 .luarc.json
+
+.secrets.toml
