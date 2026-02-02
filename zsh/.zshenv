@@ -16,3 +16,6 @@ if [ -f '/Users/ecerulm/.local/google-cloud-sdk/completion.zsh.inc' ]; then . '/
 
 # Rust / Rustup / Cargo
 [ -f "$HOME/.cargo/env" ] && . "${HOME}/.cargo/env"
+
+
+# export NVIM_APPNAME=nvim12

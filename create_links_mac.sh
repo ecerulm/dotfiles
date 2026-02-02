@@ -29,6 +29,7 @@ ln -Fvhfs ~/dotfiles/sbt/1.0/plugins/plugins.sbt ~/.sbt/1.0/plugins/
 
 # NeoVim config files
 ln -Fvhfs ~/dotfiles/neovim ~/.config/nvim
+ln -Fvhfs ~/dotfiles/neovim ~/.config/nvim12
 
 
 # KiTTY config
