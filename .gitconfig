@@ -89,7 +89,7 @@
 [http]
 	sslVerify = true
 [core]
-	editor = nvim
+	editor = ~/opt/nvim/bin/nvim
 	excludesfile = ~/.gitignore
 	autocrlf = false
 	safecrlf = warn
