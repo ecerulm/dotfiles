@@ -301,4 +301,3 @@ fi
 
 alias pu="pulumi up"
 alias pus="pulumi up --skip-preview"
-
