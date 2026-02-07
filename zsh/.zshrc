@@ -1,7 +1,9 @@
 # This is only runs for interactive shells
 # login shells are also interfactive shells
+# make  and other programs that open shells won't source this
 #
 #
+# This is where you define aliases, functions, shell options , keybingings, etc
 #
 
 
@@ -14,10 +16,12 @@
 
 # If you come from bash you might have to change your $PATH.
 # export PATH=$HOME/bin:/usr/local/bin:$PATH
+# You don't want the homebrew versions to override the default system ones
+# when you run shells from make, etc (otherwise you would have put this in .zshenv)
 path+=(/opt/homebrew/bin)
 
 # Path to your oh-my-zsh installation.
-export ZSH="$HOME/.oh-my-zsh"
+# export ZSH="$HOME/.oh-my-zsh"
 
 # Set name of the theme to load --- if set to "random", it will
 # load a random theme each time oh-my-zsh is loaded, in which case,
@@ -89,6 +93,8 @@ HIST_STAMPS="yyyy-mm-dd"
 path+=(/opt/homebrew/bin)
 plugins=(macos direnv) # for oh-my-zsh only
 
+
+# direnv will load the .envrc file on cd
 eval "$(direnv hook zsh)"
 
 
@@ -180,8 +186,8 @@ alias gb="git branch --sort=-committerdate"
 alias l="eza -l -s mod"
 alias t="eza -l -s mod -T --git-ignore"
 alias reuse-annotate="pipx run reuse annotate --year 2023 --copyright 'Ruben Laguna <ruben.laguna@gmail.com>' --license GPL-3.0-or-later"
-alias imgcat="kitty +kitten icat"
-alias icat="kitty +kitten icat"
+# alias imgcat="kitty +kitten icat"
+# alias icat="kitty +kitten icat"
 alias tp="terraform plan -out latest.tfplan"
 alias ta="terraform apply latest.tfplan"
 
