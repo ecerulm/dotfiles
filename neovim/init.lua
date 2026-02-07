@@ -1,3 +1,36 @@
+-- load init.thismachine.lua so you could access THISMACHINESETTINGS
+-- You can just get globals like vim.g.xxxx in that file as well
+-- local function source_file_if_exists(file_path)
+-- 	local file = io.open(file_path, "r")
+-- 	if file then
+-- 		io.close(file)
+-- 		dofile(file_path)
+-- 	end
+-- end
+--
+-- source_file_if_exists(vim.fn.stdpath("config") .. "/init.thismachine.lua")
+
+local ok, thismachine = pcall(require, "init_thismachine") -- You can use '.' in require since the loader will try treat it as `/`
+if not ok then
+	-- provide a dummy implementation
+	thismachine = {}
+	function thismachine.pre() end -- never add anything here, add it in init_thismachine.lua instead
+	function thismachine.post() end -- never add anything here, add it in init_thismachine.lua instead
+	-- your init_thismachine.lua should look like this:
+	-- local M = {}
+	--
+	-- function M.pre()
+	-- 	print("test1")
+	-- end
+	--
+	-- function M.post()
+	-- 	print("test2")
+	-- end
+	--
+	-- return M
+end
+thismachine.pre()
+
 vim.pack.add({
 	"https://github.com/neovim/nvim-lspconfig",
 	{ src = "https://github.com/nvim-treesitter/nvim-treesitter", version = "main" },
@@ -643,3 +676,4 @@ vim.opt.listchars = { -- set list / yol
 	extends = "⟩",
 	precedes = "⟨",
 }
+thismachine.post()
