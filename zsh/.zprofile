@@ -1,13 +1,10 @@
 # This is source only for login shells 
 # This file is sourced before .zshrc
 #
-export PATH=$HOME/.jbang/bin:$PATH 
-export PATH="/usr/local/opt/openjdk@17/bin:$PATH"
-
-function awsprofile {
-  export AWS_PROFILE=$(aws configure list-profiles|fzf)
-}
-
-function switchbranch {
-  git switch $(git branch | fzf)
-}
+# It is NOT the place for alias definitions, options,
+# environments variable settings, etc 
+#
+# This file is an alternative to .zlogin
+# You are not meant to use .zprofile and .zlogin together
+# You decided to use .zlogin since you have the path 
+# properly setup when .zlogin runs

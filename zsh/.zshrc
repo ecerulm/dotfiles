@@ -1,3 +1,10 @@
+# This is only runs for interactive shells
+# login shells are also interfactive shells
+#
+#
+#
+
+
 # # Enable Powerlevel10k instant prompt. Should stay close to the top of ~/dotfiles/zsh/.zshrc.
 # # Initialization code that may require console input (password prompts, [y/n]
 # # confirmations, etc.) must go above this block; everything else may go below.
@@ -301,3 +308,14 @@ fi
 
 alias pu="pulumi up"
 alias pus="pulumi up --skip-preview"
+
+# export PATH=$HOME/.jbang/bin:$PATH 
+# export PATH="/usr/local/opt/openjdk@17/bin:$PATH"
+
+function awsprofile {
+  export AWS_PROFILE=$(aws configure list-profiles|fzf)
+}
+
+function switchbranch {
+  git switch $(git branch | fzf)
+}

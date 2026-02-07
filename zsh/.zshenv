@@ -6,7 +6,6 @@ export LESS="-FRX"
 export RIPGREP_CONFIG_PATH=~/.ripgreprc
 export FZF_DEFAULT_COMMAND="fd ."
 
-[ -f ~/.zshenv.thismachine ] && . ~/.zshenv.thismachine
 
 # The next line updates PATH for the Google Cloud SDK.
 if [ -f '/Users/ecerulm/.local/google-cloud-sdk/path.zsh.inc' ]; then . '/Users/ecerulm/.local/google-cloud-sdk/path.zsh.inc'; fi
@@ -18,4 +17,6 @@ if [ -f '/Users/ecerulm/.local/google-cloud-sdk/completion.zsh.inc' ]; then . '/
 [ -f "$HOME/.cargo/env" ] && . "${HOME}/.cargo/env"
 
 
-# export NVIM_APPNAME=nvim12
+
+# For things that you don't want to share between all your machines 
+[ -f ~/.zshenv.thismachine ] && . ~/.zshenv.thismachine
