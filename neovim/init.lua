@@ -386,6 +386,7 @@ Snacks.toggle.option("relativenumber", { name = "Relative Line Numbers" }):map("
 Snacks.toggle.option("hlsearch", { name = "Highlight search" }):map("yoh")
 Snacks.toggle.option("wrap", { name = "wrap line" }):map("yow")
 Snacks.toggle.diagnostics():map("<leader>ud") -- keymap to enable disable diagnostics
+
 Snacks.toggle.treesitter():map("<leader>uT") -- keymap to enable disable treesitter
 
 -- textobject / text objects / text-objects / motions
@@ -424,9 +425,9 @@ vim.opt.autoindent = true -- this may conflict with nvim-treesitter indentexpr t
 vim.opt.smartindent = true -- this may conflict with nvim-treesitter indentexpr thing, disable nvim-treesitter indent, if smartindent, autoindent must be also on
 -- autoindent/smartident are alternatives to cindent/indentexpr, if indentexpr is set it overrides autoindent/smartindent
 -- vim.opt.expandtab = true -- insert spaces instead of tabs
--- vim.opt.shiftwidth = 2
--- vim.opt.tabstop = 2
--- vim.opt.softtabstop = 2
+vim.opt.shiftwidth = 2
+vim.opt.tabstop = 2
+vim.opt.softtabstop = 2
 
 vim.opt.wrap = false -- toggle with
 vim.opt.backspace = "start,eol,indent"
@@ -591,7 +592,7 @@ require("mini.move").setup() -- Alt + hjkl
 -- mini.operators
 -- the mini.operators gx overrides the gx that you used for open url link under cursor
 -- replace with gr, grr (gr conflict with grn for rename)  / you changed the prefix from gr to cr
--- exchange text regions gx / sort gs / multiply gm
+-- exchange text regions gx / sort gs / multiply gm / swap text
 require("mini.operators").setup({ replace = { prefix = "cr" } })
 
 vim.keymap.set("n", "gX", function()
@@ -676,4 +677,8 @@ vim.opt.listchars = { -- set list / yol
 	extends = "⟩",
 	precedes = "⟨",
 }
+
+vim.diagnostic.config({ virtual_lines = { current_line = true } })
+vim.diagnostic.enable(false) -- start with diagnostic disabled, toggle enablement with <leader>ud
+
 thismachine.post()
