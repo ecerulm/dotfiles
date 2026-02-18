@@ -325,3 +325,11 @@ function awsprofile {
 function switchbranch {
   git switch $(git branch | fzf)
 }
+
+function sqlfluff_fix {
+pre-commit run sqlfluff-fix --from-ref $(git merge-base --fork-point origin/main HEAD) --to-ref HEAD
+}
+
+function sqlfluff_fix {
+pre-commit run sqlfluff-lint --from-ref $(git merge-base --fork-point origin/main HEAD) --to-ref HEAD
+}
