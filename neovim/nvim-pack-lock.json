@@ -29,6 +29,10 @@
       "rev": "64dd4cf3f6fd0ab17622c5ce15c91fc539c3f24a",
       "src": "https://github.com/nvim-treesitter/nvim-treesitter-context"
     },
+    "nvim-treesitter-textobjects": {
+      "rev": "a0e182ae21fda68c59d1f36c9ed45600aef50311",
+      "src": "https://github.com/nvim-treesitter/nvim-treesitter-textobjects.git"
+    },
     "nvim-various-textobjs": {
       "rev": "34ca4f6b54cf167554c5792cacc69c930b654136",
       "src": "https://github.com/chrisgrieser/nvim-various-textobjs"
