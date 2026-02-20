@@ -31,9 +31,10 @@ if not ok then
 end
 thismachine.pre()
 
+-- plugins
 vim.pack.add({
 	"https://github.com/neovim/nvim-lspconfig",
-	{ src = "https://github.com/nvim-treesitter/nvim-treesitter", version = "main" },
+	{ src = "https://github.com/nvim-treesitter/nvim-treesitter", version = "main" }, -- the new full, incompatble, rewrite
 	"https://github.com/stevearc/conform.nvim",
 	"https://github.com/folke/snacks.nvim",
 	"https://github.com/nvim-treesitter/nvim-treesitter-context",
@@ -41,6 +42,8 @@ vim.pack.add({
 	"https://github.com/AndrewRadev/switch.vim", -- cycle between alternatives true->false, enabled->disabled, etc
 	"https://github.com/nvim-mini/mini.nvim", --  mini.completion, mini.align
 	"https://github.com/rafamadriz/friendly-snippets",
+	"https://github.com/rafamadriz/friendly-snippets",
+	"https://github.com/chrisgrieser/nvim-various-textobjs",
 })
 
 require("mini.icons").setup()
@@ -125,6 +128,9 @@ vim.lsp.enable("gopls")
 
 -- nvim-treesitter , provides syntax highlighting groups, folding and indentation based on treesitter queries
 -- https://github.com/nvim-treesitter/nvim-treesitter
+require("nvim-treesitter").setup({
+	-- using the defaults
+})
 require("nvim-treesitter").install({
 	"lua",
 	"c",
@@ -135,7 +141,7 @@ require("nvim-treesitter").install({
 	"gowork",
 	"hcl",
 	"terraform",
-	"python",
+	"python", -- Highlights , Folds, Indents, inJection, Locals
 	"vim",
 	"vimdoc",
 	"yaml",
@@ -680,5 +686,13 @@ vim.opt.listchars = { -- set list / yol
 
 vim.diagnostic.config({ virtual_lines = { current_line = true } })
 vim.diagnostic.enable(false) -- start with diagnostic disabled, toggle enablement with <leader>ud
+
+require("various-textobjs").setup({
+	keymaps = {
+		useDefaults = true,
+	},
+})
+
+vim.opt.cursorcolumn = true
 
 thismachine.post()
