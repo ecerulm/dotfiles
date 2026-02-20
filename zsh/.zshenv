@@ -25,6 +25,10 @@ if [ -f "$HOME/.local/google-cloud-sdk/completion.zsh.inc" ]; then . "$HOME/.loc
 [ -f "$HOME/.cargo/env" ] && . "${HOME}/.cargo/env"
 
 
+# NVIM_HOME="$HOME/opt/nvim/"
+# if [[ -d "$NVIM_HOME/bin" ]]; then
+# 	path=("$NVIM_HOME/bin" $path)
+# fi
 
 # For things that you don't want to share between all your machines 
 [ -f ~/.zshenv.thismachine ] && . ~/.zshenv.thismachine

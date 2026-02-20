@@ -19,6 +19,18 @@
 # You don't want the homebrew versions to override the default system ones
 # when you run shells from make, etc (otherwise you would have put this in .zshenv)
 path+=(/opt/homebrew/bin)
+RUBY_HOME=$(brew --prefix ruby)
+if [[ -d "$RUBY_HOME/bin" ]]; then
+	path=("$RUBY_HOME/bin" $path)
+fi
+
+GEM_HOME=$(gem env home)
+if [[ -d "$GEM_HOME/bin" ]]; then
+	# so that we can get cocoapods command `pod` 
+	path=("$GEM_HOME/bin" $path)
+	# which pod
+fi
+
 
 # Path to your oh-my-zsh installation.
 # export ZSH="$HOME/.oh-my-zsh"
@@ -333,3 +345,9 @@ pre-commit run sqlfluff-fix --from-ref $(git merge-base --fork-point origin/main
 function sqlfluff_fix {
 pre-commit run sqlfluff-lint --from-ref $(git merge-base --fork-point origin/main HEAD) --to-ref HEAD
 }
+
+
+NVIM_HOME="$HOME/opt/nvim"
+if [[ -d "$NVIM_HOME/bin" ]]; then
+	path=("$NVIM_HOME/bin" $path)
+fi
