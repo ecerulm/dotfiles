@@ -1,33 +1,9 @@
--- load init.thismachine.lua so you could access THISMACHINESETTINGS
--- You can just get globals like vim.g.xxxx in that file as well
--- local function source_file_if_exists(file_path)
--- 	local file = io.open(file_path, "r")
--- 	if file then
--- 		io.close(file)
--- 		dofile(file_path)
--- 	end
--- end
---
--- source_file_if_exists(vim.fn.stdpath("config") .. "/init.thismachine.lua")
-
 local ok, thismachine = pcall(require, "init_thismachine") -- You can use '.' in require since the loader will try treat it as `/`
 if not ok then
 	-- provide a dummy implementation
 	thismachine = {}
 	function thismachine.pre() end -- never add anything here, add it in init_thismachine.lua instead
 	function thismachine.post() end -- never add anything here, add it in init_thismachine.lua instead
-	-- your init_thismachine.lua should look like this:
-	-- local M = {}
-	--
-	-- function M.pre()
-	-- 	print("test1")
-	-- end
-	--
-	-- function M.post()
-	-- 	print("test2")
-	-- end
-	--
-	-- return M
 end
 thismachine.pre()
 
@@ -723,6 +699,10 @@ require("nvim-treesitter-textobjects").setup({
 		-- * selection_mode: eg 'v'
 		-- and should return true of false
 		include_surrounding_whitespace = false,
+		move = {
+			-- whether to set jumps in the jumplist (relateed to goto_next_start ,etc)
+			set_jumps = true,
+		},
 	},
 })
 
@@ -758,6 +738,56 @@ end)
 
 vim.keymap.set("n", "<leader>A", function()
 	require("nvim-treesitter-textobjects.swap").swap_previous("@parameter.inner")
+end)
+
+-- treesitter text objects: move
+-- You can use the capture groups defined in `textobjects.scm`
+vim.keymap.set({ "n", "x", "o" }, "]m", function()
+	require("nvim-treesitter-textobjects.move").goto_next_start("@function.outer", "textobjects")
+end)
+vim.keymap.set({ "n", "x", "o" }, "]]", function()
+	require("nvim-treesitter-textobjects.move").goto_next_start("@class.outer", "textobjects")
+end)
+-- You can also pass a list to group multiple queries.
+vim.keymap.set({ "n", "x", "o" }, "]o", function()
+	require("nvim-treesitter-textobjects.move").goto_next_start({ "@loop.inner", "@loop.outer" }, "textobjects")
+end)
+-- You can also use captures from other query groups like `locals.scm` or `folds.scm`
+vim.keymap.set({ "n", "x", "o" }, "]s", function()
+	require("nvim-treesitter-textobjects.move").goto_next_start("@local.scope", "locals")
+end)
+vim.keymap.set({ "n", "x", "o" }, "]z", function()
+	require("nvim-treesitter-textobjects.move").goto_next_start("@fold", "folds")
+end)
+
+vim.keymap.set({ "n", "x", "o" }, "]M", function()
+	require("nvim-treesitter-textobjects.move").goto_next_end("@function.outer", "textobjects")
+end)
+vim.keymap.set({ "n", "x", "o" }, "][", function()
+	require("nvim-treesitter-textobjects.move").goto_next_end("@class.outer", "textobjects")
+end)
+
+vim.keymap.set({ "n", "x", "o" }, "[m", function()
+	require("nvim-treesitter-textobjects.move").goto_previous_start("@function.outer", "textobjects")
+end)
+vim.keymap.set({ "n", "x", "o" }, "[[", function()
+	require("nvim-treesitter-textobjects.move").goto_previous_start("@class.outer", "textobjects")
+end)
+
+vim.keymap.set({ "n", "x", "o" }, "[M", function()
+	require("nvim-treesitter-textobjects.move").goto_previous_end("@function.outer", "textobjects")
+end)
+vim.keymap.set({ "n", "x", "o" }, "[]", function()
+	require("nvim-treesitter-textobjects.move").goto_previous_end("@class.outer", "textobjects")
+end)
+
+-- Go to either the start or the end, whichever is closer.
+-- Use if you want more granular movements
+vim.keymap.set({ "n", "x", "o" }, "]d", function()
+	require("nvim-treesitter-textobjects.move").goto_next("@conditional.outer", "textobjects")
+end)
+vim.keymap.set({ "n", "x", "o" }, "[d", function()
+	require("nvim-treesitter-textobjects.move").goto_previous("@conditional.outer", "textobjects")
 end)
 
 thismachine.post()
