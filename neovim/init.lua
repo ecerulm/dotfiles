@@ -726,7 +726,7 @@ require("nvim-treesitter-textobjects").setup({
 	},
 })
 
--- keymaps
+-- keymaps treesitter-textobjects
 -- You can use the capture groups defined in `textobjects.scm`
 vim.keymap.set({ "x", "o" }, "af", function()
 	require("nvim-treesitter-textobjects.select").select_textobject("@function.outer", "textobjects")
@@ -749,6 +749,15 @@ end)
 -- You can also use captures from other query groups like `locals.scm`
 vim.keymap.set({ "x", "o" }, "as", function()
 	require("nvim-treesitter-textobjects.select").select_textobject("@local.scope", "locals")
+end)
+
+-- treesitter text objects: swap
+vim.keymap.set("n", "<leader>a", function()
+	require("nvim-treesitter-textobjects.swap").swap_next("@parameter.inner")
+end)
+
+vim.keymap.set("n", "<leader>A", function()
+	require("nvim-treesitter-textobjects.swap").swap_previous("@parameter.inner")
 end)
 
 thismachine.post()
