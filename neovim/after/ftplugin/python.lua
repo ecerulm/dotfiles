@@ -5,5 +5,4 @@ vim.treesitter.start()
 vim.opt_local.foldexpr = "v:lua.vim.treesitter.foldexpr()"
 vim.opt_local.foldmethod = "expr"
 
--- Indentation: https://github.com/nvim-treesitter/nvim-treesitter?tab=readme-ov-file#indentation
-vim.opt_local.indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
+-- indentexpr is set in ~/.config/nvim/after/indent/python.lua, otherwise it would be overwritten by $VIMRUNTIME/indent/python.vim which runs after this file
