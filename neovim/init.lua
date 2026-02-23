@@ -628,7 +628,9 @@ end, { desc = "Toggle mouse" })
 vim.opt.timeout = true
 vim.opt.timeoutlen = 700 -- :h timeoutlen, how much to wait between keypresses in a map, 2026-01-16: 1500ms is too much, 1000ms is too much as well
 
-require("mini.completion").setup({})
+require("mini.completion").setup({
+	delay = { completion = 1000, info = 1000, signature = 1000 },
+})
 
 vim.keymap.set("n", "grd", function() -- Go to definition / Go to declaration / Go to implementation
 	vim.lsp.buf.definition()
