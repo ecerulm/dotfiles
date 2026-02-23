@@ -672,6 +672,7 @@ require("various-textobjs").setup({
 })
 
 vim.opt.cursorcolumn = true
+vim.api.nvim_set_hl(0, "CursorColumn", { bg = "#FFF5F5", fg = "#000000" }) -- cursorcolumn color light pink
 
 require("nvim-treesitter-textobjects").setup({
 	select = {
