@@ -673,8 +673,11 @@ require("various-textobjs").setup({
 	},
 })
 
+vim.opt.cursorline = true -- the line will be higlighted with hl-CursorLine hl-CursorLineNr
+vim.opt.cursorlineopt = "both" -- line, screenline, number, both means 'line,number'
 vim.opt.cursorcolumn = true
-vim.api.nvim_set_hl(0, "CursorColumn", { bg = "#FFF5F5", fg = "#000000" }) -- cursorcolumn color light pink
+-- vim.api.nvim_set_hl(0, "CursorColumn", { reverse = true, bold = true, bg = "#000000", fg = "#880033" }) -- cursorcolumn color light pink
+-- vim.api.nvim_set_hl(0, "CursorColumn", { bg = "NvimDarkGray3" }) -- same as CursorLine
 
 require("nvim-treesitter-textobjects").setup({
 	select = {
