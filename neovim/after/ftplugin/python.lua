@@ -6,3 +6,6 @@ vim.opt_local.foldexpr = "v:lua.vim.treesitter.foldexpr()"
 vim.opt_local.foldmethod = "expr"
 
 -- indentexpr is set in ~/.config/nvim/after/indent/python.lua, otherwise it would be overwritten by $VIMRUNTIME/indent/python.vim which runs after this file
+
+-- vim.opt_local.textwidth = 79 -- can't set tw because it will cut insert newlines in appropriate places while typing
+vim.opt_local.colorcolumn = "79" -- hightligh column after textwidth
