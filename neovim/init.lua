@@ -21,6 +21,7 @@ vim.pack.add({
 	"https://github.com/rafamadriz/friendly-snippets",
 	"https://github.com/chrisgrieser/nvim-various-textobjs",
 	"https://github.com/nvim-treesitter/nvim-treesitter-textobjects.git",
+	"https://github.com/mfussenegger/nvim-lint.git", -- run linter like mypy and parse the input and feeds it to vim.diagnostic
 })
 
 require("mini.icons").setup()
@@ -795,5 +796,23 @@ end)
 vim.keymap.set({ "n", "x", "o" }, "[d", function()
 	require("nvim-treesitter-textobjects.move").goto_previous("@conditional.outer", "textobjects")
 end)
+
+-- nvim-lint
+require("lint").linters_by_ft = {
+	-- For python you better have mypy on the path already use pipx install mypy
+	python = { "mypy" }, -- https://github.com/mfussenegger/nvim-lint/blob/master/lua/lint/linters/mypy.lua
+}
+
+vim.api.nvim_create_autocmd({ "BufWritePost" }, {
+	callback = function()
+		-- try_lint without arguments runs the linters defined in `linters_by_ft`
+		-- for the current filetype
+		require("lint").try_lint()
+
+		-- You can call `try_lint` with a linter name or a list of names to always
+		-- run specific linters, independent of the `linters_by_ft` configuration
+		-- require("lint").try_lint("cspell")
+	end,
+})
 
 thismachine.post()
