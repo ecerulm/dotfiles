@@ -387,7 +387,7 @@ vim.keymap.set({ "i" }, "<c-u>", "<Esc>viW~Ea", { noremap = true, silent = true 
 vim.opt.clipboard = "unnamedplus" -- paste from system clipboard , consider vim.opt.clipboard:append { 'unnamedplus' }
 -- vim.opt.foldlevel = 3 -- zi disable folding, za toggle fold on current line, zc close fold, zR open recursive, zM close recursive, zv reveal cursor
 vim.opt.foldlevelstart = 99 -- zi disable folding, za toggle fold on current line, zc close fold, zR open recursive, zM close recursive, zv reveal cursor
-vim.opt.conceallevel = 2
+vim.opt.conceallevel = 0 -- 0 -> text is shown normally, 2 -> concealed text completely hidden unless replacement char defined
 
 vim.g.loaded_python3_provider = 0 -- Disable python3 support
 vim.g.loaded_ruby_provider = 0 -- Disable ruby support
