@@ -6,6 +6,6 @@
 # Put only comamnds like fortune, msgs, etc
 
 if builtin command -v fortune >/dev/null; then
-  fortune
+  fortune -s
 fi
 
