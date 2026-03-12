@@ -228,7 +228,7 @@ require("snacks").setup({
 	picker = {},
 })
 
--- Keymaps
+-- Keymaps / inoremap / nnoremap, etc
 vim.keymap.set("i", "jk", "<Esc>")
 
 -- copy github remote link / copy remote url
@@ -379,6 +379,9 @@ Snacks.toggle.treesitter():map("<leader>uT") -- keymap to enable disable treesit
 
 -- textobject / text objects / text-objects / motions
 vim.keymap.set({ "o", "v" }, "ae", ":<C-u>normal! m'ggVG<cr>", { noremap = true, silent = true }) -- "o" is the operator pending mode :help omap-info, :help mapmode-o
+
+-- uppercase last word / uppercase word / 2026-03-12
+vim.keymap.set({ "i" }, "<c-u>", "<Esc>viW~Ea", { noremap = true, silent = true }) -- <esc> exit insert mode, viW select last word, ~ invert case on selection, E go to end of word, a enter insert-mode again
 
 -- global options
 vim.opt.clipboard = "unnamedplus" -- paste from system clipboard , consider vim.opt.clipboard:append { 'unnamedplus' }
