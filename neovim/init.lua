@@ -152,7 +152,7 @@ require("conform").setup({
 		cpp = { "clang-format" },
 		make = { "bake" },
 		dart = { "dart_format" },
-		-- toml = {},
+		toml = { "tombi" }, -- :help conform-formatters
 	},
 	format_on_save = function(bufnr)
 		local ignore_filetypes = { "markdown", "sql", "java" }
