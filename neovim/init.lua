@@ -594,9 +594,9 @@ require("mini.operators").setup({
 	},
 })
 
-vim.keymap.set("n", "gX", function()
-	vim.ui.open(vim.fn.expand("<cfile>")) -- :h <cfile> , it expands to the filename or url under cursor
-end, { desc = "Open url under cursor" })
+-- vim.keymap.set("n", "gX", function()  -- this is not needed now that mini.operators is not using gx
+-- 	vim.ui.open(vim.fn.expand("<cfile>")) -- :h <cfile> , it expands to the filename or url under cursor
+-- end, { desc = "Open url under cursor" })
 
 -- mini.operators / :h MiniSnippets-examples
 -- trigger<c-j>
