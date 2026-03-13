@@ -585,7 +585,14 @@ require("mini.move").setup() -- Alt + hjkl
 -- the mini.operators gx overrides the gx that you used for open url link under cursor
 -- replace with gr, grr (gr conflict with grn for rename)  / you changed the prefix from gr to cr
 -- exchange text regions gx / sort gs / multiply gm / swap text
-require("mini.operators").setup({ replace = { prefix = "cr" } })
+require("mini.operators").setup({
+	replace = { prefix = "cr" },
+	--exchange text regions
+	exchange = {
+		prefix = "cx", -- same as vim-exchange
+		reindent_linewise = true,
+	},
+})
 
 vim.keymap.set("n", "gX", function()
 	vim.ui.open(vim.fn.expand("<cfile>")) -- :h <cfile> , it expands to the filename or url under cursor
