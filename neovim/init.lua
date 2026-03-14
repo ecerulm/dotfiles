@@ -12,20 +12,19 @@ vim.pack.add({
 	"https://github.com/neovim/nvim-lspconfig",
 	{ src = "https://github.com/nvim-treesitter/nvim-treesitter", version = "main" }, -- the new full, incompatble, rewrite
 	"https://github.com/stevearc/conform.nvim",
-	"https://github.com/folke/snacks.nvim",
+	-- "https://github.com/folke/snacks.nvim", -- 2026-03-14 disable
 	"https://github.com/nvim-treesitter/nvim-treesitter-context",
 	-- "https://github.com/kylechui/nvim-surround", -- like tpope vim-surround but implemented in lua, it cause nvim-treesitter for simpler config
 	"https://github.com/AndrewRadev/switch.vim", -- cycle between alternatives true->false, enabled->disabled, etc
-	"https://github.com/nvim-mini/mini.nvim", --  mini.completion, mini.align
 	"https://github.com/rafamadriz/friendly-snippets",
 	"https://github.com/rafamadriz/friendly-snippets",
 	"https://github.com/chrisgrieser/nvim-various-textobjs",
 	"https://github.com/nvim-treesitter/nvim-treesitter-textobjects.git",
 	"https://github.com/mfussenegger/nvim-lint.git", -- run linter like mypy and parse the input and feeds it to vim.diagnostic
+	-- "https://github.com/lewis6991/gitsigns.nvim", -- 2026-03-14: signs, hunk actions, blame, diff, quickfix/location list, text objects, status line, revisions of buffers
 })
 
-require("mini.icons").setup()
-require("mini.git").setup()
+require("mini_config").setup()
 
 -- nvim-surround
 -- require("nvim-surround").setup() -- replaced by mini.surround
@@ -205,177 +204,10 @@ end, {
 	desc = "Re-enable autoformat-on-save",
 })
 
--- Snacks.nvim / pickers / telescope
-require("snacks").setup({
-	gitbrowse = {
-		remote_patterns = {
-			{ "^(https?://.*)%.git$", "%1" },
-			{ "^git@github%-ecerulm:(.+)%.git$", "https://github.com/%1" }, -- %- escapes the `-` as it has special meaning in a regex
-			{ "^git@(.+):(.+)%.git$", "https://%1/%2" },
-			{ "^git@(.+):(.+)$", "https://%1/%2" },
-			{ "^git@(.+)/(.+)$", "https://%1/%2" },
-			{ "^org%-%d+@(.+):(.+)%.git$", "https://%1/%2" },
-			{ "^ssh://git@(.*)$", "https://%1" },
-			{ "^ssh://([^:/]+)(:%d+)/(.*)$", "https://%1/%3" },
-			{ "^ssh://([^/]+)/(.*)$", "https://%1/%2" },
-			{ "ssh%.dev%.azure%.com/v3/(.*)/(.*)$", "dev.azure.com/%1/_git/%2" },
-			{ "^https://%w*@(.*)", "https://%1" },
-			{ "^git@(.*)", "https://%1" },
-			{ ":%d+", "" },
-			{ "%.git$", "" },
-		},
-	},
-	picker = {},
-})
+-- require("snacks_config").setup() -- 2026-03-14 disable
 
 -- Keymaps / inoremap / nnoremap, etc
 vim.keymap.set("i", "jk", "<Esc>")
-
--- copy github remote link / copy remote url
-vim.keymap.set({ "n", "v" }, "<leader>gc", function()
-	Snacks.gitbrowse({
-		notify = true,
-		open = function(url)
-			-- vim.fn.setreg("*", url) -- PRIMARY selection :h quotestar
-			vim.fn.setreg("+", url) -- CLIPBOARD selection :h quoteplus
-		end,
-	})
-end, { desc = "Git Browse" })
-
-vim.keymap.set({ "n", "v" }, "<leader>gB", function()
-	Snacks.gitbrowse()
-end, { desc = "Git Browse" })
-
--- vim.keymap.set({ "n", "v" }, "<leader>gb", function()
--- 	Snacks.git.blame_line()
--- end, { desc = "Git Blame" })
-
--- snacks.nvim pickers
-vim.keymap.set("n", "<leader>fb", function()
-	Snacks.picker.buffers()
-end, { desc = "Find buffers" })
-vim.keymap.set("n", "<leader>ff", function()
-	Snacks.picker.files()
-end, { desc = "Find files" })
-vim.keymap.set("n", "<leader>fg", function()
-	Snacks.picker.git_files()
-end, { desc = "Find Git tracked files in the whole repo" })
-vim.keymap.set("n", "<leader>fr", function()
-	Snacks.picker.recent()
-end, { desc = "Recent files" })
-vim.keymap.set("n", "<leader>fp", function()
-	Snacks.picker.projects({
-		finder = "recent_projects",
-		dev = {
-			"~/git/personal",
-			"~/git/work",
-		},
-		max_depth = 3,
-		patterns = { ".git", "Makefile", "pyproject.toml", ".test" },
-		recent = false, --  include project directories of recent files
-	})
-end, { desc = "Recent projects" })
-
---
--- snacks.nvim git pickers
---
-vim.keymap.set("n", "<leader>gb", function()
-	Snacks.picker.git_branches()
-end, { desc = "Git Branches" })
-
-vim.keymap.set("n", "<leader>gl", function()
-	Snacks.picker.git_log()
-end, { desc = "Git Log" })
-
-vim.keymap.set("n", "<leader>gL", function()
-	Snacks.picker.git_log_line()
-end, { desc = "Git Log Line, show commits that affect this line" })
-
-vim.keymap.set("n", "<leader>gs", function()
-	Snacks.picker.git_status()
-end, { desc = "Git status" })
-
-vim.keymap.set("n", "<leader>gS", function()
-	Snacks.picker.git_stash()
-end, { desc = "Git stash" })
-
-vim.keymap.set("n", "<leader>gd", function()
-	Snacks.picker.git_diff()
-end, { desc = "Git diff (hunks)" })
-
-vim.keymap.set("n", "<leader>gf", function()
-	Snacks.picker.git_log_file()
-end, { desc = "Git Log file, show commits that affects this file" })
-
-vim.keymap.set("n", "<leader>gf", function()
-	Snacks.picker.git_log_file()
-end, { desc = "Git Log file, show commits that affects this file" })
-
-vim.keymap.set("n", "<leader>gg", function()
-	Snacks.picker.lazygit()
-end, { desc = "Lazygit UI" })
-
--- snacks.nvim search pickers
-
-vim.keymap.set("n", "<leader>sd", function()
-	Snacks.picker.diagnostics()
-end, { desc = "Search diagnostics" })
-
-vim.keymap.set("n", "<leader>sD", function()
-	Snacks.picker.diagnostics_buffer()
-end, { desc = "Search diagnostics in this buffer" })
-
-vim.keymap.set("n", "<leader>sh", function()
-	Snacks.picker.help()
-end, { desc = "Search help pages" })
-
-vim.keymap.set("n", "<leader>sk", function()
-	Snacks.picker.keymaps()
-end, { desc = "Search vim keymaps / keyboards shortcut" })
-
--- snacks.nvim other keymaps
-vim.keymap.set("n", "<leader>cR", function()
-	Snacks.rename.rename_file()
-end, { desc = "Rename file" })
-
-vim.keymap.set("n", "<leader>.", function()
-	Snacks.scratch()
-end, { desc = "Toggle Scratch buffer" })
-
-vim.keymap.set("n", "<leader>n", function()
-	Snacks.notifier.show_history()
-end, { desc = "Show notification history / error messages" })
-vim.keymap.set("n", "<leader>un", function()
-	Snacks.notifier.hide()
-end, { desc = "Dismiss all notifications / error messages" })
-
--- snacks.nvim grep / search inside files
-
-vim.keymap.set("n", "<leader>/", function()
-	Snacks.picker.grep()
-end, { desc = "Grep in all files" })
-vim.keymap.set("n", "<leader>sg", function()
-	Snacks.picker.grep()
-end, { desc = "Grep in all files" })
-vim.keymap.set("n", "<leader>sb", function()
-	Snacks.picker.lines()
-end, { desc = "Grep in this buffer" })
-vim.keymap.set("n", "<leader>sB", function()
-	Snacks.picker.grep_buffers()
-end, { desc = "Grep in all open buffers" })
-vim.keymap.set({ "n", "x" }, "<leader>sw", function()
-	Snacks.picker.grep_word()
-end, { desc = "Visual selection or word" })
-
--- toggle options like with vim-unimpaired
-Snacks.toggle.option("list", { name = "List" }):map("yol")
-Snacks.toggle.option("number", { name = "Line Numbers" }):map("yon")
-Snacks.toggle.option("relativenumber", { name = "Relative Line Numbers" }):map("yor")
-Snacks.toggle.option("hlsearch", { name = "Highlight search" }):map("yoh")
-Snacks.toggle.option("wrap", { name = "wrap line" }):map("yow")
-Snacks.toggle.diagnostics():map("<leader>ud") -- keymap to enable disable diagnostics
-
-Snacks.toggle.treesitter():map("<leader>uT") -- keymap to enable disable treesitter
 
 -- textobject / text objects / text-objects / motions
 vim.keymap.set({ "o", "v" }, "ae", ":<C-u>normal! m'ggVG<cr>", { noremap = true, silent = true }) -- "o" is the operator pending mode :help omap-info, :help mapmode-o
@@ -489,10 +321,6 @@ end, {
 -- highlight whitespace at the end of the line
 -- vim.cmd([[match ExtraWhitespace /\s\+$/]])
 -- vim.cmd([[highlight ExtraWhitespace ctermbg=red guibg=red]])
-require("mini.trailspace").setup()
-vim.api.nvim_create_user_command("TrimTrailingWhitespace", function(args) -- adds :TrimTrailingWhitespace command
-	MiniTrailspace.trim()
-end, {})
 
 -- other keymaps
 
@@ -576,76 +404,12 @@ vim.g.switch_custom_definitions = {
 	vim.fn["switch#NormalizedCaseWords"]({ "five", "six" }),
 }
 
-require("mini.align").setup() -- gAiP :h MiniAlign-modifiers-builtin and :h MiniAlign-examples.
-require("mini.comment").setup() --  gc, gcc
--- require("mini.ai").setup() -- balanced textobjects
-require("mini.move").setup() -- Alt + hjkl
-
--- mini.operators
--- the mini.operators gx overrides the gx that you used for open url link under cursor
--- replace with gr, grr (gr conflict with grn for rename)  / you changed the prefix from gr to cr
--- exchange text regions gx / sort gs / multiply gm / swap text
-require("mini.operators").setup({
-	replace = { prefix = "cr" },
-	--exchange text regions
-	exchange = {
-		prefix = "cx", -- same as vim-exchange
-		reindent_linewise = true,
-	},
-})
-
 -- vim.keymap.set("n", "gX", function()  -- this is not needed now that mini.operators is not using gx
 -- 	vim.ui.open(vim.fn.expand("<cfile>")) -- :h <cfile> , it expands to the filename or url under cursor
 -- end, { desc = "Open url under cursor" })
 
--- mini.operators / :h MiniSnippets-examples
--- trigger<c-j>
--- next tabstop <c-l>
--- prev tabstop <c-h>
-local gen_loader = require("mini.snippets").gen_loader
-require("mini.snippets").setup({
-	snippets = {
-		-- Load custom file with global snippets first
-		gen_loader.from_file(vim.fn.stdpath("config") .. "/snippets/global.json"),
-
-		-- Load snippets based on current language by reading files from
-		-- "snippets/" subdirectories from 'runtimepath' directories.
-		gen_loader.from_lang(),
-	},
-})
-
-require("mini.splitjoin").setup() -- gS :h MiniSplitjoin
-require("mini.surround").setup() -- replaces nvim-surround / saw" / sd" / sr"'
-require("mini.bracketed").setup({}) -- b] , b[
-require("mini.files").setup({}) -- :lua MiniFiles.open()
-
-vim.keymap.set("n", "-", function()
-	local buf_name = vim.api.nvim_buf_get_name(0)
-	local path = vim.fn.filereadable(buf_name) == 1 and buf_name or vim.fn.getcwd()
-	MiniFiles.open(path)
-	MiniFiles.reveal_cwd()
-end, { desc = "Open Mini Files" })
-
-require("mini.statusline").setup({})
-require("mini.diff").setup()
-
-vim.keymap.set("n", "<leader>d", function()
-	MiniDiff.toggle_overlay()
-end, { desc = "Toggle the mini.diff overlay" })
-
-require("mini.basics").setup() -- prefix \w -> toggle wrap, this will change <leader> to <space>
-vim.g.mapleader = "\\" -- restore \ as <leader>, nvim.basics rewrites it with " " (space)
-vim.opt.mouse = ""
-vim.keymap.set("n", "<leader>m", function()
-	vim.opt.mouse = (vim.opt.mouse == "" and "a" or "")
-end, { desc = "Toggle mouse" })
-
 vim.opt.timeout = true
 vim.opt.timeoutlen = 700 -- :h timeoutlen, how much to wait between keypresses in a map, 2026-01-16: 1500ms is too much, 1000ms is too much as well
-
-require("mini.completion").setup({
-	delay = { completion = 1000, info = 1000, signature = 1000 },
-})
 
 vim.keymap.set("n", "grd", function() -- Go to definition / Go to declaration / Go to implementation
 	vim.lsp.buf.definition()
@@ -665,9 +429,6 @@ local align_blame = function(au_data)
 	-- Bind both windows so that they scroll together
 	vim.wo[win_src].scrollbind, vim.wo.scrollbind = true, true
 end
-
-local au_opts = { pattern = "MiniGitCommandSplit", callback = align_blame }
-vim.api.nvim_create_autocmd("User", au_opts)
 
 vim.opt.showbreak = "↪ " -- added to lines that have been wrapped
 vim.opt.listchars = { -- set list / yol
@@ -828,5 +589,7 @@ vim.api.nvim_create_autocmd({ "BufWritePost" }, {
 		-- require("lint").try_lint("cspell")
 	end,
 })
+
+-- require("gitsigns").setup()
 
 thismachine.post()
