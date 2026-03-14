@@ -3,6 +3,9 @@ local M = {} -- you use M in this module
 _G[modname] = M -- adds M to the globals with name modname
 
 function M.setup()
+	vim.pack.add({
+		"https://github.com/folke/snacks.nvim",
+	})
 	-- Snacks.nvim / pickers / telescope
 	require("snacks").setup({
 		gitbrowse = {

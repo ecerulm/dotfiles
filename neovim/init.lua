@@ -12,7 +12,6 @@ vim.pack.add({
 	"https://github.com/neovim/nvim-lspconfig",
 	{ src = "https://github.com/nvim-treesitter/nvim-treesitter", version = "main" }, -- the new full, incompatble, rewrite
 	"https://github.com/stevearc/conform.nvim",
-	-- "https://github.com/folke/snacks.nvim", -- 2026-03-14 disable
 	"https://github.com/nvim-treesitter/nvim-treesitter-context",
 	-- "https://github.com/kylechui/nvim-surround", -- like tpope vim-surround but implemented in lua, it cause nvim-treesitter for simpler config
 	"https://github.com/AndrewRadev/switch.vim", -- cycle between alternatives true->false, enabled->disabled, etc
@@ -204,7 +203,7 @@ end, {
 	desc = "Re-enable autoformat-on-save",
 })
 
--- require("snacks_config").setup() -- 2026-03-14 disable
+require("snacks_config").setup() -- 2026-03-14 disable
 
 -- Keymaps / inoremap / nnoremap, etc
 vim.keymap.set("i", "jk", "<Esc>")
