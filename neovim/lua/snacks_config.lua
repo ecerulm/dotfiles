@@ -44,9 +44,9 @@ function M.setup()
 		Snacks.gitbrowse()
 	end, { desc = "Git Browse" })
 
-	-- vim.keymap.set({ "n", "v" }, "<leader>gb", function()
-	-- 	Snacks.git.blame_line()
-	-- end, { desc = "Git Blame" })
+	vim.keymap.set({ "n", "v" }, "<leader>gb", function()
+		Snacks.git.blame_line()
+	end, { desc = "Git Blame" })
 
 	-- snacks.nvim pickers
 	vim.keymap.set("n", "<leader>fb", function()
