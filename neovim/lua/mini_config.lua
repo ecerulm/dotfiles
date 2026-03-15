@@ -54,7 +54,9 @@ function M.setup()
 
 	require("mini.splitjoin").setup() -- gS :h MiniSplitjoin
 	require("mini.surround").setup() -- replaces nvim-surround / saw" / sd" / sr"'
-	require("mini.bracketed").setup({}) -- b] , b[
+	require("mini.bracketed").setup({
+		comment = { suffix = "" }, -- no ]c, [c because we are using those for navigating to next change / next hunk
+	}) -- b] , b[
 	require("mini.files").setup({}) -- :lua MiniFiles.open()
 
 	vim.keymap.set("n", "-", function()
@@ -62,42 +64,47 @@ function M.setup()
 		local path = vim.fn.filereadable(buf_name) == 1 and buf_name or vim.fn.getcwd()
 		MiniFiles.open(path)
 		MiniFiles.reveal_cwd()
-	end, { desc = "Open Mini Files" })
+	end, { desc = "Open Mini Files", unique = true })
 
 	require("mini.statusline").setup({})
 	require("mini.diff").setup() -- https://github.com/nvim-mini/mini.diff, :h MiniDiff-overview / [h prev hunk / ]h next hunk
 
 	vim.keymap.set("n", "<leader>d", function()
 		MiniDiff.toggle_overlay()
-	end, { desc = "Toggle the mini.diff overlay" })
+	end, { desc = "Toggle the mini.diff overlay", unique = true })
 
-	require("mini.basics").setup() -- prefix \w -> toggle wrap, this will change <leader> to <space>
+	require("mini.basics").setup({
+		mappings = {
+			basic = true,
+			option_toggle_prefix = [[yo]], -- we are getting this from snacks.nvim also
+		},
+	}) -- prefix \w -> toggle wrap, this will change <leader> to <space>
 	vim.g.mapleader = "\\" -- restore \ as <leader>, nvim.basics rewrites it with " " (space)
 	vim.opt.mouse = ""
 	vim.keymap.set("n", "<leader>m", function()
 		vim.opt.mouse = (vim.opt.mouse == "" and "a" or "")
-	end, { desc = "Toggle mouse" })
+	end, { desc = "Toggle mouse", unique = true })
 
 	require("mini.completion").setup({
 		delay = { completion = 1000, info = 1000, signature = 1000 },
 	})
 
-	local align_blame = function(au_data)
-		if au_data.data.git_subcommand ~= "blame" then
-			return
-		end
-
-		-- Align blame output with source
-		local win_src = au_data.data.win_source
-		vim.wo.wrap = false
-		vim.fn.winrestview({ topline = vim.fn.line("w0", win_src) })
-		vim.api.nvim_win_set_cursor(0, { vim.fn.line(".", win_src), 0 })
-
-		-- Bind both windows so that they scroll together
-		vim.wo[win_src].scrollbind, vim.wo.scrollbind = true, true
-	end
-	local au_opts = { pattern = "MiniGitCommandSplit", callback = align_blame }
-	vim.api.nvim_create_autocmd("User", au_opts)
+	-- local align_blame = function(au_data)
+	-- 	if au_data.data.git_subcommand ~= "blame" then
+	-- 		return
+	-- 	end
+	--
+	-- 	-- Align blame output with source
+	-- 	local win_src = au_data.data.win_source
+	-- 	vim.wo.wrap = false
+	-- 	vim.fn.winrestview({ topline = vim.fn.line("w0", win_src) })
+	-- 	vim.api.nvim_win_set_cursor(0, { vim.fn.line(".", win_src), 0 })
+	--
+	-- 	-- Bind both windows so that they scroll together
+	-- 	vim.wo[win_src].scrollbind, vim.wo.scrollbind = true, true
+	-- end
+	-- local au_opts = { pattern = "MiniGitCommandSplit", callback = align_blame }
+	-- vim.api.nvim_create_autocmd("User", au_opts)
 end
 
 return M

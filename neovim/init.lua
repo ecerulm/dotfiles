@@ -206,13 +206,13 @@ end, {
 require("snacks_config").setup() -- 2026-03-14 disable
 
 -- Keymaps / inoremap / nnoremap, etc
-vim.keymap.set("i", "jk", "<Esc>")
+vim.keymap.set("i", "jk", "<Esc>", { unique = true })
 
 -- textobject / text objects / text-objects / motions
-vim.keymap.set({ "o", "v" }, "ae", ":<C-u>normal! m'ggVG<cr>", { noremap = true, silent = true }) -- "o" is the operator pending mode :help omap-info, :help mapmode-o
+vim.keymap.set({ "o", "v" }, "ae", ":<C-u>normal! m'ggVG<cr>", { noremap = true, silent = true, unique = true }) -- "o" is the operator pending mode :help omap-info, :help mapmode-o
 
--- uppercase last word / uppercase word / 2026-03-12
-vim.keymap.set({ "i" }, "<c-u>", "<Esc>viW~Ea", { noremap = true, silent = true }) -- <esc> exit insert mode, viW select last word, ~ invert case on selection, E go to end of word, a enter insert-mode again
+-- uppercase last word / uppercase word / 2026-03-12 / conflict with default <c-u>  :h i_CTRL-U
+vim.keymap.set({ "i" }, "<c-u>", "<Esc>viW~Ea", { noremap = true, silent = true, unique = false }) -- <esc> exit insert mode, viW select last word, ~ invert case on selection, E go to end of word, a enter insert-mode again
 
 -- global options
 vim.opt.clipboard = "unnamedplus" -- paste from system clipboard , consider vim.opt.clipboard:append { 'unnamedplus' }
@@ -324,48 +324,50 @@ end, {
 -- other keymaps
 
 -- Split window
-vim.keymap.set("n", "ss", ":split<Return><C-w>w")
-vim.keymap.set("n", "sv", ":vsplit<Return><C-w>w")
+vim.keymap.set("n", "ss", ":split<Return><C-w>w", { unique = true })
+vim.keymap.set("n", "sv", ":vsplit<Return><C-w>w", { unique = true })
 
 -- Switch between  windows/splits / cycle window split
-vim.keymap.set("n", "<Space>", "<C-w>w") -- nnoremap <Space> <C-w>w -- cycle window direction below/right
-vim.keymap.set("n", "<Tab>", "<C-w>w") -- nnoremap <Tab> <C-w>w  -- cycle window direction below/right
-vim.keymap.set("n", "<bs>", "<C-w>W") -- nnoremap <bs> <C-w>W -- cycle windows direction above/left
+vim.keymap.set("n", "<Space>", "<C-w>w", { unique = true }) -- nnoremap <Space> <C-w>w -- cycle window direction below/right
+vim.keymap.set("n", "<Tab>", "<C-w>w", { unique = true }) -- nnoremap <Tab> <C-w>w  -- cycle window direction below/right
+vim.keymap.set("n", "<bs>", "<C-w>W", { unique = true }) -- nnoremap <bs> <C-w>W -- cycle windows direction above/left
 
--- clear hlsearch / highlight search results
-vim.keymap.set("n", "<c-l>", ":nohlsearch<cr><c-l>", { remap = false }) -- you have also yoh
+-- clear hlsearch / highlight search results / conflicts with default :h CTRL-L which already does  :nohlsearchk
+-- vim.keymap.set("n", "<c-l>", ":nohlsearch<cr><c-l>", { remap = false, unique = true }) -- you have also yoh
 
 -- normal mode indent
 -- >> and << are builtin
-vim.keymap.set("n", "<D-[", "<<") -- <D-X> means Cmd-X in macOS but only for GUI, terminal emulators do not pass it
-vim.keymap.set("n", "<D-]", ">>") -- <D-X> means Cmd-X in macOS but only for GUI, terminal emulators do not pass it
+vim.keymap.set("n", "<D-[", "<<", { unique = true }) -- <D-X> means Cmd-X in macOS but only for GUI, terminal emulators do not pass it
+vim.keymap.set("n", "<D-]", ">>", { unique = true }) -- <D-X> means Cmd-X in macOS but only for GUI, terminal emulators do not pass it
 
 -- visual model indent
-vim.keymap.set("v", ">", ">gv")
-vim.keymap.set("v", "<", "<gv")
-vim.keymap.set("v", "<Tab>", ">gv") -- <D-X> means Cmd-X in macOS but only for GUI, terminal emulators do not pass it
-vim.keymap.set("v", "<S-Tab>", "<gv") -- <D-X> means Cmd-X in macOS but only for GUI, terminal emulators do not pass it
+vim.keymap.set("v", ">", ">gv", { unique = true })
+vim.keymap.set("v", "<", "<gv", { unique = true })
+
+-- the <Tab> in visual mode is already taken by vim.snippets
+-- vim.keymap.set("v", "<Tab>", ">gv", { unique = true }) -- <D-X> means Cmd-X in macOS but only for GUI, terminal emulators do not pass it
+-- vim.keymap.set("v", "<S-Tab>", "<gv", { unique = true }) -- <D-X> means Cmd-X in macOS but only for GUI, terminal emulators do not pass it
 
 -- %% expands to buffer directory
-vim.keymap.set("c", "%%", [[<C-R>=expand('%:h').'/'<cr>]], { remap = false })
+vim.keymap.set("c", "%%", [[<C-R>=expand('%:h').'/'<cr>]], { remap = false, unique = true })
 
--- for <A-j> to work the macos-option-as-alt = left in ghostty must be set
-vim.keymap.set("n", "<A-j>", ":m .+1<CR>==") -- Alt-j, move line down
-vim.keymap.set("n", "<A-k>", ":m .-2<CR>==") -- Alt-k, move line up
-vim.keymap.set("i", "<A-j>", "<esc>:m .+1<CR>==gi")
-vim.keymap.set("i", "<A-k>", "<esc>:m .-2<CR>==gi")
-vim.keymap.set("v", "<A-j>", ":m '>+1<CR>gv=gv")
-vim.keymap.set("v", "<A-k>", ":m '<-2<CR>gv=gv")
+-- for <A-j> to work the macos-option-as-alt = left in ghostty must be set / A-j M-j is already taken by mini.move
+-- vim.keymap.set("n", "<A-j>", ":m .+1<CR>==", { unique = true }) -- Alt-j, move line down
+-- vim.keymap.set("n", "<A-k>", ":m .-2<CR>==", { unique = true }) -- Alt-k, move line up
+-- vim.keymap.set("i", "<A-j>", "<esc>:m .+1<CR>==gi", { unique = true })
+-- vim.keymap.set("i", "<A-k>", "<esc>:m .-2<CR>==gi", { unique = true })
+-- vim.keymap.set("v", "<A-j>", ":m '>+1<CR>gv=gv", { unique = true })
+-- vim.keymap.set("v", "<A-k>", ":m '<-2<CR>gv=gv", { unique = true })
 
 -- <esc> in terminal mode exit terminal mode
-vim.keymap.set("t", "<Esc>", "<C-\\><C-n>", { remap = false }) -- :tnoremap <esc> <c-\><c-n> exit terminal mode with <Esc>
-vim.keymap.set("t", "<C-v><Esc>", "<Esc>", { remap = false }) -- exit terminal mode with <Esc>
+vim.keymap.set("t", "<Esc>", "<C-\\><C-n>", { remap = false, unique = true }) -- :tnoremap <esc> <c-\><c-n> exit terminal mode with <Esc>
+vim.keymap.set("t", "<C-v><Esc>", "<Esc>", { remap = false, unique = true }) -- exit terminal mode with <Esc>
 
 -- invert p and P in visual model
 -- the black hole register "_ (see :h quote_) is not needed
 -- see :h v_p and v_P
-vim.keymap.set("x", "p", [[P]], { noremap = true, silent = true }) -- the default P (v_P) does not set the default register, we map p to P because that is the default you want to use
-vim.keymap.set("x", "P", [[p]], { noremap = true, silent = true })
+vim.keymap.set("x", "p", [[P]], { noremap = true, silent = true, unique = true }) -- the default P (v_P) does not set the default register, we map p to P because that is the default you want to use
+vim.keymap.set("x", "P", [[p]], { noremap = true, silent = true, unique = true })
 
 local skeletons = {
 	"Makefile", -- ~/.vim/skeleton.Makefile
@@ -412,7 +414,7 @@ vim.opt.timeoutlen = 700 -- :h timeoutlen, how much to wait between keypresses i
 
 vim.keymap.set("n", "grd", function() -- Go to definition / Go to declaration / Go to implementation
 	vim.lsp.buf.definition()
-end, { desc = "Go to definition/implmentation" })
+end, { desc = "Go to definition/implmentation", unique = true })
 
 local align_blame = function(au_data)
 	if au_data.data.git_subcommand ~= "blame" then
@@ -491,85 +493,88 @@ require("nvim-treesitter-textobjects").setup({
 -- You can use the capture groups defined in `textobjects.scm`
 vim.keymap.set({ "x", "o" }, "af", function()
 	require("nvim-treesitter-textobjects.select").select_textobject("@function.outer", "textobjects")
-end)
+end, { unique = true })
 vim.keymap.set({ "x", "o" }, "if", function()
 	require("nvim-treesitter-textobjects.select").select_textobject("@function.inner", "textobjects")
-end)
+end, { unique = true })
 vim.keymap.set({ "x", "o" }, "ac", function()
 	require("nvim-treesitter-textobjects.select").select_textobject("@class.outer", "textobjects")
-end)
+end, { unique = true })
 vim.keymap.set({ "x", "o" }, "ic", function()
 	require("nvim-treesitter-textobjects.select").select_textobject("@class.inner", "textobjects")
-end)
+end, { unique = true })
 vim.keymap.set({ "x", "o" }, "ia", function()
 	require("nvim-treesitter-textobjects.select").select_textobject("@parameter.inner", "textobjects")
-end)
+end, { unique = true })
 vim.keymap.set({ "x", "o" }, "aa", function()
 	require("nvim-treesitter-textobjects.select").select_textobject("@parameter.outer", "textobjects")
-end)
+end, { unique = true })
 -- You can also use captures from other query groups like `locals.scm`
 vim.keymap.set({ "x", "o" }, "as", function()
 	require("nvim-treesitter-textobjects.select").select_textobject("@local.scope", "locals")
-end)
+end, { unique = true })
 
 -- treesitter text objects: swap
 vim.keymap.set("n", "<leader>a", function()
 	require("nvim-treesitter-textobjects.swap").swap_next("@parameter.inner")
-end)
+end, { unique = true })
 
 vim.keymap.set("n", "<leader>A", function()
 	require("nvim-treesitter-textobjects.swap").swap_previous("@parameter.inner")
-end)
+end, { unique = true })
 
 -- treesitter text objects: move
 -- You can use the capture groups defined in `textobjects.scm`
 vim.keymap.set({ "n", "x", "o" }, "]m", function()
 	require("nvim-treesitter-textobjects.move").goto_next_start("@function.outer", "textobjects")
-end)
+end, { unique = true })
 vim.keymap.set({ "n", "x", "o" }, "]]", function()
 	require("nvim-treesitter-textobjects.move").goto_next_start("@class.outer", "textobjects")
-end)
--- You can also pass a list to group multiple queries.
-vim.keymap.set({ "n", "x", "o" }, "]o", function()
-	require("nvim-treesitter-textobjects.move").goto_next_start({ "@loop.inner", "@loop.outer" }, "textobjects")
-end)
+end, { unique = true })
+
+-- You can also pass a list to group multiple queries. Conflicts with mini.bracketed [o, ]o MiniBracketed.oldfile()
+-- vim.keymap.set({ "n", "x", "o" }, "]o", function()
+-- 	require("nvim-treesitter-textobjects.move").goto_next_start({ "@loop.inner", "@loop.outer" }, "textobjects")
+-- end, { unique = true })
+
 -- You can also use captures from other query groups like `locals.scm` or `folds.scm`
 vim.keymap.set({ "n", "x", "o" }, "]s", function()
 	require("nvim-treesitter-textobjects.move").goto_next_start("@local.scope", "locals")
-end)
+end, { unique = true })
 vim.keymap.set({ "n", "x", "o" }, "]z", function()
 	require("nvim-treesitter-textobjects.move").goto_next_start("@fold", "folds")
-end)
+end, { unique = true })
 
 vim.keymap.set({ "n", "x", "o" }, "]M", function()
 	require("nvim-treesitter-textobjects.move").goto_next_end("@function.outer", "textobjects")
-end)
+end, { unique = true })
 vim.keymap.set({ "n", "x", "o" }, "][", function()
 	require("nvim-treesitter-textobjects.move").goto_next_end("@class.outer", "textobjects")
-end)
+end, { unique = true })
 
 vim.keymap.set({ "n", "x", "o" }, "[m", function()
 	require("nvim-treesitter-textobjects.move").goto_previous_start("@function.outer", "textobjects")
-end)
+end, { unique = true })
 vim.keymap.set({ "n", "x", "o" }, "[[", function()
 	require("nvim-treesitter-textobjects.move").goto_previous_start("@class.outer", "textobjects")
-end)
+end, { unique = true })
 
 vim.keymap.set({ "n", "x", "o" }, "[M", function()
 	require("nvim-treesitter-textobjects.move").goto_previous_end("@function.outer", "textobjects")
-end)
+end, { unique = true })
 vim.keymap.set({ "n", "x", "o" }, "[]", function()
 	require("nvim-treesitter-textobjects.move").goto_previous_end("@class.outer", "textobjects")
-end)
+end, { unique = true })
 
 -- Go to either the start or the end, whichever is closer.
 -- Use if you want test granular movements
-vim.keymap.set({ "n", "x", "o" }, "]d", function()
-	require("nvim-treesitter-textobjects.move").goto_next("@conditional.outer", "textobjects")
-end)
-vim.keymap.set({ "n", "x", "o" }, "[d", function()
-	require("nvim-treesitter-textobjects.move").goto_previous("@conditional.outer", "textobjects")
-end)
+-- This conflicts with mini.bracketed  diagnostics forward
+-- vim.keymap.set({ "n", "x", "o" }, "]d", function()
+-- 	require("nvim-treesitter-textobjects.move").goto_next("@conditional.outer", "textobjects")
+-- end, { unique = true })
+-- vim.keymap.set({ "n", "x", "o" }, "[d", function()
+-- 	require("nvim-treesitter-textobjects.move").goto_previous("@conditional.outer", "textobjects")
+-- end, { unique = true })
 
 -- nvim-lint
 require("lint").linters_by_ft = {
@@ -599,6 +604,7 @@ require("gitsigns").setup({
 		local function map(mode, l, r, opts)
 			opts = opts or {}
 			opts.buffer = bufnr
+			opts.unique = true
 			vim.keymap.set(mode, l, r, opts)
 		end
 
