@@ -114,21 +114,20 @@ TODO
 ====
 
 -   Replace Snacks.nvim with [mini.nvim](https://github.com/nvim-mini/mini.nvim)
+    - make a list of the things that you are using from Snacks that don't have a counterpart in mini.nvim
 -	Add indentation settings for python filetype, terraform
 -	add snippets manager / LuaSnip
 -	vim-fugitive (do we need this or it's better to use lazygit for this kind of stuff)
--   completion engine / nvim-cmp / mini.completion
--   nvim-cmp / blink.cmp
+-   completion engine / nvim-cmp / mini.completion /  nvim-cmp / blink.cmp / autocompletion engines / 
 -   Check [Oil.nvim](https://github.com/stevearc/oil.nvim)
--   Replace switch.nvim with mini.cycle
-
--	vim-fugitive (do we need this or it's better to use lazygit for this kind of stuff)
--   completion engine / nvim-cmp / mini.completion
--   nvim-cmp / blink.cmp
--   Check [Oil.nvim](https://github.com/stevearc/oil.nvim)
--   Replace switch.nvim with mini.cycle (not implemented yet)
+-   Replace switch.nvim with mini.cycle (not implemented yet) 
 -   vim-gutter / gitsigns.nvim / sign column / :h signs / :h gutter
+    -   Decide if you want to keep gitsigns.nvim or mini.diff / mini.git / Snacks.git 
 -   use nvim.basic to toggle options on an off instead of Snacks.nvim
+-   Snacks.git -> make sure that the same keymaps are used as in mini.diff ,etc
+    - ]c,[c to navigate to diff/hunks, [c is the vim default for jumping between hunks on a diff :h jumpto-diffs
+    - vih to select hunk
+    - etc
 
 
 DONE
