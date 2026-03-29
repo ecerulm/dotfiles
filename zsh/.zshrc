@@ -31,6 +31,10 @@ if [[ -d "$GEM_HOME/bin" ]]; then
 	# which pod
 fi
 
+PSQL_HOME=$(brew --prefix libpq)
+if [[ -d "${PSQL_HOME}/bin" ]]; then
+	path=("${PSQL_HOME}/bin" $path)
+fi
 
 # Path to your oh-my-zsh installation.
 # export ZSH="$HOME/.oh-my-zsh"
