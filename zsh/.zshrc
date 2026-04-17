@@ -1,9 +1,9 @@
 # This is only runs for interactive shells
-# login shells are also interfactive shells
+# login shells are also interactive shells
 # make  and other programs that open shells won't source this
 #
 #
-# This is where you define aliases, functions, shell options , keybingings, etc
+# This is where you define aliases, functions, shell options, keybindings, etc
 #
 
 
@@ -355,3 +355,16 @@ NVIM_HOME="$HOME/opt/nvim"
 if [[ -d "$NVIM_HOME/bin" ]]; then
 	path=("$NVIM_HOME/bin" $path)
 fi
+
+
+
+# resets Kitty Keyboard Protocol after each command, avoid the ctrl-c showing up as 9;5u after killing claude
+reset_kkp() {
+	print '\e[>u'
+}
+
+autoload -Uz add-zsh-hook
+add-zsh-hook precmd reset_kkp
+
+
+path+=$(pyenv prefix 3.14)/bin
