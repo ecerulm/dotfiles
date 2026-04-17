@@ -49,3 +49,4 @@ latest.tfplan
 .luarc.json
 
 .secrets.toml
+.claude
