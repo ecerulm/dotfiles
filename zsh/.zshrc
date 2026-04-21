@@ -368,3 +368,11 @@ add-zsh-hook precmd reset_kkp
 
 
 path+=$(pyenv prefix 3.14)/bin
+
+
+# git worktree switch / cd into a worktree, presents a fuzzy finder with all the worktree in the current repo
+wts() {
+	local dir
+	dir=$(git worktree list | fzf --height=40% --reverse | awk '{print $1}')
+	[[ -n "$dir" ]] && cd "$dir"
+}
