@@ -117,7 +117,6 @@ TODO
     - make a list of the things that you are using from Snacks that don't have a counterpart in mini.nvim
 -	Add indentation settings for python filetype, terraform
 -	add snippets manager / LuaSnip
--	vim-fugitive (do we need this or it's better to use lazygit for this kind of stuff)
 -   completion engine / nvim-cmp / mini.completion /  nvim-cmp / blink.cmp / autocompletion engines / 
 -   Check [Oil.nvim](https://github.com/stevearc/oil.nvim)
 -   Replace switch.nvim with mini.cycle (not implemented yet) 

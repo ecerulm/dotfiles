@@ -21,6 +21,7 @@ vim.pack.add({
 	"https://github.com/nvim-treesitter/nvim-treesitter-textobjects.git",
 	"https://github.com/mfussenegger/nvim-lint.git", -- run linter like mypy and parse the input and feeds it to vim.diagnostic
 	"https://github.com/lewis6991/gitsigns.nvim", -- 2026-03-14: signs, hunk actions, blame, diff, quickfix/location list, text objects, status line, revisions of buffers
+	"https://github.com/tpope/vim-fugitive", -- :Git command, :G blame, :G diff, :G log, :Gread, :Gwrite, :Gedit
 })
 
 require("mini_config").setup()
@@ -604,7 +605,6 @@ require("gitsigns").setup({
 		local function map(mode, l, r, opts)
 			opts = opts or {}
 			opts.buffer = bufnr
-			opts.unique = true
 			vim.keymap.set(mode, l, r, opts)
 		end
 

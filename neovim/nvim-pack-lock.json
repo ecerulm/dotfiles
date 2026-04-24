@@ -52,6 +52,10 @@
     "switch.vim": {
       "rev": "0fe38fd3fa6433101f4e173f681bb134e175c022",
       "src": "https://github.com/AndrewRadev/switch.vim"
+    },
+    "vim-fugitive": {
+      "rev": "3b753cf8c6a4dcde6edee8827d464ba9b8c4a6f0",
+      "src": "https://github.com/tpope/vim-fugitive"
     }
   }
 }
