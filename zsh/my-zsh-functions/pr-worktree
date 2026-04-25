@@ -1,0 +1,72 @@
+# pr-worktree: pick an open PR in the current repo via fzf and create a
+# sibling git worktree at ../<repo>-pr-<N> checked out to the PR branch.
+#
+# Usage: pr-worktree [PR_NUMBER]
+#   - no arg  -> fzf picker over `gh pr list`
+#   - PR num  -> skip picker
+#
+# Requires: gh, git, fzf
+
+emulate -L zsh
+set -o pipefail
+
+for cmd in gh git fzf; do
+  if ! command -v "$cmd" >/dev/null 2>&1; then
+    print -u2 "pr-worktree: '$cmd' not found in PATH"
+    return 1
+  fi
+done
+
+local repo_root
+repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || {
+  print -u2 "pr-worktree: not inside a git repository"
+  return 1
+}
+
+local pr_number=$1
+if [[ -z $pr_number ]]; then
+  local selection
+  selection=$(
+    gh pr list --limit 200 \
+      --json number,title,author,headRefName,isDraft,updatedAt \
+      --template '{{range .}}{{printf "#%-5v" .number}} {{if .isDraft}}[draft]{{else}}[ready]{{end}} {{printf "%s  (%s)  [%s]" .title .headRefName .author.login}}{{"\n"}}{{end}}' \
+    | fzf --ansi --prompt='PR> ' --height=80% --reverse \
+          --preview='gh pr view $(echo {} | sed -E "s/^#([0-9]+).*/\1/")' \
+          --preview-window=right:60%:wrap
+  ) || return 130
+  [[ -z $selection ]] && return 130
+  pr_number=${${selection#\#}%% *}
+fi
+
+if ! [[ $pr_number =~ '^[0-9]+$' ]]; then
+  print -u2 "pr-worktree: invalid PR number: $pr_number"
+  return 1
+fi
+
+local repo_name=${repo_root:t}
+local worktree_path=${repo_root:h}/${repo_name}-pr-${pr_number}
+
+if [[ -e $worktree_path ]]; then
+  print "pr-worktree: $worktree_path already exists; entering it."
+  cd -- "$worktree_path"
+  return 0
+fi
+
+local pr_branch
+pr_branch=$(gh pr view "$pr_number" --json headRefName -q .headRefName) || return 1
+
+print "pr-worktree: creating worktree at $worktree_path for PR #$pr_number ($pr_branch)"
+
+git -C "$repo_root" fetch origin "pull/${pr_number}/head:pr-${pr_number}" 2>/dev/null \
+  || git -C "$repo_root" fetch origin "$pr_branch" 2>/dev/null
+
+if git -C "$repo_root" worktree add "$worktree_path" "$pr_branch" 2>/dev/null; then
+  :
+elif git -C "$repo_root" worktree add "$worktree_path" "pr-${pr_number}" 2>/dev/null; then
+  :
+else
+  print -u2 "pr-worktree: failed to create worktree for PR #$pr_number"
+  return 1
+fi
+
+cd -- "$worktree_path"

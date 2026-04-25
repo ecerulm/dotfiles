@@ -1,0 +1,154 @@
+# pr-worktree-rm: pick worktrees in the current repo via fzf and delete them.
+#
+# Each row shows:
+#   <path>  <branch>  <merge-status>  <pr-status>
+# where:
+#   merge-status = merged | unmerged
+#                  "merged" if the branch tip is an ancestor of origin/main
+#                  (squash-merged PRs typically show "unmerged" here — rely
+#                  on pr-status to know they're actually landed)
+#   pr-status    = open#N | closed#N | merged#N | no-pr
+#
+# Multi-select with TAB. Asks for confirmation before deleting.
+# The current worktree and the main worktree are excluded from the picker.
+#
+# Usage: pr-worktree-rm
+#
+# Requires: gh, git, fzf, jq
+
+emulate -L zsh
+set -o pipefail
+
+for cmd in gh git fzf jq; do
+  if ! command -v "$cmd" >/dev/null 2>&1; then
+    print -u2 "pr-worktree-rm: '$cmd' not found in PATH"
+    return 1
+  fi
+done
+
+local repo_root
+repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || {
+  print -u2 "pr-worktree-rm: not inside a git repository"
+  return 1
+}
+
+# Identify the main/primary worktree (first entry of `git worktree list --porcelain`).
+local main_worktree
+main_worktree=$(git -C "$repo_root" worktree list --porcelain | awk '/^worktree /{print $2; exit}')
+
+local current_worktree
+current_worktree=$(git rev-parse --show-toplevel)
+
+# Make sure origin/main is current so "merged" is meaningful.
+git -C "$repo_root" fetch --quiet origin main 2>/dev/null
+
+# Build a map: branch -> pr_state, by querying all PRs (any state) once.
+local -A pr_state
+local pr_json
+pr_json=$(gh pr list --state all --limit 500 --json number,state,headRefName 2>/dev/null) || pr_json='[]'
+while IFS=$'\t' read -r branch state number; do
+  [[ -z $branch ]] && continue
+  pr_state[$branch]="${(L)state}#${number}"
+done < <(print -r -- "$pr_json" | jq -r '.[] | [.headRefName, .state, .number] | @tsv')
+
+# Walk worktrees, build picker rows.
+local -a rows
+local wt_path wt_branch
+local block
+git -C "$repo_root" worktree list --porcelain | while IFS= read -r line; do
+  case $line in
+    worktree\ *)
+      wt_path=${line#worktree }
+      wt_branch=""
+      ;;
+    branch\ *)
+      wt_branch=${line#branch refs/heads/}
+      ;;
+    "")
+      [[ -z $wt_path ]] && continue
+      [[ $wt_path == $main_worktree ]] && { wt_path=""; continue; }
+      [[ $wt_path == $current_worktree ]] && { wt_path=""; continue; }
+
+      local merge_status="unmerged"
+      if [[ -n $wt_branch ]] && git -C "$repo_root" merge-base --is-ancestor "$wt_branch" origin/main 2>/dev/null; then
+        merge_status="merged"
+      fi
+
+      local pr_status="no-pr"
+      if [[ -n $wt_branch && -n ${pr_state[$wt_branch]} ]]; then
+        local entry=${pr_state[$wt_branch]}
+        pr_status="${entry%#*}#${entry#*#}"
+      fi
+
+      rows+=("$(printf '%s\t%s\t%-9s\t%s' "$wt_path" "${wt_branch:-<detached>}" "$merge_status" "$pr_status")")
+      wt_path=""
+      wt_branch=""
+      ;;
+  esac
+done
+
+# Handle the trailing block if the porcelain output didn't end with a blank line.
+if [[ -n $wt_path && $wt_path != $main_worktree && $wt_path != $current_worktree ]]; then
+  local merge_status="unmerged"
+  if [[ -n $wt_branch ]] && git -C "$repo_root" merge-base --is-ancestor "$wt_branch" origin/main 2>/dev/null; then
+    merge_status="merged"
+  fi
+  local pr_status="no-pr"
+  if [[ -n $wt_branch && -n ${pr_state[$wt_branch]} ]]; then
+    local entry=${pr_state[$wt_branch]}
+    pr_status="${entry%#*}#${entry#*#}"
+  fi
+  rows+=("$(printf '%s\t%s\t%-9s\t%s' "$wt_path" "${wt_branch:-<detached>}" "$merge_status" "$pr_status")")
+fi
+
+if (( ${#rows} == 0 )); then
+  print "pr-worktree-rm: no removable worktrees (excluding main and current)."
+  return 0
+fi
+
+local selection
+selection=$(
+  printf '%s\n' "${rows[@]}" \
+  | column -t -s $'\t' \
+  | fzf --multi --ansi --reverse --height=80% \
+        --prompt='delete> ' \
+        --header='TAB to multi-select, ENTER to confirm, ESC to cancel'
+) || return 130
+[[ -z $selection ]] && return 130
+
+# First column of each selected row is the worktree path.
+local -a paths_to_delete
+local sel_line
+while IFS= read -r sel_line; do
+  paths_to_delete+=("${sel_line%% *}")
+done <<< "$selection"
+
+print
+print "About to delete the following worktree(s):"
+local p
+for p in "${paths_to_delete[@]}"; do
+  print "  $p"
+done
+print -n "Proceed? [y/N] "
+local reply
+read -r reply
+if [[ ${reply:l} != y && ${reply:l} != yes ]]; then
+  print "Aborted."
+  return 1
+fi
+
+local failed=0
+for p in "${paths_to_delete[@]}"; do
+  if git -C "$repo_root" worktree remove "$p" 2>/dev/null; then
+    print "removed: $p"
+  elif git -C "$repo_root" worktree remove --force "$p" 2>/dev/null; then
+    print "removed (force): $p"
+  else
+    print -u2 "failed:  $p"
+    failed=$((failed + 1))
+  fi
+done
+
+git -C "$repo_root" worktree prune
+
+return $failed
