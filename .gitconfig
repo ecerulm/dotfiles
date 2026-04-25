@@ -85,7 +85,7 @@
 	initialcommit = rev-list --max-parents=0 HEAD
 
 [merge]
-	tool = meld
+	tool = vscode
 	stat = true
 	conflictStyle = zdiff3
 [http]
@@ -134,6 +134,7 @@
 	trustExitCode = true
 [mergetool]
 	prompt = false
+	keepBackups = false
 [mergetool "diffmerge"]
 	trustExitCode = true
 	path = /usr/local/bin/diffmerge
@@ -215,3 +216,6 @@ path = ~/git/foss/.gitconfig
 [delta]
 	navigate = true
 	dark = true
+[mergetool "vscode"]
+	cmd = code --wait --merge \"$REMOTE\" \"$LOCAL\" \"$BASE\" \"$MERGED\"
+	trustExitCode = false
