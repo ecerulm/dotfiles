@@ -1,11 +1,23 @@
-# pr-worktree: pick an open PR in the current repo via fzf and create a
-# sibling git worktree at ../<repo>-pr-<N> checked out to the PR branch.
+# pr-worktree: pick a PR or JIRA issue you're involved in via fzf and create
+# a sibling git worktree.
 #
-# Usage: pr-worktree [PR_NUMBER]
-#   - no arg  -> fzf picker over `gh pr list`
-#   - PR num  -> skip picker
+# Sources (current repo only):
+#   - GitHub PRs where you opened/commented/reviewed/were assigned/were
+#     mentioned (gh search prs --involves=@me).
+#   - JIRA issues where you are assignee, reporter, or watcher and that are
+#     not Done (acli jira workitem search). Skipped silently if acli is
+#     missing or unauthenticated.
 #
-# Requires: gh, git, fzf
+# Selecting a PR     -> worktree at ../<repo>-pr-<N>      on the PR branch.
+# Selecting an issue -> worktree at ../<repo>-<KEY>       on a new branch
+#                       <KEY> created off origin/<default-branch>.
+#
+# Usage: pr-worktree [PR_NUMBER | JIRA_KEY]
+#   - no arg     -> fzf picker
+#   - PR num     -> skip picker, treat as PR
+#   - JIRA key   -> skip picker, treat as JIRA issue (e.g. DATA-1234)
+#
+# Requires: gh, git, fzf. acli is optional (enables JIRA rows).
 
 emulate -L zsh
 set -o pipefail
@@ -17,56 +29,191 @@ for cmd in gh git fzf; do
   fi
 done
 
-local repo_root
+local repo_root repo_slug repo_name
 repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || {
   print -u2 "pr-worktree: not inside a git repository"
   return 1
 }
-
-local pr_number=$1
-if [[ -z $pr_number ]]; then
-  local selection
-  selection=$(
-    gh pr list --limit 200 \
-      --json number,title,author,headRefName,isDraft,updatedAt \
-      --template '{{range .}}{{printf "#%-5v" .number}} {{if .isDraft}}[draft]{{else}}[ready]{{end}} {{printf "%s  (%s)  [%s]" .title .headRefName .author.login}}{{"\n"}}{{end}}' \
-    | fzf --ansi --prompt='PR> ' --height=80% --reverse \
-          --preview='gh pr view $(echo {} | sed -E "s/^#([0-9]+).*/\1/")' \
-          --preview-window=right:60%:wrap
-  ) || return 130
-  [[ -z $selection ]] && return 130
-  pr_number=${${selection#\#}%% *}
+repo_slug=$(git -C "$repo_root" -c gh.protocol=https config --get remote.origin.url 2>/dev/null \
+  | sed -E 's#(git@github\.com:|https://github\.com/)##; s#\.git$##')
+if [[ -z $repo_slug ]]; then
+  repo_slug=$(cd -- "$repo_root" && gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null)
 fi
-
-if ! [[ $pr_number =~ '^[0-9]+$' ]]; then
-  print -u2 "pr-worktree: invalid PR number: $pr_number"
+if [[ -z $repo_slug ]]; then
+  print -u2 "pr-worktree: could not resolve GitHub repo (gh repo view failed)"
   return 1
 fi
+repo_name=${repo_root:t}
 
-local repo_name=${repo_root:t}
-local worktree_path=${repo_root:h}/${repo_name}-pr-${pr_number}
+# --- helpers ---------------------------------------------------------------
 
-if [[ -e $worktree_path ]]; then
-  print "pr-worktree: $worktree_path already exists; entering it."
+_prwt_default_branch() {
+  local b
+  b=$(git -C "$repo_root" symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null)
+  if [[ -n $b ]]; then
+    print -- "${b#origin/}"
+    return 0
+  fi
+  ( cd -- "$repo_root" && gh repo view --json defaultBranchRef -q .defaultBranchRef.name 2>/dev/null )
+}
+
+_prwt_make_pr_worktree() {
+  local pr_number=$1
+  local worktree_path=${repo_root:h}/${repo_name}-pr-${pr_number}
+
+  if [[ -e $worktree_path ]]; then
+    print "pr-worktree: $worktree_path already exists; entering it."
+    cd -- "$worktree_path"
+    return 0
+  fi
+
+  local pr_branch
+  pr_branch=$(cd -- "$repo_root" && gh pr view "$pr_number" --json headRefName -q .headRefName) || return 1
+
+  print "pr-worktree: creating worktree at $worktree_path for PR #$pr_number ($pr_branch)"
+
+  git -C "$repo_root" fetch origin "pull/${pr_number}/head:pr-${pr_number}" 2>/dev/null \
+    || git -C "$repo_root" fetch origin "$pr_branch" 2>/dev/null
+
+  if git -C "$repo_root" worktree add "$worktree_path" "$pr_branch" 2>/dev/null; then
+    :
+  elif git -C "$repo_root" worktree add "$worktree_path" "pr-${pr_number}" 2>/dev/null; then
+    :
+  else
+    print -u2 "pr-worktree: failed to create worktree for PR #$pr_number"
+    return 1
+  fi
+
   cd -- "$worktree_path"
-  return 0
+}
+
+_prwt_make_jira_worktree() {
+  local key=${1:u}
+  local worktree_path=${repo_root:h}/${repo_name}-${key}
+
+  if [[ -e $worktree_path ]]; then
+    print "pr-worktree: $worktree_path already exists; entering it."
+    cd -- "$worktree_path"
+    return 0
+  fi
+
+  local default_branch
+  default_branch=$(_prwt_default_branch) || default_branch=main
+  [[ -z $default_branch ]] && default_branch=main
+
+  print "pr-worktree: creating worktree at $worktree_path on new branch $key off origin/$default_branch"
+  git -C "$repo_root" fetch origin "$default_branch" 2>/dev/null
+
+  if git -C "$repo_root" show-ref --verify --quiet "refs/heads/$key"; then
+    git -C "$repo_root" worktree add "$worktree_path" "$key" || return 1
+  else
+    git -C "$repo_root" worktree add -b "$key" "$worktree_path" "origin/$default_branch" || return 1
+  fi
+
+  cd -- "$worktree_path"
+}
+
+# --- direct-arg fast path --------------------------------------------------
+
+local arg=$1
+if [[ -n $arg ]]; then
+  if [[ $arg =~ '^[0-9]+$' ]]; then
+    _prwt_make_pr_worktree "$arg"
+    return $?
+  elif [[ $arg =~ '^[A-Za-z][A-Za-z0-9_]+-[0-9]+$' ]]; then
+    _prwt_make_jira_worktree "$arg"
+    return $?
+  else
+    print -u2 "pr-worktree: argument must be a PR number or a JIRA key (e.g. DATA-1234)"
+    return 1
+  fi
 fi
 
-local pr_branch
-pr_branch=$(gh pr view "$pr_number" --json headRefName -q .headRefName) || return 1
+# --- gather rows -----------------------------------------------------------
+#
+# Row format consumed by the picker (single line, tab-separated for the
+# preview key, but rendered as plain text):
+#   PR     #1234  [draft]  Title (branch) [author]
+#   JIRA   DATA-1234  [In Progress]  Summary [assignee]
 
-print "pr-worktree: creating worktree at $worktree_path for PR #$pr_number ($pr_branch)"
+local -a rows
+local pr_rows jira_rows
 
-git -C "$repo_root" fetch origin "pull/${pr_number}/head:pr-${pr_number}" 2>/dev/null \
-  || git -C "$repo_root" fetch origin "$pr_branch" 2>/dev/null
+pr_rows=$(
+  gh search prs \
+    --repo "$repo_slug" \
+    --involves=@me \
+    --state=open \
+    --limit=200 \
+    --json number,title,author,isDraft,updatedAt 2>/dev/null \
+  | jq -r '
+      sort_by(.updatedAt) | reverse | .[] |
+      "PR\t#\(.number)\t\(if .isDraft then "[draft]" else "[ready]" end)\t\(.title)\t[\(.author.login)]"
+    ' 2>/dev/null
+)
 
-if git -C "$repo_root" worktree add "$worktree_path" "$pr_branch" 2>/dev/null; then
-  :
-elif git -C "$repo_root" worktree add "$worktree_path" "pr-${pr_number}" 2>/dev/null; then
-  :
-else
-  print -u2 "pr-worktree: failed to create worktree for PR #$pr_number"
+if command -v acli >/dev/null 2>&1; then
+  if acli auth status >/dev/null 2>&1; then
+    jira_rows=$(
+      acli jira workitem search \
+        --jql '(assignee = currentUser() OR reporter = currentUser() OR watcher = currentUser()) AND statusCategory != Done ORDER BY updated DESC' \
+        --fields 'key,summary,status,assignee' \
+        --limit 100 \
+        --json 2>/dev/null \
+      | jq -r '
+          (.. | objects | select(has("key") and has("fields")?)) as $i |
+          "JIRA\t\($i.key)\t[\($i.fields.status.name // "?")]\t\($i.fields.summary // "")\t[\($i.fields.assignee.displayName // "unassigned")]"
+        ' 2>/dev/null
+    )
+  else
+    print -u2 "pr-worktree: acli is not authenticated (run: acli auth login) — skipping JIRA"
+  fi
+fi
+
+if [[ -z $pr_rows && -z $jira_rows ]]; then
+  print -u2 "pr-worktree: no PRs or JIRA issues found for you in $repo_slug"
   return 1
 fi
 
-cd -- "$worktree_path"
+# Pretty-print into fzf using column for alignment.
+local selection
+selection=$(
+  {
+    [[ -n $pr_rows   ]] && print -- "$pr_rows"
+    [[ -n $jira_rows ]] && print -- "$jira_rows"
+  } \
+  | column -t -s $'\t' \
+  | fzf --ansi --prompt='PR/JIRA> ' --height=80% --reverse \
+        --header='PRs you are involved in + your open JIRA issues. Enter = create worktree.' \
+        --preview='
+          line={};
+          kind=$(echo "$line" | awk "{print \$1}");
+          if [ "$kind" = "PR" ]; then
+            num=$(echo "$line" | sed -E "s/^PR[[:space:]]+#([0-9]+).*/\1/");
+            gh pr view "$num";
+          else
+            key=$(echo "$line" | awk "{print \$2}");
+            acli jira workitem view "$key" 2>/dev/null || echo "(install/auth acli to preview $key)";
+          fi
+        ' \
+        --preview-window=right:60%:wrap
+) || return 130
+[[ -z $selection ]] && return 130
+
+local kind=${selection%% *}
+case $kind in
+  PR)
+    local pr_number
+    pr_number=$(print -- "$selection" | sed -E 's/^PR[[:space:]]+#([0-9]+).*/\1/')
+    _prwt_make_pr_worktree "$pr_number"
+    ;;
+  JIRA)
+    local key
+    key=$(print -- "$selection" | awk '{print $2}')
+    _prwt_make_jira_worktree "$key"
+    ;;
+  *)
+    print -u2 "pr-worktree: could not parse selection: $selection"
+    return 1
+    ;;
+esac
