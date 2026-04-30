@@ -667,4 +667,6 @@ require("gitsigns").setup({
 	end,
 })
 
+vim.opt.rtp:append("/opt/homebrew/opt/fzf")
+
 thismachine.post()
