@@ -1,6 +1,6 @@
 if [ "$#" -ne 1 ]; then
-    echo "revert ot .python-version"
-    if [ ! -f .python-version ]; then 
+    echo "reverting to .python-version"
+    if [ ! -f .python-version ]; then
         echo "No .python-version file found"
         echo "Usage: pyactivate <nameofvirtualenv>"
         echo "pyenv versions # list virtualenvs"
@@ -8,34 +8,51 @@ if [ "$#" -ne 1 ]; then
     fi
     1=$(cat .python-version)
 fi
-PYACTIVATE_PREFIX=$(pyenv prefix $1)
-if [ $? -ne 0 ]; then
-  echo "that pyenv version does not exist"
-  return
+
+local _found=0
+
+if command -v uv &>/dev/null; then
+    local _uv_python_path
+    _uv_python_path=$(uv python find "$1" --managed-python 2>/dev/null)
+    if [ $? -eq 0 ] && [ -n "$_uv_python_path" ]; then
+        local _bin_dir=$(dirname "$_uv_python_path")
+        _OLD_VIRTUAL_PATH="${PATH}"
+        PATH="${_bin_dir}:${PATH}"
+        function deactivate() {
+            PATH="${_OLD_VIRTUAL_PATH}"
+            unset -f deactivate
+        }
+        _found=1
+    fi
 fi
-PYACTIVATE_SCRIPT=${PYACTIVATE_PREFIX}/bin/activate
-if [[ ! -e "$PYACTIVATE_SCRIPT" ]]; then
-  echo "There is not activate script at ${PYACTIVATE_SCRIPT}"
-  if [[ ! -x "${PYACTIVATE_PREFIX}/bin/python" ]]; then
-    echo "There is no ${PYACTIVATE_PREFIX}/bin/python -> Refusing to continue"
-    return
-  fi
-  echo "Add  ${PYACTIVATE_SCRIPT}/bin/python to PATH"
-  unset PYACTIVATE_SCRIPT
-  _OLD_VIRTUAL_PATH="${PATH}"
-  #_OLD_PYTHON="${PYTHON}"
-  PATH="${PYACTIVATE_PREFIX}/bin:${PATH}"
-  # echo $PATH
-  unset PYACTIVATE_PREFIX
-  #export PYTHON=$(which python)
-  function deactivate() {
-    PATH="${_OLD_VIRTUAL_PATH}"
-    #PYTHON="${_OLD_PYTHON}"
-    unset -f deactivate
-  }
-  return
-else
-  unset PYACTIVATE_PREFIX
-  source "${PYACTIVATE_SCRIPT}"
-  unset PYACTIVATE_SCRIPT
+
+if [ $_found -eq 0 ]; then
+    if command -v pyenv &>/dev/null; then
+        local PYACTIVATE_PREFIX
+        PYACTIVATE_PREFIX=$(pyenv prefix "$1")
+        if [ $? -ne 0 ]; then
+            echo "that pyenv version does not exist"
+            return
+        fi
+        local PYACTIVATE_SCRIPT="${PYACTIVATE_PREFIX}/bin/activate"
+        if [[ ! -e "$PYACTIVATE_SCRIPT" ]]; then
+            echo "There is not activate script at ${PYACTIVATE_SCRIPT}"
+            if [[ ! -x "${PYACTIVATE_PREFIX}/bin/python" ]]; then
+                echo "There is no ${PYACTIVATE_PREFIX}/bin/python -> Refusing to continue"
+                return
+            fi
+            echo "Add ${PYACTIVATE_PREFIX}/bin to PATH"
+            _OLD_VIRTUAL_PATH="${PATH}"
+            PATH="${PYACTIVATE_PREFIX}/bin:${PATH}"
+            function deactivate() {
+                PATH="${_OLD_VIRTUAL_PATH}"
+                unset -f deactivate
+            }
+        else
+            source "${PYACTIVATE_SCRIPT}"
+        fi
+    else
+        echo "Neither uv nor pyenv found in PATH"
+        return
+    fi
 fi

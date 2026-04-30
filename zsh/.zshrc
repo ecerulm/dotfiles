@@ -369,7 +369,7 @@ autoload -Uz add-zsh-hook
 add-zsh-hook precmd reset_kkp
 
 
-path+=$(pyenv prefix 3.14)/bin
+# path+=$(pyenv prefix 3.14)/bin
 
 
 # git worktree switch / cd into a worktree, presents a fuzzy finder with all the worktree in the current repo
