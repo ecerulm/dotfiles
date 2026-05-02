@@ -372,9 +372,99 @@ add-zsh-hook precmd reset_kkp
 # path+=$(pyenv prefix 3.14)/bin
 
 
-# git worktree switch / cd into a worktree, presents a fuzzy finder with all the worktree in the current repo
+# git worktree switch / cd into a worktree, presents a fuzzy finder with all the worktree in the current repo.
+# Display rules: $HOME -> ~, strip the longest common ancestor across all worktree paths,
+# and if a line is wider than the terminal, truncate from the left (preserving the tail) with a leading "...".
 wts() {
-	local dir
-	dir=$(git worktree list | fzf --height=40% --reverse | awk '{print $1}')
+	local -a paths rest display
+	local line p r common cols width selected dir
+
+	while IFS= read -r line; do
+		p="${line%% *}"
+		r="${line#"$p"}"
+		r="${r# }"
+		paths+=("${p/#$HOME/~}")
+		rest+=("$r")
+	done < <(git worktree list)
+
+	[[ ${#paths[@]} -eq 0 ]] && return 0
+
+	if [[ ${#paths[@]} -gt 1 ]]; then
+		common="${paths[1]}"
+		while [[ -n "$common" ]]; do
+			local all_match=1
+			for p in "${paths[@]}"; do
+				[[ "$p" == "$common"/* || "$p" == "$common" ]] || { all_match=0; break; }
+			done
+			(( all_match )) && break
+			common="${common%/*}"
+		done
+	else
+		common=""
+	fi
+
+	cols=${COLUMNS:-$(tput cols 2>/dev/null || echo 80)}
+
+	local i shown combined
+	for (( i=1; i<=${#paths[@]}; i++ )); do
+		shown="${paths[$i]}"
+		if [[ -n "$common" && "$shown" != "$common" ]]; then
+			shown="${shown#$common/}"
+		fi
+		combined="$shown  ${rest[$i]}"
+		width=${#combined}
+		if (( width > cols )); then
+			# preserve the tail; "..." prefix marks truncation
+			combined="...${combined: -$((cols-3))}"
+		fi
+		display+=("$combined")
+	done
+
+	selected=$(printf '%s\n' "${display[@]}" | fzf --height=40% --reverse) || return
+	[[ -z "$selected" ]] && return
+
+	# recover the chosen path: strip leading "..." truncation marker, then match by suffix
+	local key="${selected%%  *}"
+	key="${key#...}"
+	for (( i=1; i<=${#paths[@]}; i++ )); do
+		if [[ "${paths[$i]}" == *"$key" ]]; then
+			dir="${paths[$i]/#\~/$HOME}"
+			break
+		fi
+	done
+
 	[[ -n "$dir" ]] && cd "$dir"
 }
+
+# Run pre-commit on files changed in the current branch since its fork point from the base
+# branch (default: main). Usage: pre-commit-pr [base-branch]    alias: pcpr
+pre-commit-pr() {
+      local base="${1:-main}"
+      local fork_point
+      fork_point=$(git merge-base --fork-point "$base" HEAD 2>/dev/null) \
+              || fork_point=$(git merge-base "$base" HEAD) \
+              || { echo "pre-commit-pr: cannot find merge base with $base" >&2; return 1; }
+
+      local files
+      files=("${(@f)$(git diff --name-only --diff-filter=ACMR "$fork_point"...HEAD)}")
+      if [[ -z "${files[1]}" ]]; then
+              echo "pre-commit-pr: no changed files vs $base ($fork_point)"
+              return 0
+      fi
+
+      echo "pre-commit-pr: base=$base fork_point=$fork_point files=${#files}"
+      pre-commit run --files "${files[@]}"
+}
+alias pcpr='pre-commit-pr'
+
+# Run lefthook on every tracked + non-ignored file under the current directory,
+# recursively, regardless of git stage state. Defaults to the pre-commit hook;
+# pass another stage as the first arg, e.g. `lhdir pre-push`.
+# Usage: lhdir [hook-name]    alias: lhd
+lhdir() {
+      local hook="${1:-pre-commit}"
+      git ls-files --cached --others --exclude-standard . \
+              | lefthook run "$hook" --files-from-stdin
+}
+alias lhd='lhdir'
+
