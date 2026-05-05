@@ -37,13 +37,20 @@ Configured `pre-commit` checks:
 - **check-added-large-files** — rejects staged files >500 KB
 - **trailing-whitespace** / **end-of-file-fixer** — basic hygiene
 
-Run manually:
+Run manually (via lefthook directly, or the `Justfile` wrappers):
 
 ```bash
 lefthook run pre-commit                     # against staged files
 lefthook run pre-commit --all-files         # against everything
-lefthook run pre-commit --commands stylua   # single command
+lefthook run pre-commit --command stylua    # single command
 lhd                                         # zsh alias: lefthook on every tracked file under cwd
+
+just                                        # list recipes
+just lint                                   # = lefthook run pre-commit
+just lint-all                               # = lefthook run pre-commit --all-files
+just lint-cmd shellcheck                    # = lefthook run pre-commit --command shellcheck
+just fmt-lua | fmt-md | fmt-sh              # mutate-in-place formatters
+just check-sh | check-yaml                  # non-mutating lints
 ```
 
 Lua files must pass StyLua, shell scripts must pass `shfmt` and `shellcheck --severity=warning`, and Markdown must be `mdformat`-clean before commits succeed.
