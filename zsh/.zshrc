@@ -26,7 +26,7 @@ fi
 
 GEM_HOME=$(gem env home)
 if [[ -d "$GEM_HOME/bin" ]]; then
-	# so that we can get cocoapods command `pod` 
+	# so that we can get cocoapods command `pod`
 	path=("$GEM_HOME/bin" $path)
 	# which pod
 fi
@@ -264,7 +264,7 @@ export GPG_TTY=$TTY
 path+=(~/go/bin)
 # path=("$HOME/.local/bin" $path) # put ~/.local/bin at the beginning
 path=(~/.local/bin $path) # put ~/.local/bin at the beginning
-# path+=~/.local/bin # this puts ~/.local/bin the last 
+# path+=~/.local/bin # this puts ~/.local/bin the last
 path+=/usr/local/bin # add it to the end
 # path+=$HOME/Library/Application\ Support/Coursier/bin/
 path+=~/Library/Application\ Support/Coursier/bin
@@ -303,7 +303,7 @@ autoload -Uz vcs_info
 # precmd_vcs_info() { vcs_info }
 # precmd_functions+=( precmd_vcs_info )
 setopt prompt_subst # setopp PROMPT_SUBST is required to enable prompt substitution
-setopt interactivecomments # so you can use # in the shell when you copy and paste 
+setopt interactivecomments # so you can use # in the shell when you copy and paste
 
 zstyle ':vcs_info:git*' formats " %F{blue}%b%f %m%u%c %a "
 zstyle ':vcs_info:*' enable git
@@ -333,7 +333,7 @@ fi
 alias pu="pulumi up"
 alias pus="pulumi up --skip-preview"
 
-# export PATH=$HOME/.jbang/bin:$PATH 
+# export PATH=$HOME/.jbang/bin:$PATH
 # export PATH="/usr/local/opt/openjdk@17/bin:$PATH"
 
 function awsprofile {

@@ -21,7 +21,7 @@ function installpythonprereq {
   brew upgrade openssl readline xz
 }
 
-function installkibana { 
+function installkibana {
   FILENAME="kibana-5.5.2-darwin-x86_64.tar.gz"
   wget -c "https://artifacts.elastic.co/downloads/kibana/$FILENAME"
   cat $FILENAME | (cd ~/.local/stow && tar xzf -)
@@ -105,7 +105,7 @@ function installasciidoctor {
 # export JAVA_HOME=`/usr/libexec/java_home -v 1.8`
 # export BROWSER='/usr/bin/open -a "/Applications/Google Chrome.app" %s' # https://github.com/cli/cli/issues/8658
 export BROWSER='/usr/bin/open -a "/Applications/Google Chrome.app"' # remove the %s
-# export BROWSER='/usr/bin/open -a "/Applications/Safari.app"' # 
+# export BROWSER='/usr/bin/open -a "/Applications/Safari.app"' #
 export LESS='-FRX' # less support colors
 
 function reset_printer {

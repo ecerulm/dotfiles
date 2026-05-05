@@ -16,7 +16,7 @@ packer.init({
 
 packer.startup(function(use)
   use 'wbthomason/packer.nvim'
-  use { 
+  use {
     'svrana/neosolarized.nvim', -- theme
     requires = { 'tjdevries/colorbuddy.nvim' }
   }
@@ -103,7 +103,7 @@ use({
   use { "kylechui/nvim-surround" }
   use 'tommcdo/vim-exchange'
   use 'dstein64/vim-startuptime'
-  use 'AndrewRadev/switch.vim' -- cycle through alternatives 
+  use 'AndrewRadev/switch.vim' -- cycle through alternatives
   use 'mhartington/formatter.nvim'
 
   use 'github/copilot.vim'

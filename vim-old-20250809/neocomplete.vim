@@ -25,7 +25,7 @@ if exists('*neocomplete#undo_completion')
   " Plugin key-mappings
   " complete_common_string helps if the candidates share a long prefix
   inoremap <expr><C-g> neocomplete#undo_completion()
-  inoremap <expr><C-l> neocomplete#complete_common_string() 
+  inoremap <expr><C-l> neocomplete#complete_common_string()
 
   " Recommended key-mappings
   " <CR>: close popup and save indent

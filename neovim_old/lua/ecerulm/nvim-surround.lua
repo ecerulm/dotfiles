@@ -7,6 +7,4 @@
 -- ysiw)  surround word with ()
 --
 local surround = require("nvim-surround")
-surround.setup({
-
-})
+surround.setup({})

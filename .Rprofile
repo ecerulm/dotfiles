@@ -34,9 +34,9 @@ utils::rc.settings(ipck=TRUE) # tab-complete packagenames for use in library() o
 .First <- function(){
   if(interactive()) {
     library(utils)
-    timestamp(,prefix=paste("##------ [",getwd(),"] ", sep="")) # The ‘timestamp’ function writes a timestamp 
+    timestamp(,prefix=paste("##------ [",getwd(),"] ", sep="")) # The ‘timestamp’ function writes a timestamp
                                                                 # (or other message) into the
-                                                                # history and echos it to the console. 
+                                                                # history and echos it to the console.
     # Just insert a timestamp in the history file so that is easier to read / search on the history file
   }
 }
@@ -66,7 +66,7 @@ sshhh <- function(a.package){
 auto.loads <- c("dplyr", "ggplot2")
 
 if(interactive()){
-  # load th auto.loads packages silently 
+  # load th auto.loads packages silently
   # suppressing warnings
   invisible(sapply(auto.loads, sshhh))
 }
@@ -74,12 +74,12 @@ if(interactive()){
 
 # Create a hidden namespace where we can store functions
 # This functions will survive a call to rm(list=ls())
-# which will remove everything in the current namespace. 
+# which will remove everything in the current namespace.
 # See http://www.gettinggeneticsdone.com/2013/07/customize-rprofile.html
 .env <- new.env()
 attach(.env)
 
-.env$unrowname <- function(x) { 
+.env$unrowname <- function(x) {
   # removes any row names a data.frame might have
   rownames(x) <- NULL
   x

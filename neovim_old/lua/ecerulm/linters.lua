@@ -11,7 +11,6 @@
 --   parser = your_parse_function
 -- }
 
-
 -- local linterGrp = vim.api.nvim_create_augroup('Linters', {clear = true})
 
 -- vim.api.nvim_create_autocmd({ "BufWritePost" }, {

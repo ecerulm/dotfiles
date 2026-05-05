@@ -231,7 +231,7 @@ augroup vimrcEx " Put them in a group so we delete them easily
   " unite_settings for unite buffers {{{2
   autocmd FileType unite call s:unite_settings() " apply setting to unite buffers
   " denite_setting for denite buffers {{{2
-  autocmd FileType denite call s:denite_settings() " set mappings 
+  autocmd FileType denite call s:denite_settings() " set mappings
   " autopep8 <f3> {{{2
   autocmd FileType python map <buffer> <F3> :call Autopep8()<CR>
 
@@ -246,7 +246,7 @@ augroup vimrcEx " Put them in a group so we delete them easily
   autocmd BufWinEnter * if line2byte(line("$") + 1) > 1000000 | syntax clear | endif
   " autocmd BufReadPre * if getfsize(expand("%")) > 10000000 | syntax sync clear | endif
   " save the job id of the last terminal for use with chansend() {{{2
-  if has("nvim") 
+  if has("nvim")
   autocmd TermOpen * let g:last_terminal_job_id = &channel
   endif
 augroup END
@@ -890,13 +890,13 @@ function! ConfigAfterPluginLoaded()
 
     " Currently opened buffers
     nnoremap <leader>o :<C-u>Denite buffer<cr>
-    
+
     " Browse tags / ctags
     noremap <leader>c :<C-u>Denite tags<cr>
 
   endif
   " Denite }}}
- 
+
 " CamelCaseMotion {{{
 " vim-scripts/camelcasemotion
 " :help sunmap
@@ -1168,7 +1168,7 @@ call plug#begin('~/.vim/plugged')
 
   " Npm / Javascript / vue.js / nux.js
   " Plug 'neoclide/npm.nvim', {'do' : 'npm install'}
-  
+
 
 
   " Base64 encode / decode

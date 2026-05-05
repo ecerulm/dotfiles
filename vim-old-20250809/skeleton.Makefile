@@ -15,11 +15,11 @@ $(P): $(OBJECTS)
 
 # There is no need to specify rules for simple .c -> .o , make has implicit rules for each .o target
 # main.o: main.c
-# $(CC) $(CFLAGS) $(LDFLAGS) -o $@ $*.c 
+# $(CC) $(CFLAGS) $(LDFLAGS) -o $@ $*.c
 # where $@ expands to the full target filename
 #       $* expands to the target file with the suffix cut of (so if the target is main.o) $* expands to main
 #       #< the name of the file that caused this target to be triggered (in the above example main.c)
- 
+
 
 # If it's a regular C compilation and the only thing you want to customize is the dependecies then
 # main.o: main.c trace.c io.c

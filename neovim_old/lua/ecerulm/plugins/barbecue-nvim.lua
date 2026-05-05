@@ -14,8 +14,8 @@ return {
 		-- https://github.com/nvim-tree/nvim-web-devicons
 		"nvim-tree/nvim-web-devicons", -- optional dependency
 	},
-	opts = {                 -- lazy.nvim will call require("barbecue").setup(opts)
+	opts = { -- lazy.nvim will call require("barbecue").setup(opts)
 		-- configurations go here
-		theme = THISMACHINESETTINGS.colorscheme
+		theme = THISMACHINESETTINGS.colorscheme,
 	},
 }

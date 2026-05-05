@@ -1,4 +1,4 @@
-map_values({"class": type, 
+map_values({"class": type,
             "value": .})|
   map_values(if .class == "array" then
     . + {"length": .value|length}

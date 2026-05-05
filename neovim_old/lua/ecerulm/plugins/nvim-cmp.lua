@@ -1,6 +1,5 @@
 -- THIS IS DISABLED
 
-
 -- Auto-completion / Snippets
 return {
 	-- https://github.com/hrsh7th/nvim-cmp
@@ -104,7 +103,6 @@ return {
 						sources = {
 							-- { name = "codeium" },
 							{ name = "Copilot" },
-              
 						},
 					},
 				}), -- show completion suggestions

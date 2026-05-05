@@ -9,7 +9,7 @@
 #umask 022
 
 
-# so in principle we don't use this file we put everything in ~/.bash_profile or ~/.bashrc 
+# so in principle we don't use this file we put everything in ~/.bash_profile or ~/.bashrc
 # Things that ONLY run in interactive (login shells) should be put in ~/.bash_profile
 # If it should be in both interactive and non-interactive shells then but it in ~/.bashrc (most of the stuff)
 

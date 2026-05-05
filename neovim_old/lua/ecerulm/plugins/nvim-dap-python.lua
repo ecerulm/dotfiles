@@ -6,8 +6,8 @@ return {
 	config = function()
 		-- use the debugpy virtual environment created by :MasonInstall debugpy
 		local python_path = table
-		    .concat({ vim.fn.stdpath("data"), "mason", "packages", "debugpy", "venv", "bin", "python" }, "/")
-		    :gsub("//+", "/")
+			.concat({ vim.fn.stdpath("data"), "mason", "packages", "debugpy", "venv", "bin", "python" }, "/")
+			:gsub("//+", "/")
 		require("dap-python").setup(python_path)
 	end,
 	dependencies = {

@@ -38,7 +38,7 @@ dependencies {
 
 // it will compile the code in src/main/groovy/com/package/*
 // it will compile tests in    src/test/groovy/com/package/*
-// you can have resources in   src/main/resources 
+// you can have resources in   src/main/resources
 //                             src/test/resources
 
 endsnippet
@@ -62,7 +62,7 @@ dependencies {
 
 // it will compile the code in src/main/groovy/com/package/*
 // it will compile tests in    src/test/groovy/com/package/*
-// you can have resources in   src/main/resources 
+// you can have resources in   src/main/resources
 //                             src/test/resources
 
 endsnippet
@@ -556,7 +556,7 @@ endsnippet
 snippet propertymissing "xxx.missingProperty = {->" !b
 $1.metaClass.propertyMissing = {name ->
   def actualProp = delegate.metaClass.properties.find { it.name == name }
-  if (!actualProp) throw new MissingPropertyException(name, delegate.class) 
+  if (!actualProp) throw new MissingPropertyException(name, delegate.class)
   return actualProp.getProperty(delegate)
 }
 endsnippet

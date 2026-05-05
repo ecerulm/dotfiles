@@ -13,6 +13,6 @@ if !exists('b:RubenCSettings')
     :%!indent
     call winrestview(l:winview)
   endf
-  command -buffer Format call RubenCSettings_Format() 
+  command -buffer Format call RubenCSettings_Format()
   let b:RubenCSettings=1
 endif

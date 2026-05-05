@@ -37,4 +37,4 @@ build-docker-image:
   only:
     - tags
 
-    
+

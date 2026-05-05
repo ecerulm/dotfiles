@@ -190,7 +190,7 @@ alias gap="git a -p"
 alias glc="git rev-parse HEAD"
 alias gdm="git diff master"
 alias gdms="git diff --stat master"
-alias gdlc="git diff HEAD^ HEAD" # or git diff @~..@ 
+alias gdlc="git diff HEAD^ HEAD" # or git diff @~..@
 alias gfa="git fetch --all"
 alias gb="git branch --sort=-committerdate"
 alias garchive="git archive --format zip  -o archive.zip HEAD"
@@ -218,7 +218,7 @@ function gdiffbranches {
     return 1
   fi
   #git diff --name-only "$1" $(git merge-base "$2" "$1")
-  git diff --stat $(git merge-base "$2" "$1") "$1" 
+  git diff --stat $(git merge-base "$2" "$1") "$1"
 }
 
 function gbranches {
@@ -322,7 +322,7 @@ function jupyterlabserver() {
 }
 
 function pipinstallds() {
-  pip install matplotlib numpy scikit-learn pandas seaborn 
+  pip install matplotlib numpy scikit-learn pandas seaborn
   pip install scipy
 }
 
@@ -419,7 +419,7 @@ done
 
 
 # If you are using sdkman to install spark this will have no effect
-# since sdkman loads after 
+# since sdkman loads after
 SPARK_HOME_CANDIDATES=(
 "$HOME/.local/stow/spark-2.2.0-bin-hadoop2.7/"
 "$HOME/spark-2.3.1-bin-hadoop2.7/"
@@ -694,12 +694,12 @@ function bashrc() {
 }
 
 function httpserver() {
-  
+
   python3.9 -m http.server 8080
 }
 
 function scalareplgradle {
-  # This requires that your  gradle project has a printClasspath task 
+  # This requires that your  gradle project has a printClasspath task
   # https://chris-martin.org/2015/gradle-scala-repl
   java -Dscala.usejavacp=true -classpath "$(gradle printClasspath --quiet)" scala.tools.nsc.MainGenericRunner
 }
@@ -727,13 +727,13 @@ function airflowprecommitbranch {
 function airflowcoretests {
   cd ~/git/airflow
   pyenv shell airflow-venv
-  ./breeze --backend mysql --db-reset --test-type Core tests 
+  ./breeze --backend mysql --db-reset --test-type Core tests
 }
 
 function airflowalltests {
   cd ~/git/airflow
   pyenv shell airflow-venv
-  ./breeze --backend mysql --db-reset --test-type All tests 
+  ./breeze --backend mysql --db-reset --test-type All tests
 }
 
 function airflowstaticcheck {
@@ -742,10 +742,10 @@ function airflowstaticcheck {
   pyenv shell airflow-venv
   git fetch origin
   ./breeze static-check all -- --from-ref $(git merge-base origin/main HEAD) --to-ref HEAD
- 
+
 }
 
-# Don't ever put .bashrc.thismachine in git 
+# Don't ever put .bashrc.thismachine in git
 # .bashrc.local
 # it contains SENSITIVE information
 if [ -f ~/.bashrc.thismachine ]; then
@@ -762,13 +762,13 @@ fi
 # if command -v pyenv >/dev/null; then eval "$(pyenv init -)"; fi
 
 alias pipenv=/usr/local/bin/pipenv
-export PIPENV_IGNORE_VIRTUALENVS=1 
+export PIPENV_IGNORE_VIRTUALENVS=1
 
 export GPG_TTY=$(tty)
 
 export LANG="en_US.UTF-8"
 
-if [ -n "$NVIM_LISTEN_ADDRESS" ]; then 
+if [ -n "$NVIM_LISTEN_ADDRESS" ]; then
   if [ -n "$(command -v nvr)" ]; then
     alias nvim=nvr
   else
@@ -821,7 +821,7 @@ function colors() {
     # echo -ne "\u001b[48;5;${i}m   \u001b[0m \u001b[38;5;${i}m ${i}\u001b[0m "
     printf "\u001b[48;5;${i}m   \u001b[0m \u001b[38;5;${i}m %3d\u001b[0m " "$i"
     if [[ (( $i > 0)) && $(( $i % 16 )) = 0 ]]; then
-      echo -e "" 
+      echo -e ""
     fi
     # echo -ne "\u001b[38;5;${i}m ${i} \u001b[0m"
   done
@@ -860,7 +860,7 @@ function ideterraform() {
   fi
   tmux select-pane -T 'NeoVim' # change pane title
   export SHELL_TMUX_PANE=$(tmux split-window -h -l 20% -P -F "#{pane_id}") # create new horizontal split
-  # 
+  #
   tmux select-pane -T "shell commands" # works because the new pane is the active pane
   tmux select-pane -t "$TMUX_PANE" # give focus to the pane that invoked with script
 }

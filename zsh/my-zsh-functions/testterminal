@@ -1,7 +1,7 @@
 for i in {0..255}; do
   printf "\u001b[48;5;${i}m   \u001b[0m \u001b[38;5;${i}m %3d\u001b[0m " "$i"
   if [[ (( $i > 0)) && $(( $i % 16 )) = 0 ]]; then
-    echo -e "" 
+    echo -e ""
   fi
   # echo -ne "\u001b[38;5;${i}m ${i} \u001b[0m"
 done

@@ -13,7 +13,6 @@ set -euxo pipefail
 #  --enable-rubyinterp \
 #  --enable-luainterp \
 
-
 # Make sure that you don't have pyenv running, for some reason you will get
 # problems (with UltiSnips for example), everythin will compile but somehow the
 # python will not be able to load the modules from the pythonx and python2 dirs
@@ -25,11 +24,11 @@ git clean -dfx
   --with-features=huge \
   --with-compiledby="RubenLaguna" \
   --enable-cscope \
-  --enable-pythoninterp=yes  \
+  --enable-pythoninterp=yes \
   --with-python-config-dir=/usr/lib/python2.7/config \
   --enable-fail-if-missing \
   --enable-multibyte \
-  --enable-pythoninterp=yes  \
+  --enable-pythoninterp=yes \
   --enable-rubyinterp \
   --enable-luainterp=yes \
   --with-lua-prefix=/usr/local \
@@ -38,4 +37,3 @@ make
 # make install prefix=$HOME/.local/stow/vim
 make install
 vim --version
-

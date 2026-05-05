@@ -6,7 +6,6 @@ set -euxo pipefail
 # x : echo each line as it's executed
 # -o pipefail: fail if a command in a pipe returns status != 0
 
-
 # just link all the .xxx files in this dir to ~/.xxx
 ls -A | grep "^\." | grep -v "^\.git$" | grep -v "^\.tmux.conf." | xargs -n1 -I'{}' ln -Tvfs ~/dotfiles/'{}' ~/'{}'
 
@@ -19,7 +18,7 @@ ln -Tvfs ~/dotfiles/config.fish ~/.config/fish/config.fish
 mkdir -p ~/.sbt/0.13/
 ln -Tvfs ~/.sbt/0.13/plugins/ ~/dotfiles/sbt/0.13/plugins/plugins.sbt
 mkdir -p ~/.sbt/1.0/
-ln -Tvfs ~/.sbt/1.0/plugins/ ~/dotfiles/sbt/1.0/plugins/plugins.sbt 
+ln -Tvfs ~/.sbt/1.0/plugins/ ~/dotfiles/sbt/1.0/plugins/plugins.sbt
 
 # NeoVim config files
 ln -Tvfs ~/dotfiles/neovim ~/.config/nvim
@@ -44,7 +43,6 @@ ln -Tvfs ~/dotfiles/emacs.d ~/.emacs.d
 #dircolors
 ln -Tvfs ~/dotfiles/.dircolors ~/.dircolors
 
-
 # create tmp dirs
 mkdir -p ~/.vim-tmp
 mkdir -p ~/.tmp
@@ -65,7 +63,11 @@ cp -v ~/dotfiles/fonts/10-powerline-symbols.conf ~/.config/fontconfig/conf.d/
 # ctags -R -f ~/.vim/systags /usr/include /usr/local/include
 
 echo "update the plugins"
-(cd ~/dotfiles; git submodule init; git submodule update)
+(
+  cd ~/dotfiles
+  git submodule init
+  git submodule update
+)
 # echo "Generate help tags for ~/.vim/doc"
 # (vim -u NONE -N "+helptags ~/.vim/doc" "+qall")
 echo "Install neovim plugins with vim-plug"

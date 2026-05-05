@@ -1,4 +1,4 @@
-vim.opt.formatoptions:remove{'c','r','o'} -- has to be in after/ftplugin to run after the system ftplugin/java.vim which sets formatoptions
+vim.opt.formatoptions:remove({ "c", "r", "o" }) -- has to be in after/ftplugin to run after the system ftplugin/java.vim which sets formatoptions
 -- see :help vim.opt
 -- see :help vim.opt:append() -- remember that formatoptions is a string-style option
 -- see :help formatoptions, defautl "tcqj"ho

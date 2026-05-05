@@ -1,5 +1,5 @@
 function fish_prompt --description 'Write out the left prompt'
-	
+
   set -l cyan (set_color cyan)
   set -l yellow (set_color yellow)
   set -l red (set_color -o red)
@@ -15,7 +15,7 @@ function fish_prompt --description 'Write out the left prompt'
   if test -n (git_branch_name)
     set -l git_branch $red(git_branch_name)
     set git_info "$blue ($git_branch$blue)"
-    
+
     if [ (is_git_dirty) ]
       set arrow "$red✗"
     end

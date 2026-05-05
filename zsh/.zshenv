@@ -1,9 +1,9 @@
 # This file is  source for interactive and non-interative shells
-# Do not put aliases , or anything that will change the behaviour 
+# Do not put aliases , or anything that will change the behaviour
 # tools like make will open shells to execute commands, the aliases
 # here will affect those shells
 
-# This is the place for changing @PATH, $EDITOR, $PAGER, 
+# This is the place for changing @PATH, $EDITOR, $PAGER,
 
 # fpath is the search path for function definitions
 fpath+=~/dotfiles/zsh/my-zsh-functions
@@ -30,5 +30,5 @@ if [ -f "$HOME/.local/google-cloud-sdk/completion.zsh.inc" ]; then . "$HOME/.loc
 # 	path=("$NVIM_HOME/bin" $path)
 # fi
 
-# For things that you don't want to share between all your machines 
+# For things that you don't want to share between all your machines
 [ -f ~/.zshenv.thismachine ] && . ~/.zshenv.thismachine

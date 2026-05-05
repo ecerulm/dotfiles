@@ -6,7 +6,7 @@
 # removed in the '<base>...<head>' diff.
 # so if you do git overwritten HEAD master and you modified 3 lines you will find
 # which commits added those lines that you modified in that range. So it helps
-# filter the git blame output (which already provides that information). 
+# filter the git blame output (which already provides that information).
 #
 # Remember: List of the original (past) commits that provided the original content
 #           of the lines that you have modified in the range

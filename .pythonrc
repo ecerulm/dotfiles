@@ -19,7 +19,7 @@ atexit.register(save_history)
 del os, atexit, readline, rlcompleter,save_history,historyPath
 
 import json
-try: 
+try:
   import requests
 except:
   pass

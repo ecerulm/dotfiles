@@ -85,6 +85,5 @@ vim.filetype.add({
 })
 
 vim.cmd("filetype indent off")
-vim.opt.foldmethod="expr" -- fold using nvim-treesitter foldexpr=v:lua.vim.treesitter.foldexpr()
+vim.opt.foldmethod = "expr" -- fold using nvim-treesitter foldexpr=v:lua.vim.treesitter.foldexpr()
 -- you can set vim.bo.foldmethod instead fromt he after/ftplugin/filetype.lua so make the the change buffer local (bo)
-

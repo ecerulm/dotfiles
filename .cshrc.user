@@ -28,7 +28,7 @@ bindkey '^R' i-search-back #Control-R search incrementally
 
 
 #clearcase {{{1
-setenv VOBS '/vobs/rnc/sw/{ueh,rnh,rlib,drh,roam1,roam2,rncNode}' 
+setenv VOBS '/vobs/rnc/sw/{ueh,rnh,rlib,drh,roam1,roam2,rncNode}'
 setenv DELIVERYTOKENS '/vobs/rnc/rrt/tools/prod/ki_tools/pdt/delivery_tokens/'
 alias difflbls 'ct find $VOBS -ver "lbtype(\!:1) && \\!lbtype(\!:2)" -print'
 alias brtomerge 'ct find $VOBS -ver "version(.../\!:1/LATEST) && \\!merge(.../\!:1/LATEST,/main/dev/LATEST) && \\!merge(/main/dev, .../\!:1/LATEST)" -print'
@@ -38,7 +38,7 @@ alias branches 'ct lstype -kind brtype -invob /vobs/rnc/sw/rnh -unsorted -fmt "%
 
 alias diffco "lsco | awk '{print $1}' | xargs -n 1 xlsvtree"
 alias views "cleartool lsview 'ecerulm*'"
-alias lsviews views 
+alias lsviews views
 alias latest_pdt "env RUBYLIB='/home/ecerulm/.rvm/rubies/ruby-1.9.3-p392/lib/' ~/bin/latestpdt.rb \!* | column -t -s '|'"
 alias latestpdt 'latest_pdt \!*'
 alias l '~/bin/openpdtunits.sh'
@@ -69,7 +69,7 @@ setenv no_proxy 'localhost,127.0.0.1,*.ericsson.se,*.ericsson.com'
 set path = ($path ~/bin)
 
 #RSARTE {{{1
-alias dump 'ps ax | grep javaw | grep ecerulm | awk '"'"'{print $1}'"'"' | xargs kill -QUIT' 
+alias dump 'ps ax | grep javaw | grep ecerulm | awk '"'"'{print $1}'"'"' | xargs kill -QUIT'
 alias rsarte804cp3 '/vobs/rnc/env/utils/design_tools/development_tools/bin/rsarte@@/main/ecerulm_804_cp3/LATEST'
 alias rsarte804cp4 '/vobs/rnc/env/utils/design_tools/development_tools/bin/rsarte@@/main/ecerulm_804_cp4/LATEST'
 #alias rsartemain44 '~/rsarte851cp1predrop_cte -data /proj/rnc_boost/users/ecerulm/ws_851_main44_ueversioning'
@@ -112,7 +112,7 @@ alias g 'git'
 setenv LC_ALL "en_US.utf-8"
 setenv LANG "en_US.utf-8"
 
-# Set ls colors 
+# Set ls colors
 eval `dircolors` # you can change to `dircolors pathtocolorscheme` see http://linux-sxs.org/housekeeping/lscolors.html and j
 setenv PATH $HOME/.local/bin:$PATH
 setenv MANPATH $HOME/.local/share/man:$MANPATH

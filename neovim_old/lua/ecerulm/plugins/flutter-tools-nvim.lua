@@ -22,7 +22,6 @@
 -- FlutterLogClear - Clears the log buffer.
 -- FlutterLogToggle - Toggles the log buffer.
 
-
 return {
 	"nvim-flutter/flutter-tools.nvim",
 	enabled = true,

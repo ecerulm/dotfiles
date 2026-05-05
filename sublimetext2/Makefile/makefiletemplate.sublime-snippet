@@ -7,7 +7,7 @@ CPPFLAGS=-c -Wall
 all: test
 test: test.o
 	\$(CC) test.o -o \$@
-	
+
 test.o: test.cpp test.h
 	\$(CC) \$(CPPFLAGS) test.cpp -o \$@
 

@@ -688,4 +688,4 @@ Shortcuts from Denite
 
 <C-p>  All files in subdirectories
 ,o     Open buffers
-,g     grep 
+,g     grep

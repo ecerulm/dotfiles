@@ -16,7 +16,7 @@
 
 filter1() {
   if [[ "$platform" == 'macosx' ]]; then
-    sed -Ee 's/(^[^<]*) ago)/\1)/' 
+    sed -Ee 's/(^[^<]*) ago)/\1)/'
   else
     ruby -e 'puts $stdin.read.gsub(/(^[^<]*) ago\)/, "\\1)")'
   fi
@@ -45,7 +45,7 @@ if [[ "$platform" == 'macosx' ]]; then
   AUTHOR="%C(bold blue)<%an>%Creset"
   REFS="%C(red)%d%Creset"
   SUBJECT="%s"
-else 
+else
   # dont use colors as column in linux doesn support escape codes
   HASH="%h"
   RELATIVE_TIME="(%ar)"

@@ -3,14 +3,14 @@ return {
 	-- https://github.com/nvim-treesitter/nvim-treesitter
 	"nvim-treesitter/nvim-treesitter",
 	enabled = true,
-  branch='main',
-  -- tag = "v0.10.0",
+	branch = "main",
+	-- tag = "v0.10.0",
 	cond = true,
 	lazy = false,
 	-- event = "VeryLazy",
 	dependencies = {
 		-- https://github.com/nvim-treesitter/nvim-treesitter-textobjects
-    -- {"nvim-treesitter/nvim-treesitter-textobjects", branch="main"} -- 
+		-- {"nvim-treesitter/nvim-treesitter-textobjects", branch="main"} --
 	},
 	build = ":TSUpdate",
 	-- opts = {
@@ -116,7 +116,7 @@ return {
 	-- 	configs.setup(opts)
 	-- end,
 
-  config = function(_, opts)
-     require'nvim-treesitter'.install { 'lua', 'vim', 'vimdoc', 'python', 'yaml' }
-  end,
+	config = function(_, opts)
+		require("nvim-treesitter").install({ "lua", "vim", "vimdoc", "python", "yaml" })
+	end,
 }

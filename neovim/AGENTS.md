@@ -27,6 +27,7 @@ This is a Lua-based Neovim configuration using Neovim's native `vim.pack` plugin
 ## Adding Support for a New Language
 
 1. **Indentation** — create `after/indent/<filetype>.lua`:
+
    ```lua
    vim.opt_local.indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
    vim.opt_local.shiftwidth = 2
@@ -34,20 +35,22 @@ This is a Lua-based Neovim configuration using Neovim's native `vim.pack` plugin
    vim.opt_local.expandtab = true
    ```
 
-2. **Syntax/folding** — create `after/ftplugin/<filetype>.lua`:
+1. **Syntax/folding** — create `after/ftplugin/<filetype>.lua`:
+
    ```lua
    vim.opt_local.foldexpr = "v:lua.vim.treesitter.foldexpr()"
    vim.opt_local.foldmethod = "expr"
    vim.treesitter.start()
    ```
 
-3. **LSP** — add to `init.lua`:
+1. **LSP** — add to `init.lua`:
+
    ```lua
    vim.lsp.config('server-name', { cmd = { '/path/to/server' } })
    vim.lsp.enable('server-name')
    ```
 
-4. **Formatter** — add to `require("conform").setup({ formatters_by_ft = { ... } })` in `init.lua`
+1. **Formatter** — add to `require("conform").setup({ formatters_by_ft = { ... } })` in `init.lua`
 
 ## Key Plugins
 
