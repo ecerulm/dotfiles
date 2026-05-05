@@ -52,20 +52,27 @@
 	lola = log --graph --decorate --pretty=oneline --abbrev-commit --all
 	purr = pull --rebase
 	ready = rebase -i @{u}
-	rebasebranch = !git rebase -i $(git merge-base HEAD master)
-	fold = !sh -c '_CURRENT_BRANCH=$(git symbolic-ref --short HEAD)  && git checkout ${1-master} && git merge --no-ff ${2-$_CURRENT_BRANCH}' -
+	# default-branch helper: prints whatever origin/HEAD points to (main / master / trunk).
+	# Falls back to "main" if origin/HEAD isn't set locally — run `git remote set-head origin -a` to fix.
+	default-branch = !sh -c 'b=$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null) && echo "${b#origin/}" || echo main' -
+	rebasebranch = !git rebase -i $(git merge-base HEAD "$(git default-branch)")
+	fold = !sh -c '_CURRENT_BRANCH=$(git symbolic-ref --short HEAD) && git checkout "${1-$(git default-branch)}" && git merge --no-ff "${2-$_CURRENT_BRANCH}"' -
 	undomerge = reset --merge ORIG_HEAD
-	diffbase = !cd ${GIT_PREFIX:-.} && git diff $(git merge-base HEAD ${1-origin/main}) ${1-origin/main}
+	# Diff HEAD against a base ref (default: origin/<default-branch>).
+	# Usage: git diffbase            -> diff against origin/main (or whatever the remote default is)
+	#        git diffbase origin/foo -> diff against origin/foo
+	diffbase = !sh -c 'cd "${GIT_PREFIX:-.}" && base="${1:-origin/$(git default-branch)}" && git diff "$(git merge-base HEAD "$base")" "$base"' -
 	pristine = !sh -c 'git reset --hard $1 && git clean -qdfx && git status' -
-	diffmaster = !git diff $(git merge-base --fork-point master) # Current branch from fork point
-	diffmain = !git diff $(git merge-base --fork-point main) # Current branch from fork point
+	# Diff the current branch against its fork point from the remote default branch.
+	diffdefault = !git diff $(git merge-base --fork-point "$(git default-branch)")
 
 	# From https://robots.thoughtbot.com/streamline-your-git-workflow-with-aliases
 	c = commit -m
 	cob = checkout -b
-	up = !git fetch origin && git rebase origin/master
-	ir = !git rebase -i origin/master
-	done = !git fetch && git rebase origin/master && git checkout master && git merge @{-1}
+	# These rebase against whatever the remote's default branch is (main / master / trunk).
+	up = !git fetch origin && git rebase "origin/$(git default-branch)"
+	ir = !git rebase -i "origin/$(git default-branch)"
+	done = !sh -c 'b=$(git default-branch) && git fetch && git rebase "origin/$b" && git checkout "$b" && git merge @{-1}' -
 	god = log --graph --oneline --decorate
 	track = "!f() { ([ $# -eq 2 ] && ( echo \"Setting tracking for branch \" $1 \" -> \" $2;git branch --set-upstream $1 $2; ) || ( git for-each-ref --format=\"local: %(refname:short) <--sync--> remote: %(upstream:short)\" refs/heads && echo --Remotes && git remote -v)); }; f"
 	recheckout = "!f() { git read-tree --reset -u $(git mktree </dev/null); git read-tree --reset -u HEAD; }; f"
