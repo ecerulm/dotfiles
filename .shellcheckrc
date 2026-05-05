@@ -1,0 +1,7 @@
+# Repo-wide ShellCheck config used by lefthook's pre-commit hook.
+# https://www.shellcheck.net/wiki/Ignore
+
+# SC2010: ls | grep — used intentionally in create_links_*.sh to glob dotfiles
+# SC2011: ls | xargs — same install-script idiom, files are known-safe
+# SC3010: [[ ]] in POSIX sh — install script targets bash via /bin/sh on macOS
+disable=SC2010,SC2011,SC3010

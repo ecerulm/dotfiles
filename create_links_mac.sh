@@ -1,6 +1,5 @@
 #!/bin/bash
 
-
 # ln -Fvhfs
 # -s : Create symbolic link
 # -F : If the target file already exists and is a directory, the remove it so that the link may occur. This option need to be use together with -f or -i
@@ -31,7 +30,6 @@ ln -Fvhfs ~/dotfiles/sbt/1.0/plugins/plugins.sbt ~/.sbt/1.0/plugins/
 ln -Fvhfs ~/dotfiles/neovim ~/.config/nvim
 ln -Fvhfs ~/dotfiles/neovim ~/.config/nvim12
 
-
 # KiTTY config
 mkdir -p ~/.config/kitty
 ln -Fvhfs ~/dotfiles/kitty ~/.config/kitty
@@ -51,10 +49,9 @@ ln -Fvhfs ~/dotfiles/.bashrc.macosx ~/.bashrc.extra
 mkdir -p ~/.config/
 # ln -Fvhfs ~/dotfiles/karabiner.json ~/.config/karabiner/karabiner.json
 ln -Fvhfs ~/dotfiles/karabiner ~/.config/karabiner
-# Unfortunately karabiner will remove the symbolic links 
+# Unfortunately karabiner will remove the symbolic links
 
 ln -Fvhfs ~/dotfiles/.ripgreprc ~/.ripgreprc
-
 
 # emacs dirs
 ln -Fvhfs ~/dotfiles/emacs.d ~/.emacs.d
@@ -73,7 +70,6 @@ ln -Fvhfs ~/dotfiles/ghostty.conf ~/.config/ghostty/config
 # SSH config
 mkdir -p ~/.ssh/
 ln -Fvhfs ~/dotfiles/sshconfig ~/.ssh/config
-
 
 # create tmp dirs
 mkdir -p ~/.vim-tmp
@@ -108,7 +104,7 @@ mkdir -p ~/tmp
 
 brew install neovim tree-sitter tree-sitter-cli node wget go \
   rust microsoft-openjdk@21 php composer diff-so-fancy julia \
-  ripgrep fd fzf gpg pinentry-mac zoxide pre-commit \
+  ripgrep fd fzf gpg pinentry-mac zoxide lefthook shfmt shellcheck mdformat yq \
   gh pyenv gradle maven openjdk@21 node@18 node@22 yarn \
   direnv colima docker docker-compose mysql pkg-config
 # :checkhealt lazy mason

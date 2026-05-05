@@ -1,0 +1,117 @@
+# Lefthook configuration — replaces .pre-commit-config.yaml
+# Run all checks manually:  lefthook run pre-commit --all-files
+# Install hooks:            lefthook install
+#
+# Notes:
+#   - {staged_files} expands to staged files matching `glob`/`exclude`.
+#   - For --all-files runs, we additionally skip symlinks and legacy dirs in
+#     each command (sed/shfmt/stylua choke on symlinks pointing outside the
+#     repo or on archived broken sources).
+
+pre-commit:
+  parallel: true
+  commands:
+    stylua:
+      glob: "*.lua"
+      exclude:
+        - "neovim_old/**"
+      run: stylua {staged_files}
+      stage_fixed: true
+
+    mdformat:
+      glob: "*.md"
+      # CLAUDE.md / GEMINI.md are symlinks to AGENTS.md.
+      exclude:
+        - "CLAUDE.md"
+        - "GEMINI.md"
+        - "**/CLAUDE.md"
+        - "**/GEMINI.md"
+      run: mdformat {staged_files}
+      stage_fixed: true
+
+    shfmt:
+      glob: "*.sh"
+      # -i 2: 2-space indent, -bn: binary ops at start of next line,
+      # -ci: switch case indent, -sr: redirect operators followed by space.
+      run: shfmt -w -i 2 -bn -ci -sr {staged_files}
+      stage_fixed: true
+
+    shellcheck:
+      glob: "*.sh"
+      # --severity=warning: ignore style/info, fail on warnings and errors.
+      run: shellcheck --severity=warning {staged_files}
+
+    check-yaml:
+      glob: "*.{yml,yaml}"
+      # yq exits non-zero if a document fails to parse.
+      run: |
+        for f in {staged_files}; do
+          [ -f "$f" ] || continue
+          yq eval-all 'true' "$f" >/dev/null || exit 1
+        done
+
+    check-merge-conflict:
+      run: |
+        # `git diff --check` flags conflict markers in the index.
+        git diff --cached --check
+
+    check-added-large-files:
+      # Fail if any staged file exceeds 500 KB (matches pre-commit's default).
+      run: |
+        max=$((500 * 1024))
+        status=0
+        for f in {staged_files}; do
+          [ -f "$f" ] || continue
+          [ -L "$f" ] && continue
+          size=$(wc -c < "$f")
+          if [ "$size" -gt "$max" ]; then
+            echo "lefthook: $f is ${size} bytes (>${max})" >&2
+            status=1
+          fi
+        done
+        exit $status
+
+    trailing-whitespace:
+      exclude:
+        - "*.png"
+        - "*.jpg"
+        - "*.jpeg"
+        - "*.gif"
+        - "*.ico"
+        - "*.pdf"
+        - "*.ttf"
+        - "*.otf"
+        - "*.woff"
+        - "*.woff2"
+      run: |
+        for f in {staged_files}; do
+          [ -f "$f" ] || continue
+          [ -L "$f" ] && continue
+          # Portable in-place edit (BSD + GNU sed)
+          sed -i '' -e 's/[[:space:]]\{1,\}$//' "$f" 2>/dev/null \
+            || sed -i -e 's/[[:space:]]\{1,\}$//' "$f"
+        done
+      stage_fixed: true
+
+    end-of-file-fixer:
+      exclude:
+        - "*.png"
+        - "*.jpg"
+        - "*.jpeg"
+        - "*.gif"
+        - "*.ico"
+        - "*.pdf"
+        - "*.ttf"
+        - "*.otf"
+        - "*.woff"
+        - "*.woff2"
+      run: |
+        for f in {staged_files}; do
+          [ -f "$f" ] || continue
+          [ -L "$f" ] && continue
+          # Append trailing newline if missing
+          if [ -n "$(tail -c1 "$f")" ]; then
+            printf '\n' >> "$f"
+          fi
+        done
+      stage_fixed: true
