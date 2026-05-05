@@ -20,7 +20,7 @@ set -euxo pipefail
 # make distclean
 git clean -dfx
 ./configure \
-  --prefix=$HOME/.local/stow/vim \
+  --prefix="$HOME/.local/stow/vim" \
   --with-features=huge \
   --with-compiledby="RubenLaguna" \
   --enable-cscope \

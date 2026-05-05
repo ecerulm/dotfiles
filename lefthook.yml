@@ -15,7 +15,9 @@ pre-commit:
       glob: "*.lua"
       exclude:
         - "neovim_old/**"
-      run: stylua {staged_files}
+      # --verify: re-parse formatted output and compare ASTs to catch
+      # formatter-introduced semantic drift.
+      run: stylua --verify {staged_files}
       stage_fixed: true
 
     mdformat:
@@ -26,20 +28,26 @@ pre-commit:
         - "GEMINI.md"
         - "**/CLAUDE.md"
         - "**/GEMINI.md"
-      run: mdformat {staged_files}
+      # --number: enforce consecutive ordered-list numbering.
+      # --end-of-line lf: reject CRLF.
+      # --wrap keep: don't reflow paragraphs (preserve author intent).
+      run: mdformat --number --end-of-line lf --wrap keep {staged_files}
       stage_fixed: true
 
     shfmt:
       glob: "*.sh"
       # -i 2: 2-space indent, -bn: binary ops at start of next line,
-      # -ci: switch case indent, -sr: redirect operators followed by space.
-      run: shfmt -w -i 2 -bn -ci -sr {staged_files}
+      # -ci: switch case indent, -sr: redirect operators followed by space,
+      # -s: simplify expressions where safe.
+      run: shfmt -w -s -i 2 -bn -ci -sr {staged_files}
       stage_fixed: true
 
     shellcheck:
       glob: "*.sh"
-      # --severity=warning: ignore style/info, fail on warnings and errors.
-      run: shellcheck --severity=warning {staged_files}
+      # Strict: --severity=style catches every level (style/info/warning/error)
+      # and --enable=all turns on every optional check. .shellcheckrc carries
+      # per-rule disables for known-acceptable patterns.
+      run: shellcheck --severity=style --enable=all --external-sources {staged_files}
 
     check-yaml:
       glob: "*.{yml,yaml}"

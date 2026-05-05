@@ -35,7 +35,7 @@ This is a Lua-based Neovim configuration using Neovim's native `vim.pack` plugin
    vim.opt_local.expandtab = true
    ```
 
-1. **Syntax/folding** — create `after/ftplugin/<filetype>.lua`:
+2. **Syntax/folding** — create `after/ftplugin/<filetype>.lua`:
 
    ```lua
    vim.opt_local.foldexpr = "v:lua.vim.treesitter.foldexpr()"
@@ -43,14 +43,14 @@ This is a Lua-based Neovim configuration using Neovim's native `vim.pack` plugin
    vim.treesitter.start()
    ```
 
-1. **LSP** — add to `init.lua`:
+3. **LSP** — add to `init.lua`:
 
    ```lua
    vim.lsp.config('server-name', { cmd = { '/path/to/server' } })
    vim.lsp.enable('server-name')
    ```
 
-1. **Formatter** — add to `require("conform").setup({ formatters_by_ft = { ... } })` in `init.lua`
+4. **Formatter** — add to `require("conform").setup({ formatters_by_ft = { ... } })` in `init.lua`
 
 ## Key Plugins
 

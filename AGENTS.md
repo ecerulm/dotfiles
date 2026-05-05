@@ -26,12 +26,12 @@ Hooks are managed by [lefthook](https://lefthook.dev) and configured in `lefthoo
 lefthook install
 ```
 
-Configured `pre-commit` checks:
+Configured `pre-commit` checks (all run in **strict** mode — warnings fail the commit):
 
-- **stylua** — formats `*.lua`
-- **mdformat** — formats `*.md` (skips `CLAUDE.md`/`GEMINI.md` symlinks)
-- **shfmt** — formats `*.sh` (`-i 2 -bn -ci -sr`)
-- **shellcheck** — lints `*.sh` at `--severity=warning`
+- **stylua** — formats `*.lua` with `--verify` (re-parses output to detect AST drift)
+- **mdformat** — formats `*.md` with `--number --end-of-line lf --wrap keep` (skips `CLAUDE.md`/`GEMINI.md` symlinks)
+- **shfmt** — formats `*.sh` with `-s -i 2 -bn -ci -sr` (simplify enabled)
+- **shellcheck** — lints `*.sh` at `--severity=style --enable=all --external-sources`; per-rule disables live in `.shellcheckrc`
 - **check-yaml** — validates `*.{yml,yaml}` parse
 - **check-merge-conflict** — rejects unresolved conflict markers
 - **check-added-large-files** — rejects staged files >500 KB
@@ -115,9 +115,9 @@ Key plugins: nvim-lspconfig, nvim-treesitter, conform.nvim (format on save), sna
 To add LSP/treesitter support for a new language:
 
 1. Add `neovim/after/indent/<filetype>.lua` (indentation settings)
-1. Add `neovim/after/ftplugin/<filetype>.lua` (folds + treesitter highlighting)
-1. Add LSP config via `vim.lsp.config()` / `vim.lsp.enable()` in `init.lua`
-1. Add formatter to `require("conform").setup({ formatters_by_ft = { ... } })` in `init.lua`
+2. Add `neovim/after/ftplugin/<filetype>.lua` (folds + treesitter highlighting)
+3. Add LSP config via `vim.lsp.config()` / `vim.lsp.enable()` in `init.lua`
+4. Add formatter to `require("conform").setup({ formatters_by_ft = { ... } })` in `init.lua`
 
 Snippets live in `neovim/snippets/<filetype>.json`. The `neovim/` directory has its own `AGENTS.md` / `CHANGELOG.md` / `README.md` for editor-specific guidance.
 

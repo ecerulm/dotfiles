@@ -1,7 +1,11 @@
 # Repo-wide ShellCheck config used by lefthook's pre-commit hook.
-# https://www.shellcheck.net/wiki/Ignore
+# Hook runs at --severity=style --enable=all, so this file lists the
+# checks we deliberately allow. https://www.shellcheck.net/wiki/Ignore
 
 # SC2010: ls | grep — used intentionally in create_links_*.sh to glob dotfiles
 # SC2011: ls | xargs — same install-script idiom, files are known-safe
 # SC3010: [[ ]] in POSIX sh — install script targets bash via /bin/sh on macOS
-disable=SC2010,SC2011,SC3010
+# SC2250: brace style — too noisy, no functional benefit (${VAR} vs $VAR)
+# SC2312: pipe masking exit codes — only matters with `set -o pipefail`, which
+#         these imperative install scripts intentionally don't use
+disable=SC2010,SC2011,SC3010,SC2250,SC2312
