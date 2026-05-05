@@ -372,11 +372,67 @@ add-zsh-hook precmd reset_kkp
 # path+=$(pyenv prefix 3.14)/bin
 
 
+# Refresh the cached Jira info for a given key into ~/.cache/wts-jira/.
+# Writes two files:
+#   <KEY>.summary  — single line: "(Status) Summary"   (used in the fzf list)
+#   <KEY>.preview  — multi-line, ANSI-colored          (used in the fzf preview pane)
+# Cache TTL is 1 hour. Failures (auth, network, missing key) leave the files empty.
+_wts_jira_refresh() {
+	local key="$1" dir="$HOME/.cache/wts-jira"
+	local sf="$dir/$key.summary" pf="$dir/$key.preview"
+	mkdir -p "$dir"
+
+	# Skip if cache is fresh (<1h old) AND non-empty.
+	if [[ -s "$sf" ]]; then
+		local age now mtime
+		now=$(date +%s)
+		mtime=$(stat -f %m "$sf" 2>/dev/null || stat -c %Y "$sf" 2>/dev/null || echo 0)
+		age=$(( now - mtime ))
+		(( age < 3600 )) && return 0
+	fi
+
+	command -v acli >/dev/null 2>&1 || { : >"$sf"; : >"$pf"; return 0; }
+
+	local raw
+	raw=$(acli jira workitem view "$key" -f summary,status,assignee,issuetype 2>/dev/null) || {
+		: >"$sf"; : >"$pf"; return 0
+	}
+	[[ -z "$raw" ]] && { : >"$sf"; : >"$pf"; return 0; }
+
+	# NB: `status` is a read-only special in zsh; use jstatus/etc.
+	local summary jstatus assignee itype
+	summary=$(printf '%s\n' "$raw"  | awk -F': ' '/^Summary: /{sub(/^Summary: /,""); print; exit}')
+	jstatus=$(printf '%s\n' "$raw"  | awk -F': ' '/^Status: /{sub(/^Status: /,""); print; exit}')
+	assignee=$(printf '%s\n' "$raw" | awk -F': ' '/^Assignee: /{sub(/^Assignee: /,""); print; exit}')
+	itype=$(printf '%s\n' "$raw"    | awk -F': ' '/^Type: /{sub(/^Type: /,""); print; exit}')
+
+	# Trim summary for the inline column so wide-terminal layout stays readable.
+	local short="$summary"
+	if (( ${#short} > 60 )); then
+		short="${short:0:57}..."
+	fi
+	if [[ -n "$jstatus" ]]; then
+		printf '(%s) %s\n' "$jstatus" "$short" >"$sf"
+	else
+		printf '%s\n' "$short" >"$sf"
+	fi
+
+	# Preview pane: a few colored lines. Keep it compact — fzf preview is small.
+	{
+		printf '\033[1m%s\033[0m  \033[2m%s\033[0m\n' "$key" "${itype:-?}"
+		printf '\033[1;33m%s\033[0m\n' "${jstatus:-unknown status}"
+		printf '\n%s\n' "${summary:-(no summary)}"
+		[[ -n "$assignee" ]] && printf '\n\033[2massignee:\033[0m %s\n' "$assignee"
+	} >"$pf"
+}
+
 # git worktree switch / cd into a worktree, presents a fuzzy finder with all the worktree in the current repo.
 # Display rules: $HOME -> ~, strip the longest common ancestor across all worktree paths,
 # and if a line is wider than the terminal, truncate from the left (preserving the tail) with a leading "...".
+# When a worktree's branch contains a Jira key (e.g. DATA-1234, DATA-2538-foo, feature/DATA-9), the line is
+# annotated with "(Status) Summary" from Jira and a fuller preview pane is shown via fzf --preview.
 wts() {
-	local -a paths rest display
+	local -a paths rest jkeys display
 	local line p r common cols width selected dir
 
 	while IFS= read -r line; do
@@ -385,9 +441,36 @@ wts() {
 		r="${r# }"
 		paths+=("${p/#$HOME/~}")
 		rest+=("$r")
+
+		# Extract a Jira-style key (LETTERS-NUMBER) from the bracketed branch name.
+		local branch="" jkey=""
+		if [[ "$r" == *\[*\]* ]]; then
+			branch="${r##*\[}"
+			branch="${branch%%\]*}"
+		fi
+		if [[ "$branch" =~ ([A-Z][A-Z0-9]+-[0-9]+) ]]; then
+			jkey="${match[1]}"
+		fi
+		jkeys+=("$jkey")
 	done < <(git worktree list)
 
 	[[ ${#paths[@]} -eq 0 ]] && return 0
+
+	# Refresh Jira info in parallel; cache lives in ~/.cache/wts-jira.
+	local i
+	local -a pids
+	for (( i=1; i<=${#jkeys[@]}; i++ )); do
+		[[ -n "${jkeys[$i]}" ]] || continue
+		_wts_jira_refresh "${jkeys[$i]}" &
+		pids+=($!)
+	done
+	# Bound the wait so a slow/hung acli call can't freeze the picker.
+	if (( ${#pids[@]} > 0 )); then
+		( sleep 3; for pid in "${pids[@]}"; do kill "$pid" 2>/dev/null; done ) &
+		local guard=$!
+		wait "${pids[@]}" 2>/dev/null
+		kill "$guard" 2>/dev/null
+	fi
 
 	if [[ ${#paths[@]} -gt 1 ]]; then
 		common="${paths[1]}"
@@ -404,34 +487,53 @@ wts() {
 	fi
 
 	cols=${COLUMNS:-$(tput cols 2>/dev/null || echo 80)}
+	(( cols < 20 )) && cols=80   # guard against COLUMNS=0 in non-interactive shells
 
-	local i shown combined
+	local shown combined jinfo cache_dir="$HOME/.cache/wts-jira"
 	for (( i=1; i<=${#paths[@]}; i++ )); do
 		shown="${paths[$i]}"
 		if [[ -n "$common" && "$shown" != "$common" ]]; then
 			shown="${shown#$common/}"
 		fi
 		combined="$shown  ${rest[$i]}"
+
+		jinfo=""
+		if [[ -n "${jkeys[$i]}" && -s "$cache_dir/${jkeys[$i]}.summary" ]]; then
+			jinfo=$(<"$cache_dir/${jkeys[$i]}.summary")
+			combined="$combined  $jinfo"
+		fi
+
 		width=${#combined}
 		if (( width > cols )); then
 			# preserve the tail; "..." prefix marks truncation
 			combined="...${combined: -$((cols-3))}"
 		fi
-		display+=("$combined")
+		# Hidden columns: <index>\t<jira_key_or_->\t<visible>. fzf hides them via --with-nth=3..
+		# The index lets us recover the chosen worktree even when the visible part is truncated.
+		display+=("$i	${jkeys[$i]:--}	$combined")
 	done
 
-	selected=$(printf '%s\n' "${display[@]}" | fzf --height=40% --reverse) || return
+	local preview_cmd='
+		k={2}
+		f="'"$cache_dir"'/$k.preview"
+		if [ "$k" != "-" ] && [ -s "$f" ]; then
+			cat "$f"
+		else
+			echo "(no Jira info)"
+		fi
+	'
+
+	selected=$(printf '%s\n' "${display[@]}" | fzf \
+		--height=60% --reverse \
+		--delimiter=$'\t' --with-nth=3.. \
+		--preview="$preview_cmd" --preview-window=right:40%:wrap) || return
 	[[ -z "$selected" ]] && return
 
-	# recover the chosen path: strip leading "..." truncation marker, then match by suffix
-	local key="${selected%%  *}"
-	key="${key#...}"
-	for (( i=1; i<=${#paths[@]}; i++ )); do
-		if [[ "${paths[$i]}" == *"$key" ]]; then
-			dir="${paths[$i]/#\~/$HOME}"
-			break
-		fi
-	done
+	# Selected format: "<index>\t<key>\t<combined>". Use the index for lookup.
+	local idx="${selected%%	*}"
+	if [[ "$idx" == <-> ]] && (( idx >= 1 && idx <= ${#paths[@]} )); then
+		dir="${paths[$idx]/#\~/$HOME}"
+	fi
 
 	[[ -n "$dir" ]] && cd "$dir"
 }

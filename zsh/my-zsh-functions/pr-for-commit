@@ -1,0 +1,76 @@
+# pr-for-commit: print the GitHub PR URL that introduced a commit into the
+# default branch of the current repo.
+#
+# Strategy:
+#   1. Ask the GitHub API directly — works for squash-merged PRs (where the
+#      commit on main IS the PR head commit).
+#   2. Fall back to walking merge commits between <sha> and origin/<default>,
+#      then parsing the PR number out of the merge commit subject. This
+#      handles classic "Merge pull request #N from ..." merges where the
+#      original commit SHA is preserved on main.
+#
+# Usage: pr-for-commit <commit-ish>
+#   pr-for-commit 09fca5a       -> https://github.com/Storytel/data-platform-infra/pull/239
+#   pr-for-commit HEAD~5
+#
+# Requires: gh, git.
+
+emulate -L zsh
+set -o pipefail
+
+for cmd in gh git; do
+  if ! command -v "$cmd" >/dev/null 2>&1; then
+    print -u2 "pr-for-commit: '$cmd' not found in PATH"
+    return 1
+  fi
+done
+
+local commitish=$1
+if [[ -z $commitish ]]; then
+  print -u2 "usage: pr-for-commit <commit-ish>"
+  return 1
+fi
+
+local repo_root
+repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || {
+  print -u2 "pr-for-commit: not inside a git repository"
+  return 1
+}
+
+local sha
+sha=$(git -C "$repo_root" rev-parse --verify "${commitish}^{commit}" 2>/dev/null) || {
+  print -u2 "pr-for-commit: '$commitish' is not a valid commit"
+  return 1
+}
+
+# Resolve default branch (main/master/...).
+local default_branch
+default_branch=$(git -C "$repo_root" symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null)
+default_branch=${default_branch#origin/}
+[[ -z $default_branch ]] && default_branch=main
+
+# 1. GitHub API — works for squash-merged PRs.
+local url
+url=$(cd -- "$repo_root" && gh api "repos/{owner}/{repo}/commits/${sha}/pulls" \
+        --jq '.[0].html_url' 2>/dev/null)
+if [[ -n $url && $url != "null" ]]; then
+  print -- "$url"
+  return 0
+fi
+
+# 2. Fall back: walk merge commits between <sha> and origin/<default_branch>
+#    in chronological (oldest-first) order, and pick the first one whose
+#    subject contains a PR number. The very oldest merge in the path may
+#    itself be a "Merge branch 'main' into <feature>" commit on the feature
+#    branch — that one has no PR number, so we skip it and look for the
+#    actual "Merge pull request #N from ..." commit that landed on main.
+local pr_num
+pr_num=$(git -C "$repo_root" log --merges --ancestry-path --reverse \
+           "${sha}..origin/${default_branch}" --pretty=%s 2>/dev/null \
+         | grep -oE '#[0-9]+' | head -1 | tr -d '#')
+if [[ -z $pr_num ]]; then
+  print -u2 "pr-for-commit: no merge-commit on origin/${default_branch} mentions a PR number for $sha"
+  return 1
+fi
+
+cd -- "$repo_root" && gh pr view "$pr_num" --json url --jq .url
