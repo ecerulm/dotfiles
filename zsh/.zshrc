@@ -217,6 +217,7 @@ autoload -Uz randompassword
 autoload -Uz mkpw
 autoload -Uz pr-worktree
 autoload -Uz pr-worktree-rm
+autoload -Uz jira-open
 
 [ -x /opt/homebrew/bin/brew ] && eval $(/opt/homebrew/bin/brew shellenv)
 [ -x /usr/local/bin/brew ] && eval $(/usr/local/bin/brew shellenv)

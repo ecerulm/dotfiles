@@ -100,6 +100,7 @@ Notable autoloaded functions in `zsh/my-zsh-functions/`:
 
 - `pr-worktree`, `pr-worktree-rm` — create/remove a git worktree for a GitHub PR
 - `pr-for-commit` — find the PR associated with a commit
+- `jira-open` — open the JIRA ticket inferred from branch/PR/commits
 - `pyactivate`, `pyclean` — Python venv helpers
 - `mkpw`, `randompassword` — password generation
 - `dnsflush`, `openports`, `generatectags`, `testterminal`

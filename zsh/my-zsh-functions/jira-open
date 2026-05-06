@@ -1,0 +1,120 @@
+# jira-open: open the JIRA ticket associated with the current git repo/branch.
+#
+# Strategy (first match wins):
+#   1. Parse the current branch name. If the first segment matches a JIRA
+#      ticket (e.g. DATA-1234/feat/foo -> DATA-1234), use it.
+#   2. Look up the GitHub PR for the current branch and parse the JIRA key
+#      from its title (e.g. "DATA-1234: Implement defensive checks").
+#   3. Walk commits on the current branch (vs origin/<default>) and parse
+#      the JIRA key from a commit subject (e.g. "DATA-1234: xxxx").
+#
+# Usage: jira-open [--print]
+#   --print  Print the URL instead of opening it.
+#
+# Requires: git. Optional: gh (for PR title lookup), open (macOS).
+
+emulate -L zsh
+set -o pipefail
+
+local jira_base="https://storytel.atlassian.net/browse"
+# Anchored regex: JIRA key must be the WHOLE string (used after extraction).
+local jira_re='^[A-Z][A-Z0-9]+-[0-9]+$'
+# Search regex: find a JIRA key anywhere in a string.
+local jira_search_re='[A-Z][A-Z0-9]+-[0-9]+'
+
+local print_only=0
+if [[ $1 == "--print" ]]; then
+  print_only=1
+fi
+
+if ! command -v git >/dev/null 2>&1; then
+  print -u2 "jira-open: 'git' not found in PATH"
+  return 1
+fi
+
+local repo_root
+repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || {
+  print -u2 "jira-open: not inside a git repository"
+  return 1
+}
+
+local branch
+branch=$(git -C "$repo_root" symbolic-ref --quiet --short HEAD 2>/dev/null) || {
+  print -u2 "jira-open: could not determine current branch (detached HEAD?)"
+  return 1
+}
+
+local key="" source=""
+
+# 1. Branch name: first segment before / or _
+local first_seg=${branch%%[/_]*}
+local upper_seg=${first_seg:u}
+if [[ $upper_seg =~ $jira_re ]]; then
+  key=$upper_seg
+  source="branch name"
+fi
+
+# 2. GitHub PR title for the current branch
+if [[ -z $key ]] && command -v gh >/dev/null 2>&1; then
+  local pr_title
+  pr_title=$(cd -- "$repo_root" && gh pr view --json title --jq .title 2>/dev/null)
+  if [[ -n $pr_title ]]; then
+    local match
+    match=$(print -- "$pr_title" | grep -oE "$jira_search_re" | head -1)
+    if [[ -n $match ]]; then
+      key=$match
+      source="PR title: $pr_title"
+    fi
+  fi
+fi
+
+# 3. Commit subjects on this branch vs origin/<default>
+if [[ -z $key ]]; then
+  local default_branch
+  default_branch=$(git -C "$repo_root" symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null)
+  default_branch=${default_branch#origin/}
+  [[ -z $default_branch ]] && default_branch=main
+
+  local subjects
+  if git -C "$repo_root" rev-parse --verify --quiet "origin/${default_branch}" >/dev/null; then
+    subjects=$(git -C "$repo_root" log --pretty=%s "origin/${default_branch}..HEAD" 2>/dev/null)
+  fi
+  # Fall back to the last 50 commits on this branch when there's no remote
+  # default to diff against (or the diff is empty).
+  if [[ -z $subjects ]]; then
+    subjects=$(git -C "$repo_root" log --pretty=%s -n 50 HEAD 2>/dev/null)
+  fi
+  if [[ -n $subjects ]]; then
+    local match
+    # Prefer subjects that START with a JIRA key (most likely the ticket).
+    match=$(print -- "$subjects" | grep -oE "^${jira_search_re}" | head -1)
+    if [[ -z $match ]]; then
+      match=$(print -- "$subjects" | grep -oE "$jira_search_re" | head -1)
+    fi
+    if [[ -n $match ]]; then
+      key=$match
+      source="commit subject"
+    fi
+  fi
+fi
+
+if [[ -z $key ]]; then
+  print -u2 "jira-open: no JIRA ticket found in branch name, PR title, or commit subjects"
+  return 1
+fi
+
+local url="${jira_base}/${key}"
+print -- "Found ${key} via ${source}"
+
+if (( print_only )); then
+  print -- "$url"
+  return 0
+fi
+
+if command -v open >/dev/null 2>&1; then
+  open "$url"
+elif command -v xdg-open >/dev/null 2>&1; then
+  xdg-open "$url"
+else
+  print -- "$url"
+fi
