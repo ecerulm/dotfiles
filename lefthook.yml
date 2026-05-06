@@ -58,6 +58,20 @@ pre-commit:
           yq eval-all 'true' "$f" >/dev/null || exit 1
         done
 
+    check-gitconfig:
+      # Match .gitconfig, .gitconfig_osx, .gitconfig_linux, .gitconfig.thismachine, etc.
+      glob: ".gitconfig*"
+      # `git config --file F --list` parses the file using git's own parser
+      # (handles [section "subsection"], includes, multi-valued keys) and exits
+      # non-zero on syntax errors. No mainstream formatter exists for gitconfig;
+      # this catches the realistic failure mode (typo breaks the whole file).
+      run: |
+        for f in {staged_files}; do
+          [ -f "$f" ] || continue
+          [ -L "$f" ] && continue
+          git config --file "$f" --list >/dev/null || exit 1
+        done
+
     check-merge-conflict:
       run: |
         # `git diff --check` flags conflict markers in the index.
