@@ -139,10 +139,11 @@ require("conform").setup({
 		-- https://github.com/stevearc/conform.nvim?tab=readme-ov-file#formatters
 		lua = { "stylua" }, -- brew install stylua
 		python = {
-			-- isort configuration options https://pycqa.github.io/isort/docs/configuration/options.html
-			"isort", -- https://github.com/PyCQA/isort/issues/1305, make sure that you use combine_as_imports
-			"black",
-		}, -- brew install isort black, removed isort because
+			-- "isort", -- https://github.com/PyCQA/isort/issues/1305, make sure that you use combine_as_imports
+			-- "black", -- brew install isort black
+			"ruff_fix", -- ruff --fix (import sorting + lint fixes)
+			"ruff_format", -- ruff format, pip install ruff / brew install ruff
+		},
 		terraform = { "terraform_fmt" }, -- terraform fmt comes with terraform
 		go = { "gofmt" }, -- go fmt comes with golang
 		markdown = { "markdownfmt" }, -- go install github.com/shurcooL/markdownfmt@latest, ~/go/bin/markdownfmt in the path
