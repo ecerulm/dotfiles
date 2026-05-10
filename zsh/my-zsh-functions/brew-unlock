@@ -1,0 +1,11 @@
+# Read the PID stored in the Homebrew update lock file (try both Apple Silicon and Intel paths)
+LOCK=$(cat /opt/homebrew/var/homebrew/locks/update 2>/dev/null || cat /usr/local/var/homebrew/locks/update 2>/dev/null)
+
+# Check if the process that holds the lock is still running
+if ps -p "$LOCK" > /dev/null 2>&1; then
+  echo "Process $LOCK is alive, don't remove"
+else
+  # Process is gone — safe to remove the stale lock file
+  echo "Process $LOCK is dead, removing lock"
+  rm -f /opt/homebrew/var/homebrew/locks/update /usr/local/var/homebrew/locks/update
+fi

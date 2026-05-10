@@ -1,0 +1,62 @@
+# urldecode — break a URL into its components and percent-decode its query
+# string, printing one "key = value" line per query parameter.
+#
+# Usage:
+#   urldecode 'https://example.com/p?a=1&b=hello%20world&b=again'
+#   pbpaste | urldecode
+#
+# Requires: python3.
+
+emulate -L zsh
+
+(( $+commands[python3] )) || {
+  print -u2 "urldecode: 'python3' not found in PATH"
+  return 1
+}
+
+local url=$1
+if [[ -z $url ]]; then
+  url=$(cat) || return 1
+fi
+# Trim leading/trailing whitespace (handy when piping from a clipboard).
+url="${url#"${url%%[![:space:]]*}"}"
+url="${url%"${url##*[![:space:]]}"}"
+
+if [[ -z $url ]]; then
+  print -u2 "urldecode: no URL given (pass it as an argument or on stdin)"
+  return 1
+fi
+
+python3 - "$url" <<'PY'
+import sys, urllib.parse as u
+
+url = sys.argv[1]
+p = u.urlsplit(url)
+
+print(f"scheme   = {p.scheme}")
+print(f"netloc   = {p.netloc}")
+if p.username is not None:
+    print(f"username = {p.username}")
+if p.password is not None:
+    print(f"password = {p.password}")
+if p.hostname is not None and p.hostname != p.netloc:
+    print(f"hostname = {p.hostname}")
+try:
+    if p.port is not None:
+        print(f"port     = {p.port}")
+except ValueError:
+    pass
+if p.path:
+    print(f"path     = {u.unquote(p.path)}")
+if p.fragment:
+    print(f"fragment = {u.unquote(p.fragment)}")
+
+q = u.parse_qsl(p.query, keep_blank_values=True)
+if q:
+    width = max(len(k) for k, _ in q)
+    print("query:")
+    for k, v in q:
+        print(f"  {k.ljust(width)} = {v}")
+elif p.query:
+    print(f"query    = {u.unquote_plus(p.query)}")
+PY
