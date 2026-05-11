@@ -1,8 +1,9 @@
 # fcmd — fuzzy-pick any zsh alias, function, builtin, reserved word, or $PATH
 # command, with a help preview.
 #
-# Preview priority (first match wins):
-#   1. $HELPDIR/<name>      — custom help text (rlm-* functions and aliases)
+# Preview priority (first match wins, via run-help in a zsh subshell):
+#   1. $HELPDIR/<name>      — custom help text; $HELPDIR may be colon-separated
+#                             (e.g. helpdir-private:helpdir), all dirs searched
 #   2. system HELPDIR/<name> — zsh builtin help text (setopt, bindkey, …)
 #   3. def-cache file       — alias expansion + function body (shell-internal)
 #   4. man <name>           — man page (piped through col -bx to strip escapes)
@@ -22,22 +23,6 @@ setopt local_options pipe_fail
   print -u2 "fcmd: 'fzf' not found in PATH"
   return 1
 }
-
-# Custom helpdir (set in .zshenv; contains rlm-* functions and aliases).
-local custom_helpdir="${HELPDIR:-}"
-
-# System zsh helpdir (builtins like setopt, bindkey, …).
-local sys_helpdir=
-for sys_helpdir in \
-  /opt/homebrew/share/zsh/help \
-  /usr/share/zsh/help \
-  /usr/share/zsh/*/help(N) \
-  /opt/homebrew/Cellar/zsh/*/share/zsh/help(N); do
-  [[ -d $sys_helpdir ]] && break
-  sys_helpdir=
-done
-# Don't double-use the same dir if HELPDIR happens to point at the system one.
-[[ $custom_helpdir == $sys_helpdir ]] && sys_helpdir=
 
 local tmpdir
 tmpdir=$(mktemp -d "${TMPDIR:-/tmp}/fcmd.XXXXXX") || return 1
@@ -65,37 +50,46 @@ tmpdir=$(mktemp -d "${TMPDIR:-/tmp}/fcmd.XXXXXX") || return 1
     "${(@k)aliases}" "${(@k)functions}" "${(@k)builtins}" \
     "${reswords[@]}" "${(@k)commands}" | sort -u | sed '/^_/d')
 
-  # Preview script (runs in /bin/sh inside fzf).
-  # FCMD_DEFDIR, FCMD_HELPDIR, FCMD_SYSHELPDIR are exported into fzf's env.
-  local preview='
-    n={}
-    # 1. Custom help file (rlm-* functions, aliases)
-    if [ -n "$FCMD_HELPDIR" ] && [ -f "$FCMD_HELPDIR/$n" ]; then
-      cat "$FCMD_HELPDIR/$n"
-    # 2. System zsh builtin help file
-    elif [ -n "$FCMD_SYSHELPDIR" ] && [ -f "$FCMD_SYSHELPDIR/$n" ]; then
-      cat "$FCMD_SYSHELPDIR/$n"
-    # 3. Shell-internal definition (alias / function body)
-    elif [ -f "$FCMD_DEFDIR/$n" ]; then
-      cat "$FCMD_DEFDIR/$n"
-    # 4. Man page (strip terminal escapes so it reads cleanly)
-    elif man "$n" 2>/dev/null | col -bx; then
-      :
-    # 5. Fallback: type resolution
-    else
-      type "$n" 2>/dev/null || printf "%s: not found\n" "$n"
-    fi
-  '
+  # Write the preview script to a temp file and invoke it as `zsh <file> {}`
+  # so the preview runs in zsh and has access to run-help and $HELPDIR.
+  local preview_script="$tmpdir/preview.zsh"
+  cat >"$preview_script" <<'EOF'
+n=$1
+# 1. Walk $HELPDIR explicitly — run-help fails for autoloaded functions that
+#    haven't been called yet ("is an autoload shell function" confuses its
+#    internal pattern match, causing it to fall through to man).
+found=
+for d in ${(s.:.)HELPDIR}; do
+  if [[ -f $d/$n ]]; then
+    cat "$d/$n"
+    found=1
+    break
+  fi
+done
+if (( found )); then
+  :
+# 2. System zsh builtins (setopt, bindkey, …) via run-help
+elif autoload -Uz run-help && run-help "$n" 2>/dev/null; then
+  :
+# 3. Shell-internal definition (alias / function body)
+elif [[ -f $FCMD_DEFDIR/$n ]]; then
+  cat "$FCMD_DEFDIR/$n"
+# 4. Man page (strip terminal escapes so it reads cleanly)
+elif man "$n" 2>/dev/null | col -bx; then
+  :
+# 5. Fallback: type resolution
+else
+  type "$n" 2>/dev/null || print "$n: not found"
+fi
+EOF
 
   local picked
   picked=$(print -r -- "$list" | \
     FCMD_DEFDIR="$defdir" \
-    FCMD_HELPDIR="$custom_helpdir" \
-    FCMD_SYSHELPDIR="$sys_helpdir" \
     fzf \
       --height=70% --reverse --no-multi --cycle \
       --query="${1:-}" --prompt='cmd> ' \
-      --preview="$preview" --preview-window=right:60%:wrap) || return
+      --preview="zsh $preview_script {}" --preview-window=right:60%:wrap) || return
 
   [[ -n $picked ]] || return
   print -z -- "$picked "

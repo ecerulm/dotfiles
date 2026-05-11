@@ -60,10 +60,10 @@ autoload -Uz run-help
 
 Known limitation: autoloaded functions that haven't been called yet appear to `whence -va` as `"foo is an autoload shell function"`. The word `an` breaks `run-help`'s internal pattern match, causing fallthrough to `man`. The `helpdir/` files work around this — `run-help` checks `$HELPDIR` before classifying the name.
 
-## Private (Machine/Company-Specific) Functions
+## Private (Machine/Company-Specific) Functions and Aliases
 
 Functions and aliases that contain any of the following **must** go into the
-private directories instead of the shared ones:
+private locations instead of the shared ones:
 
 - Company-internal hostnames, IP addresses, URLs, or domain names
 - Internal service names, cluster names, or environment identifiers
@@ -71,18 +71,26 @@ private directories instead of the shared ones:
 - Anything specific to a single machine (paths, hardware identifiers)
 - Work-specific workflows that reference proprietary tooling or systems
 
-**Private directories** (`my-zsh-functions-private/`, `helpdir-private/`) are
-`.gitignored` and never committed. Everything else is the same as the shared
-workflow.
+### Private simple aliases
 
-When adding a private autoloaded function:
+Add them to `~/.zshrc.thismachine` (gitignored, sourced at the end of `.zshrc`).
+This is the right place for one-liner aliases — no autoload registration needed.
+
+```zsh
+alias rlm-<name>='...'
+alias <name>='rlm-<name>'
+```
+
+### Private autoloaded functions
+
+Use `my-zsh-functions-private/` and `helpdir-private/` (both gitignored).
 
 1. Create `my-zsh-functions-private/rlm-<name>` with `emulate -L zsh` at the top.
-2. Add `autoload -Uz rlm-<name>` to `.zshrc` (same place as shared functions).
-3. Add `alias <name>='rlm-<name>'` to `.zshrc` (same place as shared aliases).
+2. Add `autoload -Uz rlm-<name>` to `~/.zshrc.thismachine` (not `.zshrc` — keeps the name out of the shared repo).
+3. Add `alias <name>='rlm-<name>'` to `~/.zshrc.thismachine` as well.
 4. Create `helpdir-private/rlm-<name>` and `helpdir-private/<name>` with help content.
 
-Do **not** add private functions to `README.md`.
+Do **not** add private functions or aliases to `README.md`.
 
 ## Adding a New Function
 
