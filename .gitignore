@@ -50,3 +50,9 @@ latest.tfplan
 
 .secrets.toml
 .claude
+
+# Private zsh functions and help files (machine-specific, company-specific, etc.)
+zsh/my-zsh-functions-private/*
+!zsh/my-zsh-functions-private/.keep
+zsh/helpdir-private/*
+!zsh/helpdir-private/.keep

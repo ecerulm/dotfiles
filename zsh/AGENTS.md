@@ -8,6 +8,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `.zshrc` — aliases, options, plugin loading, prompt; sourced by interactive shells only
 - `my-zsh-functions/` — autoloaded function files, one per file, named `rlm-<name>`
 - `helpdir/` — plain-text HELPDIR files, one per command name; used by `run-help` and `fcmd` preview
+- `my-zsh-functions-private/` — **gitignored** autoloaded functions; for machine/company-specific use
+- `helpdir-private/` — **gitignored** help files for private functions; searched before `helpdir/`
 
 ## Naming Convention
 
@@ -57,6 +59,30 @@ autoload -Uz run-help
 ```
 
 Known limitation: autoloaded functions that haven't been called yet appear to `whence -va` as `"foo is an autoload shell function"`. The word `an` breaks `run-help`'s internal pattern match, causing fallthrough to `man`. The `helpdir/` files work around this — `run-help` checks `$HELPDIR` before classifying the name.
+
+## Private (Machine/Company-Specific) Functions
+
+Functions and aliases that contain any of the following **must** go into the
+private directories instead of the shared ones:
+
+- Company-internal hostnames, IP addresses, URLs, or domain names
+- Internal service names, cluster names, or environment identifiers
+- API keys, tokens, credentials, or secrets (even as defaults/examples)
+- Anything specific to a single machine (paths, hardware identifiers)
+- Work-specific workflows that reference proprietary tooling or systems
+
+**Private directories** (`my-zsh-functions-private/`, `helpdir-private/`) are
+`.gitignored` and never committed. Everything else is the same as the shared
+workflow.
+
+When adding a private autoloaded function:
+
+1. Create `my-zsh-functions-private/rlm-<name>` with `emulate -L zsh` at the top.
+2. Add `autoload -Uz rlm-<name>` to `.zshrc` (same place as shared functions).
+3. Add `alias <name>='rlm-<name>'` to `.zshrc` (same place as shared aliases).
+4. Create `helpdir-private/rlm-<name>` and `helpdir-private/<name>` with help content.
+
+Do **not** add private functions to `README.md`.
 
 ## Adding a New Function
 

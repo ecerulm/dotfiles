@@ -7,10 +7,13 @@
 
 # fpath is the search path for function definitions
 fpath+=~/dotfiles/zsh/my-zsh-functions
+# Private functions (machine/company-specific, not committed to git)
+fpath+=~/dotfiles/zsh/my-zsh-functions-private
 
 # HELPDIR: custom help files take priority; zsh system helpdir is the fallback.
 # run-help and fcmd both use these for preview/help lookup.
-export HELPDIR=~/dotfiles/zsh/helpdir
+# Private helpdir entries shadow the shared ones when names collide.
+export HELPDIR=~/dotfiles/zsh/helpdir-private:~/dotfiles/zsh/helpdir
 
 
 export PAGER="less" # unset PAGER
