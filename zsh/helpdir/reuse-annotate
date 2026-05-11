@@ -1,0 +1,5 @@
+reuse-annotate  [alias: pipx run reuse annotate --year 2023 --copyright 'Ruben Laguna <ruben.laguna@gmail.com>' --license GPL-3.0-or-later]
+
+Add REUSE-compliant SPDX copyright/license headers to the given
+files using the user's standard copyright and GPL-3.0-or-later
+license. Pass file paths as arguments.

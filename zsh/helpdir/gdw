@@ -1,0 +1,3 @@
+gdw  [alias: git diff]
+
+Show the diff of unstaged changes in the working tree.

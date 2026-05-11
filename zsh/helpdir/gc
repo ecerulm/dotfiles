@@ -1,0 +1,3 @@
+gc  [alias: git commit -v]
+
+Create a git commit, showing the diff in the editor (verbose mode).

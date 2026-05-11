@@ -1,0 +1,5 @@
+diffmain  [alias: git fetch; git diff --stat $(git merge-base --fork-point origin/main HEAD)]
+
+Fetch from the remote, then show a diffstat from the fork point of
+`origin/main` to the current working tree. Useful for previewing
+what a PR against `main` would contain.

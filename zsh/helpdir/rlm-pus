@@ -1,0 +1,4 @@
+rlm-pus  [alias: pulumi up --skip-preview]
+
+Apply changes for the current Pulumi stack without the preview /
+confirmation step.

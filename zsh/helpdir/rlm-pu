@@ -1,0 +1,3 @@
+rlm-pu  [alias: pulumi up]
+
+Preview and apply changes for the current Pulumi stack.

@@ -1,0 +1,9 @@
+dnsflush
+
+Flush the macOS DNS resolver cache and restart the mDNSResponder
+daemon. Requires sudo.
+
+Equivalent to:
+
+  sudo dscacheutil -flushcache
+  sudo killall -HUP mDNSResponder

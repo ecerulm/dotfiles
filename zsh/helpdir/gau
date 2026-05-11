@@ -1,0 +1,3 @@
+gau  [alias: git a]
+
+Stage all tracked, modified files (typically `git add -u`).

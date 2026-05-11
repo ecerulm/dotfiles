@@ -1,0 +1,5 @@
+reviewmain  [alias: git fetch; git log $(git merge-base --fork-point origin/main HEAD)..HEAD]
+
+Fetch from the remote, then list the commits from the fork point of
+`origin/main` up to HEAD. Useful for reviewing what your branch adds
+on top of `main`.

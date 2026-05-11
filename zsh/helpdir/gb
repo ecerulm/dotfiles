@@ -1,0 +1,3 @@
+gb  [alias: git branch --sort=-committerdate]
+
+List local branches sorted by most recent commit first.

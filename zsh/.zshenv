@@ -8,6 +8,10 @@
 # fpath is the search path for function definitions
 fpath+=~/dotfiles/zsh/my-zsh-functions
 
+# HELPDIR: custom help files take priority; zsh system helpdir is the fallback.
+# run-help and fcmd both use these for preview/help lookup.
+export HELPDIR=~/dotfiles/zsh/helpdir
+
 
 export PAGER="less" # unset PAGER
 export LESS="-FRX"

@@ -1,0 +1,3 @@
+s  [alias: git st]
+
+Show short git status for the current repository.

@@ -1,0 +1,3 @@
+gca  [alias: git commit -v --amend]
+
+Amend the previous commit, showing the diff in the editor.

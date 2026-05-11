@@ -1,0 +1,3 @@
+gdms  [alias: git diff --stat main]
+
+Show a per-file diffstat between the working tree and local `main`.

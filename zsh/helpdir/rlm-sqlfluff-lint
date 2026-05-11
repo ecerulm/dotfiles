@@ -1,0 +1,17 @@
+rlm-sqlfluff-lint
+
+Run the `sqlfluff-lint` pre-commit hook against every file
+changed on the current branch since it forked from origin/main.
+
+Equivalent to:
+
+    pre-commit run sqlfluff-lint \
+        --from-ref $(git merge-base --fork-point origin/main HEAD) \
+        --to-ref HEAD
+
+Reports SQL lint violations without modifying files. Requires a
+`.pre-commit-config.yaml` in the repo that defines a `sqlfluff-
+lint` hook, and an `origin/main` ref that the current branch
+was forked from.
+
+Aliases: sqlfluff_lint

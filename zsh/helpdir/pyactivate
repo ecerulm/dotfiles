@@ -1,0 +1,21 @@
+pyactivate [<virtualenv-name>]
+
+Activate a Python virtual environment in the current shell. With no
+argument, the name is read from a `.python-version` file in the
+current directory.
+
+Resolution order:
+
+  1. If `uv` is available, ask `uv python find <name> --managed-python`
+     and prepend the resulting `bin/` directory to PATH. A matching
+     `deactivate` shell function is defined to restore the previous
+     PATH.
+  2. Otherwise, if `pyenv` is available, run `pyenv prefix <name>`
+     and either source its `bin/activate` or, if there is none,
+     prepend its `bin/` to PATH (with a `deactivate` function as
+     above).
+  3. If neither uv nor pyenv is on PATH, print an error and return.
+
+Use the auto-defined `deactivate` to undo the PATH change.
+
+Requires: uv or pyenv.

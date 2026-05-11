@@ -1,0 +1,4 @@
+tp  [alias: terraform plan -out latest.tfplan]
+
+Run `terraform plan` and save the plan to `latest.tfplan` so it can
+be applied later with `ta`.

@@ -1,0 +1,3 @@
+rlm-zshconfig  [alias: nvim $ZDOTDIR/.zshrc]
+
+Open the user's `.zshrc` in Neovim for editing.

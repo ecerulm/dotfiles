@@ -1,0 +1,23 @@
+pr-for-commit <commit-ish>
+
+Print the GitHub PR URL that introduced a given commit into the
+default branch of the current repo.
+
+Resolution strategy (first match wins):
+
+  1. Ask the GitHub API directly via
+     `gh api repos/{owner}/{repo}/commits/<sha>/pulls`. This handles
+     squash-merged PRs (where the commit on main IS the PR head
+     commit).
+  2. Walk merge commits between <sha> and origin/<default-branch>
+     in oldest-first order and parse the PR number out of the merge
+     commit subject. This handles classic
+     "Merge pull request #N from ..." merges where the original
+     commit SHA is preserved on main.
+
+Examples:
+
+  pr-for-commit 09fca5a
+  pr-for-commit HEAD~5
+
+Requires: gh, git.

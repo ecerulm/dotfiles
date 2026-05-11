@@ -1,0 +1,4 @@
+rlm-l  [alias: eza -l -s mod]
+
+Long-format directory listing sorted by modification time
+(eza replacement for `ls -lt`).

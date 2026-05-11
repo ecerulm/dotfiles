@@ -1,0 +1,25 @@
+rlm-wts
+
+Fuzzy-pick a git worktree from the current repository and cd
+into it, with Jira annotations on each line.
+
+Lists every worktree via `git worktree list`, then for each
+worktree whose branch name contains a Jira-style key (regex
+`[A-Z][A-Z0-9]+-[0-9]+`, e.g. DATA-1234, feature/DATA-9)
+fetches `(Status) Summary` from Jira via the `acli` CLI in
+parallel and shows it inline. The fzf preview pane shows a
+fuller multi-line view: key, type, status, summary, assignee.
+
+Display rules:
+  * $HOME is shortened to ~
+  * the longest common path prefix across all worktrees is
+    stripped
+  * lines wider than the terminal are truncated from the left,
+    preserving the tail, prefixed with "..."
+
+Jira data is cached for 1 hour in ~/.cache/wts-jira/ as
+<KEY>.summary and <KEY>.preview. A 3-second watchdog kills any
+hung acli call so the picker never freezes. If `acli` is not
+installed, the function still works but without annotations.
+
+Aliases: wts

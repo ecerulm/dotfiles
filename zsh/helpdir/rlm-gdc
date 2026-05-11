@@ -1,0 +1,4 @@
+rlm-gdc  [alias: git dc]
+
+Show the diff of staged (cached) changes — equivalent to
+`git diff --cached`.

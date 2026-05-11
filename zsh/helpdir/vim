@@ -1,0 +1,4 @@
+vim  [alias: nvim]
+
+Open Neovim. Provided so muscle-memory `vim` invokes nvim instead of
+the system vim.

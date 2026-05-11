@@ -1,0 +1,4 @@
+t  [alias: eza -l -s mod -T --git-ignore]
+
+Recursive tree listing sorted by modification time, honoring
+`.gitignore` (eza tree view).

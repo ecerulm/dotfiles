@@ -2,10 +2,11 @@
 # command, with a help preview.
 #
 # Preview priority (first match wins):
-#   1. $HELPDIR/<name>      — zsh builtin help text
-#   2. def-cache file       — alias expansion + function body (shell-internal)
-#   3. man <name>           — man page (piped through col -bx to strip escapes)
-#   4. type <name>          — fallback: shows what the name resolves to
+#   1. $HELPDIR/<name>      — custom help text (rlm-* functions and aliases)
+#   2. system HELPDIR/<name> — zsh builtin help text (setopt, bindkey, …)
+#   3. def-cache file       — alias expansion + function body (shell-internal)
+#   4. man <name>           — man page (piped through col -bx to strip escapes)
+#   5. type <name>          — fallback: shows what the name resolves to
 #
 # On selection the name is pushed onto the next command line (via `print -z`)
 # so you can edit and run it.
@@ -22,17 +23,21 @@ setopt local_options pipe_fail
   return 1
 }
 
-# Locate zsh's HELPDIR (builtin help text files).
-local helpdir
-for helpdir in \
-  "${HELPDIR:-}" \
+# Custom helpdir (set in .zshenv; contains rlm-* functions and aliases).
+local custom_helpdir="${HELPDIR:-}"
+
+# System zsh helpdir (builtins like setopt, bindkey, …).
+local sys_helpdir=
+for sys_helpdir in \
   /opt/homebrew/share/zsh/help \
   /usr/share/zsh/help \
   /usr/share/zsh/*/help(N) \
   /opt/homebrew/Cellar/zsh/*/share/zsh/help(N); do
-  [[ -d $helpdir ]] && break
-  helpdir=
+  [[ -d $sys_helpdir ]] && break
+  sys_helpdir=
 done
+# Don't double-use the same dir if HELPDIR happens to point at the system one.
+[[ $custom_helpdir == $sys_helpdir ]] && sys_helpdir=
 
 local tmpdir
 tmpdir=$(mktemp -d "${TMPDIR:-/tmp}/fcmd.XXXXXX") || return 1
@@ -61,19 +66,22 @@ tmpdir=$(mktemp -d "${TMPDIR:-/tmp}/fcmd.XXXXXX") || return 1
     "${reswords[@]}" "${(@k)commands}" | sort -u | sed '/^_/d')
 
   # Preview script (runs in /bin/sh inside fzf).
-  # FCMD_DEFDIR and FCMD_HELPDIR are exported into fzf's environment.
+  # FCMD_DEFDIR, FCMD_HELPDIR, FCMD_SYSHELPDIR are exported into fzf's env.
   local preview='
     n={}
-    # 1. Zsh builtin help file
+    # 1. Custom help file (rlm-* functions, aliases)
     if [ -n "$FCMD_HELPDIR" ] && [ -f "$FCMD_HELPDIR/$n" ]; then
       cat "$FCMD_HELPDIR/$n"
-    # 2. Shell-internal definition (alias / function body)
+    # 2. System zsh builtin help file
+    elif [ -n "$FCMD_SYSHELPDIR" ] && [ -f "$FCMD_SYSHELPDIR/$n" ]; then
+      cat "$FCMD_SYSHELPDIR/$n"
+    # 3. Shell-internal definition (alias / function body)
     elif [ -f "$FCMD_DEFDIR/$n" ]; then
       cat "$FCMD_DEFDIR/$n"
-    # 3. Man page (strip terminal escapes so it reads cleanly)
+    # 4. Man page (strip terminal escapes so it reads cleanly)
     elif man "$n" 2>/dev/null | col -bx; then
       :
-    # 4. Fallback: type resolution
+    # 5. Fallback: type resolution
     else
       type "$n" 2>/dev/null || printf "%s: not found\n" "$n"
     fi
@@ -81,7 +89,10 @@ tmpdir=$(mktemp -d "${TMPDIR:-/tmp}/fcmd.XXXXXX") || return 1
 
   local picked
   picked=$(print -r -- "$list" | \
-    FCMD_DEFDIR="$defdir" FCMD_HELPDIR="$helpdir" fzf \
+    FCMD_DEFDIR="$defdir" \
+    FCMD_HELPDIR="$custom_helpdir" \
+    FCMD_SYSHELPDIR="$sys_helpdir" \
+    fzf \
       --height=70% --reverse --no-multi --cycle \
       --query="${1:-}" --prompt='cmd> ' \
       --preview="$preview" --preview-window=right:60%:wrap) || return

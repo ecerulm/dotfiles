@@ -1,0 +1,3 @@
+rlm-gap  [alias: git a -p]
+
+Interactively stage hunks of changes (`git add --patch`).

@@ -1,0 +1,3 @@
+gfa  [alias: git fetch --all]
+
+Fetch updates from all configured remotes.

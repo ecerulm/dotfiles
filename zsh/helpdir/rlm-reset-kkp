@@ -1,0 +1,14 @@
+rlm-reset-kkp
+
+Reset the Kitty Keyboard Protocol (KKP) by emitting the escape
+sequence `ESC [ >u` to stdout.
+
+Registered as a `precmd` zsh hook, so it runs automatically
+before each prompt is drawn. Its purpose is to recover from
+terminal applications (e.g. claude, neovim) that enable KKP via
+`ESC [ >1u` and exit without restoring the previous mode,
+which otherwise leaves keystrokes like Ctrl-C visible as raw
+sequences such as `9;5u` at the prompt.
+
+Safe to call manually if a terminal is stuck in KKP mode.
+Takes no arguments.

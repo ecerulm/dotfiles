@@ -1,0 +1,3 @@
+rlm-ta  [alias: terraform apply latest.tfplan]
+
+Apply the previously saved `latest.tfplan` (paired with `tp`).

@@ -1,0 +1,3 @@
+rlm-gas  [alias: git as]
+
+Re-add files that are already staged, picking up any later edits.

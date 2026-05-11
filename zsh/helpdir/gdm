@@ -1,0 +1,3 @@
+gdm  [alias: git diff main]
+
+Show the diff between the working tree and the local `main` branch.

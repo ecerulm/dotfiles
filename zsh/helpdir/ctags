@@ -1,0 +1,4 @@
+ctags  [alias: ctags -R --fields=+zK]
+
+Recursively build a tags file with extra kind/scope fields suitable
+for editor navigation.

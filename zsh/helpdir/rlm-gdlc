@@ -1,0 +1,3 @@
+rlm-gdlc  [alias: git diff HEAD^ HEAD]
+
+Show the diff introduced by the last commit (HEAD^ vs HEAD).

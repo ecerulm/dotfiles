@@ -1,0 +1,10 @@
+pyclean
+
+Recursively delete Python bytecode cache files and directories from
+the current working directory. Specifically, removes any file
+matching `*.pyc` or `*.pyo` and any directory named `__pycache__`.
+
+Equivalent to:
+
+  find . -type f -name '*.py[co]' -delete \
+         -o -type d -name __pycache__ -delete

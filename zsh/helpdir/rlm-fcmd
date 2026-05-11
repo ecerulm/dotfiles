@@ -1,0 +1,22 @@
+fcmd [INITIAL-QUERY]
+
+Fuzzy-pick any zsh alias, function, builtin, reserved word, or
+command on $PATH, with a help preview in the right-hand pane. Names
+starting with `_` (completion functions, internal helpers) are
+hidden.
+
+Preview priority (first match wins):
+
+  1. $HELPDIR/<name>      — zsh builtin help text file
+  2. shell-internal       — alias expansion + function body, captured
+                             from the running shell
+  3. man <name>           — man page (piped through `col -bx` to
+                             strip terminal escapes)
+  4. type <name>          — fallback, shows what the name resolves to
+
+On selection the chosen name is pushed onto the next command line
+via `print -z`, so you can edit and run it.
+
+The optional INITIAL-QUERY pre-populates fzf's search box.
+
+Requires: fzf.

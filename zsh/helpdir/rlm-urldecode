@@ -1,0 +1,15 @@
+urldecode [URL]
+
+Break a URL into its components (scheme, netloc, userinfo, host,
+port, path, fragment) and percent-decode its query string, printing
+one `key = value` line per query parameter.
+
+The URL can be passed as an argument or on stdin (handy for piping
+from the clipboard). Leading and trailing whitespace are trimmed.
+
+Examples:
+
+  urldecode 'https://example.com/p?a=1&b=hello%20world&b=again'
+  pbpaste | urldecode
+
+Requires: python3.

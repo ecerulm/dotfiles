@@ -1,0 +1,21 @@
+jira-open [--print]
+
+Open the JIRA ticket associated with the current git repo/branch in
+the browser (https://storytel.atlassian.net/browse/<KEY>).
+
+The JIRA key is resolved by trying these sources in order, first
+match wins:
+
+  1. The current branch name. If the first segment (before / or _)
+     matches a JIRA key shape, e.g. DATA-1234/feat/foo -> DATA-1234,
+     it is used.
+  2. The title of the GitHub PR for the current branch (looked up
+     via `gh pr view`), e.g. "DATA-1234: Implement defensive checks".
+  3. Commit subjects on the current branch vs origin/<default>;
+     subjects that START with a JIRA key are preferred.
+
+With --print, the URL is printed instead of being opened. Otherwise
+`open` (macOS) or `xdg-open` is used; if neither is available, the
+URL is printed.
+
+Requires: git. Optional: gh (for PR title lookup), open / xdg-open.
