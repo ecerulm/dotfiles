@@ -1,11 +1,14 @@
 # fcmd — fuzzy-pick any zsh alias, function, builtin, reserved word, or $PATH
-# command, with a preview of what the name resolves to.
+# command, with a help preview.
 #
-# The preview pane shows the alias expansion + function body (for things only
-# the running shell knows about) or `type` / executable path (for everything
-# else). On selection the resolved definition is printed to stdout and the bare
-# name is pushed onto the next command line (via `print -z`) so you can edit and
-# run it.
+# Preview priority (first match wins):
+#   1. $HELPDIR/<name>      — zsh builtin help text
+#   2. def-cache file       — alias expansion + function body (shell-internal)
+#   3. man <name>           — man page (piped through col -bx to strip escapes)
+#   4. type <name>          — fallback: shows what the name resolves to
+#
+# On selection the name is pushed onto the next command line (via `print -z`)
+# so you can edit and run it.
 #
 # Usage: fcmd [initial-query]
 #
@@ -19,16 +22,25 @@ setopt local_options pipe_fail
   return 1
 }
 
+# Locate zsh's HELPDIR (builtin help text files).
+local helpdir
+for helpdir in \
+  "${HELPDIR:-}" \
+  /opt/homebrew/share/zsh/help \
+  /usr/share/zsh/help \
+  /usr/share/zsh/*/help(N) \
+  /opt/homebrew/Cellar/zsh/*/share/zsh/help(N); do
+  [[ -d $helpdir ]] && break
+  helpdir=
+done
+
 local tmpdir
 tmpdir=$(mktemp -d "${TMPDIR:-/tmp}/fcmd.XXXXXX") || return 1
 {
   local defdir="$tmpdir/def"
   mkdir -p -- "$defdir"
 
-  # Pre-render the names that need the *running* shell to inspect: aliases and
-  # functions. `whence -va` captures the whole resolution chain (alias ->
-  # function -> file), so the file is also enough when the same name is a
-  # builtin/command; the function body is appended when there is one.
+  # Pre-render aliases and functions (need the running shell to inspect).
   # Names starting with `_` (completion functions, internal helpers) are skipped.
   local n
   for n in "${(@k)aliases}" "${(@k)functions}"; do
@@ -42,35 +54,39 @@ tmpdir=$(mktemp -d "${TMPDIR:-/tmp}/fcmd.XXXXXX") || return 1
     } >"$defdir/$n" 2>/dev/null
   done
 
-  # The candidate list: every name we know about, deduped and sorted, minus
-  # anything starting with `_`.
+  # Candidate list: every name we know about, deduped and sorted, minus `_*`.
   local list
   list=$(print -rl -- \
     "${(@k)aliases}" "${(@k)functions}" "${(@k)builtins}" \
     "${reswords[@]}" "${(@k)commands}" | sort -u | sed '/^_/d')
 
+  # Preview script (runs in /bin/sh inside fzf).
+  # FCMD_DEFDIR and FCMD_HELPDIR are exported into fzf's environment.
   local preview='
     n={}
-    if [ -f "$FCMD_DEFDIR/$n" ]; then
+    # 1. Zsh builtin help file
+    if [ -n "$FCMD_HELPDIR" ] && [ -f "$FCMD_HELPDIR/$n" ]; then
+      cat "$FCMD_HELPDIR/$n"
+    # 2. Shell-internal definition (alias / function body)
+    elif [ -f "$FCMD_DEFDIR/$n" ]; then
       cat "$FCMD_DEFDIR/$n"
+    # 3. Man page (strip terminal escapes so it reads cleanly)
+    elif man "$n" 2>/dev/null | col -bx; then
+      :
+    # 4. Fallback: type resolution
     else
-      type "$n" 2>/dev/null || command -v "$n" 2>/dev/null || printf "%s\n" "$n"
+      type "$n" 2>/dev/null || printf "%s: not found\n" "$n"
     fi
   '
 
   local picked
-  picked=$(print -r -- "$list" | FCMD_DEFDIR="$defdir" fzf \
-    --height=70% --reverse --no-multi --cycle \
-    --query="${1:-}" --prompt='cmd> ' \
-    --preview="$preview" --preview-window=right:60%:wrap) || return
+  picked=$(print -r -- "$list" | \
+    FCMD_DEFDIR="$defdir" FCMD_HELPDIR="$helpdir" fzf \
+      --height=70% --reverse --no-multi --cycle \
+      --query="${1:-}" --prompt='cmd> ' \
+      --preview="$preview" --preview-window=right:60%:wrap) || return
 
   [[ -n $picked ]] || return
-
-  if [[ -f "$defdir/$picked" ]]; then
-    cat -- "$defdir/$picked"
-  else
-    whence -va -- "$picked"
-  fi
   print -z -- "$picked "
 } always {
   rm -rf -- "$tmpdir"
