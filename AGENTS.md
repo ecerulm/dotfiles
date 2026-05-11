@@ -96,18 +96,18 @@ The repo uses `ZDOTDIR` to keep all zsh files inside `zsh/` rather than at the h
 - `zsh/.p10k.zsh` — Powerlevel10k prompt config
 - `zsh/my-zsh-functions/` — autoloaded functions (lazy-loaded via `autoload -Uz`)
 
-Notable autoloaded functions in `zsh/my-zsh-functions/`:
+Notable autoloaded functions in `zsh/my-zsh-functions/` (all prefixed `rlm-`; short names kept as aliases):
 
-- `pr-worktree`, `pr-worktree-rm` — create/remove a git worktree for a GitHub PR
-- `pr-for-commit` — find the PR associated with a commit
-- `jira-open` — open the JIRA ticket inferred from branch/PR/commits
-- `fcmd` — fzf picker over every alias/function/builtin/reserved word/`$PATH` command, with a preview of what each resolves to
-- `urldecode` — split a URL into components and percent-decode its query string (one `key = value` line per param); reads `$1` or stdin
-- `pyactivate`, `pyclean` — Python venv helpers
-- `mkpw`, `randompassword` — password generation
-- `dnsflush`, `openports`, `generatectags`, `testterminal`
+- `rlm-pr-worktree`, `rlm-pr-worktree-rm` — create/remove a git worktree for a GitHub PR
+- `rlm-pr-for-commit` — find the PR associated with a commit
+- `rlm-jira-open` — open the JIRA ticket inferred from branch/PR/commits
+- `rlm-fcmd` — fzf picker over every alias/function/builtin/reserved word/`$PATH` command, with a preview of what each resolves to
+- `rlm-urldecode` — split a URL into components and percent-decode its query string (one `key = value` line per param); reads `$1` or stdin
+- `rlm-pyactivate`, `rlm-pyclean` — Python venv helpers
+- `rlm-mkpw`, `rlm-randompassword` — password generation
+- `rlm-dnsflush`, `rlm-openports`, `rlm-generatectags`, `rlm-testterminal`
 
-`wts` (defined inline in `.zshrc`) shows worktrees with cached Jira info from `~/.cache/wts-jira/`.
+`rlm-wts` (defined inline in `.zshrc`) shows worktrees with cached Jira info from `~/.cache/wts-jira/`.
 
 ### Neovim (`neovim/`)
 

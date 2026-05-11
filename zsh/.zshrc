@@ -170,7 +170,8 @@ fi
 # For a full list of active aliases, run `alias`.
 #
 # Example aliases
-alias zshconfig="nvim $ZDOTDIR/.zshrc"
+alias rlm-zshconfig="nvim $ZDOTDIR/.zshrc"
+alias zshconfig='rlm-zshconfig'
 # alias ohmyzsh="mate ~/.oh-my-zsh"
 
 # To customize prompt, run `p10k configure` or edit ~/dotfiles/zsh/.p10k.zsh.
@@ -181,6 +182,23 @@ alias zshconfig="nvim $ZDOTDIR/.zshrc"
 alias vi=nvim
 alias vim=nvim
 
+alias rlm-s="git st"
+alias rlm-gdc="git dc"
+alias rlm-gd="git d"
+alias rlm-gc="git commit -v"
+alias rlm-gca="git commit -v --amend"
+alias rlm-gau="git a" # git add -u
+alias rlm-gap="git a -p"
+alias rlm-gas="git as" # Add files that are already staged
+alias rlm-glc="git rev-parse HEAD"
+alias rlm-gdm="git diff main"
+alias rlm-gdms="git diff --stat main"
+alias rlm-diffmain='git fetch; git diff --stat $(git merge-base --fork-point origin/main HEAD)'
+alias rlm-reviewmain='git fetch; git log $(git merge-base --fork-point origin/main HEAD)..HEAD'
+alias rlm-gdlc="git diff HEAD^ HEAD" # or git diff @~..@
+alias rlm-gdw="git diff"
+alias rlm-gfa="git fetch --all"
+alias rlm-gb="git branch --sort=-committerdate"
 alias s="git st"
 alias gdc="git dc"
 alias gd="git d"
@@ -199,28 +217,54 @@ alias gdw="git diff"
 alias gfa="git fetch --all"
 alias gb="git branch --sort=-committerdate"
 
+alias rlm-l="eza -l -s mod"
+alias rlm-t="eza -l -s mod -T --git-ignore"
+alias rlm-reuse-annotate="pipx run reuse annotate --year 2023 --copyright 'Ruben Laguna <ruben.laguna@gmail.com>' --license GPL-3.0-or-later"
+# alias imgcat="kitty +kitten icat"
+# alias icat="kitty +kitten icat"
+alias rlm-tp="terraform plan -out latest.tfplan"
+alias rlm-ta="terraform apply latest.tfplan"
 alias l="eza -l -s mod"
 alias t="eza -l -s mod -T --git-ignore"
 alias reuse-annotate="pipx run reuse annotate --year 2023 --copyright 'Ruben Laguna <ruben.laguna@gmail.com>' --license GPL-3.0-or-later"
-# alias imgcat="kitty +kitten icat"
-# alias icat="kitty +kitten icat"
 alias tp="terraform plan -out latest.tfplan"
 alias ta="terraform apply latest.tfplan"
 
-autoload -Uz pyactivate
-autoload -Uz hello
-autoload -Uz testterminal
-autoload -Uz dnsflush
-autoload -Uz openports
-autoload -Uz pyclean
-autoload -Uz randompassword
-autoload -Uz mkpw
-autoload -Uz pr-worktree
-autoload -Uz pr-worktree-rm
-autoload -Uz jira-open
-autoload -Uz brew-unlock
-autoload -Uz fcmd
-autoload -Uz urldecode
+autoload -Uz rlm-pyactivate
+autoload -Uz rlm-hello
+autoload -Uz rlm-testterminal
+autoload -Uz rlm-dnsflush
+autoload -Uz rlm-openports
+autoload -Uz rlm-pyclean
+autoload -Uz rlm-randompassword
+autoload -Uz rlm-mkpw
+autoload -Uz rlm-pr-worktree
+autoload -Uz rlm-pr-worktree-rm
+autoload -Uz rlm-jira-open
+autoload -Uz rlm-brew-unlock
+autoload -Uz rlm-fcmd
+autoload -Uz rlm-urldecode
+autoload -Uz rlm-generatectags
+autoload -Uz rlm-pr-for-commit
+# run-help: use the real autoloaded version (default is aliased to man)
+unalias run-help 2>/dev/null
+autoload -Uz run-help
+# short aliases for autoloaded functions
+alias pyactivate='rlm-pyactivate'
+alias hello='rlm-hello'
+alias testterminal='rlm-testterminal'
+alias dnsflush='rlm-dnsflush'
+alias openports='rlm-openports'
+alias pyclean='rlm-pyclean'
+alias mkpw='rlm-mkpw'
+alias pr-worktree='rlm-pr-worktree'
+alias pr-worktree-rm='rlm-pr-worktree-rm'
+alias jira-open='rlm-jira-open'
+alias brew-unlock='rlm-brew-unlock'
+alias fcmd='rlm-fcmd'
+alias urldecode='rlm-urldecode'
+alias generatectags='rlm-generatectags'
+alias pr-for-commit='rlm-pr-for-commit'
 
 [ -x /opt/homebrew/bin/brew ] && eval $(/opt/homebrew/bin/brew shellenv)
 [ -x /usr/local/bin/brew ] && eval $(/usr/local/bin/brew shellenv)
@@ -229,6 +273,7 @@ autoload -Uz urldecode
 export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" # This loads nvm
 
+alias rlm-randompassword="LC_ALL=C tr -cd '[:alnum:]' < /dev/urandom | fold -w30 |head -n1"
 alias randompassword="LC_ALL=C tr -cd '[:alnum:]' < /dev/urandom | fold -w30 |head -n1"
 
 
@@ -274,6 +319,7 @@ path+=/usr/local/bin # add it to the end
 path+=~/Library/Application\ Support/Coursier/bin
 export PATH
 
+alias rlm-ctags="ctags -R --fields=+zK"
 alias ctags="ctags -R --fields=+zK"
 export LC_ALL="en_US.utf-8"
 
@@ -334,27 +380,33 @@ if [ -d "$AGY_PATH" ]; then
 fi
 
 
+alias rlm-pu="pulumi up"
+alias rlm-pus="pulumi up --skip-preview"
 alias pu="pulumi up"
 alias pus="pulumi up --skip-preview"
 
 # export PATH=$HOME/.jbang/bin:$PATH
 # export PATH="/usr/local/opt/openjdk@17/bin:$PATH"
 
-function awsprofile {
+function rlm-awsprofile {
   export AWS_PROFILE=$(aws configure list-profiles|fzf)
 }
+alias awsprofile='rlm-awsprofile'
 
-function switchbranch {
+function rlm-switchbranch {
   git switch $(git branch | fzf)
 }
+alias switchbranch='rlm-switchbranch'
 
-function sqlfluff_fix {
+function rlm-sqlfluff-fix {
 pre-commit run sqlfluff-fix --from-ref $(git merge-base --fork-point origin/main HEAD) --to-ref HEAD
 }
 
-function sqlfluff_fix {
+function rlm-sqlfluff-lint {
 pre-commit run sqlfluff-lint --from-ref $(git merge-base --fork-point origin/main HEAD) --to-ref HEAD
 }
+alias sqlfluff_fix='rlm-sqlfluff-fix'
+alias sqlfluff_lint='rlm-sqlfluff-lint'
 
 
 NVIM_HOME="$HOME/opt/nvim"
@@ -365,12 +417,12 @@ fi
 
 
 # resets Kitty Keyboard Protocol after each command, avoid the ctrl-c showing up as 9;5u after killing claude
-reset_kkp() {
+rlm-reset-kkp() {
 	print '\e[>u'
 }
 
 autoload -Uz add-zsh-hook
-add-zsh-hook precmd reset_kkp
+add-zsh-hook precmd rlm-reset-kkp
 
 
 # path+=$(pyenv prefix 3.14)/bin
@@ -381,7 +433,7 @@ add-zsh-hook precmd reset_kkp
 #   <KEY>.summary  — single line: "(Status) Summary"   (used in the fzf list)
 #   <KEY>.preview  — multi-line, ANSI-colored          (used in the fzf preview pane)
 # Cache TTL is 1 hour. Failures (auth, network, missing key) leave the files empty.
-_wts_jira_refresh() {
+_rlm-wts-jira-refresh() {
 	local key="$1" dir="$HOME/.cache/wts-jira"
 	local sf="$dir/$key.summary" pf="$dir/$key.preview"
 	mkdir -p "$dir"
@@ -435,7 +487,10 @@ _wts_jira_refresh() {
 # and if a line is wider than the terminal, truncate from the left (preserving the tail) with a leading "...".
 # When a worktree's branch contains a Jira key (e.g. DATA-1234, DATA-2538-foo, feature/DATA-9), the line is
 # annotated with "(Status) Summary" from Jira and a fuller preview pane is shown via fzf --preview.
-wts() {
+rlm-wts() {
+	# Suppress "[1] 2966" job-control chatter from the background _wts_jira_refresh
+	# calls and the watchdog subshell below. local_options scopes these to the function.
+	setopt local_options no_notify no_monitor
 	local -a paths rest jkeys display
 	local line p r common cols width selected dir
 
@@ -465,7 +520,7 @@ wts() {
 	local -a pids
 	for (( i=1; i<=${#jkeys[@]}; i++ )); do
 		[[ -n "${jkeys[$i]}" ]] || continue
-		_wts_jira_refresh "${jkeys[$i]}" &
+		_rlm-wts-jira-refresh "${jkeys[$i]}" &
 		pids+=($!)
 	done
 	# Bound the wait so a slow/hung acli call can't freeze the picker.
@@ -541,10 +596,11 @@ wts() {
 
 	[[ -n "$dir" ]] && cd "$dir"
 }
+alias wts='rlm-wts'
 
 # Run pre-commit on files changed in the current branch since its fork point from the base
-# branch (default: main). Usage: pre-commit-pr [base-branch]    alias: pcpr
-pre-commit-pr() {
+# branch (default: main). Usage: rlm-pre-commit-pr [base-branch]    alias: pcpr
+rlm-pre-commit-pr() {
       local base="${1:-main}"
       local fork_point
       fork_point=$(git merge-base --fork-point "$base" HEAD 2>/dev/null) \
@@ -561,16 +617,20 @@ pre-commit-pr() {
       echo "pre-commit-pr: base=$base fork_point=$fork_point files=${#files}"
       pre-commit run --files "${files[@]}"
 }
-alias pcpr='pre-commit-pr'
+alias rlm-pcpr='rlm-pre-commit-pr'
+alias pre-commit-pr='rlm-pre-commit-pr'
+alias pcpr='rlm-pcpr'
 
 # Run lefthook on every tracked + non-ignored file under the current directory,
 # recursively, regardless of git stage state. Defaults to the pre-commit hook;
-# pass another stage as the first arg, e.g. `lhdir pre-push`.
-# Usage: lhdir [hook-name]    alias: lhd
-lhdir() {
+# pass another stage as the first arg, e.g. `rlm-lhdir pre-push`.
+# Usage: rlm-lhdir [hook-name]    alias: lhd
+rlm-lhdir() {
       local hook="${1:-pre-commit}"
       git ls-files --cached --others --exclude-standard . \
               | lefthook run "$hook" --files-from-stdin
 }
-alias lhd='lhdir'
+alias rlm-lhd='rlm-lhdir'
+alias lhdir='rlm-lhdir'
+alias lhd='rlm-lhd'
 

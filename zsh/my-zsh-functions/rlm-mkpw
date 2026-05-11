@@ -1,0 +1,1 @@
+LC_ALL=C tr -cd '[:alnum:]' < /dev/urandom | head -c ${1:-14}
