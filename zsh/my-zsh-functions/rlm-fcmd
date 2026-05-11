@@ -1,10 +1,10 @@
 # fcmd — fuzzy-pick any zsh alias, function, builtin, reserved word, or $PATH
 # command, with a help preview.
 #
-# Preview priority (first match wins, via run-help in a zsh subshell):
-#   1. $HELPDIR/<name>      — custom help text; $HELPDIR may be colon-separated
-#                             (e.g. helpdir-private:helpdir), all dirs searched
-#   2. system HELPDIR/<name> — zsh builtin help text (setopt, bindkey, …)
+# Preview priority (first match wins):
+#   1. $HELPDIR/<name>      — custom help text; walks colon-separated $HELPDIR
+#                             directly (run-help doesn't support colon paths)
+#   2. system HELPDIR/<name> — zsh builtin help text via run-help (setopt, …)
 #   3. def-cache file       — alias expansion + function body (shell-internal)
 #   4. man <name>           — man page (piped through col -bx to strip escapes)
 #   5. type <name>          — fallback: shows what the name resolves to
@@ -55,9 +55,8 @@ tmpdir=$(mktemp -d "${TMPDIR:-/tmp}/fcmd.XXXXXX") || return 1
   local preview_script="$tmpdir/preview.zsh"
   cat >"$preview_script" <<'EOF'
 n=$1
-# 1. Walk $HELPDIR explicitly — run-help fails for autoloaded functions that
-#    haven't been called yet ("is an autoload shell function" confuses its
-#    internal pattern match, causing it to fall through to man).
+# 1. Walk each dir in $HELPDIR (colon-separated). run-help is not used here
+#    because it only accepts a single directory, not a colon-separated path.
 found=
 for d in ${(s.:.)HELPDIR}; do
   if [[ -f $d/$n ]]; then
@@ -69,7 +68,7 @@ done
 if (( found )); then
   :
 # 2. System zsh builtins (setopt, bindkey, …) via run-help
-elif autoload -Uz run-help && run-help "$n" 2>/dev/null; then
+elif { unalias run-help 2>/dev/null; autoload -Uz run-help; run-help "$n" 2>/dev/null }; then
   :
 # 3. Shell-internal definition (alias / function body)
 elif [[ -f $FCMD_DEFDIR/$n ]]; then
