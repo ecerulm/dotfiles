@@ -1,0 +1,8 @@
+rlm-gh-repo-init OWNER/REPO
+
+Create a private GitHub repository from the current directory and push,
+provided no remote is configured yet.
+
+The argument must be in OWNER/REPO form (e.g. ecerulm/my-project).
+
+Requires: gh, git.

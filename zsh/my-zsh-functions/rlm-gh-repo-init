@@ -1,0 +1,28 @@
+emulate -L zsh
+set -o pipefail
+
+if ! command -v gh >/dev/null 2>&1; then
+  print -u2 "gh-repo-init: 'gh' not found in PATH"
+  return 1
+fi
+if ! command -v git >/dev/null 2>&1; then
+  print -u2 "gh-repo-init: 'git' not found in PATH"
+  return 1
+fi
+
+local repo_slug=${1:?'gh-repo-init: argument required: OWNER/REPO'}
+
+# Must be inside a git repo.
+if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  print -u2 "gh-repo-init: not inside a git repository"
+  return 1
+fi
+
+# Bail out if a remote already exists.
+if git remote | grep -q .; then
+  print -u2 "gh-repo-init: remote already configured:"
+  git remote -v >&2
+  return 1
+fi
+
+gh repo create "$repo_slug" --private --source . --push && gh repo view -w
