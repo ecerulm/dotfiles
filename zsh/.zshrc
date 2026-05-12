@@ -241,6 +241,7 @@ autoload -Uz rlm-mkpw
 autoload -Uz rlm-pr-worktree
 autoload -Uz rlm-pr-worktree-rm
 autoload -Uz rlm-gh-repo-init
+autoload -Uz rlm-bq-open
 autoload -Uz rlm-jira-open
 autoload -Uz rlm-brew-unlock
 autoload -Uz rlm-fcmd
@@ -261,6 +262,7 @@ alias mkpw='rlm-mkpw'
 alias pr-worktree='rlm-pr-worktree'
 alias pr-worktree-rm='rlm-pr-worktree-rm'
 alias gh-repo-init='rlm-gh-repo-init'
+alias bq-open='rlm-bq-open'
 alias jira-open='rlm-jira-open'
 alias brew-unlock='rlm-brew-unlock'
 alias fcmd='rlm-fcmd'

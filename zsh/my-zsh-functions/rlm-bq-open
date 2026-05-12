@@ -1,0 +1,122 @@
+emulate -L zsh
+set -o pipefail
+
+if [[ -z $BQ_SEARCH_PATH ]]; then
+  print -u2 "bq-open: BQ_SEARCH_PATH is not set"
+  print -u2 "Set it to a colon-separated list of GCP projects to search, e.g.:"
+  print -u2 "  export BQ_SEARCH_PATH=my-project-prod:my-project-dev"
+  return 1
+fi
+
+for cmd in bq fzf jq; do
+  if ! command -v "$cmd" >/dev/null 2>&1; then
+    print -u2 "bq-open: '$cmd' not found in PATH"
+    return 1
+  fi
+done
+
+local -a projects
+projects=(${(s[:])BQ_SEARCH_PATH})
+
+local cache_dir="$HOME/.cache/bq-open"
+mkdir -p "$cache_dir"
+# Cache key: md5 of the sorted project list so reordering doesn't bust cache
+local cache_key cache_file
+cache_key=$(print -l -- "${(o)projects[@]}" | md5)
+cache_file="${cache_dir}/${cache_key}.txt"
+
+_bq_open_fetch() {
+  local project dataset table_json
+  local -a tables
+  for project in "${projects[@]}"; do
+    print "bq-open: fetching datasets from $project …" >&2
+    while IFS= read -r dataset; do
+      table_json=$(bq ls --format=json --project_id="$project" "$dataset" 2>/dev/null) || continue
+      while IFS= read -r tbl; do
+        [[ -n $tbl ]] && tables+=("${project}:${dataset}.${tbl}")
+      done < <(print -- "$table_json" | jq -r '.[].tableReference.tableId // empty' 2>/dev/null)
+    done < <(bq ls --format=json --project_id="$project" 2>/dev/null \
+      | jq -r '.[].datasetReference.datasetId // empty' 2>/dev/null)
+  done
+
+  if (( ${#tables} == 0 )); then
+    print -u2 "bq-open: no tables found in BQ_SEARCH_PATH='$BQ_SEARCH_PATH'"
+    return 1
+  fi
+
+  print -l -- "${tables[@]}" >| "$cache_file"
+}
+
+# Fetch on first run if no cache exists yet
+if [[ ! -f $cache_file ]]; then
+  _bq_open_fetch || return 1
+fi
+
+local cache_age=""
+local mtime now elapsed
+mtime=$(stat -f %m "$cache_file" 2>/dev/null || stat -c %Y "$cache_file" 2>/dev/null)
+now=$(date +%s)
+elapsed=$(( now - mtime ))
+if (( elapsed < 3600 )); then
+  cache_age="${elapsed}s ago"
+elif (( elapsed < 86400 )); then
+  cache_age="$(( elapsed / 3600 ))h ago"
+else
+  cache_age="$(( elapsed / 86400 ))d ago"
+fi
+
+local refresh_sentinel="--- REFRESH CACHE (cached ${cache_age}) ---"
+
+local selection
+selection=$(
+  { print -- "$refresh_sentinel"; cat "$cache_file"; } \
+  | fzf --prompt="BigQuery table> " --height=80% --reverse \
+        --preview="
+          line={}
+          if [ \"\$line\" = '${refresh_sentinel}' ]; then
+            echo 'Run: bq-open-refresh  (or delete ~/.cache/bq-open/ and re-run bq-open)'
+          else
+            proj=\${line%%:*}; rest=\${line##*:}
+            bq show --format=prettyjson \"\${proj}:\${rest}\"
+          fi
+        " \
+        --preview-window=bottom:40%:wrap
+) || return 130
+
+[[ -z $selection ]] && return 130
+if [[ $selection == "--- REFRESH CACHE"* ]]; then
+  rm -f "$cache_file"
+  _bq_open_fetch || return 1
+  rlm-bq-open
+  return $?
+fi
+
+local sel_project dataset_table sel_dataset sel_table
+sel_project=${selection%%:*}
+dataset_table=${selection##*:}
+sel_dataset=${dataset_table%%.*}
+sel_table=${dataset_table##*.}
+
+# GCP console deep-link for a specific table in the BigQuery UI
+local url="https://console.cloud.google.com/bigquery?project=${sel_project}&ws=!1m5!1m4!4m3!1s${sel_project}!2s${sel_dataset}!3s${sel_table}"
+
+print "$url"
+
+# Copy to clipboard (macOS pbcopy, Linux xclip/xsel fallback)
+if command -v pbcopy >/dev/null 2>&1; then
+  print -n "$url" | pbcopy
+  print "bq-open: URL copied to clipboard" >&2
+elif command -v xclip >/dev/null 2>&1; then
+  print -n "$url" | xclip -selection clipboard
+  print "bq-open: URL copied to clipboard" >&2
+elif command -v xsel >/dev/null 2>&1; then
+  print -n "$url" | xsel --clipboard --input
+  print "bq-open: URL copied to clipboard" >&2
+fi
+
+# Open in system browser
+if command -v open >/dev/null 2>&1; then
+  open "$url"
+elif command -v xdg-open >/dev/null 2>&1; then
+  xdg-open "$url"
+fi
