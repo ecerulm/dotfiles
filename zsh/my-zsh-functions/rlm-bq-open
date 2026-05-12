@@ -77,7 +77,8 @@ selection=$(
             echo 'Run: bq-open-refresh  (or delete ~/.cache/bq-open/ and re-run bq-open)'
           else
             proj=\${line%%:*}; rest=\${line##*:}
-            bq show --format=prettyjson \"\${proj}:\${rest}\"
+            bq show --format=prettyjson \"\${proj}:\${rest}\" \
+              | jq '{type,kind,id,description,numPartitions,numRows,numTotalLogicalBytes} + .'
           fi
         " \
         --preview-window=bottom:40%:wrap
