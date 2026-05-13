@@ -63,15 +63,16 @@ fi
 
 local dag_file
 dag_file=$(
-  fd -t f --max-depth 1 .py airflow_manager/dag_folder \
+  fd -t f --max-depth 1 dag.py airflow_manager/dag_folder \
   | sort \
   | fzf \
       --prompt="Select DAG> " \
-      --height=60% \
+      --height=90% \
       --reverse \
       ${default_dag:+--query="$(basename "$default_dag")"} \
       --preview="cat {}" \
-      --preview-window=right:60%:wrap
+      --preview-window=bottom:40%:wrap \
+      --bind="ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)"
 )
 
 if [[ -z $dag_file ]]; then
