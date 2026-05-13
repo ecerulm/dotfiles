@@ -87,12 +87,14 @@ are available in any interactive shell. Each function is also aliased to a short
 | `rlm-pr-worktree-rm` | `pr-worktree-rm` | Multi-select worktrees via fzf and delete them. Shows merge status and PR state (open/merged/closed) for each. Confirms before deleting. |
 | `rlm-pr-for-commit <commit-ish>` | `pr-for-commit` | Print the GitHub PR URL that introduced a commit into the default branch. Tries the GitHub API first (works for squash-merges), then falls back to parsing merge commit subjects. |
 | `rlm-jira-open [--print]` | `jira-open` | Open the JIRA ticket associated with the current repo/branch in a browser. Searches branch name → PR title → commit subjects in that order. `--print` outputs the URL instead of opening it. |
+| `rlm-gh-permalink` | `gh-permalink` | Pick a file from the current git repo via fzf (respecting .gitignore) and open its immutable GitHub permalink (pinned to HEAD SHA) in the browser. |
 
 ### Google Cloud / BigQuery
 
 | Function | Short alias | Description |
 |---|---|---|
 | `rlm-bq-open` | `bq-open` | Browse BigQuery tables across projects via fzf and open the selected table in the GCP console. Projects are read from `$BQ_SEARCH_PATH` (colon-separated). Table list is cached in `~/.cache/bq-open/`; select `--- REFRESH CACHE ---` in the picker to re-fetch. Prints the URL, copies it to the clipboard, and opens it in the browser. Requires `bq`, `fzf`, `jq`. |
+| `rlm-afw-deploy` | `afw-deploy` | Deploy a DAG to the dev Airflow sandbox. Must be run from the project root (containing `airflow_manager/` and `pyproject.toml`). Opens an fzf picker over `*.py` files in `airflow_manager/dag_folder/`; last selection is cached per project root in `~/.cache/afw-deploy/`. Requires `poetry` (with `afw` installed), `fd`, `fzf`. |
 
 ### Python
 

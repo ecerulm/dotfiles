@@ -248,6 +248,8 @@ autoload -Uz rlm-fcmd
 autoload -Uz rlm-urldecode
 autoload -Uz rlm-generatectags
 autoload -Uz rlm-pr-for-commit
+autoload -Uz rlm-afw-deploy
+autoload -Uz rlm-gh-permalink
 # run-help: use the real autoloaded version (default is aliased to man)
 unalias run-help 2>/dev/null
 autoload -Uz run-help
@@ -262,6 +264,7 @@ alias mkpw='rlm-mkpw'
 alias pr-worktree='rlm-pr-worktree'
 alias pr-worktree-rm='rlm-pr-worktree-rm'
 alias gh-repo-init='rlm-gh-repo-init'
+alias gh-permalink='rlm-gh-permalink'
 alias bq-open='rlm-bq-open'
 alias jira-open='rlm-jira-open'
 alias brew-unlock='rlm-brew-unlock'
@@ -269,6 +272,7 @@ alias fcmd='rlm-fcmd'
 alias urldecode='rlm-urldecode'
 alias generatectags='rlm-generatectags'
 alias pr-for-commit='rlm-pr-for-commit'
+alias afw-deploy='rlm-afw-deploy'
 
 [ -x /opt/homebrew/bin/brew ] && eval $(/opt/homebrew/bin/brew shellenv)
 [ -x /usr/local/bin/brew ] && eval $(/usr/local/bin/brew shellenv)
@@ -496,7 +500,7 @@ rlm-wts() {
 	# calls and the watchdog subshell below. local_options scopes these to the function.
 	setopt local_options no_notify no_monitor
 	local -a paths rest jkeys display
-	local line p r common cols width selected dir
+	local line p r common selected dir
 
 	while IFS= read -r line; do
 		p="${line%% *}"
@@ -549,36 +553,21 @@ rlm-wts() {
 		common=""
 	fi
 
-	cols=${COLUMNS:-$(tput cols 2>/dev/null || echo 80)}
-	(( cols < 20 )) && cols=80   # guard against COLUMNS=0 in non-interactive shells
-
-	local shown combined jinfo cache_dir="$HOME/.cache/wts-jira"
+	local shown cache_dir="$HOME/.cache/wts-jira"
 	for (( i=1; i<=${#paths[@]}; i++ )); do
 		shown="${paths[$i]}"
 		if [[ -n "$common" && "$shown" != "$common" ]]; then
 			shown="${shown#$common/}"
 		fi
-		combined="$shown  ${rest[$i]}"
-
-		jinfo=""
-		if [[ -n "${jkeys[$i]}" && -s "$cache_dir/${jkeys[$i]}.summary" ]]; then
-			jinfo=$(<"$cache_dir/${jkeys[$i]}.summary")
-			combined="$combined  $jinfo"
-		fi
-
-		width=${#combined}
-		if (( width > cols )); then
-			# preserve the tail; "..." prefix marks truncation
-			combined="...${combined: -$((cols-3))}"
-		fi
-		# Hidden columns: <index>\t<jira_key_or_->\t<visible>. fzf hides them via --with-nth=3..
-		# The index lets us recover the chosen worktree even when the visible part is truncated.
-		display+=("$i	${jkeys[$i]:--}	$combined")
+		# Hidden columns: <index>\t<jira_key_or_->\t<branch_info>\t<path>. fzf shows only path via --with-nth=4.
+		display+=("$i	${jkeys[$i]:--}	${rest[$i]}	$shown")
 	done
 
 	local preview_cmd='
 		k={2}
+		branch={3}
 		f="'"$cache_dir"'/$k.preview"
+		printf "Branch: %s\n\n" "$branch"
 		if [ "$k" != "-" ] && [ -s "$f" ]; then
 			cat "$f"
 		else
@@ -587,12 +576,12 @@ rlm-wts() {
 	'
 
 	selected=$(printf '%s\n' "${display[@]}" | fzf \
-		--height=60% --reverse \
-		--delimiter=$'\t' --with-nth=3.. \
-		--preview="$preview_cmd" --preview-window=right:40%:wrap) || return
+		--height=80% --reverse \
+		--delimiter=$'\t' --with-nth=4 \
+		--preview="$preview_cmd" --preview-window=bottom:50%:wrap) || return
 	[[ -z "$selected" ]] && return
 
-	# Selected format: "<index>\t<key>\t<combined>". Use the index for lookup.
+	# Selected format: "<index>\t<key>\t<branch_info>\t<path>". Use the index for lookup.
 	local idx="${selected%%	*}"
 	if [[ "$idx" == <-> ]] && (( idx >= 1 && idx <= ${#paths[@]} )); then
 		dir="${paths[$idx]/#\~/$HOME}"

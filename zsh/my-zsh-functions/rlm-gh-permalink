@@ -1,0 +1,55 @@
+emulate -L zsh
+set -o pipefail
+
+if ! command -v git >/dev/null 2>&1; then
+  print -u2 "rlm-gh-permalink: 'git' not found in PATH"
+  return 1
+fi
+if ! command -v fzf >/dev/null 2>&1; then
+  print -u2 "rlm-gh-permalink: 'fzf' not found in PATH"
+  return 1
+fi
+if ! command -v gh >/dev/null 2>&1; then
+  print -u2 "rlm-gh-permalink: 'gh' not found in PATH"
+  return 1
+fi
+
+if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  print -u2 "rlm-gh-permalink: not inside a git repository"
+  return 1
+fi
+
+local repo_root
+repo_root=$(git rev-parse --show-toplevel)
+
+# Pick a file respecting .gitignore via git ls-files
+local rel_path
+rel_path=$(git -C "$repo_root" ls-files | fzf --prompt="Select file> " --height=80% --preview="git -C $repo_root show HEAD:{}" --preview-window=bottom:40%)
+[[ -z "$rel_path" ]] && return 0
+
+# Resolve the GitHub remote URL to an https base
+local remote_url
+remote_url=$(git -C "$repo_root" remote get-url origin 2>/dev/null)
+if [[ -z "$remote_url" ]]; then
+  print -u2 "rlm-gh-permalink: no 'origin' remote found"
+  return 1
+fi
+
+# Normalise SSH → HTTPS: git@github.com:owner/repo.git → https://github.com/owner/repo
+local repo_https
+if [[ "$remote_url" == git@* ]]; then
+  repo_https=${remote_url#git@}           # github.com:owner/repo.git
+  repo_https=${repo_https/://}            # github.com/owner/repo.git
+  repo_https="https://${repo_https%.git}"
+else
+  repo_https=${remote_url%.git}
+fi
+
+# Use the current commit SHA for an immutable permalink
+local sha
+sha=$(git -C "$repo_root" rev-parse HEAD)
+
+local permalink="${repo_https}/blob/${sha}/${rel_path}"
+
+print "$permalink"
+open "$permalink"

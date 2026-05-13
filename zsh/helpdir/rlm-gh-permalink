@@ -1,0 +1,9 @@
+rlm-gh-permalink
+
+Open an immutable GitHub permalink for a file in the current git repo.
+
+Presents an fzf picker (respecting .gitignore) to select a file, then
+builds a permalink using the current HEAD commit SHA. Prints the URL
+and opens it in the default browser.
+
+Requires: git, fzf, gh.
