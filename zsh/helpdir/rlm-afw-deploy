@@ -1,0 +1,29 @@
+afw-deploy
+
+Deploy a DAG to the dev Airflow sandbox via fzf picker.
+
+Must be run from the project root (the directory that contains
+airflow_manager/ and pyproject.toml).
+
+USAGE
+  afw-deploy
+
+WHAT IT DOES
+  1. Validates that airflow_manager/ and pyproject.toml exist.
+  2. Confirms that 'afw' is available in the poetry environment
+     (runs: poetry run afw --help).
+  3. Opens an fzf picker over *.py files in airflow_manager/dag_folder/.
+  4. Deploys the selected DAG:
+
+       poetry run afw sandbox deploy \
+         -e dev \
+         -b europe-west1-sdp-composer-91ff48c9-bucket \
+         -s ecerulm \
+         -d <selected-dag.py>
+
+LAST SELECTION
+  The last DAG chosen for each project root is cached in
+  ~/.cache/afw-deploy/. On subsequent runs fzf's query is pre-filled
+  with the previous selection, so pressing Enter redeploys it instantly.
+
+Requires: poetry, fd, fzf.

@@ -81,7 +81,8 @@ selection=$(
               | jq '{type,kind,id,description,numPartitions,numRows,numTotalLogicalBytes} + .'
           fi
         " \
-        --preview-window=bottom:40%:wrap
+        --preview-window=bottom:40%:wrap \
+        --bind='ctrl-p:change-preview-window(70%|40%)'
 ) || return 130
 
 [[ -z $selection ]] && return 130

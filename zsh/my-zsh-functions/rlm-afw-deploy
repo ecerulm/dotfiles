@@ -1,0 +1,102 @@
+emulate -L zsh
+set -o pipefail
+
+# ---------------------------------------------------------------------------
+# Precondition checks
+# ---------------------------------------------------------------------------
+
+if [[ ! -d airflow_manager ]]; then
+  print -u2 "afw-deploy: 'airflow_manager/' directory not found (run from project root)"
+  return 1
+fi
+
+if [[ ! -f pyproject.toml ]]; then
+  print -u2 "afw-deploy: 'pyproject.toml' not found (run from project root)"
+  return 1
+fi
+
+if ! command -v poetry >/dev/null 2>&1; then
+  print -u2 "afw-deploy: 'poetry' not found in PATH"
+  return 1
+fi
+
+if ! command -v fzf >/dev/null 2>&1; then
+  print -u2 "afw-deploy: 'fzf' not found in PATH"
+  return 1
+fi
+
+if ! command -v fd >/dev/null 2>&1; then
+  print -u2 "afw-deploy: 'fd' not found in PATH"
+  return 1
+fi
+
+# Verify that poetry has afw available (env is synced)
+if ! poetry run afw --help >/dev/null 2>&1; then
+  print -u2 "afw-deploy: 'afw' not found in poetry environment"
+  print -u2 "Run: poetry install  (or poetry sync)"
+  return 1
+fi
+
+# ---------------------------------------------------------------------------
+# Cache: remember last selections per project root
+# ---------------------------------------------------------------------------
+
+local cache_dir="$HOME/.cache/afw-deploy"
+mkdir -p "$cache_dir"
+
+# Use a hash of the absolute project root as the cache key so each project
+# gets its own last-selection file.
+local project_root cache_key cache_file
+project_root=$(pwd)
+cache_key=$(print -n "$project_root" | md5)
+cache_file="${cache_dir}/${cache_key}.txt"
+
+# Read previous selection (if any) to use as the fzf default
+local default_dag=""
+if [[ -f $cache_file ]]; then
+  default_dag=$(<"$cache_file")
+fi
+
+# ---------------------------------------------------------------------------
+# fzf picker over DAG files
+# ---------------------------------------------------------------------------
+
+local dag_file
+dag_file=$(
+  fd -t f --max-depth 1 .py airflow_manager/dag_folder \
+  | sort \
+  | fzf \
+      --prompt="Select DAG> " \
+      --height=60% \
+      --reverse \
+      ${default_dag:+--query="$(basename "$default_dag")"} \
+      --preview="cat {}" \
+      --preview-window=right:60%:wrap
+)
+
+if [[ -z $dag_file ]]; then
+  print -u2 "afw-deploy: no DAG selected, aborting"
+  return 1
+fi
+
+local dag_name
+dag_name=$(basename "$dag_file")
+
+# Persist selection for next time
+print -n "$dag_file" >| "$cache_file"
+
+# ---------------------------------------------------------------------------
+# Deploy
+# ---------------------------------------------------------------------------
+
+local env bucket subnetwork
+env="dev"
+bucket="europe-west1-sdp-composer-91ff48c9-bucket"
+subnetwork="ecerulm"
+
+print "afw-deploy: deploying ${dag_name} to env=${env} …" >&2
+poetry run afw sandbox deploy \
+  -e "$env" \
+  -b "$bucket" \
+  -s "$subnetwork" \
+  -d "$dag_name"
