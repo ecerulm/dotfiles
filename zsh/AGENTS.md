@@ -28,7 +28,11 @@ Short aliases must expand to the real value directly (e.g. `alias gc="git commit
 
 ## helpdir Files
 
-Every user-defined function and alias should have a corresponding help file at `helpdir/<name>`. The same content is shared between the `rlm-` name and the short alias (byte-identical files or copies).
+Every user-defined function and alias should have a corresponding help file at `helpdir/<name>`. The canonical file is `helpdir/rlm-<name>`; the short-alias file `helpdir/<name>` must be a **symlink** pointing to it — not an independent copy:
+
+```zsh
+ln -s rlm-<name> helpdir/<name>
+```
 
 Format rules (required by `run-help`):
 
@@ -37,7 +41,7 @@ Format rules (required by `run-help`):
 3. Description paragraphs, wrapped at ~72 chars
 4. No ANSI escape codes, no trailing blank lines
 
-Both the `rlm-<name>` and short alias files must exist. When adding a new function, add both `helpdir/rlm-<name>` and `helpdir/<name>`.
+Both `helpdir/rlm-<name>` (real file) and `helpdir/<name>` (symlink → `rlm-<name>`) must exist.
 
 ## fcmd Preview Chain
 
@@ -88,7 +92,7 @@ Use `my-zsh-functions-private/` and `helpdir-private/` (both gitignored).
 1. Create `my-zsh-functions-private/rlm-<name>` with `emulate -L zsh` at the top.
 2. Add `autoload -Uz rlm-<name>` to `~/.zshrc.thismachine` (not `.zshrc` — keeps the name out of the shared repo).
 3. Add `alias <name>='rlm-<name>'` to `~/.zshrc.thismachine` as well.
-4. Create `helpdir-private/rlm-<name>` and `helpdir-private/<name>` with help content.
+4. Create `helpdir-private/rlm-<name>` with help content, then symlink: `ln -s rlm-<name> helpdir-private/<name>`.
 
 Do **not** add private functions or aliases to `README.md`.
 
@@ -97,7 +101,7 @@ Do **not** add private functions or aliases to `README.md`.
 1. Create `my-zsh-functions/rlm-<name>` with `emulate -L zsh` at the top.
 2. Add `autoload -Uz rlm-<name>` to `.zshrc` (near the other `autoload` lines).
 3. Add `alias <name>='rlm-<name>'` to `.zshrc` (near the other short aliases).
-4. Create `helpdir/rlm-<name>` and `helpdir/<name>` with identical content in the format above.
+4. Create `helpdir/rlm-<name>` with help content, then symlink: `ln -s rlm-<name> helpdir/<name>`.
 5. Update `README.md` (the function table in the relevant section).
 
 ## Linting / Formatting

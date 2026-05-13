@@ -22,6 +22,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   branch name, PR number/URL/state, and files changed vs fork point.
 - `helpdir/`: convert short-name files that were byte-identical to their
   `rlm-*` counterparts into symlinks, eliminating duplicate content.
+- `AGENTS.md`: document that `helpdir/<name>` must be a symlink to
+  `helpdir/rlm-<name>`, not an independent copy.
 
 ## [2026-05-12]
 
