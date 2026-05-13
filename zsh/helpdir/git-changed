@@ -1,0 +1,12 @@
+rlm-git-changed
+
+Pick a file changed since the fork point of the current branch from
+the default remote branch (origin/HEAD) using fzf, then open it in
+$EDITOR. The diff preview for the selected file is shown in the fzf
+preview pane. Press Ctrl-P to cycle the preview pane height.
+
+ENVIRONMENT
+  EDITOR   Editor to open the selected file (falls back to vi).
+
+REQUIRES
+  git, fzf

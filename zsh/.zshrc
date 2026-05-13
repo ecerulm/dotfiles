@@ -250,6 +250,7 @@ autoload -Uz rlm-generatectags
 autoload -Uz rlm-pr-for-commit
 autoload -Uz rlm-afw-deploy
 autoload -Uz rlm-gh-permalink
+autoload -Uz rlm-git-changed
 # run-help: use the real autoloaded version (default is aliased to man)
 unalias run-help 2>/dev/null
 autoload -Uz run-help
@@ -265,6 +266,7 @@ alias pr-worktree='rlm-pr-worktree'
 alias pr-worktree-rm='rlm-pr-worktree-rm'
 alias gh-repo-init='rlm-gh-repo-init'
 alias gh-permalink='rlm-gh-permalink'
+alias git-changed='rlm-git-changed'
 alias bq-open='rlm-bq-open'
 alias jira-open='rlm-jira-open'
 alias brew-unlock='rlm-brew-unlock'

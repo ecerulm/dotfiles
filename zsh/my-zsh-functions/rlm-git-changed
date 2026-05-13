@@ -1,0 +1,63 @@
+emulate -L zsh
+set -o pipefail
+
+# ---------------------------------------------------------------------------
+# Precondition checks
+# ---------------------------------------------------------------------------
+
+if ! git rev-parse --git-dir >/dev/null 2>&1; then
+  print -u2 "git-changed: not inside a git repository"
+  return 1
+fi
+
+for _cmd in fzf; do
+  if ! command -v "$_cmd" >/dev/null 2>&1; then
+    print -u2 "git-changed: '$_cmd' not found in PATH"
+    return 1
+  fi
+done
+unset _cmd
+
+# ---------------------------------------------------------------------------
+# Main logic
+# ---------------------------------------------------------------------------
+
+local default_branch
+default_branch=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||')
+if [[ -z $default_branch ]]; then
+  default_branch=$(git remote show origin 2>/dev/null | awk '/HEAD branch/ {print $NF}')
+fi
+if [[ -z $default_branch ]]; then
+  print -u2 "git-changed: could not determine default branch for origin"
+  return 1
+fi
+
+local fork_point
+fork_point=$(git merge-base --fork-point "origin/${default_branch}" 2>/dev/null)
+if [[ -z $fork_point ]]; then
+  fork_point=$(git merge-base HEAD "origin/${default_branch}" 2>/dev/null)
+fi
+if [[ -z $fork_point ]]; then
+  print -u2 "git-changed: could not find merge base with origin/${default_branch}"
+  return 1
+fi
+
+local git_root preview_cmd
+git_root=$(git rev-parse --show-toplevel)
+preview_cmd="git -C ${(q)git_root} diff ${(q)fork_point} -- {}"
+
+local selection
+selection=$(
+  git diff --name-only "$fork_point" \
+  | fzf \
+      --prompt="Changed files> " \
+      --height=80% \
+      --reverse \
+      --preview="$preview_cmd" \
+      --preview-window=bottom:40%:wrap \
+      --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)'
+) || return 130
+
+[[ -z $selection ]] && return 0
+
+${EDITOR:-vi} "${git_root}/${selection}"
