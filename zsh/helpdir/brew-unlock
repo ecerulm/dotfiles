@@ -1,13 +1,1 @@
-brew-unlock
-
-Remove a stale Homebrew update lock file if the process that holds
-it is no longer running.
-
-Reads the PID from
-`/opt/homebrew/var/homebrew/locks/update` (Apple Silicon) or
-`/usr/local/var/homebrew/locks/update` (Intel). If `ps -p <pid>`
-shows the process is still alive, the lock is left in place;
-otherwise both lock paths are removed.
-
-Useful when `brew update` was killed mid-run and subsequent
-invocations refuse to proceed because of the stale lock.
+rlm-brew-unlock

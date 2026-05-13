@@ -1,10 +1,1 @@
-generatectags
-
-Generate a `tags` file for the current directory tree (recursively),
-including the line number (`z`) and kind (`K`) extension fields.
-
-Equivalent to:
-
-  ctags -R --fields=+zK
-
-Requires: ctags (Universal Ctags or Exuberant Ctags).
+rlm-generatectags

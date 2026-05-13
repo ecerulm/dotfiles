@@ -16,6 +16,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   via fzf and open its immutable GitHub permalink (pinned to HEAD SHA) in the
   browser.
 
+### Changed
+
+- `rlm-pr-worktree-rm`: add fzf preview pane (Ctrl-P to cycle height) showing
+  branch name, PR number/URL/state, and files changed vs fork point.
+- `helpdir/`: convert short-name files that were byte-identical to their
+  `rlm-*` counterparts into symlinks, eliminating duplicate content.
+
 ## [2026-05-12]
 
 ### Added

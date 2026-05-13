@@ -13,6 +13,11 @@ origin/main, otherwise "unmerged" (squash-merged PRs typically show
 "unmerged" here — rely on pr-status to know they're actually landed),
 and pr-status is one of  open#N | closed#N | merged#N | no-pr.
 
+The preview pane (bottom, Ctrl-P cycles height) shows:
+  - branch name
+  - PR number, URL, and state (if a PR exists)
+  - git diff --name-only vs the fork point with origin/main
+
 TAB toggles multi-select; ENTER asks for confirmation before deleting.
 Worktrees that fail a normal removal are retried with --force, and
 `git worktree prune` is run at the end.

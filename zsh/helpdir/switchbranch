@@ -1,13 +1,1 @@
 rlm-switchbranch
-
-Pick a local git branch with fzf and switch to it.
-
-Pipes `git branch` into fzf and runs `git switch` on the
-selected branch. The selection retains the leading marker
-column from `git branch` output, but `git switch` tolerates the
-extra whitespace for normal branches.
-
-Must be run inside a git working tree. Aborting fzf cancels
-without switching.
-
-Aliases: switchbranch

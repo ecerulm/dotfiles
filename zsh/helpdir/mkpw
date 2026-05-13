@@ -1,11 +1,1 @@
-mkpw [LENGTH]
-
-Generate a random alphanumeric password by reading bytes from
-/dev/urandom and keeping only `[:alnum:]` characters. LENGTH
-defaults to 14 if not given.
-
-Equivalent to:
-
-  LC_ALL=C tr -cd '[:alnum:]' < /dev/urandom | head -c ${1:-14}
-
-The output has no trailing newline.
+rlm-mkpw

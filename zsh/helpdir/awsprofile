@@ -1,14 +1,1 @@
 rlm-awsprofile
-
-Pick an AWS profile interactively with fzf and export it as
-AWS_PROFILE in the current shell.
-
-Runs `aws configure list-profiles` to enumerate the profiles
-configured in ~/.aws/credentials and ~/.aws/config, pipes them
-into fzf, and exports the selection so subsequent aws / boto3 /
-terraform / pulumi commands in this shell pick it up.
-
-Aborting fzf (Esc / Ctrl-C) leaves AWS_PROFILE set to an empty
-string. Re-run to choose a different profile.
-
-Aliases: awsprofile

@@ -1,10 +1,1 @@
-testterminal
-
-Print a visual test pattern for the current terminal: the full
-256-color ANSI palette (each cell shown as both a background swatch
-and the matching foreground number), followed by a sample line of
-text rendered in regular, bold, italic, bold-italic, underline,
-strikethrough, and red.
-
-Useful for sanity-checking terminal color/font configuration and for
-spotting ambiguous glyphs in a font (`O0 l1 Z2 S5 G6 B8` etc.).
+rlm-testterminal

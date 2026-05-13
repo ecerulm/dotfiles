@@ -1,5 +1,1 @@
-hello
-
-Print "Hello world." followed by a newline. A minimal sanity-check
-function used to confirm the autoloaded-functions path is wired up
-correctly.
+rlm-hello

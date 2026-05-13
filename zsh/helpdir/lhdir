@@ -1,18 +1,1 @@
-rlm-lhdir [hook-name]
-
-Run lefthook on every tracked-or-untracked-but-not-ignored file
-under the current directory, recursively, regardless of git
-stage state.
-
-Defaults to the `pre-commit` hook; pass another stage name as
-the first argument, e.g. `rlm-lhdir pre-push`.
-
-Equivalent to:
-
-    git ls-files --cached --others --exclude-standard . \
-        | lefthook run <hook> --files-from-stdin
-
-Useful for linting / formatting an entire subdirectory without
-having to stage everything first.
-
-Aliases: lhdir, lhd (and rlm-lhd)
+rlm-lhdir

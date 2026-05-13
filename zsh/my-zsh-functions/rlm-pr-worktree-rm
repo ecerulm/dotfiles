@@ -9,6 +9,9 @@
 #                  on pr-status to know they're actually landed)
 #   pr-status    = open#N | closed#N | merged#N | no-pr
 #
+# Preview pane (Ctrl-P to cycle height):
+#   branch name, PR number/URL/state, git diff --name-only vs fork point
+#
 # Multi-select with TAB. Asks for confirmation before deleting.
 # The current worktree and the main worktree are excluded from the picker.
 #
@@ -80,7 +83,16 @@ git -C "$repo_root" worktree list --porcelain | while IFS= read -r line; do
         pr_status="${entry%#*}#${entry#*#}"
       fi
 
-      rows+=("$(printf '%s\t%s\t%-9s\t%s' "$wt_path" "${wt_branch:-<detached>}" "$merge_status" "$pr_status")")
+      # Extract PR number from pr_status (e.g. "open#42" -> "42", "no-pr" -> "")
+      local pr_number=""
+      if [[ $pr_status != "no-pr" ]]; then
+        pr_number=${pr_status#*#}
+      fi
+
+      # Row format (tab-separated):
+      #   col1=path  col2=branch  col3=merge_status  col4=pr_status  col5=pr_number
+      # fzf shows cols 1-4 (--with-nth=1..4); preview uses all 5.
+      rows+=("$(printf '%s\t%s\t%s\t%s\t%s' "$wt_path" "${wt_branch:-<detached>}" "$merge_status" "$pr_status" "$pr_number")")
       wt_path=""
       wt_branch=""
       ;;
@@ -98,7 +110,11 @@ if [[ -n $wt_path && $wt_path != $main_worktree && $wt_path != $current_worktree
     local entry=${pr_state[$wt_branch]}
     pr_status="${entry%#*}#${entry#*#}"
   fi
-  rows+=("$(printf '%s\t%s\t%-9s\t%s' "$wt_path" "${wt_branch:-<detached>}" "$merge_status" "$pr_status")")
+  local pr_number=""
+  if [[ $pr_status != "no-pr" ]]; then
+    pr_number=${pr_status#*#}
+  fi
+  rows+=("$(printf '%s\t%s\t%s\t%s\t%s' "$wt_path" "${wt_branch:-<detached>}" "$merge_status" "$pr_status" "$pr_number")")
 fi
 
 if (( ${#rows} == 0 )); then
@@ -106,21 +122,64 @@ if (( ${#rows} == 0 )); then
   return 0
 fi
 
+# Preview script: receives the full tab-separated row via fzf placeholder {}.
+# col1=wt_path  col2=branch  col3=merge_status  col4=pr_status  col5=pr_number
+local preview_script
+preview_script='
+  wt_path={1}
+  branch={2}
+  pr_number={5}
+  repo_root=$(git -C "$wt_path" rev-parse --show-toplevel 2>/dev/null)
+
+  printf "Branch:  %s\n" "$branch"
+
+  if [ -n "$pr_number" ]; then
+    pr_info=$(gh pr view "$pr_number" --json number,url,state 2>/dev/null)
+    if [ -n "$pr_info" ]; then
+      pr_num=$(printf "%s" "$pr_info" | jq -r ".number")
+      pr_url=$(printf "%s" "$pr_info" | jq -r ".url")
+      pr_state=$(printf "%s" "$pr_info" | jq -r ".state")
+      printf "PR:      #%s  %s  [%s]\n" "$pr_num" "$pr_url" "$pr_state"
+    fi
+  else
+    printf "PR:      (none)\n"
+  fi
+
+  printf "\n--- changed files vs fork point ---\n"
+  if [ -n "$repo_root" ]; then
+    default_branch=$(git -C "$repo_root" symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed "s|refs/remotes/origin/||")
+    [ -z "$default_branch" ] && default_branch=main
+    fork_point=$(git -C "$repo_root" merge-base --fork-point "origin/${default_branch}" 2>/dev/null)
+    [ -z "$fork_point" ] && fork_point=$(git -C "$repo_root" merge-base HEAD "origin/${default_branch}" 2>/dev/null)
+    if [ -n "$fork_point" ]; then
+      git -C "$repo_root" diff --name-only "$fork_point" 2>/dev/null || printf "(could not compute diff)\n"
+    else
+      printf "(could not find fork point)\n"
+    fi
+  else
+    printf "(worktree path unavailable)\n"
+  fi
+'
+
 local selection
 selection=$(
   printf '%s\n' "${rows[@]}" \
-  | column -t -s $'\t' \
   | fzf --multi --ansi --reverse --height=80% \
+        --delimiter=$'\t' \
+        --with-nth=1..4 \
         --prompt='delete> ' \
-        --header='TAB to multi-select, ENTER to confirm, ESC to cancel'
+        --header='TAB to multi-select, ENTER to confirm, ESC to cancel | Ctrl-P: toggle preview' \
+        --preview="$preview_script" \
+        --preview-window=bottom:40%:wrap \
+        --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)'
 ) || return 130
 [[ -z $selection ]] && return 130
 
-# First column of each selected row is the worktree path.
+# First tab-field of each selected row is the worktree path.
 local -a paths_to_delete
 local sel_line
-while IFS= read -r sel_line; do
-  paths_to_delete+=("${sel_line%% *}")
+while IFS=$'\t' read -r sel_path _rest; do
+  paths_to_delete+=("$sel_path")
 done <<< "$selection"
 
 print

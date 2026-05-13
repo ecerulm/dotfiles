@@ -1,12 +1,1 @@
-openports
-
-List all TCP sockets in LISTEN state on the local machine, showing
-which process is bound to which port. Requires sudo so that sockets
-owned by other users (and root-owned daemons) are visible.
-
-Equivalent to:
-
-  sudo lsof -iTCP -sTCP:LISTEN -n -P
-
-`-n` suppresses host-name resolution and `-P` suppresses port-name
-translation, so the output uses raw IPs and port numbers.
+rlm-openports
