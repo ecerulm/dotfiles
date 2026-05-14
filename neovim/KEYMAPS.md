@@ -166,8 +166,7 @@ ______________________________________________________________________
 | n | `<leader>hD` | Diff this file vs parent commit (`~`) |
 | n | `<leader>hq` | Send hunks to quickfix list |
 | n | `<leader>hQ` | Send all hunks (all buffers) to quickfix list |
-| n | `<leader>hm` | Switch diff base to `origin/main` (all buffers) |
-| n | `<leader>hM` | Reset diff base back to HEAD (all buffers) |
+| n | `<leader>hm` | Toggle diff base between `origin/main` and HEAD (all buffers) |
 
 ### Toggles
 

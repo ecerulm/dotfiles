@@ -2,7 +2,7 @@
 
 ## 2026-05-14
 
-- Add `<leader>hm` / `<leader>hM` gitsigns keymaps to diff against `origin/main` and reset to HEAD
+- Add `<leader>hm` gitsigns keymap to toggle diff base between `origin/main` and HEAD by reading `gitsigns.config.base`
 - Add KEYMAPS.md documenting all keymaps, conflicts, and overrides
 - Add AGENTS.md instruction to keep KEYMAPS.md updated when keymaps change
 

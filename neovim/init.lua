@@ -659,12 +659,10 @@ require("gitsigns").setup({
 		end)
 		map("n", "<leader>hq", gitsigns.setqflist)
 
-		-- Diff base: compare against origin/main instead of HEAD
+		-- Diff base: toggle between origin/main and HEAD
 		map("n", "<leader>hm", function()
-			gitsigns.change_base("origin/main", true)
-		end)
-		map("n", "<leader>hM", function()
-			gitsigns.change_base(nil, true)
+			local current = require("gitsigns.config").config.base
+			gitsigns.change_base(current == "origin/main" and nil or "origin/main", true)
 		end)
 
 		-- Toggles
