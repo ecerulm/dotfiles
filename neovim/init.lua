@@ -659,6 +659,14 @@ require("gitsigns").setup({
 		end)
 		map("n", "<leader>hq", gitsigns.setqflist)
 
+		-- Diff base: compare against origin/main instead of HEAD
+		map("n", "<leader>hm", function()
+			gitsigns.change_base("origin/main", true)
+		end)
+		map("n", "<leader>hM", function()
+			gitsigns.change_base(nil, true)
+		end)
+
 		-- Toggles
 		map("n", "<leader>tb", gitsigns.toggle_current_line_blame)
 		map("n", "<leader>tw", gitsigns.toggle_word_diff)

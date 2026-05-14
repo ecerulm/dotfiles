@@ -52,6 +52,10 @@ This is a Lua-based Neovim configuration using Neovim's native `vim.pack` plugin
 
 4. **Formatter** — add to `require("conform").setup({ formatters_by_ft = { ... } })` in `init.lua`
 
+## Keymaps
+
+All keymaps are documented in `KEYMAPS.md`. **Whenever you add, remove, or change a keymap in any config file (`init.lua`, `lua/mini_config.lua`, `lua/snacks_config.lua`, or any `after/` file), update `KEYMAPS.md` to reflect the change.** Also note any conflicts or overrides in the Conflicts and Overrides table at the top of that file.
+
 ## Key Plugins
 
 | Plugin | Purpose |
