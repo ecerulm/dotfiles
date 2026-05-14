@@ -1,0 +1,19 @@
+rlm-git-diff-base [GIT DIFF OPTIONS...]
+
+Run git diff from the merge base of the current branch against its PR
+target branch (if an open PR exists), or against the repo's default
+branch otherwise.
+
+If the current branch has an open GitHub PR, the PR's base branch is
+used as the target. Otherwise the default branch of origin is detected
+from `git symbolic-ref refs/remotes/origin/HEAD`. The merge base is
+computed with `git merge-base --fork-point`; if that fails (shallow
+clone or missing reflog), falls back to `git merge-base`. All extra
+arguments are forwarded verbatim to `git diff`.
+
+ARGUMENTS
+  [GIT DIFF OPTIONS...]   Any options accepted by git-diff(1), e.g.
+                          --stat, --name-only, -- path/to/file.
+
+REQUIRES
+  git, gh

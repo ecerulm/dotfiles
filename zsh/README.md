@@ -88,6 +88,7 @@ are available in any interactive shell. Each function is also aliased to a short
 | `rlm-pr-for-commit <commit-ish>` | `pr-for-commit` | Print the GitHub PR URL that introduced a commit into the default branch. Tries the GitHub API first (works for squash-merges), then falls back to parsing merge commit subjects. |
 | `rlm-jira-open [--print]` | `jira-open` | Open the JIRA ticket associated with the current repo/branch in a browser. Searches branch name → PR title → commit subjects in that order. `--print` outputs the URL instead of opening it. |
 | `rlm-git-changed` | `git-changed` | Pick a file changed since the fork point of the current branch (relative to the default remote branch) via fzf and open it in `$EDITOR`. Preview shows the diff for the selected file. Requires: `git`, `fzf`. |
+| `rlm-git-diff-base` | `git-diff-base` | Run `git diff` from the merge base of the current branch. Uses the PR's base branch if an open PR exists, otherwise falls back to the repo's default branch. Extra arguments are forwarded to `git diff`. Requires: `git`, `gh`. |
 | `rlm-gh-permalink` | `gh-permalink` | Pick a file from the current git repo via fzf (respecting .gitignore) and open its immutable GitHub permalink (pinned to HEAD SHA) in the browser. |
 
 ### Google Cloud / BigQuery
