@@ -166,7 +166,7 @@ ______________________________________________________________________
 | n | `<leader>hD` | Diff this file vs parent commit (`~`) |
 | n | `<leader>hq` | Send hunks to quickfix list |
 | n | `<leader>hQ` | Send all hunks (all buffers) to quickfix list |
-| n | `<leader>hm` | Toggle diff base between `origin/main` and HEAD (all buffers) |
+| n | `<leader>hm` | Toggle diff base between fork point and HEAD (all buffers). Fork point is `git merge-base HEAD <target>` where target is the PR base branch (via `gh pr view`) if this is a PR, else `origin/HEAD`. SHA is cached for the session. |
 
 ### Toggles
 

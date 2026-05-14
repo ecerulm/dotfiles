@@ -659,10 +659,32 @@ require("gitsigns").setup({
 		end)
 		map("n", "<leader>hq", gitsigns.setqflist)
 
-		-- Diff base: toggle between origin/main and HEAD
+		-- Diff base: toggle between merge-base fork point and HEAD
+		-- Target: PR base branch if this is a PR, else origin's default branch.
+		-- The fork point SHA is cached for the session after the first toggle-on.
 		map("n", "<leader>hm", function()
 			local current = require("gitsigns.config").config.base
-			gitsigns.change_base(current == "origin/main" and nil or "origin/main", true)
+			if current ~= nil then
+				gitsigns.change_base(nil, true)
+				return
+			end
+			if vim.g.gitsigns_fork_point_sha == nil then
+				-- Prefer PR base branch, fall back to origin/HEAD default branch
+				local pr_base = vim.trim(vim.fn.system("gh pr view --json baseRefName --jq .baseRefName 2>/dev/null"))
+				local ref
+				if vim.v.shell_error == 0 and pr_base ~= "" then
+					ref = "origin/" .. pr_base
+				else
+					local default =
+						vim.trim(vim.fn.system("git symbolic-ref refs/remotes/origin/HEAD --short 2>/dev/null"))
+					ref = (vim.v.shell_error == 0 and default ~= "") and default or "origin/main"
+				end
+				local sha = vim.trim(vim.fn.system("git merge-base HEAD " .. ref))
+				vim.g.gitsigns_fork_point_sha = (vim.v.shell_error == 0 and sha ~= "") and sha or nil
+			end
+			if vim.g.gitsigns_fork_point_sha then
+				gitsigns.change_base(vim.g.gitsigns_fork_point_sha, true)
+			end
 		end)
 
 		-- Toggles
