@@ -4,6 +4,18 @@ All notable changes to the zsh configuration are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2026-05-14]
+
+### Added
+
+- `create-gh-repo` short alias for `rlm-gh-repo-init`.
+
+### Changed
+
+- `rlm-gh-repo-init`: check for an existing remote before complaining about
+  the missing `OWNER/REPO` argument, so the user is told the dir is already
+  wired up rather than nagged for an argument that would not be used.
+
 ## [2026-05-13]
 
 ### Added

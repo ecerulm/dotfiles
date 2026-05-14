@@ -10,19 +10,20 @@ if ! command -v git >/dev/null 2>&1; then
   return 1
 fi
 
-local repo_slug=${1:?'gh-repo-init: argument required: OWNER/REPO'}
-
 # Must be inside a git repo.
 if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   print -u2 "gh-repo-init: not inside a git repository"
   return 1
 fi
 
-# Bail out if a remote already exists.
+# Bail out if a remote already exists (check before complaining about args
+# so the user learns the dir is already wired up before being asked for OWNER/REPO).
 if git remote | grep -q .; then
   print -u2 "gh-repo-init: remote already configured:"
   git remote -v >&2
   return 1
 fi
+
+local repo_slug=${1:?'gh-repo-init: argument required: OWNER/REPO'}
 
 gh repo create "$repo_slug" --private --source . --push && gh repo view -w
