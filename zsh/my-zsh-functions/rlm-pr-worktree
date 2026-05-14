@@ -65,6 +65,7 @@ _prwt_make_pr_worktree() {
   if [[ -e $worktree_path ]]; then
     print "pr-worktree: $worktree_path already exists; entering it."
     cd -- "$worktree_path"
+    git pull
     return 0
   fi
 
@@ -86,6 +87,7 @@ _prwt_make_pr_worktree() {
   fi
 
   cd -- "$worktree_path"
+  git pull
 }
 
 _prwt_make_jira_worktree() {
@@ -95,6 +97,7 @@ _prwt_make_jira_worktree() {
   if [[ -e $worktree_path ]]; then
     print "pr-worktree: $worktree_path already exists; entering it."
     cd -- "$worktree_path"
+    git pull
     return 0
   fi
 
@@ -112,6 +115,7 @@ _prwt_make_jira_worktree() {
   fi
 
   cd -- "$worktree_path"
+  git pull
 }
 
 # --- direct-arg fast path --------------------------------------------------
