@@ -96,6 +96,8 @@ are available in any interactive shell. Each function is also aliased to a short
 | Function | Short alias | Description |
 |---|---|---|
 | `rlm-bq-open` | `bq-open` | Browse BigQuery tables across projects via fzf and open the selected table in the GCP console. Projects are read from `$BQ_SEARCH_PATH` (colon-separated). Table list is cached in `~/.cache/bq-open/`; select `--- REFRESH CACHE ---` in the picker to re-fetch. Prints the URL, copies it to the clipboard, and opens it in the browser. Requires `bq`, `fzf`, `jq`. |
+| `rlm-gcp-project-open` | `gcp-project-open` | Browse all accessible GCP projects via fzf and open the selected project in the GCP console. Project list is cached in `~/.cache/gcp-project-open/`; select `--- REFRESH CACHE ---` to re-fetch. Prints the URL, copies it to the clipboard, and opens it in the browser. Requires `gcloud`, `fzf`. |
+| `rlm-pubsub-open` | `pubsub-open` | Browse Pub/Sub topics across one or more GCP projects via fzf and open the selected topic in the GCP console. Projects are read from `$PUBSUB_OPEN_PROJECTS` (colon-separated). Topic list is cached in `~/.cache/pubsub-open/`; select `--- REFRESH CACHE ---` to re-fetch. Prints the URL, copies it to the clipboard, and opens it in the browser. Requires `gcloud`, `fzf`. |
 | `rlm-afw-deploy` | `afw-deploy` | Deploy a DAG to the dev Airflow sandbox. Must be run from the project root (containing `airflow_manager/` and `pyproject.toml`). Opens an fzf picker over `*.py` files in `airflow_manager/dag_folder/`; last selection is cached per project root in `~/.cache/afw-deploy/`. Requires `poetry` (with `afw` installed), `fd`, `fzf`. |
 
 ### Python

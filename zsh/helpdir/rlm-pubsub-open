@@ -1,0 +1,34 @@
+rlm-pubsub-open
+
+Browse Pub/Sub topics across one or more GCP projects via fzf and
+open the selected topic in the GCP console.
+
+Projects are read from the environment variable PUBSUB_OPEN_PROJECTS,
+which must be set before calling this function:
+
+  export PUBSUB_OPEN_PROJECTS=my-project-prod:my-project-dev
+
+PUBSUB_OPEN_PROJECTS is a colon-separated list of GCP project IDs.
+Each entry is shown as "project/topic-name".
+
+CACHING
+  The topic list is cached in ~/.cache/pubsub-open/ keyed by the
+  sorted project list. On the first run the list is fetched from
+  GCP; subsequent runs load instantly from the cache.
+
+  The fzf header shows how old the cache is. To refresh it, select
+  the "--- REFRESH CACHE ---" entry at the top of the list; this
+  deletes the cache file and re-fetches all topics before re-opening
+  the picker.
+
+On selection the function:
+  1. Prints the GCP console URL to stdout.
+  2. Copies the URL to the clipboard (pbcopy on macOS,
+     xclip/xsel on Linux).
+  3. Opens the URL in the system browser (open on macOS,
+     xdg-open on Linux).
+
+The fzf preview pane shows the topic details via
+"gcloud pubsub topics describe".
+
+Requires: gcloud (Google Cloud SDK), fzf.

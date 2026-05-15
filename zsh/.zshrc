@@ -242,6 +242,8 @@ autoload -Uz rlm-pr-worktree
 autoload -Uz rlm-pr-worktree-rm
 autoload -Uz rlm-gh-repo-init
 autoload -Uz rlm-bq-open
+autoload -Uz rlm-gcp-project-open
+autoload -Uz rlm-pubsub-open
 autoload -Uz rlm-jira-open
 autoload -Uz rlm-brew-unlock
 autoload -Uz rlm-fcmd
@@ -271,6 +273,8 @@ alias gh-permalink='rlm-gh-permalink'
 alias git-changed='rlm-git-changed'
 alias git-diff-base='rlm-git-diff-base'
 alias bq-open='rlm-bq-open'
+alias gcp-project-open='rlm-gcp-project-open'
+alias pubsub-open='rlm-pubsub-open'
 alias jira-open='rlm-jira-open'
 alias brew-unlock='rlm-brew-unlock'
 alias fcmd='rlm-fcmd'

@@ -1,0 +1,125 @@
+emulate -L zsh
+set -o pipefail
+
+for _cmd in gcloud fzf; do
+  if ! command -v "$_cmd" >/dev/null 2>&1; then
+    print -u2 "gcp-project-open: '$_cmd' not found in PATH"
+    return 1
+  fi
+done
+unset _cmd
+
+local cache_dir="$HOME/.cache/gcp-project-open"
+mkdir -p "$cache_dir"
+# Each line: projectId<TAB>name<TAB>projectNumber
+local cache_file="${cache_dir}/projects.txt"
+# Each line: projectId (key only, for sort lookup)
+local history_file="${cache_dir}/history.txt"
+
+_gcp_project_open_fetch() {
+  print "gcp-project-open: fetching projects …" >&2
+  local output
+  output=$(gcloud projects list --format='value[separator="\t"](projectId,name,projectNumber)' 2>/dev/null)
+
+  if [[ -z $output ]]; then
+    print -u2 "gcp-project-open: no projects found"
+    return 1
+  fi
+
+  print -- "$output" >| "$cache_file"
+}
+
+if [[ ! -f $cache_file ]]; then
+  _gcp_project_open_fetch || return 1
+fi
+
+local mtime now elapsed cache_age
+mtime=$(stat -f %m "$cache_file" 2>/dev/null || stat -c %Y "$cache_file" 2>/dev/null)
+now=$(date +%s)
+elapsed=$(( now - mtime ))
+if (( elapsed < 3600 )); then
+  cache_age="${elapsed}s ago"
+elif (( elapsed < 86400 )); then
+  cache_age="$(( elapsed / 3600 ))h ago"
+else
+  cache_age="$(( elapsed / 86400 ))d ago"
+fi
+
+local refresh_sentinel="--- REFRESH CACHE (cached ${cache_age}) ---"
+
+# Emit cache lines sorted so previously selected projects appear first.
+# History stores projectIds (field 1); grep on field 1 to match full lines.
+_gcp_project_open_sorted_list() {
+  if [[ -f $history_file ]]; then
+    # Lines whose projectId (field 1) appears in history, most recent first, deduped
+    while IFS= read -r proj_id; do
+      grep -m1 -E "^${proj_id}(	|$)" "$cache_file" 2>/dev/null
+    done < <(tac "$history_file" | awk '!seen[$0]++')
+    # Remaining lines whose projectId is not in history
+    grep -vFf <(sed 's/$/\t/' "$history_file") "$cache_file" 2>/dev/null || true
+  else
+    cat "$cache_file"
+  fi
+}
+
+local selection
+selection=$(
+  { print -- "$refresh_sentinel"; _gcp_project_open_sorted_list; } \
+  | fzf --prompt="GCP project> " --height=80% --reverse \
+        --delimiter=$'\t' \
+        --with-nth=1,2,3 \
+        --nth=1,2,3 \
+        --preview="
+          line={}
+          if [ \"\$line\" = '${refresh_sentinel}' ]; then
+            echo 'Run: gcp-project-open  (or delete ~/.cache/gcp-project-open/ and re-run)'
+          else
+            proj_id=\$(printf '%s' \"\$line\" | cut -f1)
+            proj_name=\$(printf '%s' \"\$line\" | cut -f2)
+            proj_num=\$(printf '%s' \"\$line\" | cut -f3)
+            printf 'Name:          %s\nProject ID:    %s\nProject Number: %s\n\n' \
+              \"\$proj_name\" \"\$proj_id\" \"\$proj_num\"
+            gcloud projects describe \"\$proj_id\" 2>&1
+          fi
+        " \
+        --preview-window=bottom:40%:wrap \
+        --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)'
+) || return 130
+
+[[ -z $selection ]] && return 130
+if [[ $selection == "--- REFRESH CACHE"* ]]; then
+  rm -f "$cache_file"
+  _gcp_project_open_fetch || return 1
+  rlm-gcp-project-open
+  return $?
+fi
+
+local sel_project_id
+sel_project_id=${selection%%$'\t'*}
+
+# Append projectId to history (most recent last; tac reverses on read).
+# Trim to 1000 lines so the file never grows unboundedly.
+print -- "$sel_project_id" >> "$history_file"
+local tmp_history
+tmp_history=$(tail -1000 "$history_file") && print -- "$tmp_history" >| "$history_file"
+
+local url="https://console.cloud.google.com/home/dashboard?project=${sel_project_id}"
+
+print "$url"
+
+if command -v pbcopy >/dev/null 2>&1; then
+  print -n "$url" | pbcopy
+  print "gcp-project-open: URL copied to clipboard" >&2
+elif command -v xclip >/dev/null 2>&1; then
+  print -n "$url" | xclip -selection clipboard
+  print "gcp-project-open: URL copied to clipboard" >&2
+elif command -v xsel >/dev/null 2>&1; then
+  print -n "$url" | xsel --clipboard --input
+  print "gcp-project-open: URL copied to clipboard" >&2
+fi
+
+if command -v open >/dev/null 2>&1; then
+  open "$url"
+elif command -v xdg-open >/dev/null 2>&1; then
+  xdg-open "$url"
+fi

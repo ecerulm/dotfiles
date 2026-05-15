@@ -1,0 +1,137 @@
+emulate -L zsh
+set -o pipefail
+
+if [[ -z $PUBSUB_OPEN_PROJECTS ]]; then
+  print -u2 "pubsub-open: PUBSUB_OPEN_PROJECTS is not set"
+  print -u2 "Add the following to ~/.zshrc.thismachine (or another ~/.zshrc.* file):"
+  print -u2 ""
+  print -u2 "  export PUBSUB_OPEN_PROJECTS=storytel-prod:storytel-data-platform-prod:storytel-data-platform-ingress-prod"
+  return 1
+fi
+
+local -a projects
+projects=(${(s[:])PUBSUB_OPEN_PROJECTS})
+
+for _cmd in gcloud fzf; do
+  if ! command -v "$_cmd" >/dev/null 2>&1; then
+    print -u2 "pubsub-open: '$_cmd' not found in PATH"
+    return 1
+  fi
+done
+unset _cmd
+
+local cache_dir="$HOME/.cache/pubsub-open"
+mkdir -p "$cache_dir"
+local cache_key cache_file history_file
+cache_key=$(print -l -- "${(o)projects[@]}" | md5)
+cache_file="${cache_dir}/${cache_key}.txt"
+history_file="${cache_dir}/history.txt"
+
+_pubsub_open_fetch() {
+  local project topic_name
+  local -a topics
+  for project in "${projects[@]}"; do
+    print "pubsub-open: fetching topics from $project …" >&2
+    while IFS= read -r topic_name; do
+      [[ -n $topic_name ]] && topics+=("${project}/${topic_name}")
+    done < <(
+      gcloud pubsub topics list --project="$project" --format='value(name)' 2>/dev/null \
+        | sed 's|projects/[^/]*/topics/||'
+    )
+  done
+
+  if (( ${#topics} == 0 )); then
+    print -u2 "pubsub-open: no topics found in any project"
+    return 1
+  fi
+
+  print -l -- "${topics[@]}" >| "$cache_file"
+}
+
+if [[ ! -f $cache_file ]]; then
+  _pubsub_open_fetch || return 1
+fi
+
+local mtime now elapsed cache_age
+mtime=$(stat -f %m "$cache_file" 2>/dev/null || stat -c %Y "$cache_file" 2>/dev/null)
+now=$(date +%s)
+elapsed=$(( now - mtime ))
+if (( elapsed < 3600 )); then
+  cache_age="${elapsed}s ago"
+elif (( elapsed < 86400 )); then
+  cache_age="$(( elapsed / 3600 ))h ago"
+else
+  cache_age="$(( elapsed / 86400 ))d ago"
+fi
+
+local refresh_sentinel="--- REFRESH CACHE (cached ${cache_age}) ---"
+
+_pubsub_open_sorted_list() {
+  if [[ -f $history_file ]]; then
+    # History entries that still exist in the cache, most recent first, deduped
+    while IFS= read -r entry; do
+      grep -m1 -F "$entry" "$cache_file" 2>/dev/null
+    done < <(tac "$history_file" | awk '!seen[$0]++')
+    # Remaining entries not in history
+    grep -vFf "$history_file" "$cache_file" 2>/dev/null || true
+  else
+    cat "$cache_file"
+  fi
+}
+
+local selection
+selection=$(
+  { print -- "$refresh_sentinel"; _pubsub_open_sorted_list; } \
+  | fzf --prompt="Pub/Sub topic> " --height=80% --reverse \
+        --preview="
+          line={}
+          if [ \"\$line\" = '${refresh_sentinel}' ]; then
+            echo 'Run: pubsub-open  (or delete ~/.cache/pubsub-open/ and re-run)'
+          else
+            proj=\${line%%/*}
+            topic=\${line##*/}
+            gcloud pubsub topics describe \"projects/\${proj}/topics/\${topic}\" \
+              --project=\"\${proj}\" 2>&1
+          fi
+        " \
+        --preview-window=bottom:40%:wrap \
+        --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)'
+) || return 130
+
+[[ -z $selection ]] && return 130
+if [[ $selection == "--- REFRESH CACHE"* ]]; then
+  rm -f "$cache_file"
+  _pubsub_open_fetch || return 1
+  rlm-pubsub-open
+  return $?
+fi
+
+local sel_project sel_topic
+sel_project=${selection%%/*}
+sel_topic=${selection##*/}
+
+# Append to history and trim to 1000 lines
+print -- "$selection" >> "$history_file"
+local tmp_history
+tmp_history=$(tail -1000 "$history_file") && print -- "$tmp_history" >| "$history_file"
+
+local url="https://console.cloud.google.com/cloudpubsub/topic/detail/${sel_topic}?project=${sel_project}"
+
+print "$url"
+
+if command -v pbcopy >/dev/null 2>&1; then
+  print -n "$url" | pbcopy
+  print "pubsub-open: URL copied to clipboard" >&2
+elif command -v xclip >/dev/null 2>&1; then
+  print -n "$url" | xclip -selection clipboard
+  print "pubsub-open: URL copied to clipboard" >&2
+elif command -v xsel >/dev/null 2>&1; then
+  print -n "$url" | xsel --clipboard --input
+  print "pubsub-open: URL copied to clipboard" >&2
+fi
+
+if command -v open >/dev/null 2>&1; then
+  open "$url"
+elif command -v xdg-open >/dev/null 2>&1; then
+  xdg-open "$url"
+fi

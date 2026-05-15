@@ -1,0 +1,33 @@
+rlm-gcp-project-open
+
+Browse all GCP projects accessible to the current gcloud account via
+fzf and open the selected project in the GCP console.
+
+Projects are fetched with "gcloud projects list" and include every
+project visible to the active gcloud credential. Previously selected
+projects float to the top of the list, most recent first.
+
+CACHING
+  The project list is cached in ~/.cache/gcp-project-open/projects.txt.
+  Selection history is recorded in ~/.cache/gcp-project-open/history.txt
+  and used to re-sort the list on each invocation.
+
+  On the first run the list is fetched from GCP; subsequent runs load
+  instantly from the cache.
+
+  The fzf header shows how old the cache is. To refresh it, select
+  the "--- REFRESH CACHE ---" entry at the top of the list; this
+  deletes the cache file and re-fetches all projects before re-opening
+  the picker.
+
+On selection the function:
+  1. Prints the GCP console URL to stdout.
+  2. Copies the URL to the clipboard (pbcopy on macOS,
+     xclip/xsel on Linux).
+  3. Opens the URL in the system browser (open on macOS,
+     xdg-open on Linux).
+
+The fzf preview pane shows project details via
+"gcloud projects describe".
+
+Requires: gcloud (Google Cloud SDK), fzf.
