@@ -83,9 +83,10 @@ _prwtrm_add_row() {
 
   # Row format (tab-separated):
   #   col1=rel_path  col2=branch  col3=merge_status  col4=pr_status
-  #   col5=pr_number  col6=abs_path
-  # fzf shows cols 1-4 (--with-nth=1..4); preview and deletion use col5/col6.
-  rows+=("$(printf '%s\t%s\t%s\t%s\t%s\t%s' "$rel_path" "$branch" "$merge_status" "$pr_status" "$pr_number" "$path")")
+  #   col5=abs_path  col6=pr_number
+  # fzf shows col1 only (--with-nth=1); preview uses col2/col5/col6; deletion uses col5.
+  # abs_path is at col5 (never empty) so IFS-tab read never skips it via whitespace collapse.
+  rows+=("$(printf '%s\t%s\t%s\t%s\t%s\t%s' "$rel_path" "$branch" "$merge_status" "$pr_status" "$path" "$pr_number")")
 }
 
 while IFS= read -r line; do
@@ -120,7 +121,7 @@ fi
 
 # Write the preview script to a temp file to avoid quoting hell with jq filters.
 # col1=rel_path  col2=branch  col3=merge_status  col4=pr_status
-# col5=pr_number  col6=abs_path
+# col5=abs_path  col6=pr_number
 local preview_file
 preview_file=$(mktemp /tmp/prwtrm-preview.XXXXXX) || {
   print -u2 "pr-worktree-rm: could not create temp file"
@@ -129,8 +130,8 @@ preview_file=$(mktemp /tmp/prwtrm-preview.XXXXXX) || {
 cat > "$preview_file" << 'PREVIEW_EOF'
 #!/bin/sh
 branch=$2
-pr_number=$5
-abs_path=$6
+abs_path=$5
+pr_number=$6
 
 # --- JIRA ---
 # Extract a JIRA key from the branch name (e.g. DATA-1234 or feature/DATA-1234).
@@ -220,9 +221,9 @@ local fzf_exit=$?
 rm -f "$preview_file"
 [[ $fzf_exit -ne 0 || -z $selection ]] && return 130
 
-# col6 (absolute path) is used for deletion; col1 (relative path) for display.
+# col5 (absolute path) is used for deletion; col1 (relative path) for display.
 local -a paths_to_delete paths_display
-while IFS=$'\t' read -r rel_path _branch _merge _prstatus _prnum abs_path; do
+while IFS=$'\t' read -r rel_path _branch _merge _prstatus abs_path _prnum; do
   paths_to_delete+=("$abs_path")
   paths_display+=("$rel_path")
 done <<< "$selection"
@@ -245,12 +246,15 @@ local failed=0 i
 for (( i = 1; i <= ${#paths_to_delete}; i++ )); do
   local p=${paths_to_delete[$i]}
   local d=${paths_display[$i]}
+  local err
   if git -C "$repo_root" worktree remove "$p" 2>/dev/null; then
     print "removed: $d"
-  elif git -C "$repo_root" worktree remove --force "$p" 2>/dev/null; then
+  elif err=$(git -C "$repo_root" worktree remove --force "$p" 2>&1); then
     print "removed (force): $d"
   else
-    print -u2 "failed:  $d"
+    print -u2 "failed:  $d ($p)"
+    print -u2 "  hint: $(git -C "$repo_root" worktree remove "$p" 2>&1 || true)"
+    [[ -n $err ]] && print -u2 "  force: $err"
     failed=$(( failed + 1 ))
   fi
 done
