@@ -6,16 +6,18 @@ picker.
 
 Each row shows:
 
-  <path>  <branch>  <merge-status>  <pr-status>
+  <rel-path>  <branch>  <merge-status>  <pr-status>
 
-where merge-status is "merged" if the branch tip is an ancestor of
+where rel-path is relative to the git root of the current directory,
+merge-status is "merged" if the branch tip is an ancestor of
 origin/main, otherwise "unmerged" (squash-merged PRs typically show
 "unmerged" here — rely on pr-status to know they're actually landed),
 and pr-status is one of  open#N | closed#N | merged#N | no-pr.
 
-The preview pane (bottom, Ctrl-P cycles height) shows:
-  - branch name
-  - PR number, URL, and state (if a PR exists)
+The preview pane (bottom, Ctrl-P cycles height) shows, in order:
+  - JIRA ticket number and title (if branch contains a JIRA key)
+  - PR number, state, title, and URL (if a PR exists)
+  - git branch name
   - git diff --name-only vs the fork point with origin/main
 
 TAB toggles multi-select; ENTER asks for confirmation before deleting.

@@ -1,16 +1,20 @@
 # pr-worktree-rm: pick worktrees in the current repo via fzf and delete them.
 #
 # Each row shows:
-#   <path>  <branch>  <merge-status>  <pr-status>
+#   <rel-path>  <branch>  <merge-status>  <pr-status>
 # where:
+#   rel-path     = path relative to the git root of the current directory
 #   merge-status = merged | unmerged
 #                  "merged" if the branch tip is an ancestor of origin/main
 #                  (squash-merged PRs typically show "unmerged" here — rely
 #                  on pr-status to know they're actually landed)
 #   pr-status    = open#N | closed#N | merged#N | no-pr
 #
-# Preview pane (Ctrl-P to cycle height):
-#   branch name, PR number/URL/state, git diff --name-only vs fork point
+# Preview pane (Ctrl-P to cycle height), in order:
+#   JIRA ticket number and title (if branch matches a JIRA key)
+#   PR number, URL and state
+#   git branch name
+#   git diff --name-only vs fork point
 #
 # Multi-select with TAB. Asks for confirmation before deleting.
 # The current worktree and the main worktree are excluded from the picker.
@@ -55,10 +59,36 @@ while IFS=$'\t' read -r branch state number; do
 done < <(print -r -- "$pr_json" | jq -r '.[] | [.headRefName, .state, .number] | @tsv')
 
 # Walk worktrees, build picker rows.
+# Use process substitution (not a pipe) so variables assigned inside the loop
+# are visible in the outer shell.
 local -a rows
-local wt_path wt_branch
-local block
-git -C "$repo_root" worktree list --porcelain | while IFS= read -r line; do
+local wt_path="" wt_branch=""
+
+_prwtrm_add_row() {
+  local path=$1 branch=${2:-<detached>}
+  local merge_status="unmerged"
+  if [[ -n $2 ]] && git -C "$repo_root" merge-base --is-ancestor "$2" origin/main 2>/dev/null; then
+    merge_status="merged"
+  fi
+  local pr_status="no-pr"
+  if [[ -n $2 && -n ${pr_state[$2]} ]]; then
+    local entry=${pr_state[$2]}
+    pr_status="${entry%#*}#${entry#*#}"
+  fi
+  local pr_number=""
+  [[ $pr_status != "no-pr" ]] && pr_number=${pr_status#*#}
+
+  local rel_path=${path#${repo_root:h}/}
+  [[ $rel_path == $path ]] && rel_path=$path
+
+  # Row format (tab-separated):
+  #   col1=rel_path  col2=branch  col3=merge_status  col4=pr_status
+  #   col5=pr_number  col6=abs_path
+  # fzf shows cols 1-4 (--with-nth=1..4); preview and deletion use col5/col6.
+  rows+=("$(printf '%s\t%s\t%s\t%s\t%s\t%s' "$rel_path" "$branch" "$merge_status" "$pr_status" "$pr_number" "$path")")
+}
+
+while IFS= read -r line; do
   case $line in
     worktree\ *)
       wt_path=${line#worktree }
@@ -69,52 +99,18 @@ git -C "$repo_root" worktree list --porcelain | while IFS= read -r line; do
       ;;
     "")
       [[ -z $wt_path ]] && continue
-      [[ $wt_path == $main_worktree ]] && { wt_path=""; continue; }
-      [[ $wt_path == $current_worktree ]] && { wt_path=""; continue; }
-
-      local merge_status="unmerged"
-      if [[ -n $wt_branch ]] && git -C "$repo_root" merge-base --is-ancestor "$wt_branch" origin/main 2>/dev/null; then
-        merge_status="merged"
+      if [[ $wt_path != $main_worktree && $wt_path != $current_worktree ]]; then
+        _prwtrm_add_row "$wt_path" "$wt_branch"
       fi
-
-      local pr_status="no-pr"
-      if [[ -n $wt_branch && -n ${pr_state[$wt_branch]} ]]; then
-        local entry=${pr_state[$wt_branch]}
-        pr_status="${entry%#*}#${entry#*#}"
-      fi
-
-      # Extract PR number from pr_status (e.g. "open#42" -> "42", "no-pr" -> "")
-      local pr_number=""
-      if [[ $pr_status != "no-pr" ]]; then
-        pr_number=${pr_status#*#}
-      fi
-
-      # Row format (tab-separated):
-      #   col1=path  col2=branch  col3=merge_status  col4=pr_status  col5=pr_number
-      # fzf shows cols 1-4 (--with-nth=1..4); preview uses all 5.
-      rows+=("$(printf '%s\t%s\t%s\t%s\t%s' "$wt_path" "${wt_branch:-<detached>}" "$merge_status" "$pr_status" "$pr_number")")
       wt_path=""
       wt_branch=""
       ;;
   esac
-done
+done < <(git -C "$repo_root" worktree list --porcelain)
 
-# Handle the trailing block if the porcelain output didn't end with a blank line.
+# Handle trailing block if porcelain output didn't end with a blank line.
 if [[ -n $wt_path && $wt_path != $main_worktree && $wt_path != $current_worktree ]]; then
-  local merge_status="unmerged"
-  if [[ -n $wt_branch ]] && git -C "$repo_root" merge-base --is-ancestor "$wt_branch" origin/main 2>/dev/null; then
-    merge_status="merged"
-  fi
-  local pr_status="no-pr"
-  if [[ -n $wt_branch && -n ${pr_state[$wt_branch]} ]]; then
-    local entry=${pr_state[$wt_branch]}
-    pr_status="${entry%#*}#${entry#*#}"
-  fi
-  local pr_number=""
-  if [[ $pr_status != "no-pr" ]]; then
-    pr_number=${pr_status#*#}
-  fi
-  rows+=("$(printf '%s\t%s\t%s\t%s\t%s' "$wt_path" "${wt_branch:-<detached>}" "$merge_status" "$pr_status" "$pr_number")")
+  _prwtrm_add_row "$wt_path" "$wt_branch"
 fi
 
 if (( ${#rows} == 0 )); then
@@ -122,71 +118,120 @@ if (( ${#rows} == 0 )); then
   return 0
 fi
 
-# Preview script: receives the full tab-separated row via fzf placeholder {}.
-# col1=wt_path  col2=branch  col3=merge_status  col4=pr_status  col5=pr_number
-local preview_script
-preview_script='
-  wt_path={1}
-  branch={2}
-  pr_number={5}
-  repo_root=$(git -C "$wt_path" rev-parse --show-toplevel 2>/dev/null)
+# Write the preview script to a temp file to avoid quoting hell with jq filters.
+# col1=rel_path  col2=branch  col3=merge_status  col4=pr_status
+# col5=pr_number  col6=abs_path
+local preview_file
+preview_file=$(mktemp /tmp/prwtrm-preview.XXXXXX) || {
+  print -u2 "pr-worktree-rm: could not create temp file"
+  return 1
+}
+cat > "$preview_file" << 'PREVIEW_EOF'
+#!/bin/sh
+branch=$2
+pr_number=$5
+abs_path=$6
 
-  printf "Branch:  %s\n" "$branch"
-
-  if [ -n "$pr_number" ]; then
-    pr_info=$(gh pr view "$pr_number" --json number,url,state 2>/dev/null)
-    if [ -n "$pr_info" ]; then
-      pr_num=$(printf "%s" "$pr_info" | jq -r ".number")
-      pr_url=$(printf "%s" "$pr_info" | jq -r ".url")
-      pr_state=$(printf "%s" "$pr_info" | jq -r ".state")
-      printf "PR:      #%s  %s  [%s]\n" "$pr_num" "$pr_url" "$pr_state"
-    fi
-  else
-    printf "PR:      (none)\n"
-  fi
-
-  printf "\n--- changed files vs fork point ---\n"
-  if [ -n "$repo_root" ]; then
-    default_branch=$(git -C "$repo_root" symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed "s|refs/remotes/origin/||")
-    [ -z "$default_branch" ] && default_branch=main
-    fork_point=$(git -C "$repo_root" merge-base --fork-point "origin/${default_branch}" 2>/dev/null)
-    [ -z "$fork_point" ] && fork_point=$(git -C "$repo_root" merge-base HEAD "origin/${default_branch}" 2>/dev/null)
-    if [ -n "$fork_point" ]; then
-      git -C "$repo_root" diff --name-only "$fork_point" 2>/dev/null || printf "(could not compute diff)\n"
+# --- JIRA ---
+# Extract a JIRA key from the branch name (e.g. DATA-1234 or feature/DATA-1234).
+jira_key=$(printf '%s' "$branch" | grep -oE '[A-Z][A-Z0-9_]+-[0-9]+' | head -1)
+if [ -n "$jira_key" ]; then
+  jira_cache="$HOME/.cache/wts-jira/${jira_key}.summary"
+  cache_stale=1
+  if [ -f "$jira_cache" ]; then
+    # macOS stat: -f %m gives mtime in seconds; GNU stat: -c %Y
+    if stat -f %m "$jira_cache" >/dev/null 2>&1; then
+      mtime=$(stat -f %m "$jira_cache")
     else
-      printf "(could not find fork point)\n"
+      mtime=$(stat -c %Y "$jira_cache")
     fi
-  else
-    printf "(worktree path unavailable)\n"
+    age=$(( $(date +%s) - mtime ))
+    [ "$age" -lt 259200 ] && cache_stale=0  # 3 days = 259200 s
   fi
-'
+  if [ "$cache_stale" -eq 1 ] && command -v acli >/dev/null 2>&1; then
+    mkdir -p "$HOME/.cache/wts-jira"
+    fetched=$(acli jira workitem view "$jira_key" --json 2>/dev/null \
+      | jq -r '(.. | objects | select(has("key") and has("fields")?)) |
+          "\(.fields.status.name // "?")  \(.fields.summary // "")"' 2>/dev/null \
+      | head -1)
+    if [ -n "$fetched" ]; then
+      printf '%s' "$fetched" > "$jira_cache"
+    fi
+  fi
+  if [ -f "$jira_cache" ]; then
+    jira_summary=$(cat "$jira_cache")
+    printf 'JIRA:    %s  %s\n' "$jira_key" "$jira_summary"
+  else
+    printf 'JIRA:    %s\n' "$jira_key"
+  fi
+fi
+
+# --- PR ---
+if [ -n "$pr_number" ]; then
+  pr_info=$(gh pr view "$pr_number" --json number,title,url,state 2>/dev/null)
+  if [ -n "$pr_info" ]; then
+    pr_num=$(printf '%s' "$pr_info" | jq -r '.number')
+    pr_title=$(printf '%s' "$pr_info" | jq -r '.title')
+    pr_url=$(printf '%s' "$pr_info" | jq -r '.url')
+    pr_st=$(printf '%s' "$pr_info" | jq -r '.state')
+    printf 'PR:      #%s  [%s]  %s\n' "$pr_num" "$pr_st" "$pr_title"
+    printf '         %s\n' "$pr_url"
+  fi
+else
+  printf 'PR:      (none)\n'
+fi
+
+# --- Branch ---
+printf 'Branch:  %s\n' "$branch"
+
+# --- Changed files ---
+printf '\n--- changed files vs fork point ---\n'
+repo_root=$(git -C "$abs_path" rev-parse --show-toplevel 2>/dev/null)
+if [ -n "$repo_root" ]; then
+  default_branch=$(git -C "$repo_root" symbolic-ref refs/remotes/origin/HEAD 2>/dev/null \
+    | sed 's|refs/remotes/origin/||')
+  [ -z "$default_branch" ] && default_branch=main
+  fork_point=$(git -C "$repo_root" merge-base --fork-point "origin/${default_branch}" 2>/dev/null)
+  [ -z "$fork_point" ] && fork_point=$(git -C "$repo_root" merge-base HEAD "origin/${default_branch}" 2>/dev/null)
+  if [ -n "$fork_point" ]; then
+    git -C "$repo_root" diff --name-only "$fork_point" 2>/dev/null || printf '(could not compute diff)\n'
+  else
+    printf '(could not find fork point)\n'
+  fi
+else
+  printf '(worktree path unavailable)\n'
+fi
+PREVIEW_EOF
+chmod +x "$preview_file"
 
 local selection
 selection=$(
   printf '%s\n' "${rows[@]}" \
   | fzf --multi --ansi --reverse --height=80% \
         --delimiter=$'\t' \
-        --with-nth=1..4 \
+        --with-nth=1 \
         --prompt='delete> ' \
         --header='TAB to multi-select, ENTER to confirm, ESC to cancel | Ctrl-P: toggle preview' \
-        --preview="$preview_script" \
+        --preview="sh '$preview_file' {1} {2} {3} {4} {5} {6}" \
         --preview-window=bottom:40%:wrap \
         --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)'
-) || return 130
-[[ -z $selection ]] && return 130
+)
+local fzf_exit=$?
+rm -f "$preview_file"
+[[ $fzf_exit -ne 0 || -z $selection ]] && return 130
 
-# First tab-field of each selected row is the worktree path.
-local -a paths_to_delete
-local sel_line
-while IFS=$'\t' read -r sel_path _rest; do
-  paths_to_delete+=("$sel_path")
+# col6 (absolute path) is used for deletion; col1 (relative path) for display.
+local -a paths_to_delete paths_display
+while IFS=$'\t' read -r rel_path _branch _merge _prstatus _prnum abs_path; do
+  paths_to_delete+=("$abs_path")
+  paths_display+=("$rel_path")
 done <<< "$selection"
 
 print
 print "About to delete the following worktree(s):"
-local p
-for p in "${paths_to_delete[@]}"; do
-  print "  $p"
+local dp
+for dp in "${paths_display[@]}"; do
+  print "  $dp"
 done
 print -n "Proceed? [y/N] "
 local reply
@@ -196,15 +241,17 @@ if [[ ${reply:l} != y && ${reply:l} != yes ]]; then
   return 1
 fi
 
-local failed=0
-for p in "${paths_to_delete[@]}"; do
+local failed=0 i
+for (( i = 1; i <= ${#paths_to_delete}; i++ )); do
+  local p=${paths_to_delete[$i]}
+  local d=${paths_display[$i]}
   if git -C "$repo_root" worktree remove "$p" 2>/dev/null; then
-    print "removed: $p"
+    print "removed: $d"
   elif git -C "$repo_root" worktree remove --force "$p" 2>/dev/null; then
-    print "removed (force): $p"
+    print "removed (force): $d"
   else
-    print -u2 "failed:  $p"
-    failed=$((failed + 1))
+    print -u2 "failed:  $d"
+    failed=$(( failed + 1 ))
   fi
 done
 
