@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-05-16
+
+- Wire local `git-pr-review.nvim` plugin into runtime via `vim.opt.rtp:prepend`
+- Add `<leader>gP` keymap to toggle the `:PRView` drawer and document it in KEYMAPS.md
+
 ## 2026-05-14
 
 - Add `<leader>hm` gitsigns keymap to toggle diff base between `origin/main` and HEAD by reading `gitsigns.config.base`

@@ -7,6 +7,9 @@ if not ok then
 end
 thismachine.pre()
 
+-- Local plugin: git-pr-review (~/git/personal/git-pr-review.nvim)
+vim.opt.rtp:prepend(vim.fn.expand("~/git/personal/git-pr-review.nvim"))
+
 -- plugins
 vim.pack.add({
 	"https://github.com/neovim/nvim-lspconfig",

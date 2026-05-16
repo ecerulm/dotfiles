@@ -109,6 +109,8 @@ function M.setup()
 		Snacks.picker.lazygit()
 	end, { desc = "Lazygit UI", unique = true })
 
+	vim.keymap.set("n", "<leader>gP", "<cmd>PRView<cr>", { desc = "PR review drawer", unique = true })
+
 	-- snacks.nvim search pickers
 
 	vim.keymap.set("n", "<leader>sd", function()

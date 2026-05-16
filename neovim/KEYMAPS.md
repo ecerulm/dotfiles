@@ -192,6 +192,7 @@ ______________________________________________________________________
 | n | `<leader>gd` | Git diff (hunks) picker |
 | n | `<leader>gf` | Git log for current file |
 | n | `<leader>gg` | Open Lazygit UI |
+| n | `<leader>gP` | Toggle PR review drawer (git-pr-review.nvim) |
 
 ______________________________________________________________________
 

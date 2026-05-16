@@ -15,6 +15,7 @@ Update the plugins by running `:lua vim.pack.update()`
 - mini.ai , improved text objects
 - mini.move, use alt + hjkl
 - mini.snippets / friendly-snippets / ~/.config/nvim/snippets/<filetype>.json
+- git-pr-review.nvim (local, `~/git/personal/git-pr-review.nvim`) — `:PRView` drawer of files changed since the fork-point with the PR base / default branch
 
 # Keymaps
 
