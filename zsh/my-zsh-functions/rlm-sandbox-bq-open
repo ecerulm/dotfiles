@@ -1,0 +1,133 @@
+emulate -L zsh
+set -o pipefail
+
+if [[ -z $SANDBOX_BQ_PROJECT ]]; then
+  print -u2 "sandbox-bq-open: SANDBOX_BQ_PROJECT is not set"
+  return 1
+fi
+if [[ -z $SANDBOX_BQ_DATASETS ]]; then
+  print -u2 "sandbox-bq-open: SANDBOX_BQ_DATASETS is not set"
+  return 1
+fi
+
+for _cmd in bq fzf jq; do
+  if ! command -v "$_cmd" >/dev/null 2>&1; then
+    print -u2 "sandbox-bq-open: '$_cmd' not found in PATH"
+    return 1
+  fi
+done
+unset _cmd
+
+local project="$SANDBOX_BQ_PROJECT"
+local -a datasets
+datasets=(${(s[:])SANDBOX_BQ_DATASETS})
+local cache_dir="$HOME/.cache/sandbox-bq-open"
+mkdir -p "$cache_dir"
+local cache_file="${cache_dir}/items.txt"
+local history_file="${cache_dir}/history.txt"
+
+_sandbox_bq_open_fetch() {
+  local dataset table_json
+  local -a tables
+  print "sandbox-bq-open: fetching tables from ${project} …" >&2
+  for dataset in "${datasets[@]}"; do
+    table_json=$(bq ls --format=json --project_id="$project" "$dataset" 2>/dev/null) || continue
+    while IFS= read -r tbl; do
+      [[ -n $tbl ]] && tables+=("${project}:${dataset}.${tbl}")
+    done < <(print -- "$table_json" | jq -r '.[].tableReference.tableId // empty' 2>/dev/null)
+  done
+
+  if (( ${#tables} == 0 )); then
+    print -u2 "sandbox-bq-open: no tables found"
+    return 1
+  fi
+
+  print -l -- "${tables[@]}" >| "$cache_file"
+}
+
+if [[ ! -f $cache_file ]]; then
+  _sandbox_bq_open_fetch || return 1
+fi
+
+local mtime now elapsed cache_age
+mtime=$(stat -f %m "$cache_file" 2>/dev/null || stat -c %Y "$cache_file" 2>/dev/null)
+now=$(date +%s)
+elapsed=$(( now - mtime ))
+if (( elapsed < 3600 )); then
+  cache_age="${elapsed}s ago"
+elif (( elapsed < 86400 )); then
+  cache_age="$(( elapsed / 3600 ))h ago"
+else
+  cache_age="$(( elapsed / 86400 ))d ago"
+fi
+
+local refresh_sentinel="--- REFRESH CACHE (cached ${cache_age}) ---"
+
+_sandbox_bq_open_sorted_list() {
+  if [[ -f $history_file ]]; then
+    while IFS= read -r entry; do
+      grep -m1 -F "$entry" "$cache_file" 2>/dev/null
+    done < <(tac "$history_file" | awk '!seen[$0]++')
+    grep -vFf "$history_file" "$cache_file" 2>/dev/null || true
+  else
+    cat "$cache_file"
+  fi
+}
+
+local selection
+selection=$(
+  { print -- "$refresh_sentinel"; _sandbox_bq_open_sorted_list; } \
+  | fzf --prompt="Sandbox BQ table> " --height=80% --reverse \
+        --preview="
+          line={}
+          if [ \"\$line\" = '${refresh_sentinel}' ]; then
+            echo 'Select to refresh the table cache'
+          else
+            proj=\${line%%:*}; rest=\${line##*:}
+            bq show --format=prettyjson \"\${proj}:\${rest}\" \
+              | jq '{type,kind,id,description,numPartitions,numRows,numTotalLogicalBytes} + .'
+          fi
+        " \
+        --preview-window=bottom:40%:wrap \
+        --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)'
+) || return 130
+
+[[ -z $selection ]] && return 130
+
+if [[ $selection == "--- REFRESH CACHE"* ]]; then
+  rm -f "$cache_file"
+  _sandbox_bq_open_fetch || return 1
+  rlm-sandbox-bq-open
+  return $?
+fi
+
+print -- "$selection" >> "$history_file"
+local _tmp_hist
+_tmp_hist=$(tail -1000 "$history_file") && print -- "$_tmp_hist" >| "$history_file"
+
+local sel_project dataset_table sel_dataset sel_table
+sel_project=${selection%%:*}
+dataset_table=${selection##*:}
+sel_dataset=${dataset_table%%.*}
+sel_table=${dataset_table##*.}
+
+local url="https://console.cloud.google.com/bigquery?project=${sel_project}&ws=!1m5!1m4!4m3!1s${sel_project}!2s${sel_dataset}!3s${sel_table}"
+
+print "$url"
+
+if command -v pbcopy >/dev/null 2>&1; then
+  print -n "$url" | pbcopy
+  print "sandbox-bq-open: URL copied to clipboard" >&2
+elif command -v xclip >/dev/null 2>&1; then
+  print -n "$url" | xclip -selection clipboard
+  print "sandbox-bq-open: URL copied to clipboard" >&2
+elif command -v xsel >/dev/null 2>&1; then
+  print -n "$url" | xsel --clipboard --input
+  print "sandbox-bq-open: URL copied to clipboard" >&2
+fi
+
+if command -v open >/dev/null 2>&1; then
+  open "$url"
+elif command -v xdg-open >/dev/null 2>&1; then
+  xdg-open "$url"
+fi

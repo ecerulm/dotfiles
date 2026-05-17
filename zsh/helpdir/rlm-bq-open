@@ -12,14 +12,28 @@ BQ_SEARCH_PATH is a colon-separated list of GCP project IDs. Tables
 from all listed projects are merged into a single picker, with each
 entry shown as "project:dataset.table".
 
+SANDBOX SUPPORT
+  Optionally, set SANDBOX_BQ_PROJECT to a GCP project ID to include
+  tables from a sandbox project. Sandbox entries appear in purple in
+  the picker, prefixed with "[sandbox]".
+
+  Set SANDBOX_BQ_DATASETS to a colon-separated list of dataset IDs to
+  fetch from that project:
+
+    export SANDBOX_BQ_PROJECT=my-sandbox-project
+    export SANDBOX_BQ_DATASETS=dataset_a:dataset_b
+
+  Both variables must be set together; SANDBOX_BQ_PROJECT alone has no
+  effect.
+
 CACHING
   The table list is cached in ~/.cache/bq-open/ keyed by the set of
-  projects in BQ_SEARCH_PATH. On the first run the list is fetched
+  projects and sandbox variables. On the first run the list is fetched
   from BigQuery; subsequent runs load instantly from the cache.
 
   The fzf header shows how old the cache is. To refresh it, select
   the "--- REFRESH CACHE ---" entry at the top of the list; this
-  deletes the cache file and re-fetches all tables before re-opening
+  deletes the cache files and re-fetches all tables before re-opening
   the picker.
 
 On selection the function:
@@ -33,4 +47,5 @@ The fzf preview pane shows the full table schema via
 "bq show --format=prettyjson".
 
 Requires: bq (Google Cloud SDK), fzf, jq.
-Environment: BQ_SEARCH_PATH (required).
+Environment: BQ_SEARCH_PATH (required unless SANDBOX_BQ_PROJECT is set),
+             SANDBOX_BQ_PROJECT (optional), SANDBOX_BQ_DATASETS (optional).

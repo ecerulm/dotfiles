@@ -1,0 +1,21 @@
+rlm-sandbox-bq-open
+
+Browse BigQuery tables in a sandbox project via fzf and open the
+selected table in the GCP console. The project and dataset list are
+configured via environment variables (set in ~/.zshrc.thismachine).
+
+The table list is cached in ~/.cache/sandbox-bq-open/items.txt.
+Select "--- REFRESH CACHE ---" in the picker to re-fetch. The
+selection history is kept in ~/.cache/sandbox-bq-open/history.txt
+and survives cache refreshes.
+
+Press Ctrl-P to cycle the preview pane height (40% → 70% → hidden).
+
+ENVIRONMENT
+  SANDBOX_BQ_PROJECT   GCP project ID to search (required).
+  SANDBOX_BQ_DATASETS  Colon-separated list of dataset names to
+                       include (required). Example:
+                       ecerulm:ecerulm_dw:ecerulm_prep
+
+REQUIRES
+  bq, fzf, jq

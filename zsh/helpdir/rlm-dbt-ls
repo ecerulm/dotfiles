@@ -1,0 +1,39 @@
+dbt-ls [SELECTOR]
+
+Run "dbt ls" with an interactive fzf picker over the resulting model
+names, then offer the opportunity to edit the selector and retry.
+
+Searches upward from the current directory for a dbt_project.yml file
+(skipping dbt_packages/ and dbt_internal_packages/). The profiles
+directory is assumed to be ./profile/ relative to that root, and the
+profile name is read from the first top-level key in profiles.yml.
+
+WORKFLOW
+  1. If a selector was not supplied as an argument, or after the fzf
+     picker exits without a selection, you are prompted to enter or
+     edit the dbt node-selector expression.
+  2. "dbt ls -s <selector> --profiles-dir <dir> --profile local_dev"
+     is run via "poetry run dbt ls …".
+  3. The resulting model names are shown in an fzf multi-select picker.
+     TAB selects multiple entries; Enter confirms the selection.
+  4. If you press ESC (or the list is empty) you are asked whether to
+     edit the selector and retry, or abort.
+  5. On confirmation the selected model names are printed to stdout,
+     one per line.
+
+SELECTOR
+  Any dbt node-selection expression is accepted, e.g.:
+    tag:nightly
+    +my_model
+    package:my_project,tag:staging
+
+  Leave the selector blank to list all models in the project.
+
+PREREQUISITES
+  - Must be run from the project root (containing pyproject.toml).
+  - poetry must be available in PATH.
+  - The poetry environment must include dbt; if it does not, the
+    function runs "poetry install" automatically.
+  - dbt_profiles.yml must exist somewhere under the current directory.
+
+Requires: poetry, fzf, dbt (in the poetry env).

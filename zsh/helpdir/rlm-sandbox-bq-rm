@@ -1,0 +1,17 @@
+rlm-sandbox-bq-rm
+
+Multi-select BigQuery tables from the sandbox project/datasets via fzf
+and permanently delete the selected tables. Lists tables restricted to
+the datasets defined in $SANDBOX_BQ_DATASETS. Shares the table-list
+cache with rlm-sandbox-bq-open (~/.cache/sandbox-bq-open/items.txt).
+
+After confirming selection, prompts for confirmation before deleting.
+On success, invalidates the item cache so the next run reflects current
+state. Press Ctrl-P to cycle the preview pane height.
+
+ENVIRONMENT
+  SANDBOX_BQ_PROJECT   GCP project ID (required).
+  SANDBOX_BQ_DATASETS  Colon-separated list of dataset names (required).
+
+REQUIRES
+  bq, fzf, jq

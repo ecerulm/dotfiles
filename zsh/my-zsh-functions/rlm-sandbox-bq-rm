@@ -1,0 +1,155 @@
+emulate -L zsh
+set -o pipefail
+
+if [[ -z $SANDBOX_BQ_PROJECT ]]; then
+  print -u2 "sandbox-bq-rm: SANDBOX_BQ_PROJECT is not set"
+  return 1
+fi
+if [[ -z $SANDBOX_BQ_DATASETS ]]; then
+  print -u2 "sandbox-bq-rm: SANDBOX_BQ_DATASETS is not set"
+  return 1
+fi
+
+for _cmd in bq fzf jq; do
+  if ! command -v "$_cmd" >/dev/null 2>&1; then
+    print -u2 "sandbox-bq-rm: '$_cmd' not found in PATH"
+    return 1
+  fi
+done
+unset _cmd
+
+local project="$SANDBOX_BQ_PROJECT"
+local -a datasets
+datasets=(${(s[:])SANDBOX_BQ_DATASETS})
+local cache_dir="$HOME/.cache/sandbox-bq-open"
+mkdir -p "$cache_dir"
+local cache_file="${cache_dir}/items.txt"
+local history_file="${cache_dir}/history.txt"
+
+_sandbox_bq_rm_fetch() {
+  local dataset table_json
+  local -a tables
+  print "sandbox-bq-rm: fetching tables from ${project} …" >&2
+  for dataset in "${datasets[@]}"; do
+    table_json=$(bq ls --format=json --project_id="$project" "$dataset" 2>/dev/null) || continue
+    while IFS= read -r tbl; do
+      [[ -n $tbl ]] && tables+=("${project}:${dataset}.${tbl}")
+    done < <(print -- "$table_json" | jq -r '.[].tableReference.tableId // empty' 2>/dev/null)
+  done
+
+  if (( ${#tables} == 0 )); then
+    print -u2 "sandbox-bq-rm: no tables found"
+    return 1
+  fi
+
+  print -l -- "${tables[@]}" >| "$cache_file"
+}
+
+if [[ ! -f $cache_file ]]; then
+  _sandbox_bq_rm_fetch || return 1
+fi
+
+local mtime now elapsed cache_age
+mtime=$(stat -f %m "$cache_file" 2>/dev/null || stat -c %Y "$cache_file" 2>/dev/null)
+now=$(date +%s)
+elapsed=$(( now - mtime ))
+if (( elapsed < 3600 )); then
+  cache_age="${elapsed}s ago"
+elif (( elapsed < 86400 )); then
+  cache_age="$(( elapsed / 3600 ))h ago"
+else
+  cache_age="$(( elapsed / 86400 ))d ago"
+fi
+
+local refresh_sentinel="--- REFRESH CACHE (cached ${cache_age}) ---"
+
+_sandbox_bq_rm_sorted_list() {
+  if [[ -f $history_file ]]; then
+    while IFS= read -r entry; do
+      grep -m1 -F "$entry" "$cache_file" 2>/dev/null
+    done < <(tac "$history_file" | awk '!seen[$0]++')
+    grep -vFf "$history_file" "$cache_file" 2>/dev/null || true
+  else
+    cat "$cache_file"
+  fi
+}
+
+local selection
+local BQ_ESC=$'\e'
+export BQ_ESC
+selection=$(
+  { print -- "$refresh_sentinel"; _sandbox_bq_rm_sorted_list; } \
+  | fzf --prompt="Delete sandbox BQ table> " --height=80% --reverse \
+        --no-mouse \
+        --multi \
+        --preview="
+          line={}
+          if [ \"\$line\" = '${refresh_sentinel}' ]; then
+            echo 'Select to refresh the table cache'
+          else
+            proj=\${line%%:*}; rest=\${line##*:}
+            dataset=\${rest%%.*}; tbl=\${rest##*.}
+            url=\"https://console.cloud.google.com/bigquery?project=\${proj}&ws=!1m5!1m4!4m3!1s\${proj}!2s\${dataset}!3s\${tbl}\"
+            bq show --format=prettyjson \"\${proj}:\${rest}\" \
+              | jq -r --arg url \"\$url\" --arg esc \"\$BQ_ESC\" '
+                  def hb: if . >= 1073741824 then ((./1073741824*10|round/10|tostring)+\" GiB\") elif . >= 1048576 then ((./1048576*10|round/10|tostring)+\" MiB\") elif . >= 1024 then ((./1024*10|round/10|tostring)+\" KiB\") else ((.|tostring)+\" B\") end;
+                  def hr: if . >= 1000000000 then ((./1000000000*10|round/10|tostring)+\"B\") elif . >= 1000000 then ((./1000000*10|round/10|tostring)+\"M\") elif . >= 1000 then ((./1000*10|round/10|tostring)+\"K\") else (.|tostring) end;
+                  \"Type:          \" + .type,
+                  \"Project:       \" + .tableReference.projectId,
+                  \"Dataset:       \" + .tableReference.datasetId,
+                  \"Table:         \" + .tableReference.tableId,
+                  \"Console:       \" + (\$esc + \"]8;;\" + \$url + \$esc + \"\\\\\" + \$esc + \"[34mGCP console link (click me)\" + \$esc + \"[0m\" + \$esc + \"]8;;\" + \$esc + \"\\\\\"),
+                  \"Last updated:  \" + ((.lastModifiedTime // \"0\") | tonumber / 1000 | todate),
+                  \"Rows:          \" + (if .numRows then (.numRows | tonumber | hr) else \"N/A\" end),
+                  \"Logical bytes: \" + (if .numTotalLogicalBytes then (.numTotalLogicalBytes | tonumber | hb) else \"N/A\" end)
+                '
+          fi
+        " \
+        --preview-window=bottom:40% \
+        --bind='ctrl-p:change-preview-window(bottom:70%|bottom:40%|hidden)'
+) || return 130
+
+[[ -z $selection ]] && return 130
+
+if [[ $selection == "--- REFRESH CACHE"* ]]; then
+  rm -f "$cache_file"
+  _sandbox_bq_rm_fetch || return 1
+  rlm-sandbox-bq-rm
+  return $?
+fi
+
+local -a selected_tables
+selected_tables=("${(@f)selection}")
+
+print "sandbox-bq-rm: the following tables will be permanently deleted:"
+local tbl
+for tbl in "${selected_tables[@]}"; do
+  print "  $tbl"
+done
+print -n "Confirm delete? [y/N] "
+read -r REPLY
+if [[ $REPLY != [yY] ]]; then
+  print "sandbox-bq-rm: aborted" >&2
+  return 1
+fi
+
+local failed=0
+for tbl in "${selected_tables[@]}"; do
+  local proj rest dataset_table
+  proj=${tbl%%:*}
+  rest=${tbl##*:}
+  if bq rm -f -t "${proj}:${rest}" 2>&1; then
+    print "sandbox-bq-rm: deleted ${tbl}"
+    print -- "$tbl" >> "$history_file"
+  else
+    print -u2 "sandbox-bq-rm: failed to delete ${tbl}"
+    failed=1
+  fi
+done
+
+local _tmp_hist
+_tmp_hist=$(tail -1000 "$history_file" 2>/dev/null) && print -- "$_tmp_hist" >| "$history_file"
+
+rm -f "$cache_file"
+
+return $failed

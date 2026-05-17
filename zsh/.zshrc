@@ -242,6 +242,8 @@ autoload -Uz rlm-pr-worktree
 autoload -Uz rlm-pr-worktree-rm
 autoload -Uz rlm-gh-repo-init
 autoload -Uz rlm-bq-open
+autoload -Uz rlm-sandbox-bq-open
+autoload -Uz rlm-sandbox-bq-rm
 autoload -Uz rlm-gcp-project-open
 autoload -Uz rlm-pubsub-open
 autoload -Uz rlm-jira-open
@@ -254,6 +256,7 @@ autoload -Uz rlm-afw-deploy
 autoload -Uz rlm-gh-permalink
 autoload -Uz rlm-git-changed
 autoload -Uz rlm-git-diff-base
+autoload -Uz rlm-dbt-ls
 # run-help: use the real autoloaded version (default is aliased to man)
 unalias run-help 2>/dev/null
 autoload -Uz run-help
@@ -273,6 +276,8 @@ alias gh-permalink='rlm-gh-permalink'
 alias git-changed='rlm-git-changed'
 alias git-diff-base='rlm-git-diff-base'
 alias bq-open='rlm-bq-open'
+alias sandbox-bq-open='rlm-sandbox-bq-open'
+alias sandbox-bq-rm='rlm-sandbox-bq-rm'
 alias gcp-project-open='rlm-gcp-project-open'
 alias pubsub-open='rlm-pubsub-open'
 alias jira-open='rlm-jira-open'
@@ -282,6 +287,7 @@ alias urldecode='rlm-urldecode'
 alias generatectags='rlm-generatectags'
 alias pr-for-commit='rlm-pr-for-commit'
 alias afw-deploy='rlm-afw-deploy'
+alias dbt-ls='rlm-dbt-ls'
 
 [ -x /opt/homebrew/bin/brew ] && eval $(/opt/homebrew/bin/brew shellenv)
 [ -x /usr/local/bin/brew ] && eval $(/usr/local/bin/brew shellenv)
