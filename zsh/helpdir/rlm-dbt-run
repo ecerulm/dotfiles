@@ -1,0 +1,31 @@
+dbt-run [-s SELECTOR] [-n] [-- EXTRA_ARGS...]
+
+Run a dbt model locally with --defer --favor-state against the production
+ref-state manifest, writing results to your personal dataset.
+
+Omit -s to open an fzf picker over all dbt models. Recently selected models
+appear at the top with a "last run X ago" label. The model list is cached in
+~/.cache/dbt-run/models.txt; select the REFRESH entry in the picker to
+re-run dbt ls and refresh the cache.
+
+  -s SELECTOR   dbt node selector; skips the fzf picker
+  -n, --list    dry-run: show which nodes will be built locally vs read from
+                prod (via --defer), then exit without running dbt
+  --            pass any additional arguments straight to dbt
+  -h, --help    show this help
+
+The ref-state manifest must exist at $DBT_STATE_DIR/manifest.json and be no
+older than 7 days. Run dbt-sync-state to refresh it.
+
+ENVIRONMENT (all required, set in ~/.zshrc.thismachine)
+  DBT_STATE_DIR      path to dir containing the ref-state manifest.json
+  DBT_PROJECT_SUBDIR subdir of the git root containing dbt_project.yml
+  DBT_TARGET         dbt target name (e.g. local_dev)
+  DBT_DEV_PROJECT    GCP project ID used for local runs
+  DBT_DATASET_PREFIX BigQuery dataset name for locally-built models
+
+Examples:
+  dbt-run
+  dbt-run -s my_model+
+  dbt-run -n -s my_model+
+  dbt-run -s tag:finance -- --full-refresh
