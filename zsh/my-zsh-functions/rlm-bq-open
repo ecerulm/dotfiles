@@ -21,9 +21,10 @@ projects=(${(s[:])BQ_SEARCH_PATH})
 local cache_dir="$HOME/.cache/bq-open"
 mkdir -p "$cache_dir"
 # Cache key: md5 of the sorted project list so reordering doesn't bust cache
-local cache_key cache_file
+local cache_key cache_file history_file
 cache_key=$(print -l -- "${(o)projects[@]}" | md5)
 cache_file="${cache_dir}/${cache_key}.txt"
+history_file="${cache_dir}/history.txt"
 
 _bq_open_fetch() {
   local project dataset table_json
@@ -31,11 +32,11 @@ _bq_open_fetch() {
   for project in "${projects[@]}"; do
     print "bq-open: fetching datasets from $project …" >&2
     while IFS= read -r dataset; do
-      table_json=$(bq ls --format=json --project_id="$project" "$dataset" 2>/dev/null) || continue
+      table_json=$(bq ls --format=json --max_results=10000 --project_id="$project" "$dataset" 2>/dev/null) || continue
       while IFS= read -r tbl; do
         [[ -n $tbl ]] && tables+=("${project}:${dataset}.${tbl}")
       done < <(print -- "$table_json" | jq -r '.[].tableReference.tableId // empty' 2>/dev/null)
-    done < <(bq ls --format=json --project_id="$project" 2>/dev/null \
+    done < <(bq ls --format=json --max_results=10000 --project_id="$project" 2>/dev/null \
       | jq -r '.[].datasetReference.datasetId // empty' 2>/dev/null)
   done
 
@@ -69,7 +70,11 @@ local refresh_sentinel="--- REFRESH CACHE (cached ${cache_age}) ---"
 
 local selection
 selection=$(
-  { print -- "$refresh_sentinel"; cat "$cache_file"; } \
+  {
+    print -- "$refresh_sentinel"
+    [[ -f $history_file ]] && cat "$history_file"
+    [[ -f $history_file ]] && grep -vxFf "$history_file" "$cache_file" || cat "$cache_file"
+  } \
   | fzf --prompt="BigQuery table> " --height=80% --reverse \
         --preview="
           line={}
@@ -98,6 +103,12 @@ sel_project=${selection%%:*}
 dataset_table=${selection##*:}
 sel_dataset=${dataset_table%%.*}
 sel_table=${dataset_table##*.}
+
+# Prepend selection to history, keeping it deduplicated (most recent first)
+local tmp_history
+tmp_history=$(mktemp)
+{ print -- "$selection"; [[ -f $history_file ]] && grep -vxF "$selection" "$history_file"; } >| "$tmp_history"
+mv "$tmp_history" "$history_file"
 
 # GCP console deep-link for a specific table in the BigQuery UI
 local url="https://console.cloud.google.com/bigquery?project=${sel_project}&ws=!1m5!1m4!4m3!1s${sel_project}!2s${sel_dataset}!3s${sel_table}"
