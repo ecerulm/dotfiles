@@ -1,4 +1,4 @@
-pr-worktree [PR_NUMBER | JIRA_KEY]
+pr-worktree [PR_NUMBER | JIRA_KEY | --suffix SUFFIX | -s SUFFIX]
 
 Pick a GitHub PR or JIRA issue via fzf and create a sibling git
 worktree for it. With no argument, an fzf picker is shown listing,
@@ -15,9 +15,13 @@ Selecting a PR creates a worktree at  ../<repo>-pr-<N>  on the PR
 branch. Selecting a JIRA issue creates a worktree at  ../<repo>-<KEY>
 on a new branch named <KEY> off origin/<default-branch>.
 
-When called with an argument, the picker is skipped: a numeric value
-is treated as a PR number, and a value matching the JIRA key shape
-(e.g. DATA-1234) is treated as a JIRA issue.
+When called with an argument, the picker is skipped:
+  - A numeric value is treated as a PR number.
+  - A value matching the JIRA key shape (e.g. DATA-1234) is treated
+    as a JIRA issue.
+  - --suffix SUFFIX (or -s SUFFIX) creates a worktree at
+    ../<repo>-<SUFFIX> on a new branch named <SUFFIX> off
+    origin/<default-branch>, with no PR or JIRA lookup.
 
 If the target worktree path already exists, it is entered instead of
 recreated.

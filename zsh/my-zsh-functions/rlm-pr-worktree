@@ -13,10 +13,12 @@
 # Selecting an issue -> worktree at ../<repo>-<KEY>       on a new branch
 #                       <KEY> created off origin/<default-branch>.
 #
-# Usage: pr-worktree [PR_NUMBER | JIRA_KEY]
-#   - no arg     -> fzf picker
-#   - PR num     -> skip picker, treat as PR
-#   - JIRA key   -> skip picker, treat as JIRA issue (e.g. DATA-1234)
+# Usage: pr-worktree [PR_NUMBER | JIRA_KEY | --suffix SUFFIX]
+#   - no arg             -> fzf picker
+#   - PR num             -> skip picker, treat as PR
+#   - JIRA key           -> skip picker, treat as JIRA issue (e.g. DATA-1234)
+#   - --suffix SUFFIX    -> create worktree at ../<repo>-<SUFFIX> off default branch
+#   - -s SUFFIX          -> same as --suffix
 #
 # Requires: gh, git, fzf. acli is optional (enables JIRA rows).
 
@@ -90,6 +92,34 @@ _prwt_make_pr_worktree() {
   git pull
 }
 
+_prwt_make_suffix_worktree() {
+  local suffix=$1
+  local worktree_path=${repo_root:h}/${repo_name}-${suffix}
+
+  if [[ -e $worktree_path ]]; then
+    print "pr-worktree: $worktree_path already exists; entering it."
+    cd -- "$worktree_path"
+    git pull
+    return 0
+  fi
+
+  local default_branch
+  default_branch=$(_prwt_default_branch) || default_branch=main
+  [[ -z $default_branch ]] && default_branch=main
+
+  print "pr-worktree: creating worktree at $worktree_path on new branch $suffix off origin/$default_branch"
+  git -C "$repo_root" fetch origin "$default_branch" 2>/dev/null
+
+  if git -C "$repo_root" show-ref --verify --quiet "refs/heads/$suffix"; then
+    git -C "$repo_root" worktree add "$worktree_path" "$suffix" || return 1
+  else
+    git -C "$repo_root" worktree add -b "$suffix" "$worktree_path" "origin/$default_branch" || return 1
+  fi
+
+  cd -- "$worktree_path"
+  git pull
+}
+
 _prwt_make_jira_worktree() {
   local key=${1:u}
   local worktree_path=${repo_root:h}/${repo_name}-${key}
@@ -122,14 +152,22 @@ _prwt_make_jira_worktree() {
 
 local arg=$1
 if [[ -n $arg ]]; then
-  if [[ $arg =~ '^[0-9]+$' ]]; then
+  if [[ $arg == '--suffix' || $arg == '-s' ]]; then
+    local suffix=$2
+    if [[ -z $suffix ]]; then
+      print -u2 "pr-worktree: --suffix requires a value"
+      return 1
+    fi
+    _prwt_make_suffix_worktree "$suffix"
+    return $?
+  elif [[ $arg =~ '^[0-9]+$' ]]; then
     _prwt_make_pr_worktree "$arg"
     return $?
   elif [[ $arg =~ '^[A-Za-z][A-Za-z0-9_]+-[0-9]+$' ]]; then
     _prwt_make_jira_worktree "$arg"
     return $?
   else
-    print -u2 "pr-worktree: argument must be a PR number or a JIRA key (e.g. DATA-1234)"
+    print -u2 "pr-worktree: argument must be a PR number, a JIRA key (e.g. DATA-1234), or --suffix SUFFIX"
     return 1
   fi
 fi
