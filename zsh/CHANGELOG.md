@@ -9,6 +9,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 
 - `rlm-gh-repo-init`: make `OWNER/REPO` argument optional; when omitted, defaults to `<gh-username>/<current-dir>` (looked up via `gh api user`) and prompts for confirmation before creating the repo.
+- `rlm-bq-open`: refactor fzf lines to tab-delimited format (`COLOUR_OPENER<TAB>BQ_REF`) so ANSI colouring works reliably and `--nth=2` restricts match highlighting to the BQ ref field
+- `rlm-bq-open`: fetch sandbox datasets in parallel (background subshells) and merge results for faster cache population
+- `rlm-bq-open`: sandbox lines now appear immediately after history in the picker (before non-sandbox lines)
+- `rlm-dbt-run`: remove `--favor-state` flag from all `dbt run`, `dbt ls`, and `dbt compile` invocations; update help text accordingly
 
 ## [2026-05-17]
 

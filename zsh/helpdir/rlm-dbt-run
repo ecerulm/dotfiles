@@ -1,6 +1,6 @@
 dbt-run [-s SELECTOR] [-n] [-- EXTRA_ARGS...]
 
-Run a dbt model locally with --defer --favor-state against the production
+Run a dbt model locally with --defer against the production
 ref-state manifest, writing results to your personal dataset.
 
 Omit -s to open an fzf picker over all dbt models. Recently selected models

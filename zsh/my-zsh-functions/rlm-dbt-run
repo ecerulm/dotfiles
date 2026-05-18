@@ -7,11 +7,6 @@ emulate -L zsh
 #                production run). Only nodes missing from prod are built
 #                locally, saving time and cost.
 #
-# --favor-state  When a node exists both locally and in the state manifest,
-#                prefer the state (prod) version rather than rebuilding it.
-#                Without this flag dbt would rebuild it locally even though
-#                prod already has a fresh copy.
-#
 # --state        Path to a directory containing the reference manifest.json
 #                produced by the CI pipeline. dbt uses this to know what
 #                prod looks like. Keep it fresh with `dbt-sync-state`.
@@ -26,7 +21,7 @@ emulate -L zsh
 
 local usage="dbt-run [-s SELECTOR] [-n] [-- EXTRA_ARGS...]
 
-Run a dbt model locally with --defer --favor-state against the production
+Run a dbt model locally with --defer against the production
 ref-state. Omit -s to open an fzf picker over dbt models (recently used first).
 
   -s SELECTOR   dbt node selector; skips the picker
@@ -287,7 +282,6 @@ local -a dbt_cmd=(
   poetry run dbt run
   -s "$selector"
   --defer
-  --favor-state
   --state "$state_dir"
   --profiles-dir "$profiles_dir"
   --target "$dbt_target"
@@ -319,7 +313,7 @@ _dbt_run_cost_estimate() {
     cd "$dbt_root" && poetry run dbt ls \
       -s "$selector" \
       --resource-type model \
-      --defer --favor-state --state "$state_dir" \
+      --defer --state "$state_dir" \
       --profiles-dir "$profiles_dir" \
       --target "$dbt_target" \
       --output name --quiet 2>/dev/null \
@@ -342,7 +336,7 @@ _dbt_run_cost_estimate() {
   (
     cd "$dbt_root" && poetry run dbt compile \
       -s "$selector" \
-      --defer --favor-state --state "$state_dir" \
+      --defer --state "$state_dir" \
       --profiles-dir "$profiles_dir" \
       --target "$dbt_target" \
       --quiet 2>/dev/null
@@ -445,7 +439,7 @@ if (( list_only )); then
     cd "$dbt_root" && poetry run dbt ls \
       -s "$selector" \
       --resource-type model \
-      --defer --favor-state --state "$state_dir" \
+      --defer --state "$state_dir" \
       --profiles-dir "$profiles_dir" \
       --target "$dbt_target" \
       --output name --quiet 2>/dev/null \

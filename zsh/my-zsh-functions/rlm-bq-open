@@ -29,10 +29,14 @@ cache_file="${cache_dir}/${cache_key}.txt"
 sandbox_cache_file="${cache_dir}/${cache_key}-sandbox.txt"
 history_file="${cache_dir}/history.txt"
 
-# ANSI purple (magenta) prefix tag used in fzf display; stripped before use
+# Tab-delimited format for fzf lines: DISPLAY_TAG<TAB>BQ_REF
+# DISPLAY_TAG is either empty (normal lines) or the ANSI open code that colours
+# the whole line purple; the RESET lives at the end of the BQ_REF field.
+# --with-nth=1,2 shows both fields; --nth=2 restricts match highlighting to the
+# BQ ref field so fzf never injects highlight codes before the colour opener.
 local PURPLE=$'\033[35m'
 local RESET=$'\033[0m'
-local SANDBOX_TAG="${PURPLE}[sandbox]${RESET} "
+local SANDBOX_TAG="$PURPLE"   # colour opener — closed by RESET appended to BQ_REF
 
 _bq_open_fetch() {
   local project dataset table_json
@@ -60,21 +64,33 @@ _bq_open_fetch_sandbox() {
   [[ -z $SANDBOX_BQ_PROJECT ]] && { print -u2 "bq-open: SANDBOX_BQ_PROJECT not set, skipping sandbox fetch"; return 0; }
   [[ ${#sandbox_datasets} -eq 0 ]] && { print -u2 "bq-open: SANDBOX_BQ_DATASETS is empty, skipping sandbox fetch"; return 0; }
   local project="$SANDBOX_BQ_PROJECT"
-  local dataset table_json
-  local -a tables
+  local dataset
+  local tmp_dir
+  tmp_dir=$(mktemp -d)
 
+  print "bq-open: fetching sandbox tables from ${project} (${#sandbox_datasets} datasets in parallel) …" >&2
+
+  # Fetch all datasets in parallel; each writes to its own temp file
+  local -a pids
+  setopt LOCAL_OPTIONS
+  unsetopt MONITOR
   for dataset in "${sandbox_datasets[@]}"; do
-    print "bq-open: fetching tables from sandbox ${project}:${dataset} …" >&2
-    if ! table_json=$(bq ls --format=json --max_results=10000 --project_id="$project" "$dataset" 2>&1); then
-      print -u2 "bq-open: bq ls failed for ${project}:${dataset}: $table_json"
-      continue
-    fi
-    while IFS= read -r tbl; do
-      [[ -n $tbl ]] && tables+=("${project}:${dataset}.${tbl}")
-    done < <(print -- "$table_json" | jq -r '.[].tableReference.tableId // empty' 2>/dev/null)
+    (
+      local out
+      out=$(bq ls --format=json --max_results=10000 --project_id="$project" "$dataset" 2>/dev/null) || exit 0
+      [[ -z $out ]] && exit 0
+      jq -r '.[].tableReference.tableId // empty' <<< "$out" 2>/dev/null \
+        | while IFS= read -r tbl; do
+            [[ -n $tbl ]] && printf '%s:%s.%s\n' "$project" "$dataset" "$tbl"
+          done > "$tmp_dir/${dataset}.txt"
+    ) &
+    pids+=($!)
   done
+  wait "${pids[@]}"
 
-  (( ${#tables} > 0 )) && print -l -- "${tables[@]}" >| "$sandbox_cache_file"
+  # Merge results; always write the cache file (even if empty, to avoid re-fetching)
+  cat "$tmp_dir"/*.txt 2>/dev/null | sort >| "$sandbox_cache_file"
+  rm -rf "$tmp_dir"
 }
 
 # Fetch on first run if no cache exists yet
@@ -100,10 +116,11 @@ _bq_cache_age() {
   fi
 }
 
-local refresh_sentinel="--- REFRESH CACHE (cached $(_bq_cache_age "$cache_file")) ---"
+# Sentinels use the tab format: empty-tag field <TAB> sentinel text
+local refresh_sentinel=$'\t'"--- REFRESH CACHE (cached $(_bq_cache_age "$cache_file")) ---"
 local sandbox_age=""
 [[ -f $sandbox_cache_file ]] && sandbox_age=" (cached $(_bq_cache_age "$sandbox_cache_file"))"
-local refresh_sandbox_sentinel="${PURPLE}--- REFRESH SANDBOX CACHE${sandbox_age} ---${RESET}"
+local refresh_sandbox_sentinel="${PURPLE}"$'\t'"--- REFRESH SANDBOX CACHE${sandbox_age} ---${RESET}"
 
 _bq_open_preview() {
   local raw="$1"
@@ -136,20 +153,24 @@ _bq_open_preview() {
       '
 }
 
-# Build sandbox lines with ANSI purple prefix for display; the actual BQ ref
-# is stored after the tag so the preview/open logic can strip it.
+# Emit tab-delimited "COLOUR_OPENER<TAB>BQ_REF+RESET" lines.
+# Normal lines: empty first field, plain BQ ref.
+# Sandbox lines: PURPLE opener in field 1, BQ ref + RESET in field 2 — whole line purple.
 _bq_open_sandbox_lines() {
   [[ -f $sandbox_cache_file ]] || return 0
   while IFS= read -r line; do
-    [[ -n $line ]] && print -- "${SANDBOX_TAG}${line}"
+    [[ -n $line ]] && printf '%s\t%s%s\n' "$SANDBOX_TAG" "$line" "$RESET"
   done < "$sandbox_cache_file"
 }
 
-# Write preview script to a temp file so fzf's subshell can source it cleanly
+# Write preview script to a temp file so fzf's subshell can source it cleanly.
+# fzf passes the full tab-delimited line as $1; we extract field 2 (the BQ ref).
 local preview_file
 preview_file=$(mktemp /tmp/bq-open-preview.XXXXXX.zsh)
 print -r -- "_bq_open_preview() { $functions[_bq_open_preview] }
-raw=\$(printf '%s' \"\$1\" | sed 's/\x1b\[[0-9;]*m//g; s/^\[sandbox\] //')
+line=\$1
+raw=\${line#*$'\t'}
+raw=\$(printf '%s' \"\$raw\" | sed 's/\x1b\[[0-9;]*m//g')
 case \"\$raw\" in
   ---*) echo 'Select to refresh the cache and reopen the picker.' ;;
   *)    _bq_open_preview \"\$raw\" ;;
@@ -160,26 +181,32 @@ selection=$(
   {
     print -- "$refresh_sentinel"
     [[ -n $SANDBOX_BQ_PROJECT ]] && print -- "$refresh_sandbox_sentinel"
-    [[ -f $history_file ]] && cat "$history_file"
-    # Non-sandbox lines (deduplicated against history)
+    # History lines: stored as plain BQ refs (or "[sandbox] BQ_REF"), convert to tab format
+    if [[ -f $history_file ]]; then
+      while IFS= read -r line; do
+        if [[ $line == '[sandbox] '* ]]; then
+          printf '%s\t%s%s\n' "$SANDBOX_TAG" "${line#'[sandbox] '}" "$RESET"
+        else
+          printf '\t%s\n' "$line"
+        fi
+      done < "$history_file"
+    fi
+    # Sandbox lines right after history so they appear near the top of the picker
+    _bq_open_sandbox_lines
+    # Non-sandbox lines (deduplicated against history); emit in tab format
     if [[ -f $history_file ]]; then
       grep -vxFf "$history_file" "$cache_file" 2>/dev/null || true
     else
       cat "$cache_file"
-    fi
-    _bq_open_sandbox_lines
+    fi | while IFS= read -r line; do printf '\t%s\n' "$line"; done
   } \
-  | awk '
-    function strip_ansi(s,    r) {
-      r = s
-      while (match(r, /\033\[[0-9;]*m/)) {
-        r = substr(r, 1, RSTART-1) substr(r, RSTART+RLENGTH)
-      }
-      return r
-    }
-    { key = strip_ansi($0); if (!seen[key]++) print }' \
+  | awk -F'\t' '
+    { if (!seen[$2]++) print }' \
   | fzf --ansi --prompt="BigQuery table> " --height=80% --reverse \
         --no-mouse \
+        --delimiter=$'\t' \
+        --with-nth=1,2 \
+        --nth=2 \
         --preview="zsh $preview_file {}" \
         --preview-window=bottom:40%:wrap \
         --bind='ctrl-p:change-preview-window(70%|40%)'
@@ -187,26 +214,29 @@ selection=$(
 rm -f "$preview_file"
 
 [[ -z $selection ]] && return 130
-if [[ $selection == "--- REFRESH CACHE"* ]]; then
+
+# selection is TAB-delimited: "COLOUR_OPENER<TAB>BQ_REF+RESET"
+# Extract the BQ ref (second field, strip any trailing ANSI) and whether it's sandbox
+local sel_tag sel_bq_ref
+sel_tag="${selection%%$'\t'*}"
+sel_bq_ref=$(printf '%s' "${selection#*$'\t'}" | sed 's/\x1b\[[0-9;]*m//g')
+
+if [[ $sel_bq_ref == "--- REFRESH CACHE"* ]]; then
   rm -f "$cache_file" "$sandbox_cache_file"
   _bq_open_fetch || return 1
   _bq_open_fetch_sandbox
   rlm-bq-open
   return $?
 fi
-# Strip ANSI to compare against the sandbox sentinel
-local raw_sel_check
-raw_sel_check=$(printf '%s' "$selection" | sed 's/\x1b\[[0-9;]*m//g')
-if [[ $raw_sel_check == "--- REFRESH SANDBOX CACHE"* ]]; then
+if [[ $sel_bq_ref == "--- REFRESH SANDBOX CACHE"* ]]; then
   rm -f "$sandbox_cache_file"
   _bq_open_fetch_sandbox
   rlm-bq-open
   return $?
 fi
 
-# Strip ANSI/sandbox tag to get the raw project:dataset.table reference
-local raw_selection
-raw_selection=$(printf '%s' "$selection" | sed 's/\x1b\[[0-9;]*m//g; s/^\[sandbox\] //')
+# raw_selection is the plain BQ ref: project:dataset.table
+local raw_selection="$sel_bq_ref"
 
 local sel_project dataset_table sel_dataset sel_table
 sel_project=${raw_selection%%:*}
@@ -214,11 +244,18 @@ dataset_table=${raw_selection##*:}
 sel_dataset=${dataset_table%%.*}
 sel_table=${dataset_table##*.}
 
-# Prepend selection to history using the display form (with tag if sandbox),
-# keeping it deduplicated (most recent first)
+# Determine if this is a sandbox entry (tag field non-empty after stripping ANSI)
+local is_sandbox=0
+local plain_tag
+plain_tag=$(printf '%s' "$sel_tag" | sed 's/\x1b\[[0-9;]*m//g')
+[[ -n $plain_tag ]] && is_sandbox=1
+
+# Persist to history as plain "BQ_REF" or "[sandbox] BQ_REF" (no ANSI)
+local history_entry
+(( is_sandbox )) && history_entry="[sandbox] ${raw_selection}" || history_entry="$raw_selection"
 local tmp_history
 tmp_history=$(mktemp)
-{ print -- "$selection"; [[ -f $history_file ]] && grep -vxF "$selection" "$history_file"; } >| "$tmp_history"
+{ print -- "$history_entry"; [[ -f $history_file ]] && grep -vxF "$history_entry" "$history_file"; } >| "$tmp_history"
 mv "$tmp_history" "$history_file"
 
 # GCP console deep-link for a specific table in the BigQuery UI
