@@ -333,14 +333,20 @@ _dbt_run_cost_estimate() {
     return 0
   fi
 
-  # Compile to get SQL
+  # Compile to get SQL.
+  # `dbt compile --quiet` STILL prints the compiled SQL of every selected
+  # node to stdout (the --quiet flag only silences log lines, not SQL).
+  # Redirect stdout to /dev/null too, otherwise the SQL leaks into our
+  # output between the "Estimating …" header and the summary table. We
+  # do not need the stdout SQL anyway — we read each model's compiled SQL
+  # from target/compiled/ below.
   (
     cd "$dbt_root" && poetry run dbt compile \
       -s "$selector" \
       --defer --state "$state_dir" \
       --profiles-dir "$profiles_dir" \
       --target "$dbt_target" \
-      --quiet 2>/dev/null
+      --quiet >/dev/null 2>&1
   ) || {
     print "  Warning: dbt compile failed; skipping cost estimate"
     return 0
@@ -349,13 +355,19 @@ _dbt_run_cost_estimate() {
   local compiled_dir="$dbt_root/target/compiled"
   local total_bytes=0
   local -a failed_models
+  local -a per_model_lines
 
   for node in "${local_nodes[@]}"; do
     [[ -z $node ]] && continue
     local model_name="${node##*.}"
-    # Find compiled SQL (may be nested under project name subdirs)
+    # Find compiled SQL (may be nested under project name subdirs).
+    # Exclude unit-test fixtures, which dbt writes under a parent directory
+    # ending in `.yml` (e.g. `_foo_unit_tests.yml/foo.sql`). These compiled
+    # fixtures use inline mock data and dry-run to 0 bytes, which silently
+    # poisons the cost estimate if picked up before the real model file.
     local sql_file
-    sql_file=$(find "$compiled_dir" -name "${model_name}.sql" -type f 2>/dev/null | head -1)
+    sql_file=$(find "$compiled_dir" -name "${model_name}.sql" -type f \
+        -not -path '*.yml/*' 2>/dev/null | head -1)
     if [[ -z $sql_file ]]; then
       failed_models+=("$model_name (compiled SQL not found)")
       continue
@@ -364,17 +376,33 @@ _dbt_run_cost_estimate() {
     dry_out=$(bq query --dry_run --use_legacy_sql=false < "$sql_file" 2>&1)
     local rc=$?
     if (( rc != 0 )); then
-      failed_models+=("$model_name (bq dry-run failed)")
+      failed_models+=("$model_name (bq dry-run failed) — compiled SQL: $sql_file"$'\n'"$(print -- "$dry_out" | sed 's/^/      /')")
       continue
     fi
     # bq dry-run output: "Query successfully validated. Assuming the tables are not modified,
-    # running this query will process X bytes of data."
+    # running this query will process X bytes of data." (some versions insert "upper bound of")
     local bytes
     bytes=$(print -- "$dry_out" | grep -oE '[0-9]+ bytes' | grep -oE '[0-9]+' | head -1)
     if [[ -n $bytes ]]; then
       total_bytes=$(( total_bytes + bytes ))
+      # Pretty-format this model's contribution (KB/MB/GB/TB).
+      local _model_size
+      _model_size=$(python3 - "$bytes" <<'PYEOF'
+import sys
+b = int(sys.argv[1])
+if b >= 1_000_000_000_000:
+    print(f"{b/1_000_000_000_000:.2f} TB")
+elif b >= 1_000_000_000:
+    print(f"{b/1_000_000_000:.2f} GB")
+elif b >= 1_000_000:
+    print(f"{b/1_000_000:.2f} MB")
+else:
+    print(f"{b/1_000:.1f} KB")
+PYEOF
+      )
+      per_model_lines+=("    ${_model_size}  ${model_name}"$'\n'"      sql: ${sql_file}")
     else
-      failed_models+=("$model_name (could not parse bytes from: $dry_out)")
+      failed_models+=("$model_name (could not parse bytes from: $dry_out) — compiled SQL: $sql_file")
     fi
   done
 
@@ -402,6 +430,13 @@ PYEOF
   print "  Models building locally : $count_local"
   print "  Data processed estimate : $size_label"
   print "  Cost estimate           : $cost_dollars  (@ \$6.25/TB)"
+  if (( ${#per_model_lines[@]} )); then
+    print "  Per-model breakdown (path printed so you can dry-run it manually):"
+    local line
+    for line in "${per_model_lines[@]}"; do
+      print -- "$line"
+    done
+  fi
   if (( ${#failed_models[@]} )); then
     print "  Warnings (excluded from estimate):"
     for m in "${failed_models[@]}"; do
