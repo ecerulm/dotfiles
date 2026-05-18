@@ -245,6 +245,7 @@ if [[ -z $selector ]]; then
     | fzf --prompt="dbt model> " \
           --height=80% \
           --reverse \
+          --no-mouse \
           --no-sort \
           --delimiter=$'\t' \
           --with-nth='1,2' \
@@ -527,79 +528,35 @@ PYEOF
     rm -f "$tmp_py" "$tmp_rel"
   fi
 
-  # Write preview script to a temp file — avoids quoting/splitting issues
-  # with passing multiline scripts via --preview="zsh -c '...'"
-  local tmp_preview
-  tmp_preview=$(mktemp -t dbt-run-preview.XXXXXX)
-  cat >| "$tmp_preview" <<PREVIEW_EOF
-#!/bin/zsh
-# fzf passes the selected line as \$1; format is "TAG|dbt_name|bq_ref"
-line=\$1
-tag=\${line%%|*}
-rest=\${line#*|}
-dbt_name=\${rest%%|*}
-bq_ref=\${rest##*|}
-
-print "Model  : \$dbt_name"
-print "Source : \$tag"
-print "BQ ref : \$bq_ref"
-print ""
-
-if [[ -z \$bq_ref ]]; then
-  print "(relation unknown — model not found in prod manifest)"
-  exit 0
-fi
-
-raw=\$(bq show --format=json "\$bq_ref" 2>&1)
-rc=\$?
-if (( rc != 0 )); then
-  print "(not yet materialized in BigQuery)"
-  print ""
-  print "\$raw"
-  exit 0
-fi
-
-printf '%s' "\$raw" | python3 -c "
-import json, sys
-raw = sys.stdin.buffer.read()
-d = json.loads(raw.decode('utf-8', errors='replace'))
-ref = d.get('tableReference', {})
-logical = int(d.get('numTotalLogicalBytes') or 0)
-rows    = int(d.get('numRows') or 0)
-if logical >= 1_000_000_000:
-    size = f'{logical/1_000_000_000:.2f} GB'
-elif logical >= 1_000_000:
-    size = f'{logical/1_000_000:.2f} MB'
-else:
-    size = f'{logical/1_000:.1f} KB'
-from datetime import datetime, timezone
-last_mod_ms = int(d.get('lastModifiedTime') or 0)
-last_mod = datetime.fromtimestamp(last_mod_ms / 1000, tz=timezone.utc).strftime('%Y-%m-%d %H:%M UTC') if last_mod_ms else '?'
-print(f'Type         : {d.get(\"type\", \"?\")}')
-print(f'Project      : {ref.get(\"projectId\", \"?\")}')
-print(f'Dataset      : {ref.get(\"datasetId\", \"?\")}')
-print(f'Table        : {ref.get(\"tableId\", \"?\")}')
-print(f'Last updated : {last_mod}')
-print(f'Rows         : {rows:,}')
-print(f'Logical bytes: {size}')
-"
-PREVIEW_EOF
-  chmod +x "$tmp_preview"
-
   fzf --read0 \
       --prompt="dbt-run -n > " \
       --height=80% \
+      --no-mouse \
       --reverse \
       --no-sort \
-      --no-mouse \
       --with-nth='1,2' \
       --delimiter='|' \
-      --preview="$tmp_preview {}" \
+      --preview='
+        line={}
+        tag=${line%%|*}
+        rest=${line#*|}
+        dbt_name=${rest%%|*}
+        bq_ref=${rest##*|}
+        printf "model  : %s\n" "$dbt_name"
+        printf "source : %s\n" "$tag"
+        printf "bq_ref : %s\n" "$bq_ref"
+        printf "\n"
+        if [ -z "$bq_ref" ]; then
+          echo "(relation unknown — model not found in prod manifest)"
+        else
+          "$HOME/bin/bq-preview" "$bq_ref" 2>&1 || echo "(not yet materialized in BigQuery)"
+        fi
+      ' \
       --preview-window=bottom:40%:wrap \
       --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)' \
       < <(tr '\n' '\0' < "$tmp_fzf")
 
-  rm -f "$tmp_fzf" "$tmp_preview"
+  rm -f "$tmp_fzf"
   return 0
 fi
 

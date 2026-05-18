@@ -104,6 +104,49 @@ Do **not** add private functions or aliases to `README.md`.
 4. Create `helpdir/rlm-<name>` with help content, then symlink: `ln -s rlm-<name> helpdir/<name>`.
 5. Update `README.md` (the function table in the relevant section).
 
+## BigQuery fzf Preview Panes
+
+For any fzf picker that shows BigQuery table or view information in its
+preview pane, always call the `bq-preview` script instead of inlining
+`bq show` + jq/python3 logic:
+
+```sh
+--preview='"$HOME/bin/bq-preview" "project:dataset.table"'
+```
+
+Always use the full path `$HOME/bin/bq-preview` (not bare `bq-preview`).
+
+All fzf pickers must include `--no-mouse` so that fzf does not capture mouse
+events and the terminal emulator can handle them (e.g. for text selection and
+copy-paste in the preview pane).
+The fzf preview runs in a plain `sh` subshell that does not inherit the zsh
+`PATH`, so bare command names not in `/usr/bin` etc. will fail with
+`command not found`.
+
+`bq-preview` is a standalone executable at `~/dotfiles/bin/bq-preview`
+(symlinked to `~/bin/bq-preview`). It accepts a single `project:dataset.table`
+argument and prints standardized fields in this order:
+
+1. type
+2. project_id
+3. dataset_id
+4. table_id
+5. updated_at
+6. num_rows (humanized: K/M/B)
+7. logical_bytes (humanized: KiB/MiB/GiB/TiB)
+8. description, partitions, partitioning, clustering, created_at,
+   schema_fields (when present)
+
+Because fzf preview runs in a plain sh subshell, zsh autoloaded functions are
+not available there — `bq-preview` being on `$PATH` is what makes it callable.
+
+When fzf lines contain ANSI escape codes or tab-delimited fields, strip color
+and extract the ref before passing to `bq-preview`, e.g.:
+
+```sh
+--preview='raw=$(printf "%s" {} | cut -f2 | sed "s/\x1b\[[0-9;]*m//g"); "$HOME/bin/bq-preview" "$raw"'
+```
+
 ## Linting / Formatting
 
 This directory has no standalone lint or test commands. The parent repo (`../`) uses lefthook with shfmt and shellcheck for `.sh` files, but zsh function files in `my-zsh-functions/` are not `.sh` and are not checked by those hooks. Validate zsh syntax manually:

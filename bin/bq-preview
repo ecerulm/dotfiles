@@ -1,0 +1,58 @@
+#!/usr/bin/env zsh
+# Usage: bq-preview <project:dataset.table>
+# Prints a standardized BigQuery table/view summary for fzf preview panes.
+# Fields shown: type, project_id, dataset_id, table_id, updated_at,
+#               num_rows (humanized), logical_bytes (humanized), then the rest.
+emulate -L zsh
+set -o pipefail
+
+local ref="${1:-}"
+if [[ -z $ref ]]; then
+  print "Usage: bq-preview <project:dataset.table>" >&2
+  exit 1
+fi
+
+local err
+err=$(mktemp)
+trap "rm -f $err" EXIT
+
+if ! bq show --format=prettyjson "$ref" >"${err}.out" 2>"$err"; then
+  print "(bq show failed for ${ref})"
+  cat "$err"
+  rm -f "${err}.out"
+  exit 0
+fi
+
+cat "${err}.out" | jq -r '
+  def hb:
+    . as $b |
+    if   $b == null          then "N/A"
+    elif $b >= 1099511627776 then "\($b/1099511627776*10|round/10) TiB"
+    elif $b >= 1073741824    then "\($b/1073741824*10|round/10) GiB"
+    elif $b >= 1048576       then "\($b/1048576*10|round/10) MiB"
+    elif $b >= 1024          then "\($b/1024*10|round/10) KiB"
+    else                          "\($b) B"
+    end;
+  def hr:
+    . as $n |
+    if   $n == null                    then "N/A"
+    elif ($n|tonumber) >= 1000000000   then "\(($n|tonumber)/1000000000*10|round/10)B"
+    elif ($n|tonumber) >= 1000000      then "\(($n|tonumber)/1000000*10|round/10)M"
+    elif ($n|tonumber) >= 1000         then "\(($n|tonumber)/1000*10|round/10)K"
+    else                                    ($n|tostring)
+    end;
+  def fmt(lbl; val): "\(lbl)\(val)";
+  fmt("type          : "; (.type // "N/A")),
+  fmt("project_id    : "; (.tableReference.projectId // "N/A")),
+  fmt("dataset_id    : "; (.tableReference.datasetId // "N/A")),
+  fmt("table_id      : "; (.tableReference.tableId // "N/A")),
+  fmt("updated_at    : "; (if .lastModifiedTime then (.lastModifiedTime|tonumber/1000|todate) else "N/A" end)),
+  fmt("num_rows      : "; (.numRows | hr)),
+  fmt("logical_bytes : "; (if .numTotalLogicalBytes then (.numTotalLogicalBytes|tonumber|hb) else "N/A" end)),
+  (if .description and .description != "" then fmt("description   : "; .description) else empty end),
+  (if .numPartitions then fmt("partitions    : "; .numPartitions) else empty end),
+  (if .timePartitioning then fmt("partitioning  : "; (.timePartitioning | tojson)) else empty end),
+  (if .clustering then fmt("clustering    : "; (.clustering.fields | join(", "))) else empty end),
+  (if .creationTime then fmt("created_at    : "; (.creationTime|tonumber/1000|todate)) else empty end),
+  fmt("schema_fields : "; (if .schema.fields then (.schema.fields | length | tostring) else "N/A" end))
+'

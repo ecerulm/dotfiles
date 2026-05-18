@@ -1,0 +1,115 @@
+emulate -L zsh
+setopt LOCAL_OPTIONS NO_MONITOR
+set -o pipefail
+
+if [[ -z $SANDBOX_BQ_PROJECT ]]; then
+  print -u2 "bq-rm-tables: SANDBOX_BQ_PROJECT is not set"
+  return 1
+fi
+if [[ -z $SANDBOX_BQ_DATASETS ]]; then
+  print -u2 "bq-rm-tables: SANDBOX_BQ_DATASETS is not set"
+  return 1
+fi
+
+for cmd in bq fzf jq; do
+  if ! command -v "$cmd" >/dev/null 2>&1; then
+    print -u2 "bq-rm-tables: '$cmd' not found in PATH"
+    return 1
+  fi
+done
+
+local project="$SANDBOX_BQ_PROJECT"
+local -a matched_datasets
+matched_datasets=(${(s[:])SANDBOX_BQ_DATASETS})
+
+print -u2 "bq-rm-tables: fetching tables from ${#matched_datasets} datasets in parallel …"
+
+local tmp_dir
+tmp_dir=$(mktemp -d)
+trap "rm -rf ${tmp_dir}" EXIT INT TERM
+
+local dataset
+for dataset in "${matched_datasets[@]}"; do
+  {
+    bq ls --format=json --project_id="$project" "$dataset" 2>/dev/null \
+      | jq -r --arg proj "$project" --arg ds "$dataset" \
+          '.[] | [(.type // "TABLE"), $proj, $ds, .tableReference.tableId] | @tsv' 2>/dev/null \
+      > "${tmp_dir}/${dataset}"
+  } &
+done
+wait
+
+local -a tables
+local line tbl table_type
+while IFS=$'\t' read -r table_type proj ds tbl; do
+  [[ -n $tbl ]] || continue
+  tables+=("${table_type}	${proj}	${ds}	${tbl}	${proj}:${ds}.${tbl}")
+done < <(cat "${tmp_dir}"/* 2>/dev/null)
+
+if (( ${#tables} == 0 )); then
+  print -u2 "bq-rm-tables: no tables found in ${project}"
+  return 1
+fi
+
+local -a selections
+selections=($(
+  print -l -- "${tables[@]}" \
+  | fzf \
+      --prompt="Select tables to DELETE (TAB=multi)> " \
+      --height=80% \
+      --reverse \
+      --no-mouse \
+      --multi \
+      --preview="$HOME/bin/bq-preview \"\$(echo {} | cut -f5)\"" \
+      --preview-window=bottom:40%:wrap \
+      --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)' \
+      --with-nth=1,3,4 \
+      --delimiter=$'\t'
+)) || return 130
+
+if (( ${#selections} == 0 )); then
+  print -u2 "bq-rm-tables: no selection made"
+  return 130
+fi
+
+# Extract just the full refs (5th tab-separated field) for deletion
+local -a to_delete
+local sel
+for sel in "${selections[@]}"; do
+  local ref
+  ref=$(print -- "$sel" | cut -f5)
+  [[ -n $ref ]] && to_delete+=("$ref")
+done
+
+if (( ${#to_delete} == 0 )); then
+  print -u2 "bq-rm-tables: could not parse selection"
+  return 1
+fi
+
+print ""
+print "The following tables/views will be PERMANENTLY DELETED:"
+for ref in "${to_delete[@]}"; do
+  print "  - $ref"
+done
+print ""
+
+local confirm
+vared -p "Type 'yes' to confirm deletion: " confirm
+
+if [[ $confirm != "yes" ]]; then
+  print "bq-rm-tables: deletion cancelled"
+  return 1
+fi
+
+local failed=0
+for ref in "${to_delete[@]}"; do
+  print -u2 "bq-rm-tables: deleting ${ref} …"
+  if bq rm --force --table "$ref" 2>&1; then
+    print "bq-rm-tables: deleted ${ref}"
+  else
+    print -u2 "bq-rm-tables: FAILED to delete ${ref}"
+    failed=1
+  fi
+done
+
+return $failed

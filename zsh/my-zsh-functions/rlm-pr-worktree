@@ -249,6 +249,7 @@ selection=$(
   } \
   | column -t -s $'\t' \
   | fzf --ansi --prompt='PR/JIRA> ' --height=80% --reverse \
+        --no-mouse \
         --header='Yours first, then your JIRA, then other open PRs. Enter = create worktree.' \
         --preview='
           line={};

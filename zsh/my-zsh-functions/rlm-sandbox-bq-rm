@@ -75,8 +75,6 @@ _sandbox_bq_rm_sorted_list() {
 }
 
 local selection
-local BQ_ESC=$'\e'
-export BQ_ESC
 selection=$(
   { print -- "$refresh_sentinel"; _sandbox_bq_rm_sorted_list; } \
   | fzf --prompt="Delete sandbox BQ table> " --height=80% --reverse \
@@ -87,26 +85,11 @@ selection=$(
           if [ \"\$line\" = '${refresh_sentinel}' ]; then
             echo 'Select to refresh the table cache'
           else
-            proj=\${line%%:*}; rest=\${line##*:}
-            dataset=\${rest%%.*}; tbl=\${rest##*.}
-            url=\"https://console.cloud.google.com/bigquery?project=\${proj}&ws=!1m5!1m4!4m3!1s\${proj}!2s\${dataset}!3s\${tbl}\"
-            bq show --format=prettyjson \"\${proj}:\${rest}\" \
-              | jq -r --arg url \"\$url\" --arg esc \"\$BQ_ESC\" '
-                  def hb: if . >= 1073741824 then ((./1073741824*10|round/10|tostring)+\" GiB\") elif . >= 1048576 then ((./1048576*10|round/10|tostring)+\" MiB\") elif . >= 1024 then ((./1024*10|round/10|tostring)+\" KiB\") else ((.|tostring)+\" B\") end;
-                  def hr: if . >= 1000000000 then ((./1000000000*10|round/10|tostring)+\"B\") elif . >= 1000000 then ((./1000000*10|round/10|tostring)+\"M\") elif . >= 1000 then ((./1000*10|round/10|tostring)+\"K\") else (.|tostring) end;
-                  \"Type:          \" + .type,
-                  \"Project:       \" + .tableReference.projectId,
-                  \"Dataset:       \" + .tableReference.datasetId,
-                  \"Table:         \" + .tableReference.tableId,
-                  \"Console:       \" + (\$esc + \"]8;;\" + \$url + \$esc + \"\\\\\" + \$esc + \"[34mGCP console link (click me)\" + \$esc + \"[0m\" + \$esc + \"]8;;\" + \$esc + \"\\\\\"),
-                  \"Last updated:  \" + ((.lastModifiedTime // \"0\") | tonumber / 1000 | todate),
-                  \"Rows:          \" + (if .numRows then (.numRows | tonumber | hr) else \"N/A\" end),
-                  \"Logical bytes: \" + (if .numTotalLogicalBytes then (.numTotalLogicalBytes | tonumber | hb) else \"N/A\" end)
-                '
+            "$HOME/bin/bq-preview" \"\$line\"
           fi
         " \
-        --preview-window=bottom:40% \
-        --bind='ctrl-p:change-preview-window(bottom:70%|bottom:40%|hidden)'
+        --preview-window=bottom:40%:wrap \
+        --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)'
 ) || return 130
 
 [[ -z $selection ]] && return 130

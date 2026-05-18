@@ -66,6 +66,7 @@ local selection
 selection=$(
   { print -- "$refresh_sentinel"; _gcp_project_open_sorted_list; } \
   | fzf --prompt="GCP project> " --height=80% --reverse \
+        --no-mouse \
         --delimiter=$'\t' \
         --with-nth=1,2,3 \
         --nth=1,2,3 \

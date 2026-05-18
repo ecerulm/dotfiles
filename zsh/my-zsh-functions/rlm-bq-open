@@ -122,37 +122,6 @@ local sandbox_age=""
 [[ -f $sandbox_cache_file ]] && sandbox_age=" (cached $(_bq_cache_age "$sandbox_cache_file"))"
 local refresh_sandbox_sentinel="${PURPLE}"$'\t'"--- REFRESH SANDBOX CACHE${sandbox_age} ---${RESET}"
 
-_bq_open_preview() {
-  local raw="$1"
-  local proj rest
-  proj=${raw%%:*}; rest=${raw##*:}
-  bq show --format=prettyjson "${proj}:${rest}" \
-    | jq -r '
-        def humanize:
-          if . == null then "N/A"
-          elif . >= 1099511627776 then "\(. / 1099511627776 | round)TB"
-          elif . >= 1073741824 then "\(. / 1073741824 | round)GB"
-          elif . >= 1048576 then "\(. / 1048576 | round)MB"
-          elif . >= 1024 then "\(. / 1024 | round)KB"
-          else "\(.)B"
-          end;
-        def humanrows:
-          if . == null then "N/A"
-          elif (. | tonumber) >= 1000000000 then "\((. | tonumber) / 1000000000 | round)B"
-          elif (. | tonumber) >= 1000000 then "\((. | tonumber) / 1000000 | round)M"
-          elif (. | tonumber) >= 1000 then "\((. | tonumber) / 1000 | round)K"
-          else .
-          end;
-        "project_id   : \(.tableReference.projectId // "N/A")",
-        "dataset_id   : \(.tableReference.datasetId // "N/A")",
-        "table_name   : \(.tableReference.tableId // "N/A")",
-        "fqn          : \(.tableReference.projectId):\(.tableReference.datasetId).\(.tableReference.tableId)",
-        "last_modified: \(if .lastModifiedTime then (.lastModifiedTime | tonumber / 1000 | todate) else "N/A" end)",
-        "rows         : \(.numRows | humanrows)",
-        "logical_bytes: \(if .numTotalLogicalBytes then (.numTotalLogicalBytes | tonumber | humanize) else "N/A" end)"
-      '
-}
-
 # Emit tab-delimited "COLOUR_OPENER<TAB>BQ_REF+RESET" lines.
 # Normal lines: empty first field, plain BQ ref.
 # Sandbox lines: PURPLE opener in field 1, BQ ref + RESET in field 2 — whole line purple.
@@ -162,19 +131,6 @@ _bq_open_sandbox_lines() {
     [[ -n $line ]] && printf '%s\t%s%s\n' "$SANDBOX_TAG" "$line" "$RESET"
   done < "$sandbox_cache_file"
 }
-
-# Write preview script to a temp file so fzf's subshell can source it cleanly.
-# fzf passes the full tab-delimited line as $1; we extract field 2 (the BQ ref).
-local preview_file
-preview_file=$(mktemp /tmp/bq-open-preview.XXXXXX.zsh)
-print -r -- "_bq_open_preview() { $functions[_bq_open_preview] }
-line=\$1
-raw=\${line#*$'\t'}
-raw=\$(printf '%s' \"\$raw\" | sed 's/\x1b\[[0-9;]*m//g')
-case \"\$raw\" in
-  ---*) echo 'Select to refresh the cache and reopen the picker.' ;;
-  *)    _bq_open_preview \"\$raw\" ;;
-esac" > "$preview_file"
 
 local selection
 selection=$(
@@ -207,11 +163,10 @@ selection=$(
         --delimiter=$'\t' \
         --with-nth=1,2 \
         --nth=2 \
-        --preview="zsh $preview_file {}" \
+        --preview='raw=$(printf "%s" {} | cut -f2 | sed "s/\x1b\[[0-9;]*m//g"); case "$raw" in ---*) echo "Select to refresh the cache and reopen the picker." ;; *) "$HOME/bin/bq-preview" "$raw" ;; esac' \
         --preview-window=bottom:40%:wrap \
-        --bind='ctrl-p:change-preview-window(70%|40%)'
-) || { rm -f "$preview_file"; return 130; }
-rm -f "$preview_file"
+        --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)'
+) || return 130
 
 [[ -z $selection ]] && return 130
 

@@ -1,0 +1,20 @@
+rlm-bq-rm-tables
+
+List BigQuery tables/views across the datasets defined in
+$SANDBOX_BQ_DATASETS within $SANDBOX_BQ_PROJECT, present a multi-select
+fzf picker, then permanently delete the selected items after a
+confirmation prompt.
+
+Environment:
+  SANDBOX_BQ_PROJECT   GCP project ID (required).
+  SANDBOX_BQ_DATASETS  Colon-separated list of dataset names (required).
+
+Preview pane shows: type, project_id, dataset_id, table_id, num_rows,
+logical_bytes, description, creation/modification timestamps.
+
+Key bindings:
+  TAB / Shift-TAB  toggle selection
+  Ctrl-P           cycle preview height (tall → short → hidden)
+  Enter            confirm selection and proceed to deletion prompt
+
+Deletion requires typing 'yes' at the confirmation prompt.

@@ -145,7 +145,6 @@ picked=$(
       --prompt="dbt selector> " \
       --height=80% \
       --reverse \
-      --no-mouse \
       --preview="echo {}" \
       --preview-window=bottom:40% \
       --bind='ctrl-p:change-preview-window(bottom:70%|bottom:40%|hidden)' \
@@ -200,7 +199,6 @@ selected_models=(
         --prompt="dbt models> " \
         --height=80% \
         --reverse \
-        --no-mouse \
         --preview="echo {}" \
         --preview-window=bottom:40% \
         --bind='ctrl-p:change-preview-window(bottom:70%|bottom:40%|hidden)' \

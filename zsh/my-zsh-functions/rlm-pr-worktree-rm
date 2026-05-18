@@ -209,6 +209,7 @@ local selection
 selection=$(
   printf '%s\n' "${rows[@]}" \
   | fzf --multi --ansi --reverse --height=80% \
+        --no-mouse \
         --delimiter=$'\t' \
         --with-nth=1 \
         --prompt='delete> ' \

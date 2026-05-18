@@ -78,14 +78,13 @@ local selection
 selection=$(
   { print -- "$refresh_sentinel"; _sandbox_bq_open_sorted_list; } \
   | fzf --prompt="Sandbox BQ table> " --height=80% --reverse \
+        --no-mouse \
         --preview="
           line={}
           if [ \"\$line\" = '${refresh_sentinel}' ]; then
             echo 'Select to refresh the table cache'
           else
-            proj=\${line%%:*}; rest=\${line##*:}
-            bq show --format=prettyjson \"\${proj}:\${rest}\" \
-              | jq '{type,kind,id,description,numPartitions,numRows,numTotalLogicalBytes} + .'
+            "$HOME/bin/bq-preview" \"\$line\"
           fi
         " \
         --preview-window=bottom:40%:wrap \

@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [2026-05-18]
 
+### Added
+
+- `rlm-bq-rm-tables` (`bq-rm-tables`): multi-select fzf picker to permanently delete BigQuery tables across sandbox datasets; preview pane shows table metadata via `bq-preview`.
+- `bq-preview` (`~/bin/bq-preview`): standalone script that prints standardised BigQuery table/view metadata for fzf preview panes; fixes jq `label` keyword conflict and avoids zsh `\n`-expansion bug by piping `bq show` directly to jq via temp files.
+
 ### Changed
 
 - `rlm-gh-repo-init`: make `OWNER/REPO` argument optional; when omitted, defaults to `<gh-username>/<current-dir>` (looked up via `gh api user`) and prompts for confirmation before creating the repo.
@@ -13,6 +18,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `rlm-bq-open`: fetch sandbox datasets in parallel (background subshells) and merge results for faster cache population
 - `rlm-bq-open`: sandbox lines now appear immediately after history in the picker (before non-sandbox lines)
 - `rlm-dbt-run`: remove `--favor-state` flag from all `dbt run`, `dbt ls`, and `dbt compile` invocations; update help text accordingly
+- All fzf pickers: add `--no-mouse` so terminal emulator handles mouse events (copy-paste in preview pane)
+- All fzf pickers with BigQuery preview: use full path `"$HOME/bin/bq-preview"` so the `sh` subshell can find it without inheriting zsh `PATH`
+- `AGENTS.md`: document `bq-preview` convention (full path, `--no-mouse`, tab-delimited ANSI stripping)
 
 ## [2026-05-17]
 
