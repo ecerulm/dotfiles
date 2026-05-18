@@ -51,8 +51,8 @@ if (( ${#tables} == 0 )); then
   return 1
 fi
 
-local -a selections
-selections=($(
+local fzf_out
+fzf_out=$(
   print -l -- "${tables[@]}" \
   | fzf \
       --prompt="Select tables to DELETE (TAB=multi)> " \
@@ -65,21 +65,23 @@ selections=($(
       --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)' \
       --with-nth=1,3,4 \
       --delimiter=$'\t'
-)) || return 130
+) || return 130
 
-if (( ${#selections} == 0 )); then
+if [[ -z $fzf_out ]]; then
   print -u2 "bq-rm-tables: no selection made"
   return 130
 fi
 
-# Extract just the full refs (5th tab-separated field) for deletion
-local -a to_delete
-local sel
-for sel in "${selections[@]}"; do
-  local ref
-  ref=$(print -- "$sel" | cut -f5)
-  [[ -n $ref ]] && to_delete+=("$ref")
-done
+# Parse fzf output: one tab-delimited row per selection.
+# Field 5 is the full BigQuery ref (project:dataset.table).
+local -a to_delete to_delete_colored
+local sel_line proj ds tbl ref
+while IFS=$'\t' read -r _ proj ds tbl ref; do
+  [[ -n $ref ]] || continue
+  to_delete+=("$ref")
+  # Colorize: project=cyan, dataset=yellow, table=green
+  to_delete_colored+=("$(print -P "%F{cyan}${proj}%f:%F{yellow}${ds}%f.%F{green}${tbl}%f")")
+done <<< "$fzf_out"
 
 if (( ${#to_delete} == 0 )); then
   print -u2 "bq-rm-tables: could not parse selection"
@@ -88,8 +90,9 @@ fi
 
 print ""
 print "The following tables/views will be PERMANENTLY DELETED:"
-for ref in "${to_delete[@]}"; do
-  print "  - $ref"
+local i
+for (( i = 1; i <= ${#to_delete_colored}; i++ )); do
+  print "  - ${to_delete_colored[$i]}"
 done
 print ""
 
