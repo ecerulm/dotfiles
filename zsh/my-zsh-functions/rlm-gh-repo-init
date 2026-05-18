@@ -24,6 +24,23 @@ if git remote | grep -q .; then
   return 1
 fi
 
-local repo_slug=${1:?'gh-repo-init: argument required: OWNER/REPO'}
+local repo_slug=$1
+if [[ -z $repo_slug ]]; then
+  local gh_user
+  gh_user=$(gh api user --jq .login) || {
+    print -u2 "gh-repo-init: failed to look up GitHub username via 'gh api user'"
+    return 1
+  }
+  local dir_name=${PWD:t}
+  repo_slug="${gh_user}/${dir_name}"
+  print -u2 "gh-repo-init: no argument provided, defaulting to: ${repo_slug}"
+  print -u2 -n "Continue? [y/N] "
+  local reply
+  read -r reply
+  if [[ $reply != [yY] && $reply != [yY][eE][sS] ]]; then
+    print -u2 "gh-repo-init: aborted"
+    return 1
+  fi
+fi
 
 gh repo create "$repo_slug" --private --source . --push && gh repo view -w

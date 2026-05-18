@@ -4,6 +4,12 @@ All notable changes to the zsh configuration are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2026-05-18]
+
+### Changed
+
+- `rlm-gh-repo-init`: make `OWNER/REPO` argument optional; when omitted, defaults to `<gh-username>/<current-dir>` (looked up via `gh api user`) and prompts for confirmation before creating the repo.
+
 ## [2026-05-17]
 
 ### Fixed
