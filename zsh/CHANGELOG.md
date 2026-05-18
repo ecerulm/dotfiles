@@ -8,19 +8,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- `rlm-bq-rm-tables` (`bq-rm-tables`): multi-select fzf picker to permanently delete BigQuery tables across sandbox datasets; preview pane shows table metadata via `bq-preview`.
-- `bq-preview` (`~/bin/bq-preview`): standalone script that prints standardised BigQuery table/view metadata for fzf preview panes; fixes jq `label` keyword conflict and avoids zsh `\n`-expansion bug by piping `bq show` directly to jq via temp files.
+- `rlm-bq-rm-tables` (`bq-rm-tables`): multi-select fzf picker to permanently delete BigQuery tables in sandbox datasets; preview pane shows table metadata via `bq-preview`.
+- `bq-preview` (`~/bin/bq-preview`): standalone BigQuery metadata viewer for fzf preview panes; fixes jq `label` keyword conflict and avoids the zsh `\n`-expansion bug.
 
 ### Changed
 
-- `rlm-gh-repo-init`: make `OWNER/REPO` argument optional; when omitted, defaults to `<gh-username>/<current-dir>` (looked up via `gh api user`) and prompts for confirmation before creating the repo.
-- `rlm-bq-open`: refactor fzf lines to tab-delimited format (`COLOUR_OPENER<TAB>BQ_REF`) so ANSI colouring works reliably and `--nth=2` restricts match highlighting to the BQ ref field
-- `rlm-bq-open`: fetch sandbox datasets in parallel (background subshells) and merge results for faster cache population
-- `rlm-bq-open`: sandbox lines now appear immediately after history in the picker (before non-sandbox lines)
-- `rlm-dbt-run`: remove `--favor-state` flag from all `dbt run`, `dbt ls`, and `dbt compile` invocations; update help text accordingly
-- All fzf pickers: add `--no-mouse` so terminal emulator handles mouse events (copy-paste in preview pane)
-- All fzf pickers with BigQuery preview: use full path `"$HOME/bin/bq-preview"` so the `sh` subshell can find it without inheriting zsh `PATH`
-- `AGENTS.md`: document `bq-preview` convention (full path, `--no-mouse`, tab-delimited ANSI stripping)
+- `rlm-gh-repo-init`: make `OWNER/REPO` argument optional; when omitted, defaults to `<gh-username>/<current-dir>` (username via `gh api user`) and prompts for confirmation before creating the repo.
+- `rlm-bq-open`: switch fzf lines to tab-delimited `COLOUR_OPENER<TAB>BQ_REF` format; `--nth=2` restricts match highlighting to the BQ ref, fixing ANSI colouring reliability.
+- `rlm-bq-open`: fetch sandbox datasets in parallel (background subshells) for faster cache population.
+- `rlm-bq-open`: sandbox lines now appear after history (before non-sandbox lines) in the picker.
+- `rlm-bq-rm-tables`: colorize the `project:dataset.table` parts in the deletion preview (project=cyan, dataset=yellow, table=green).
+- `rlm-dbt-run`: drop `--favor-state` from `dbt run`/`ls`/`compile` calls; update help text accordingly.
+- All fzf pickers: add `--no-mouse` so the terminal emulator handles mouse events (text selection / copy-paste in the preview pane).
+- All fzf pickers with BigQuery preview: use the full path `"$HOME/bin/bq-preview"` so the plain `sh` preview subshell can find it without inheriting zsh `PATH`.
+- `AGENTS.md`: document the `bq-preview` convention (full path, `--no-mouse`, tab-delimited ANSI stripping).
+
+### Fixed
+
+- `rlm-bq-rm-tables`: stop splitting fzf output into individual fields via `$(...)` array expansion; capture as a single string and parse tab-delimited rows with `read` so each selection stays on one line.
+- `rlm-dbt-run`: exclude `target/compiled/**/*.yml` and `*.sql` from the find that locates a model's compiled SQL; unit-test fixtures (e.g. `_foo_unit_tests.yml` / `foo.sql`) collided with real models and dry-ran to 0 bytes, silently zeroing the cost estimate.
+- `rlm-dbt-run`: send `dbt compile --quiet` stdout to `/dev/null`; `--quiet` only silences logs, not the compiled SQL itself, which previously leaked into the estimate output.
+- `rlm-dbt-run`: print per-model size and compiled SQL path in the summary so the user can re-run `bq query --dry_run` manually to verify.
 
 ## [2026-05-17]
 
