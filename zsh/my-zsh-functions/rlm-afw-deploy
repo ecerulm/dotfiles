@@ -30,12 +30,11 @@ if ! command -v fd >/dev/null 2>&1; then
   return 1
 fi
 
-# Verify that poetry has afw available (env is synced)
-if ! poetry run afw --help >/dev/null 2>&1; then
-  print -u2 "afw-deploy: 'afw' not found in poetry environment"
-  print -u2 "Run: poetry install  (or poetry sync)"
-  return 1
-fi
+# Verify `poetry run afw` resolves to the project venv (not a stray $PATH
+# afw) and auto-install if not. Shared helper handles the three-line
+# diagnostic on hard failure.
+autoload -Uz _rlm-poetry-ensure-venv
+_rlm-poetry-ensure-venv "$PWD" afw afw-deploy || return 1
 
 # ---------------------------------------------------------------------------
 # Cache: remember last selections per project root

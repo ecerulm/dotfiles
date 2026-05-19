@@ -1,0 +1,65 @@
+emulate -L zsh
+
+# Ensure a Poetry-managed project's virtualenv exists and provides the
+# expected executable. If not, run `poetry install` once and re-check;
+# if it still fails, print a three-line diagnostic and return non-zero.
+#
+# This is the shared precondition used by rlm-dbt-run, rlm-dbt-build
+# (via _rlm-dbt-cmd), rlm-dbt-ls, and rlm-afw-deploy. It is stronger
+# than a `poetry run <bin> --version` probe because it asserts the
+# resolved binary's absolute path is *under* the project's venv path —
+# `poetry run` happily falls through to $PATH if the venv is missing
+# the executable, which can silently shadow the pinned project version.
+#
+# Usage:
+#   _rlm-poetry-ensure-venv <project_root> <expected_bin> <label>
+#
+#   project_root   absolute path to the directory containing pyproject.toml
+#   expected_bin   bare name of the executable that must live in the venv
+#                  (e.g. dbt, afw, ruff)
+#   label          short caller name used as a prefix in stderr messages
+#                  (e.g. dbt-run, afw-deploy)
+#
+# Returns:
+#   0 if the venv resolves and the bin is inside it (possibly after a
+#     successful auto `poetry install`).
+#   1 if anything failed; a diagnostic has been printed to stderr.
+
+local project_root="$1"
+local expected_bin="$2"
+local label="$3"
+
+if [[ -z $project_root || -z $expected_bin || -z $label ]]; then
+  print -u2 "_rlm-poetry-ensure-venv: usage: <project_root> <expected_bin> <label>"
+  return 2
+fi
+
+_rlm_poetry_ensure_venv_check() {
+  local venv_path bin_path
+  venv_path=$(cd "$project_root" && poetry env info --path 2>/dev/null)
+  bin_path=$(cd "$project_root" && poetry run which "$expected_bin" 2>/dev/null)
+  [[ -n $venv_path && -n $bin_path && $bin_path == ${venv_path}/* ]]
+}
+
+if _rlm_poetry_ensure_venv_check; then
+  return 0
+fi
+
+print -u2 "${label}: ${expected_bin} not resolved from project venv — running poetry install in $project_root …"
+(cd "$project_root" && poetry install) || {
+  print -u2 "${label}: poetry install failed"
+  return 1
+}
+
+if _rlm_poetry_ensure_venv_check; then
+  return 0
+fi
+
+local _venv _bin
+_venv=$(cd "$project_root" && poetry env info --path 2>/dev/null)
+_bin=$(cd "$project_root" && poetry run which "$expected_bin" 2>/dev/null)
+print -u2 "${label}: ${expected_bin} still not in venv after poetry install"
+print -u2 "         expected venv : ${_venv:-<unresolved>}"
+print -u2 "         resolved ${expected_bin}  : ${_bin:-<unresolved>}"
+print -u2 "         project dir   : $project_root"
+return 1

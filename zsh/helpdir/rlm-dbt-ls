@@ -32,8 +32,11 @@ SELECTOR
 PREREQUISITES
   - Must be run from the project root (containing pyproject.toml).
   - poetry must be available in PATH.
-  - The poetry environment must include dbt; if it does not, the
-    function runs "poetry install" automatically.
+  - The poetry environment must include dbt and "poetry run dbt" must
+    resolve to a binary inside that venv (not a stray dbt on $PATH).
+    If not, the function runs "poetry install" automatically once; if
+    it is still not in the venv, the function aborts with a three-line
+    diagnostic (expected venv, resolved dbt, project dir).
   - dbt_profiles.yml must exist somewhere under the current directory.
 
 Requires: poetry, fzf, dbt (in the poetry env).

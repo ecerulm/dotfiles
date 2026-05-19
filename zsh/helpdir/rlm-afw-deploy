@@ -10,8 +10,11 @@ USAGE
 
 WHAT IT DOES
   1. Validates that airflow_manager/ and pyproject.toml exist.
-  2. Confirms that 'afw' is available in the poetry environment
-     (runs: poetry run afw --help).
+  2. Verifies that "poetry run afw" resolves to a binary inside the
+     project's poetry virtualenv (not a stray afw on $PATH). If the
+     venv is missing afw, runs "poetry install" automatically once;
+     if afw is still not in the venv after that, aborts with a
+     three-line diagnostic (expected venv, resolved afw, project dir).
   3. Opens an fzf picker over *.py files in airflow_manager/dag_folder/.
   4. Deploys the selected DAG:
 

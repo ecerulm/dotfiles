@@ -149,6 +149,12 @@ if [[ ! -d $profiles_dir ]]; then
   return 1
 fi
 
+# Verify `poetry run dbt` resolves to the project venv (not a stray $PATH
+# dbt) and auto-install if not. Shared helper handles the three-line
+# diagnostic on hard failure.
+autoload -Uz _rlm-poetry-ensure-venv
+_rlm-poetry-ensure-venv "$dbt_root" dbt "$label" || return 1
+
 local dbt_target="$DBT_TARGET"
 
 local cache_dir="$HOME/.cache/${label}"

@@ -79,13 +79,12 @@ fi
 print "dbt-ls: using profiles-dir='${profiles_dir}' profile='${profile_name}'" >&2
 
 # ---------------------------------------------------------------------------
-# Ensure poetry env is synced (run from project_root so poetry finds its env)
+# Ensure poetry env is synced and dbt resolves to the project venv
+# (not a stray $PATH dbt). Auto-installs once if not.
 # ---------------------------------------------------------------------------
 
-if ! (cd "$project_root" && poetry run dbt --version >/dev/null 2>&1); then
-  print "dbt-ls: dbt not found in poetry env — running poetry install …" >&2
-  (cd "$project_root" && poetry install) || return 1
-fi
+autoload -Uz _rlm-poetry-ensure-venv
+_rlm-poetry-ensure-venv "$project_root" dbt dbt-ls || return 1
 
 # ---------------------------------------------------------------------------
 # Cache: selector history per dbt project root

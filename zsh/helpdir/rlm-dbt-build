@@ -21,6 +21,12 @@ older than 7 days. Run dbt-sync-state to refresh it.
 
 The cost estimate only covers models (seeds don't dry-run via bq).
 
+Before running, dbt-build verifies that `poetry run dbt` resolves to a
+binary inside the project's poetry virtualenv (not a stray dbt on $PATH).
+If the venv is missing dbt, `poetry install` is run automatically in the
+project dir; if dbt is still not in the venv after that, dbt-build aborts
+with the resolved dbt path, the expected venv path, and the project dir.
+
 ENVIRONMENT (all required, set in ~/.zshrc.thismachine)
   DBT_STATE_DIR      path to dir containing the ref-state manifest.json
   DBT_PROJECT_SUBDIR subdir of the git root containing dbt_project.yml

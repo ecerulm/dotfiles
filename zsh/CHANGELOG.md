@@ -6,10 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [2026-05-19]
 
+### Added
+
+- `_rlm-poetry-ensure-venv`: new internal helper. Given `(project_root, expected_bin, label)` it verifies that `poetry run <expected_bin>` resolves to a binary under the project's poetry virtualenv (via `poetry env info --path` + `poetry run which <bin>` + path-prefix check). If not, runs `poetry install` once in `$project_root` and re-checks; on hard failure prints a three-line diagnostic (expected venv, resolved bin, project dir) and returns non-zero. Stronger than a `poetry run <bin> --version` probe, which succeeds for any `<bin>` on `$PATH` and silently shadows the pinned version when `poetry install`/`poetry sync` has not been run.
+
 ### Changed
 
 - `rlm-bq-open` / `bq-preview`: garbage-collect stale BigQuery refs. When `bq-preview` hits a "not found" error it appends the ref to `~/.cache/bq-open/dead-refs.txt`; on the next `rlm-bq-open` invocation those refs are removed from the picker cache, sandbox cache, and history file before the picker is shown.
 - `_rlm-dbt-cmd` (`rlm-dbt-run` / `rlm-dbt-build`): surface real `dbt ls` failures. Captures stderr to `~/.cache/{dbt-run,dbt-build}/dbt-ls.err`, prints the exit code and the exact command that ran, and points to the log file path instead of silently falling back to an empty node list.
+- `_rlm-dbt-cmd` (`rlm-dbt-run` / `rlm-dbt-build`), `rlm-dbt-ls`, `rlm-afw-deploy`: replace per-function venv checks with calls to the new `_rlm-poetry-ensure-venv` helper. `rlm-dbt-ls` upgrades from the weak `poetry run dbt --version` probe to the robust path-prefix check; `rlm-afw-deploy` now auto-runs `poetry install` on failure instead of printing a manual suggestion. Behavior for `rlm-dbt-run` / `rlm-dbt-build` is unchanged (the helper is the exact pattern they already used inline).
 
 ## [2026-05-18]
 

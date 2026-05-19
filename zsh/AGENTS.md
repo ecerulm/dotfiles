@@ -26,6 +26,23 @@ Short aliases must expand to the real value directly (e.g. `alias gc="git commit
 
 **Inline** (defined directly in `.zshrc`): use for short one-liners or functions that need to modify the calling shell's environment (e.g. `cd`, `export`).
 
+## Internal Helpers (`_rlm-<name>`)
+
+Functions whose name begins with an underscore are **internal helpers**: implementation details called by other `rlm-*` functions, never directly by the user. They follow these conventions:
+
+- File at `my-zsh-functions/_rlm-<name>` (same dir as public functions).
+- **No** `autoload -Uz` line in `.zshrc` and **no** short alias.
+- Callers autoload them locally at the top of the calling function: `autoload -Uz _rlm-<name>`.
+- **No** `helpdir/_rlm-<name>` file — internal helpers are not surfaced through `run-help` or `rlm-fcmd`.
+- **No** entry in `README.md`'s function table.
+
+Document them only in the source file (a header comment block stating purpose, signature, and return-code contract) and in `CHANGELOG.md` when they are introduced.
+
+Current internal helpers:
+
+- `_rlm-dbt-cmd` — shared implementation for `rlm-dbt-run` / `rlm-dbt-build`.
+- `_rlm-poetry-ensure-venv` — verifies that `poetry run <bin>` resolves to a binary under the project's poetry virtualenv (not a stray `$PATH` shadow); auto-runs `poetry install` once on failure. Signature: `(project_root, expected_bin, label)`. Used by `_rlm-dbt-cmd`, `rlm-dbt-ls`, and `rlm-afw-deploy`. Use this helper from any new function that invokes `poetry run <bin>` for a project-pinned tool.
+
 ## helpdir Files
 
 Every user-defined function and alias should have a corresponding help file at `helpdir/<name>`. The canonical file is `helpdir/rlm-<name>`; the short-alias file `helpdir/<name>` must be a **symlink** pointing to it — not an independent copy:
