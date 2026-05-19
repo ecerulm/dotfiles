@@ -19,6 +19,13 @@ trap "rm -f $err" EXIT
 if ! bq show --format=prettyjson "$ref" >"${err}.out" 2>"$err"; then
   print "(bq show failed for ${ref})"
   cat "$err"
+  # If the failure is a "Not found" error, record the ref so rlm-bq-open can
+  # garbage-collect it from the picker cache and history on next invocation.
+  if grep -qi 'not found' "$err"; then
+    local dead_file="$HOME/.cache/bq-open/dead-refs.txt"
+    mkdir -p "$(dirname "$dead_file")"
+    print -- "$ref" >>"$dead_file"
+  fi
   rm -f "${err}.out"
   exit 0
 fi

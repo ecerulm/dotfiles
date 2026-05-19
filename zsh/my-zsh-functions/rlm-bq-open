@@ -23,11 +23,40 @@ sandbox_datasets=(${(s[:])SANDBOX_BQ_DATASETS})
 local cache_dir="$HOME/.cache/bq-open"
 mkdir -p "$cache_dir"
 # Cache key: md5 of sorted project list + sandbox vars so changes bust cache
-local cache_key cache_file sandbox_cache_file history_file
+local cache_key cache_file sandbox_cache_file history_file dead_refs_file
 cache_key=$(print -l -- "${(o)projects[@]}" "${SANDBOX_BQ_PROJECT:-}" "${(o)sandbox_datasets[@]}" | md5)
 cache_file="${cache_dir}/${cache_key}.txt"
 sandbox_cache_file="${cache_dir}/${cache_key}-sandbox.txt"
 history_file="${cache_dir}/history.txt"
+# bq-preview appends "Not found" refs here so we can garbage-collect them from
+# the picker cache and history on subsequent invocations.
+dead_refs_file="${cache_dir}/dead-refs.txt"
+
+# Garbage-collect any refs that bq-preview detected as missing on a previous run.
+if [[ -s $dead_refs_file ]]; then
+  local -a dead_refs
+  dead_refs=("${(@f)$(<$dead_refs_file)}")
+  local tmp
+  local f
+  for f in "$cache_file" "$sandbox_cache_file" "$history_file"; do
+    [[ -f $f ]] || continue
+    tmp=$(mktemp)
+    # History stores plain refs and "[sandbox] <ref>"; strip the prefix for matching.
+    awk -v deadlist="${(j:,:)dead_refs}" '
+      BEGIN {
+        n = split(deadlist, arr, ",")
+        for (i = 1; i <= n; i++) dead[arr[i]] = 1
+      }
+      {
+        ref = $0
+        sub(/^\[sandbox\] /, "", ref)
+        if (!(ref in dead)) print
+      }
+    ' "$f" >| "$tmp"
+    mv "$tmp" "$f"
+  done
+  rm -f "$dead_refs_file"
+fi
 
 # Tab-delimited format for fzf lines: DISPLAY_TAG<TAB>BQ_REF
 # DISPLAY_TAG is either empty (normal lines) or the ANSI open code that colours
