@@ -1,0 +1,12 @@
+emulate -L zsh
+
+# Run `dbt build` in local dev mode using deferred state from production.
+# See `rlm-dbt-build -h` (or `helpdir/rlm-dbt-build`) for the full description.
+#
+# Shared implementation lives in _rlm-dbt-cmd; this wrapper selects the
+# dbt subcommand (`build`) and the resource type(s) to expose in the
+# picker (models + seeds). The sibling rlm-dbt-run wraps `dbt run` with
+# models only.
+
+autoload -Uz _rlm-dbt-cmd
+_rlm-dbt-cmd build model,seed "$@"

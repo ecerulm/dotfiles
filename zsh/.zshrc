@@ -259,6 +259,7 @@ autoload -Uz rlm-git-changed
 autoload -Uz rlm-git-diff-base
 autoload -Uz rlm-dbt-ls
 autoload -Uz rlm-dbt-run
+autoload -Uz rlm-dbt-build
 # run-help: use the real autoloaded version (default is aliased to man)
 unalias run-help 2>/dev/null
 autoload -Uz run-help
@@ -292,6 +293,7 @@ alias pr-for-commit='rlm-pr-for-commit'
 alias afw-deploy='rlm-afw-deploy'
 alias dbt-ls='rlm-dbt-ls'
 alias dbt-run='rlm-dbt-run'
+alias dbt-build='rlm-dbt-build'
 
 [ -x /opt/homebrew/bin/brew ] && eval $(/opt/homebrew/bin/brew shellenv)
 [ -x /usr/local/bin/brew ] && eval $(/usr/local/bin/brew shellenv)

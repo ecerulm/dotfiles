@@ -8,11 +8,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `rlm-dbt-build` (`dbt-build`): sibling of `rlm-dbt-run` that wraps `dbt build` (models, seeds, tests, snapshots). The fzf picker covers models *and* seeds. Shares deferred-state, history, cost-estimate, and `-n` list-only behaviour with `dbt-run` via the new `_rlm-dbt-cmd` helper.
+- `_rlm-dbt-cmd`: shared implementation autoloaded helper backing `rlm-dbt-run` and `rlm-dbt-build`. Takes the dbt subcommand (`run`/`build`) and a comma-separated list of `--resource-type` values, and derives the cache dir / help text / picker labels from the caller's `funcstack` name.
 - `rlm-bq-rm-tables` (`bq-rm-tables`): multi-select fzf picker to permanently delete BigQuery tables in sandbox datasets; preview pane shows table metadata via `bq-preview`.
 - `bq-preview` (`~/bin/bq-preview`): standalone BigQuery metadata viewer for fzf preview panes; fixes jq `label` keyword conflict and avoids the zsh `\n`-expansion bug.
 
 ### Changed
 
+- `rlm-dbt-run`: collapsed to a thin wrapper that calls `_rlm-dbt-cmd run model`; existing behaviour, env vars, cache layout (`~/.cache/dbt-run/{models,history,history_ts}.txt`), and history are preserved.
 - `rlm-gh-repo-init`: make `OWNER/REPO` argument optional; when omitted, defaults to `<gh-username>/<current-dir>` (username via `gh api user`) and prompts for confirmation before creating the repo.
 - `rlm-bq-open`: switch fzf lines to tab-delimited `COLOUR_OPENER<TAB>BQ_REF` format; `--nth=2` restricts match highlighting to the BQ ref, fixing ANSI colouring reliability.
 - `rlm-bq-open`: fetch sandbox datasets in parallel (background subshells) for faster cache population.
@@ -25,6 +28,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- `rlm-bq-open`: strip ANSI escape codes from the awk dedup key so the same table appearing once as a sandbox history entry (with trailing `\033[0m`) and once as a plain entry collapses to a single picker line.
 - `rlm-bq-rm-tables`: stop splitting fzf output into individual fields via `$(...)` array expansion; capture as a single string and parse tab-delimited rows with `read` so each selection stays on one line.
 - `rlm-dbt-run`: exclude `target/compiled/**/*.yml` and `*.sql` from the find that locates a model's compiled SQL; unit-test fixtures (e.g. `_foo_unit_tests.yml` / `foo.sql`) collided with real models and dry-ran to 0 bytes, silently zeroing the cost estimate.
 - `rlm-dbt-run`: send `dbt compile --quiet` stdout to `/dev/null`; `--quiet` only silences logs, not the compiled SQL itself, which previously leaked into the estimate output.

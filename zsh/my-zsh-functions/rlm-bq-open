@@ -157,7 +157,7 @@ selection=$(
     fi | while IFS= read -r line; do printf '\t%s\n' "$line"; done
   } \
   | awk -F'\t' '
-    { if (!seen[$2]++) print }' \
+    { key = $2; gsub(/\033\[[0-9;]*m/, "", key); if (!seen[key]++) print }' \
   | fzf --ansi --prompt="BigQuery table> " --height=80% --reverse \
         --no-mouse \
         --delimiter=$'\t' \
