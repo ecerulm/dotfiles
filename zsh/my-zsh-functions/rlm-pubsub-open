@@ -83,16 +83,13 @@ local selection
 selection=$(
   { print -- "$refresh_sentinel"; _pubsub_open_sorted_list; } \
   | fzf --prompt="Pub/Sub topic> " --height=80% --reverse \
-        --no-mouse \
+        --no-mouse --ansi \
         --preview="
           line={}
           if [ \"\$line\" = '${refresh_sentinel}' ]; then
             echo 'Run: pubsub-open  (or delete ~/.cache/pubsub-open/ and re-run)'
           else
-            proj=\${line%%/*}
-            topic=\${line##*/}
-            gcloud pubsub topics describe \"projects/\${proj}/topics/\${topic}\" \
-              --project=\"\${proj}\" 2>&1
+            \"\$HOME/bin/pubsub-preview\" \"\$line\"
           fi
         " \
         --preview-window=bottom:40%:wrap \

@@ -121,6 +121,84 @@ Do **not** add private functions or aliases to `README.md`.
 4. Create `helpdir/rlm-<name>` with help content, then symlink: `ln -s rlm-<name> helpdir/<name>`.
 5. Update `README.md` (the function table in the relevant section).
 
+## Emitting Escape Sequences from zsh: `print -r --` (not `print --`)
+
+When a zsh function or script prints output that contains backslashes,
+escape sequences, or strings captured from a command substitution that
+itself produced escapes (e.g. an OSC 8 hyperlink builder), **always use
+`print -r -- "$value"`**, never `print -- "$value"`.
+
+Without `-r` (raw), `print` interprets backslashes in the string:
+
+- `\\` becomes a single `\`
+- `\e` becomes `ESC` (0x1b)
+- A lone `\` followed by a non-special char is dropped
+
+This is especially destructive for OSC 8 hyperlinks. Their terminator
+is `ESC \` (bytes `0x1b 0x5c`). If the URL/text is built once with
+`printf '\e]8;;URL\e\\TEXT\e]8;;\e\\'` and captured into a variable
+via `$(...)`, the variable holds the correct two bytes. But re-emitting
+it with `print -- "$var"` eats the `\` after each `ESC`, producing
+`ESC` followed directly by the next character. The terminal then
+consumes that next character as part of an (invalid) escape sequence:
+
+- Input bytes: `prod ESC \ storytel` (correct ST + text)
+- After `print --`: `prod ESC storytel` (one byte gone)
+- On screen: `prodtorytel` (terminal eats the `s`)
+
+This presents exactly as "the OSC 8 hyperlink is broken" / "I see
+`8;;https://...` instead of a clickable link", but the root cause is
+the zsh output formatter, not fzf or the terminal.
+
+Rule: in any new zsh code, default to `print -r -- "..."` for emitting
+strings; only use `print -- "..."` when you explicitly want backslash
+interpretation (rare). `printf '%s\n' "$var"` is also safe.
+
+## fzf Conventions (apply to every picker)
+
+Every `fzf` invocation in this repo must include the following flags so
+that pickers behave consistently and preview panes work as intended:
+
+```sh
+fzf \
+    --no-mouse \
+    --ansi \
+    --height=80% --reverse \
+    --preview-window=bottom:40%:wrap \
+    --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)'
+```
+
+- `--no-mouse` — keeps fzf from capturing mouse events, so the terminal
+  emulator can handle text selection / copy-paste in the preview pane and
+  OSC 8 hyperlinks remain clickable. Without this, fzf intercepts clicks
+  before the terminal sees them.
+- `--ansi` — required for both ANSI color codes **and** OSC 8 hyperlink
+  pass-through (`\e]8;;URL\e\\TEXT\e]8;;\e\\`). Without `--ansi`, fzf
+  strips the leading `ESC ]` from OSC sequences and the URL bytes leak
+  into the visible preview as plain text (e.g. `8;;https://...TEXT`).
+  This applies to all fzf >= 0.55. Always pass `--ansi`, even if the
+  current preview does not yet emit color or hyperlinks — future
+  preview-script edits should not need to also remember to add the flag.
+- `--height=80%`, `--reverse`, `--preview-window=bottom:40%:wrap`, and
+  the `ctrl-p` binding match the conventions used across all `rlm-*`
+  pickers (see `memory/fzf_conventions.md`).
+
+The fzf preview command runs in a plain `sh` subshell that does **not**
+inherit the zsh `$PATH` additions or autoloaded functions. Bare command
+names not in standard system locations (`/usr/bin`, `/bin`) will fail
+with `command not found`. Use the full path (e.g. `$HOME/bin/<script>`)
+for any helper script invoked from a preview.
+
+When running inside tmux, OSC 8 hyperlinks also require:
+
+```tmux
+set -ga terminal-features "*:hyperlinks"
+```
+
+in `tmux.conf`. Without it, tmux strips OSC 8 before the host terminal
+ever sees it. Document this in any function's helpdir entry whose
+preview emits clickable links.
+
 ## BigQuery fzf Preview Panes
 
 For any fzf picker that shows BigQuery table or view information in its
@@ -131,14 +209,9 @@ preview pane, always call the `bq-preview` script instead of inlining
 --preview='"$HOME/bin/bq-preview" "project:dataset.table"'
 ```
 
-Always use the full path `$HOME/bin/bq-preview` (not bare `bq-preview`).
-
-All fzf pickers must include `--no-mouse` so that fzf does not capture mouse
-events and the terminal emulator can handle them (e.g. for text selection and
-copy-paste in the preview pane).
-The fzf preview runs in a plain `sh` subshell that does not inherit the zsh
-`PATH`, so bare command names not in `/usr/bin` etc. will fail with
-`command not found`.
+Always use the full path `$HOME/bin/bq-preview` (not bare `bq-preview`)
+— see the fzf conventions section above for why bare names fail in the
+preview subshell.
 
 `bq-preview` is a standalone executable at `~/dotfiles/bin/bq-preview`
 (symlinked to `~/bin/bq-preview`). It accepts a single `project:dataset.table`

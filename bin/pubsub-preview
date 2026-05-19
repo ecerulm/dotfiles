@@ -1,0 +1,72 @@
+#!/usr/bin/env zsh
+# Usage: pubsub-preview <project>/<topic>
+# Prints a standardized Pub/Sub topic summary for fzf preview panes.
+# Fields shown: project_id, name, topic schema (OSC 8 hyperlink to GCP
+# console, or "NO TOPIC SCHEMA"), subscriptions (each as an OSC 8
+# hyperlink to its GCP console page).
+emulate -L zsh
+set -o pipefail
+
+local ref="${1:-}"
+if [[ -z $ref || $ref != */* ]]; then
+  print "Usage: pubsub-preview <project>/<topic>" >&2
+  exit 1
+fi
+
+local project="${ref%%/*}"
+local topic="${ref##*/}"
+
+# OSC 8 hyperlink: ESC ] 8 ; ; URL ST text ESC ] 8 ; ; ST
+_hyperlink() {
+  local url="$1" text="$2"
+  printf '\e]8;;%s\e\\%s\e]8;;\e\\' "$url" "$text"
+}
+
+local describe_json
+if ! describe_json=$(gcloud pubsub topics describe "projects/${project}/topics/${topic}" \
+  --project="${project}" --format=json 2>&1); then
+  print "(gcloud pubsub topics describe failed for ${ref})"
+  print -r -- "$describe_json"
+  exit 0
+fi
+
+local schema_resource
+schema_resource=$(print -r -- "$describe_json" | jq -r '.schemaSettings.schema // ""')
+
+local schema_line
+if [[ -z $schema_resource || $schema_resource == "_deleted-schema_" ]]; then
+  schema_line="NO TOPIC SCHEMA"
+else
+  # schema_resource looks like: projects/<proj>/schemas/<schema_id>
+  local schema_project="${${schema_resource#projects/}%%/*}"
+  local schema_id="${schema_resource##*/}"
+  local schema_url="https://console.cloud.google.com/cloudpubsub/schema/detail/${schema_id}?project=${schema_project}"
+  schema_line=$(_hyperlink "$schema_url" "$schema_resource")
+fi
+
+local subs_json
+subs_json=$(gcloud pubsub topics list-subscriptions \
+  "projects/${project}/topics/${topic}" \
+  --project="${project}" --format=json 2>/dev/null) || subs_json='[]'
+
+print -r -- "project_id    : ${project}"
+print -r -- "name          : ${topic}"
+print -r -- "topic_schema  : ${schema_line}"
+print -r -- "subscriptions :"
+
+local -a subs
+subs=(${(f)"$(print -r -- "$subs_json" | jq -r '.[]? | if type == "object" then .name else . end')"})
+
+if (( ${#subs} == 0 )); then
+  print -r -- "  (none)"
+else
+  local sub sub_project sub_id sub_url sub_link
+  for sub in "${subs[@]}"; do
+    # sub looks like: projects/<proj>/subscriptions/<sub_id>
+    sub_project="${${sub#projects/}%%/*}"
+    sub_id="${sub##*/}"
+    sub_url="https://console.cloud.google.com/cloudpubsub/subscription/detail/${sub_id}?project=${sub_project}"
+    sub_link=$(_hyperlink "$sub_url" "${sub_project}/${sub_id}")
+    print -r -- "  - ${sub_link}"
+  done
+fi
