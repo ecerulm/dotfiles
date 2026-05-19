@@ -163,16 +163,26 @@ mkdir -p "$cache_dir"
 # Fetch node list (models, and optionally seeds) from dbt ls, save to cache
 _dbt_cmd_fetch_nodes() {
   print -u2 "${label}: fetching ${node_kind} list via dbt ls …"
-  local output
+  local err_log="$cache_dir/dbt-ls.err"
+  local output rc
   output=$(cd "$dbt_root" && poetry run dbt ls \
     "${resource_args[@]}" \
     --profiles-dir "$profiles_dir" \
     --target "$dbt_target" \
     --output name \
-    --quiet 2>/dev/null) || {
-    print -u2 "${label}: dbt ls failed; falling back to empty ${node_kind} list"
+    --quiet 2>"$err_log")
+  rc=$?
+  if (( rc != 0 )); then
+    print -u2 "${label}: dbt ls failed (exit $rc); falling back to empty ${node_kind} list"
+    print -u2 "${label}: command was:"
+    print -u2 "  cd $dbt_root && poetry run dbt ls ${resource_args[*]} --profiles-dir $profiles_dir --target $dbt_target --output name --quiet"
+    if [[ -s $err_log ]]; then
+      print -u2 "${label}: stderr saved to $err_log"
+    else
+      print -u2 "${label}: (no stderr captured; see $err_log)"
+    fi
     return 1
-  }
+  fi
   print -- "$output" >| "$nodes_cache"
 }
 
