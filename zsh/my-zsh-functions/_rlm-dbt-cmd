@@ -106,35 +106,19 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Check ref-state exists and is fresh (< 7 days old)
-local state_dir="$DBT_STATE_DIR"
-local manifest="$state_dir/manifest.json"
-
-if [[ ! -f $manifest ]]; then
-  print -u2 "${label}: ref-state manifest not found at $manifest"
-  print -u2 "         Run: dbt-sync-state"
-  return 1
-fi
-
-# mtime check — stat -f %m is macOS; fallback to Linux
-local mtime now age
-if mtime=$(stat -f %m "$manifest" 2>/dev/null); then
-  now=$(date +%s)
-  age=$(( now - mtime ))
-elif mtime=$(stat -c %Y "$manifest" 2>/dev/null); then
-  now=$(date +%s)
-  age=$(( now - mtime ))
-else
-  print -u2 "${label}: could not check manifest age (stat failed)"
-  age=0
-fi
-
-if (( age > 7 * 24 * 3600 )); then
-  local days=$(( age / 86400 ))
-  print -u2 "${label}: ref-state manifest is ${days} days old (> 7 days)"
-  print -u2 "         Run: dbt-sync-state"
-  return 1
-fi
+# Locate and validate the prod ref-state manifest via the shared helper.
+# `--require` makes missing/unset DBT_STATE_DIR a hard failure (with a
+# stderr diagnostic + "Run: dbt-sync-state" hint), matching the previous
+# inline behavior. `--max-age-days 7` enforces the same 7-day freshness
+# rule that used to live here. The helper exports `state_dir`, `manifest`,
+# `age_seconds`, `age_label` into the current shell via `eval`.
+autoload -Uz _rlm-dbt-state-info
+local _state_info
+_state_info=$(_rlm-dbt-state-info --require --max-age-days 7 --label "$label") || return 1
+eval "$_state_info"
+# Compat aliases for the rest of this function, which reads `state_dir`,
+# `manifest`, and the per-second `age` value.
+local age=$age_seconds
 
 local repo_root
 repo_root=$(git root 2>/dev/null) || {
@@ -154,6 +138,13 @@ fi
 # diagnostic on hard failure.
 autoload -Uz _rlm-poetry-ensure-venv
 _rlm-poetry-ensure-venv "$dbt_root" dbt "$label" || return 1
+
+# Ensure dbt packages declared in packages.yml are installed (a fresh
+# checkout or a newly added package would otherwise cause `dbt ls` to
+# emit the "X package(s) specified … but only N installed" warning and
+# produce no node list).
+autoload -Uz _rlm-dbt-ensure-deps
+_rlm-dbt-ensure-deps "$dbt_root" "$dbt_root" "$label" || return 1
 
 local dbt_target="$DBT_TARGET"
 
@@ -330,16 +321,7 @@ local -a dbt_cmd=(
 )
 
 print "${label}: selector=$selector"
-local age_label
-if (( age < 60 )); then
-  age_label="${age}s"
-elif (( age < 3600 )); then
-  age_label="$(( age / 60 ))m"
-elif (( age < 86400 )); then
-  age_label="$(( age / 3600 ))h"
-else
-  age_label="$(( age / 86400 ))d"
-fi
+# state_dir + age_label set by _rlm-dbt-state-info earlier (via eval).
 print "${label}: state=$state_dir (${age_label} old)"
 print "${label}: profiles=$profiles_dir"
 print ""

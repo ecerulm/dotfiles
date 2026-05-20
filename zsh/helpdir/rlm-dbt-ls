@@ -16,10 +16,35 @@ WORKFLOW
      is run via "poetry run dbt ls …".
   3. The resulting model names are shown in an fzf multi-select picker.
      TAB selects multiple entries; Enter confirms the selection.
+     Ctrl-Y copies the currently marked entries (or the highlighted
+     line if none are marked) to the system clipboard without exiting
+     the picker; the header briefly changes to confirm the copy.
+     The preview pane (rendered by ~/bin/dbt-model-preview) shows:
+       name, unique_id, resource_type, package, materialized, tags,
+       meta, description, upstream_count, upstream (first 8 unique
+       parent node names), bq_relation (project:dataset.table —
+       emitted as a clickable OSC 8 hyperlink to the GCP BigQuery
+       console when fully resolved), bq_rel_source (which manifest
+       supplied the relation parts), file_path (absolute),
+       last_modified (mtime of the .sql file).
+     The metadata is fetched once via `dbt ls --output json` for the
+     selector and cached in a per-invocation temp file (cleaned up on
+     exit), so the preview is instant on highlight.
+
+     If $DBT_STATE_DIR/manifest.json exists (the same prod ref-state
+     used by rlm-dbt-run / rlm-dbt-build), it is passed to
+     dbt-model-preview as a fallback source. Any database / schema /
+     alias fields that the local target leaves null are filled in
+     from the prod manifest entry matched by unique_id, so
+     bq_relation resolves to e.g. "acme-prod:dataset.table" instead
+     of "?:?.alias" — common when the local profile only partially
+     resolves the model.
   4. If you press ESC (or the list is empty) you are asked whether to
      edit the selector and retry, or abort.
   5. On confirmation the selected model names are printed to stdout,
-     one per line.
+     one per line, AND copied to the system clipboard
+     (newline-separated). A "N model(s) copied to clipboard" message
+     is printed to stderr.
 
 SELECTOR
   Any dbt node-selection expression is accepted, e.g.:
@@ -39,4 +64,10 @@ PREREQUISITES
     diagnostic (expected venv, resolved dbt, project dir).
   - dbt_profiles.yml must exist somewhere under the current directory.
 
-Requires: poetry, fzf, dbt (in the poetry env).
+Requires: poetry, fzf, dbt (in the poetry env), jq (for the preview
+pane's JSON parsing and for extracting model names from
+`dbt ls --output json`).
+Optional: pbcopy (macOS) / xclip / xsel for the Ctrl-Y copy binding
+and the post-confirmation auto-copy; without any of these the picker
+still works, but the copy features become no-ops and the header notes
+that no clipboard tool was found.

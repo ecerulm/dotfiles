@@ -87,6 +87,13 @@ autoload -Uz _rlm-poetry-ensure-venv
 _rlm-poetry-ensure-venv "$project_root" dbt dbt-ls || return 1
 
 # ---------------------------------------------------------------------------
+# Ensure dbt packages declared in packages.yml are installed
+# ---------------------------------------------------------------------------
+
+autoload -Uz _rlm-dbt-ensure-deps
+_rlm-dbt-ensure-deps "$project_root" "$dbt_project_root" dbt-ls || return 1
+
+# ---------------------------------------------------------------------------
 # Cache: selector history per dbt project root
 # ---------------------------------------------------------------------------
 
@@ -167,44 +174,113 @@ vared -p "  selector: " selector
 # ---------------------------------------------------------------------------
 
 local -a dbt_cmd
-dbt_cmd=(poetry run dbt ls --project-dir "$dbt_project_root" --profiles-dir "$profiles_dir" --profile "$profile_name" --resource-type model --quiet -s "$selector")
+# --output json: one JSON object per matched node, gives us full metadata
+# (resource_type, package_name, original_file_path, config.materialized,
+# database/schema/alias, depends_on, description, …) in a single dbt call.
+# The fzf preview pane reads names back out of this file.
+dbt_cmd=(poetry run dbt ls --project-dir "$dbt_project_root" --profiles-dir "$profiles_dir" --profile "$profile_name" --resource-type model --output json --quiet -s "$selector")
 
 print "dbt-ls: running ${dbt_cmd[*]} …" >&2
 
-local dbt_output
-dbt_output=$(
-  (cd "$project_root" && "${dbt_cmd[@]}" 2>/dev/null) \
+local models_json_file
+models_json_file=$(mktemp -t dbt-ls-models.XXXXXX.json)
+
+(cd "$project_root" && "${dbt_cmd[@]}" 2>/dev/null) \
   | grep -v '^[0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}' \
-  | grep -v '^\s*$'
-)
+  | grep -v '^\s*$' >| "$models_json_file"
+
+local dbt_output
+# Extract bare model names from the JSON (one object per line)
+dbt_output=$(jq -r '.name // empty' "$models_json_file" 2>/dev/null)
 
 if [[ -z $dbt_output ]]; then
   print -u2 "dbt-ls: no models matched selector '${selector}'"
+  rm -f "$models_json_file"
   return 1
 fi
 
 # Save selector to history only after a successful dbt ls
 _dbt_ls_save_history "$selector"
 
+# Clean up the temp JSON file when the function returns. We deliberately keep
+# it around for the lifetime of the fzf picker (which reads it on every
+# preview redraw) — the trap fires only on exit / return.
+trap "rm -f '$models_json_file'" EXIT INT TERM
+
 # ---------------------------------------------------------------------------
 # Phase 4: pick from the results
 # ---------------------------------------------------------------------------
 
+# Detect the available clipboard tool once; used both for the in-fzf ctrl-y
+# binding and for the post-pick auto-copy. Prefer macOS pbcopy, then Linux
+# xclip / xsel. Fall back to no-op if none is installed.
+local clip_cmd=""
+if command -v pbcopy >/dev/null 2>&1; then
+  clip_cmd="pbcopy"
+elif command -v xclip >/dev/null 2>&1; then
+  clip_cmd="xclip -selection clipboard"
+elif command -v xsel >/dev/null 2>&1; then
+  clip_cmd="xsel --clipboard --input"
+fi
+
+local copy_header
+if [[ -n $clip_cmd ]]; then
+  copy_header="TAB multi-select • Enter confirm • Ctrl-Y copy marked (or current line)"
+else
+  copy_header="TAB multi-select • Enter confirm • (no clipboard tool found)"
+fi
+
+# Opportunistically locate the prod ref-state manifest via the shared
+# helper. Without `--require`, a missing/unset DBT_STATE_DIR (or a
+# stat-unreadable manifest) returns silently — rlm-dbt-ls is useful even
+# outside the deferred-state workflow. When present, the manifest path is
+# forwarded to dbt-model-preview as a fallback metadata source so it can
+# fill in `database`/`schema`/`alias` for nodes the local target leaves
+# null (otherwise rendered as `?:?.alias`).
+autoload -Uz _rlm-dbt-state-info
+local prod_manifest_arg=""
+local _state_info
+if _state_info=$(_rlm-dbt-state-info 2>/dev/null); then
+  eval "$_state_info"
+  prod_manifest_arg=" '$manifest'"
+fi
+
+local -a fzf_args
+fzf_args=(
+  --multi
+  --prompt="dbt models> "
+  --no-mouse
+  --ansi
+  --height=80%
+  --reverse
+  --preview="\$HOME/bin/dbt-model-preview '$models_json_file' '$dbt_project_root' {}${prod_manifest_arg}"
+  --preview-window=bottom:40%:wrap
+  --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)'
+  --header="$copy_header"
+)
+
+if [[ -n $clip_cmd ]]; then
+  # ctrl-y: copy {+} (marked items, or the current line if none are marked)
+  # to the clipboard, newline-separated. execute-silent keeps the picker
+  # open; change-header gives visual feedback that the copy happened.
+  fzf_args+=(
+    --bind="ctrl-y:execute-silent(printf '%s\n' {+} | ${clip_cmd})+change-header(copied to clipboard • TAB multi-select • Enter confirm • Ctrl-Y copy)"
+  )
+fi
+
 local -a selected_models
 selected_models=(
-  $(print -- "$dbt_output" \
-    | fzf \
-        --multi \
-        --prompt="dbt models> " \
-        --height=80% \
-        --reverse \
-        --preview="echo {}" \
-        --preview-window=bottom:40% \
-        --bind='ctrl-p:change-preview-window(bottom:70%|bottom:40%|hidden)' \
-        --header="TAB to multi-select • Enter to confirm"
-  )
+  $(print -- "$dbt_output" | fzf "${fzf_args[@]}")
 )
 
 [[ ${#selected_models} -eq 0 ]] && return 1
+
+# Auto-copy the final selection on exit, matching the same format we print
+# to stdout (newline-separated). This is the common follow-up after
+# confirming the picker.
+if [[ -n $clip_cmd ]]; then
+  print -l -- "${selected_models[@]}" | eval "$clip_cmd"
+  print -u2 "dbt-ls: ${#selected_models} model(s) copied to clipboard"
+fi
 
 print -l -- "${selected_models[@]}"

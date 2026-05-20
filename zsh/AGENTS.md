@@ -42,6 +42,8 @@ Current internal helpers:
 
 - `_rlm-dbt-cmd` — shared implementation for `rlm-dbt-run` / `rlm-dbt-build`.
 - `_rlm-poetry-ensure-venv` — verifies that `poetry run <bin>` resolves to a binary under the project's poetry virtualenv (not a stray `$PATH` shadow); auto-runs `poetry install` once on failure. Signature: `(project_root, expected_bin, label)`. Used by `_rlm-dbt-cmd`, `rlm-dbt-ls`, and `rlm-afw-deploy`. Use this helper from any new function that invokes `poetry run <bin>` for a project-pinned tool.
+- `_rlm-dbt-ensure-deps` — if `<dbt_project_root>/packages.yml` declares more packages than are installed under `dbt_packages/`, runs `poetry run dbt deps --project-dir <dbt_project_root>` once. Signature: `(project_root, dbt_project_root, label)`. Used by `_rlm-dbt-cmd` and `rlm-dbt-ls` so a fresh checkout or a newly added package doesn't make `dbt ls` silently return an empty node list.
+- `_rlm-dbt-state-info` — locates the prod ref-state manifest at `$DBT_STATE_DIR/manifest.json`, optionally enforces a freshness gate, and emits shell-assignable `key=value` lines (`state_dir`, `manifest`, `age_seconds`, `age_label`) on stdout for `eval`. Flags: `--require` (hard-fail when DBT_STATE_DIR is unset / manifest missing / too old; without it, fails silently with `return 2` and empty stdout — for opportunistic use), `--max-age-days N` (freshness gate; omit to skip), `--label LBL` (stderr prefix on diagnostics). Used by `_rlm-dbt-cmd` (with `--require --max-age-days 7`) and `rlm-dbt-ls` (without `--require`, so it still works outside the deferred-state workflow). Centralizes the env-var name, the manifest path layout, the freshness check, and the macOS-vs-Linux `stat -f %m` / `stat -c %Y` fallback that was previously duplicated.
 
 ## helpdir Files
 

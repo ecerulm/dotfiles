@@ -1,0 +1,50 @@
+#!/usr/bin/env zsh
+# Usage: bq-console-url <project:dataset.table | project.dataset.table>
+#
+# Prints the GCP Cloud Console deep-link for a BigQuery table or view.
+# The URL drops the user into the BigQuery UI with the table already
+# expanded in the workspace tabs.
+#
+# Accepts both:
+#   project:dataset.table   (bq CLI / dbt manifest backtick-stripped form
+#                            used by bq-preview, rlm-bq-open, etc.)
+#   project.dataset.table   (fully-qualified SQL form)
+#
+# This is the single source of truth for the URL format. Previously the
+# same `https://console.cloud.google.com/bigquery?project=…&ws=!1m5!1m4!4m3!…`
+# template was duplicated in rlm-bq-open, rlm-sandbox-bq-open, and the
+# private rlm-dbt-bq-link.
+emulate -L zsh
+set -o pipefail
+
+local ref="${1:-}"
+if [[ -z $ref ]]; then
+  print "Usage: bq-console-url <project:dataset.table | project.dataset.table>" >&2
+  exit 1
+fi
+
+local project dataset table rest
+if [[ $ref == *:*.* ]]; then
+  # project:dataset.table
+  project="${ref%%:*}"
+  rest="${ref#*:}"
+  dataset="${rest%%.*}"
+  table="${rest#*.}"
+elif [[ $ref == *.*.* ]]; then
+  # project.dataset.table — split on the first two dots. With exactly three
+  # dot-separated parts the common case is unambiguous.
+  project="${ref%%.*}"
+  rest="${ref#*.}"
+  dataset="${rest%%.*}"
+  table="${rest#*.}"
+else
+  print "bq-console-url: could not parse '$ref' — expected project:dataset.table or project.dataset.table" >&2
+  exit 1
+fi
+
+if [[ -z $project || -z $dataset || -z $table ]]; then
+  print "bq-console-url: empty component in '$ref' (project='$project' dataset='$dataset' table='$table')" >&2
+  exit 1
+fi
+
+print -r -- "https://console.cloud.google.com/bigquery?project=${project}&ws=!1m5!1m4!4m3!1s${project}!2s${dataset}!3s${table}"

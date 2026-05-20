@@ -1,0 +1,58 @@
+emulate -L zsh
+
+# Ensure dbt packages declared in packages.yml are installed under
+# dbt_packages/. If packages.yml exists but dbt_packages/ is missing,
+# empty, or has fewer entries than packages.yml declares, run
+# `poetry run dbt deps` once from <project_root>.
+#
+# Without this, the first `dbt ls` after a fresh checkout (or after
+# adding a new package) prints:
+#   dbt found N package(s) specified in packages.yml, but only 0
+#   package(s) installed in dbt_packages. Run "dbt deps" to install
+#   package dependencies.
+# and produces no node list, which the callers then mistake for "no
+# models in project".
+#
+# Usage:
+#   _rlm-dbt-ensure-deps <project_root> <dbt_project_root> <label>
+#
+#   project_root      directory containing pyproject.toml (poetry runs here)
+#   dbt_project_root  directory containing dbt_project.yml + packages.yml
+#   label             short caller name used as a stderr prefix
+#
+# Returns:
+#   0 if packages.yml is absent, or deps are already up to date, or
+#     `dbt deps` succeeded.
+#   non-zero (the dbt deps exit code) on failure; stderr from dbt deps
+#     is passed through.
+
+local project_root="$1"
+local dbt_project_root="$2"
+local label="$3"
+
+if [[ -z $project_root || -z $dbt_project_root || -z $label ]]; then
+  print -u2 "_rlm-dbt-ensure-deps: usage: <project_root> <dbt_project_root> <label>"
+  return 2
+fi
+
+local packages_yml="$dbt_project_root/packages.yml"
+[[ -f $packages_yml ]] || return 0
+
+# Count declared packages: every top-level list item under `packages:` is a
+# new package. We approximate by counting lines that start with `  - ` (two
+# spaces, hyphen, space) — matches the conventional packages.yml layout
+# regardless of whether entries use `package:`, `git:`, or `local:` keys.
+local declared
+declared=$(grep -cE '^[[:space:]]*-[[:space:]]' "$packages_yml" 2>/dev/null)
+(( declared == 0 )) && return 0
+
+# Count installed packages: each is a subdirectory of dbt_packages/.
+local installed=0
+if [[ -d $dbt_project_root/dbt_packages ]]; then
+  installed=$(find "$dbt_project_root/dbt_packages" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')
+fi
+
+(( installed >= declared )) && return 0
+
+print -u2 "${label}: dbt packages out of date (${installed}/${declared} installed) — running dbt deps in $dbt_project_root …"
+(cd "$project_root" && poetry run dbt deps --project-dir "$dbt_project_root")

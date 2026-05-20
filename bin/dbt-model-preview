@@ -1,0 +1,223 @@
+#!/usr/bin/env zsh
+# Usage: dbt-model-preview <models_json_file> <dbt_project_root> <model_name> [<prod_manifest_json>]
+#
+# Renders a one-pane summary of a dbt model for fzf preview panes.
+#
+# Inputs:
+#   models_json_file     path to a file containing one JSON object per line,
+#                        as produced by `dbt ls --output json`. Each line is
+#                        a node with at least `name`, `unique_id`,
+#                        `resource_type`, `package_name`, `original_file_path`,
+#                        `config` (materialized, tags, …), `database`,
+#                        `schema`, `alias`, `depends_on.nodes`, `description`.
+#   dbt_project_root     directory containing dbt_project.yml; used to
+#                        resolve `original_file_path` (which is project-relative)
+#                        into an absolute path so we can stat its mtime.
+#   model_name           the value shown in the picker (the bare model name).
+#   prod_manifest_json   (optional) path to a prod-target manifest.json (the
+#                        one synced by `dbt-sync-state` / referenced by
+#                        $DBT_STATE_DIR). When supplied, any null/empty
+#                        `database`/`schema`/`alias` in the local
+#                        `dbt ls --output json` row falls back to the prod
+#                        manifest entry matched by `unique_id`. This lets
+#                        the picker show a meaningful bq_relation even when
+#                        the local target profile doesn't fully resolve
+#                        them (which otherwise renders as `?:?.alias`).
+#
+# Output:
+#   A plain-text block of `label : value` lines for fzf to render. No ANSI
+#   colors. The `bq_relation_source` line indicates which source supplied
+#   the database/schema/alias values (`local target`, `prod manifest`, or
+#   `mixed` when some fields are local and others come from the manifest).
+emulate -L zsh
+set -o pipefail
+
+local json_file="${1:-}"
+local project_root="${2:-}"
+local model_name="${3:-}"
+local prod_manifest="${4:-}"
+
+if [[ -z $json_file || -z $project_root || -z $model_name ]]; then
+  print "Usage: dbt-model-preview <models_json_file> <dbt_project_root> <model_name> [<prod_manifest_json>]" >&2
+  exit 1
+fi
+
+if [[ ! -f $json_file ]]; then
+  print "(dbt-model-preview: json file not found: $json_file)"
+  exit 0
+fi
+
+if ! command -v jq >/dev/null 2>&1; then
+  print "(dbt-model-preview: jq not installed — install with brew install jq)"
+  exit 0
+fi
+
+# Find the matching node by `name`. dbt ls --output json emits one JSON
+# object per line, so a streaming jq filter (no `slurp`) keeps memory
+# bounded even for large projects.
+local node
+node=$(jq -c --arg n "$model_name" 'select(.name == $n)' "$json_file" 2>/dev/null | head -1)
+
+if [[ -z $node ]]; then
+  print "name : $model_name"
+  print "(no metadata found in $json_file — try the 'refresh cache' option)"
+  exit 0
+fi
+
+# Resolve the file path (project-relative -> absolute) and stat its mtime.
+local rel_path abs_path mtime_str=""
+rel_path=$(print -r -- "$node" | jq -r '.original_file_path // ""')
+if [[ -n $rel_path ]]; then
+  abs_path="${project_root%/}/${rel_path}"
+  if [[ -f $abs_path ]]; then
+    if mtime_str=$(stat -f '%Sm' -t '%Y-%m-%d %H:%M:%S' "$abs_path" 2>/dev/null); then
+      :
+    elif mtime_str=$(stat -c '%y' "$abs_path" 2>/dev/null); then
+      # Linux: trim subsecond/timezone tail to match macOS formatting
+      mtime_str="${mtime_str%%.*}"
+    else
+      mtime_str=""
+    fi
+  else
+    abs_path="${abs_path} (missing)"
+  fi
+fi
+
+# Resolve database/schema/alias with prod-manifest fallback for null fields.
+# `dbt ls --output json` populates these from the *active local target* — for
+# a model that only resolves cleanly against prod (e.g. profile missing some
+# config, or the user is running with a minimal local target), they may come
+# back as JSON null and render as `?:?.alias`. When a prod manifest is
+# available, look up the node by unique_id and fill in any null fields.
+local local_db local_sch local_alias unique_id
+local_db=$(print -r -- "$node" | jq -r '.database // ""')
+local_sch=$(print -r -- "$node" | jq -r '.schema // ""')
+local_alias=$(print -r -- "$node" | jq -r '.alias // ""')
+unique_id=$(print -r -- "$node" | jq -r '.unique_id // ""')
+
+local prod_db="" prod_sch="" prod_alias=""
+if [[ -n $prod_manifest && -f $prod_manifest && -n $unique_id ]]; then
+  local prod_node
+  prod_node=$(jq -c --arg uid "$unique_id" '.nodes[$uid] // empty' "$prod_manifest" 2>/dev/null)
+  if [[ -n $prod_node ]]; then
+    prod_db=$(print -r -- "$prod_node" | jq -r '.database // ""')
+    prod_sch=$(print -r -- "$prod_node" | jq -r '.schema // ""')
+    prod_alias=$(print -r -- "$prod_node" | jq -r '.alias // ""')
+  fi
+fi
+
+local rel_db rel_sch rel_alias
+# Track source for the *target-resolved* parts only: database + schema. Alias
+# defaults to the model name even when no target resolution happened, so
+# crediting "local" for alias overstates what local actually provided —
+# verified empirically against `dbt ls --output json` for storytel-dbt where
+# `local_dev` returns `{database:null, schema:null, alias:<name>}`.
+local source_local=0 source_prod=0
+if [[ -n $local_db ]]; then
+  rel_db="$local_db"; source_local=1
+elif [[ -n $prod_db ]]; then
+  rel_db="$prod_db"; source_prod=1
+else
+  rel_db="?"
+fi
+if [[ -n $local_sch ]]; then
+  rel_sch="$local_sch"; source_local=1
+elif [[ -n $prod_sch ]]; then
+  rel_sch="$prod_sch"; source_prod=1
+else
+  rel_sch="?"
+fi
+# alias: prefer local, then prod, then fall back to the model name. Not
+# counted toward source attribution (see comment above).
+if [[ -n $local_alias ]]; then
+  rel_alias="$local_alias"
+elif [[ -n $prod_alias ]]; then
+  rel_alias="$prod_alias"
+else
+  rel_alias="$model_name"
+fi
+
+local relation_source
+if (( source_local && source_prod )); then
+  relation_source="mixed (local + prod manifest)"
+elif (( source_prod )); then
+  relation_source="prod manifest"
+elif (( source_local )); then
+  relation_source="local target"
+else
+  relation_source="unresolved"
+fi
+
+# Compose the output via jq for the JSON-derived fields, then append the
+# fields we computed above (relation + filesystem-derived).
+print -r -- "$node" | jq -r '
+  def fmt(lbl; val): "\(lbl): \(val)";
+  def joinarr: if . and length > 0 then (. | join(", ")) else "—" end;
+  # truncate a STRING to n codepoints with a trailing " …"
+  def truncs(n): if . and (. | length) > n then ((.[0:n]) + " …") else . end;
+  # truncate an ARRAY to first n elements with a trailing summary
+  def trunca(n):
+    if . and (. | length) > n
+    then ((.[0:n]) + ["(+\(length - n) more)"])
+    else . end;
+
+  fmt("name           "; .name // "—"),
+  fmt("unique_id      "; .unique_id // "—"),
+  fmt("resource_type  "; .resource_type // "—"),
+  fmt("package        "; .package_name // "—"),
+  fmt("materialized   "; .config.materialized // "—"),
+  fmt("tags           "; (.config.tags // []) | joinarr),
+  (if (.config.meta // {}) | length > 0
+     then fmt("meta           "; (.config.meta | tojson))
+     else empty end),
+  (if .description and .description != ""
+     then fmt("description    "; (.description | gsub("\n"; " ") | truncs(280)))
+     else empty end),
+  fmt("upstream_count "; ((.depends_on.nodes // []) | length | tostring)),
+  (if (.depends_on.nodes // []) | length > 0
+     then fmt("upstream       ";
+              (.depends_on.nodes
+                | map(split(".") | last)
+                | unique | sort
+                | trunca(8)
+                | join(", ")))
+     else empty end)
+'
+
+# Append computed rows (bq relation + file mtime) after the jq block.
+# bq_relation uses the BigQuery `project:dataset.table` format expected by
+# bq-preview (single colon between project and dataset, dot between dataset
+# and table). When the relation is fully resolved (no `?` parts), wrap it
+# in an OSC 8 hyperlink that opens the GCP BigQuery console deep-link on
+# click. URL construction is delegated to `~/bin/bq-console-url` (shared
+# with rlm-bq-open / rlm-sandbox-bq-open / rlm-dbt-bq-link). Following the
+# pattern from pubsub-preview, the OSC 8 wrap is built inline with a local
+# _hyperlink helper:
+#   ESC ] 8 ; ; URL ST text ESC ] 8 ; ; ST    (ST = ESC \)
+# Per AGENTS.md, always emit with `print -r --` so the ESC \ terminator
+# isn't eaten by backslash interpretation. Requires the host terminal to
+# support OSC 8 hyperlinks; tmux additionally needs
+# `set -ga terminal-features "*:hyperlinks"` (already in this repo).
+_hyperlink() {
+  local url="$1" text="$2"
+  printf '\e]8;;%s\e\\%s\e]8;;\e\\' "$url" "$text"
+}
+
+local bq_ref="${rel_db}:${rel_sch}.${rel_alias}"
+local bq_relation_line
+if [[ $rel_db == '?' || $rel_sch == '?' ]]; then
+  # Unresolved — emit plain text, no hyperlink (the URL would point to
+  # `?` and never resolve in the console).
+  bq_relation_line="$bq_ref"
+elif command -v "$HOME/bin/bq-console-url" >/dev/null 2>&1 \
+     && bq_url=$("$HOME/bin/bq-console-url" "$bq_ref" 2>/dev/null) \
+     && [[ -n $bq_url ]]; then
+  bq_relation_line=$(_hyperlink "$bq_url" "$bq_ref")
+else
+  bq_relation_line="$bq_ref"
+fi
+
+print -r -- "bq_relation    : ${bq_relation_line}"
+print -r -- "bq_rel_source  : ${relation_source}"
+print -r -- "file_path      : ${abs_path:-—}"
+print -r -- "last_modified  : ${mtime_str:-—}"

@@ -242,8 +242,13 @@ tmp_history=$(mktemp)
 { print -- "$history_entry"; [[ -f $history_file ]] && grep -vxF "$history_entry" "$history_file"; } >| "$tmp_history"
 mv "$tmp_history" "$history_file"
 
-# GCP console deep-link for a specific table in the BigQuery UI
-local url="https://console.cloud.google.com/bigquery?project=${sel_project}&ws=!1m5!1m4!4m3!1s${sel_project}!2s${sel_dataset}!3s${sel_table}"
+# GCP console deep-link for a specific table in the BigQuery UI. URL
+# construction is delegated to the shared `~/bin/bq-console-url` helper,
+# which is the single source of truth for the deep-link format (also used
+# by rlm-sandbox-bq-open, rlm-dbt-bq-link, and the OSC 8 hyperlink in
+# dbt-model-preview).
+local url
+url=$("$HOME/bin/bq-console-url" "${sel_project}:${sel_dataset}.${sel_table}")
 
 print "$url"
 
