@@ -14,6 +14,8 @@
 #   JIRA ticket number and title (if branch matches a JIRA key)
 #   PR number, URL and state
 #   git branch name
+#   worktree creation date (directory ctime) and last-update date
+#     (most recent file mtime under the worktree, excluding .git)
 #   git diff --name-only vs fork point
 #
 # Multi-select with TAB. Asks for confirmation before deleting.
@@ -184,6 +186,45 @@ fi
 
 # --- Branch ---
 printf 'Branch:  %s\n' "$branch"
+
+# --- Timestamps ---
+# Creation:    directory's birth/ctime (best-effort proxy for when the worktree was added)
+# Last update: most recent file mtime under the worktree, excluding .git/
+if [ -d "$abs_path" ]; then
+  # macOS: stat -f "%SB" uses birthtime when -t format applied; fall back to ctime.
+  if stat -f '%SB' -t '%Y-%m-%d %H:%M:%S' "$abs_path" >/dev/null 2>&1; then
+    created=$(stat -f '%SB' -t '%Y-%m-%d %H:%M:%S' "$abs_path" 2>/dev/null)
+  else
+    created=$(stat -c '%w' "$abs_path" 2>/dev/null | cut -d. -f1)
+    [ -z "$created" ] || [ "$created" = "-" ] && created=$(stat -c '%y' "$abs_path" 2>/dev/null | cut -d. -f1)
+  fi
+  [ -n "$created" ] && printf 'Created: %s\n' "$created"
+
+  # Latest file mtime under the worktree, excluding .git. fd is faster when present.
+  if command -v fd >/dev/null 2>&1; then
+    latest_epoch=$(fd --type f --hidden --exclude .git . "$abs_path" --exec stat -f '%m' {} \; 2>/dev/null \
+      | sort -nr | head -1)
+    if [ -z "$latest_epoch" ]; then
+      latest_epoch=$(fd --type f --hidden --exclude .git . "$abs_path" --exec stat -c '%Y' {} \; 2>/dev/null \
+        | sort -nr | head -1)
+    fi
+  else
+    latest_epoch=$(find "$abs_path" -type d -name .git -prune -o -type f -print 2>/dev/null \
+      | xargs stat -f '%m' 2>/dev/null | sort -nr | head -1)
+    if [ -z "$latest_epoch" ]; then
+      latest_epoch=$(find "$abs_path" -type d -name .git -prune -o -type f -print 2>/dev/null \
+        | xargs stat -c '%Y' 2>/dev/null | sort -nr | head -1)
+    fi
+  fi
+  if [ -n "$latest_epoch" ]; then
+    if date -r "$latest_epoch" '+%Y-%m-%d %H:%M:%S' >/dev/null 2>&1; then
+      updated=$(date -r "$latest_epoch" '+%Y-%m-%d %H:%M:%S')
+    else
+      updated=$(date -d "@$latest_epoch" '+%Y-%m-%d %H:%M:%S' 2>/dev/null)
+    fi
+    [ -n "$updated" ] && printf 'Updated: %s\n' "$updated"
+  fi
+fi
 
 # --- Changed files ---
 printf '\n--- changed files vs fork point ---\n'

@@ -15,6 +15,10 @@
 #   * "foo bar" -> worktree ../<repo>-<KEY>-foo-bar  branch <KEY>/feat/foo_bar
 # In both cases the new branch is created off origin/<default-branch>.
 #
+# After the picker (and the optional JIRA suffix prompt), a second vared
+# prompt lets you edit the final worktree directory name (basename only;
+# parent is always the repo's sibling). Press Enter to accept the default.
+#
 # Usage: pr-worktree [PR_NUMBER | JIRA_KEY | --suffix SUFFIX]
 #   - no arg             -> fzf picker (JIRA selections also prompt for suffix)
 #   - PR num             -> skip picker, treat as PR
@@ -65,7 +69,12 @@ _prwt_default_branch() {
 
 _prwt_make_pr_worktree() {
   local pr_number=$1
-  local worktree_path=${repo_root:h}/${repo_name}-pr-${pr_number}
+  local default_dirname=${repo_name}-pr-${pr_number}
+  _prwt_prompt_dirname "$default_dirname" || {
+    print -u2 "pr-worktree: cancelled (empty worktree name)"
+    return 1
+  }
+  local worktree_path=${repo_root:h}/${_prwt_dirname_out}
 
   if [[ -e $worktree_path ]]; then
     print "pr-worktree: $worktree_path already exists; entering it."
@@ -97,7 +106,12 @@ _prwt_make_pr_worktree() {
 
 _prwt_make_suffix_worktree() {
   local suffix=$1
-  local worktree_path=${repo_root:h}/${repo_name}-${suffix}
+  local default_dirname=${repo_name}-${suffix}
+  _prwt_prompt_dirname "$default_dirname" || {
+    print -u2 "pr-worktree: cancelled (empty worktree name)"
+    return 1
+  }
+  local worktree_path=${repo_root:h}/${_prwt_dirname_out}
 
   if [[ -e $worktree_path ]]; then
     print "pr-worktree: $worktree_path already exists; entering it."
@@ -136,41 +150,65 @@ _prwt_slug() {
 }
 
 # Prompt the user to optionally edit a worktree suffix for a JIRA key.
-# Echoes the (possibly empty) sanitized suffix on stdout. Empty input
-# means "keep the legacy behavior" (worktree at ../<repo>-<KEY>, branch
-# = <KEY>). Reads /dev/tty so it works even when called from inside the
-# fzf pipeline (where stdin is the fzf selection, not the terminal).
+# Writes the (possibly empty) sanitized suffix into the global
+# `_prwt_suffix_out`. Empty result means "keep the legacy behavior"
+# (worktree at ../<repo>-<KEY>, branch = <KEY>).
+#
+# Same caveat as `_prwt_prompt_dirname`: vared cannot run inside
+# `$(...)` — call this helper as a plain statement, not via command
+# substitution.
 _prwt_prompt_suffix() {
-  local key=$1 suffix=''
-  if [[ ! -t 0 || ! -t 1 ]]; then
-    # No interactive TTY (e.g. piped invocation) — skip the prompt.
-    print -r -- ''
-    return 0
-  fi
-  # vared edits the variable in place; pre-fill empty so the user can
-  # just press Enter to accept the legacy default, or type a description
-  # to get a DATA-NNNN/feat/<slug> branch. Redirect stdin from /dev/tty
-  # so zle still has a terminal when this helper is called from inside a
-  # pipeline (e.g. the fzf-driven picker path further down).
-  vared -p "pr-worktree: suffix for $key (Enter = none, e.g. 'fix bq cost') > " suffix </dev/tty || suffix=''
-  print -r -- "$(_prwt_slug "$suffix" '-')"
+  local key=$1
+  typeset -g _prwt_suffix_out=''
+  local suffix=''
+  vared -p "pr-worktree: suffix for $key (Enter = none, e.g. 'fix bq cost') > " suffix
+  _prwt_suffix_out=$(_prwt_slug "$suffix" '-')
+}
+
+# Prompt the user to edit the final worktree directory name (the basename,
+# not the full path — the parent is always ${repo_root:h}). Pre-fills with
+# the proposed default name so the user can just press Enter to accept, or
+# tweak the tail.
+#
+# IMPORTANT: vared requires an interactive zle session and CANNOT be called
+# from inside `$(...)` (command substitution forks a subshell where zle is
+# unavailable; even `</dev/tty` won't save it — the redirect itself fails
+# with "device not configured" when stdin is a pipe from fzf). So this
+# helper writes the result into the global `_prwt_dirname_out` and must be
+# called as a plain statement, not via `name=$(_prwt_prompt_dirname ...)`.
+#
+# Returns 0 with `_prwt_dirname_out` set to the chosen name (default or
+# edited). Returns 1 if the user cleared the input — caller should treat
+# that as cancel.
+_prwt_prompt_dirname() {
+  local default_name=$1
+  typeset -g _prwt_dirname_out=$default_name
+  vared -p "pr-worktree: worktree dir (under ${repo_root:h}/) > " _prwt_dirname_out
+  [[ -z $_prwt_dirname_out ]] && return 1
+  return 0
 }
 
 _prwt_make_jira_worktree() {
   local key=${1:u}
   local suffix=${2:-}
-  local path_slug branch_slug worktree_path branch
+  local path_slug branch_slug default_dirname worktree_path branch
   if [[ -n $suffix ]]; then
     path_slug=$(_prwt_slug "$suffix" '-')
     branch_slug=$(_prwt_slug "$suffix" '_')
   fi
   if [[ -n $path_slug ]]; then
-    worktree_path=${repo_root:h}/${repo_name}-${key}-${path_slug}
+    default_dirname=${repo_name}-${key}-${path_slug}
     branch=${key}/feat/${branch_slug}
   else
-    worktree_path=${repo_root:h}/${repo_name}-${key}
+    default_dirname=${repo_name}-${key}
     branch=${key}
   fi
+
+  _prwt_prompt_dirname "$default_dirname" || {
+    print -u2 "pr-worktree: cancelled (empty worktree name)"
+    return 1
+  }
+  worktree_path=${repo_root:h}/${_prwt_dirname_out}
 
   if [[ -e $worktree_path ]]; then
     print "pr-worktree: $worktree_path already exists; entering it."
@@ -212,9 +250,9 @@ if [[ -n $arg ]]; then
     _prwt_make_pr_worktree "$arg"
     return $?
   elif [[ $arg =~ '^[A-Za-z][A-Za-z0-9_]+-[0-9]+$' ]]; then
-    local key=${arg:u} suffix
-    suffix=$(_prwt_prompt_suffix "$key")
-    _prwt_make_jira_worktree "$key" "$suffix"
+    local key=${arg:u}
+    _prwt_prompt_suffix "$key"
+    _prwt_make_jira_worktree "$key" "$_prwt_suffix_out"
     return $?
   else
     print -u2 "pr-worktree: argument must be a PR number, a JIRA key (e.g. DATA-1234), or --suffix SUFFIX"
@@ -300,7 +338,7 @@ selection=$(
   | column -t -s $'\t' \
   | fzf --ansi --prompt='PR/JIRA> ' --height=80% --reverse \
         --no-mouse \
-        --header='Yours first, then your JIRA, then other open PRs. Enter = create worktree.' \
+        --header='Yours first, then your JIRA, then other open PRs. Enter = create worktree. Ctrl-P: toggle preview' \
         --preview='
           line={};
           kind=$(echo "$line" | awk "{print \$1}");
@@ -312,7 +350,8 @@ selection=$(
             acli jira workitem view "$key" 2>/dev/null || echo "(install/auth acli to preview $key)";
           fi
         ' \
-        --preview-window=right:60%:wrap
+        --preview-window=bottom:40%:wrap \
+        --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)'
 ) || return 130
 [[ -z $selection ]] && return 130
 
@@ -324,11 +363,11 @@ case $kind in
     _prwt_make_pr_worktree "$pr_number"
     ;;
   JIRA)
-    local key suffix
+    local key
     key=$(print -- "$selection" | awk '{print $2}')
     key=${key:u}
-    suffix=$(_prwt_prompt_suffix "$key")
-    _prwt_make_jira_worktree "$key" "$suffix"
+    _prwt_prompt_suffix "$key"
+    _prwt_make_jira_worktree "$key" "$_prwt_suffix_out"
     ;;
   *)
     print -u2 "pr-worktree: could not parse selection: $selection"
