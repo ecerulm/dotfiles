@@ -11,7 +11,18 @@ packages endpoint covers gcr.io-compatibility repos
 Inventory does not index for Docker images.
 
 Each matching package is printed as a fully qualified image path,
-e.g. europe-docker.pkg.dev/PROJECT/REPO/PACKAGE.
+e.g. europe-docker.pkg.dev/PROJECT/REPO/PACKAGE, followed by a
+blue OSC 8 hyperlink "(GCP console)" that points to the package
+page in the Artifact Registry console. The link is clickable in
+terminal emulators that support OSC 8 (Kitty, Ghostty, iTerm2,
+WezTerm, recent VTE). Inside tmux it additionally requires
+`terminal-features "*:hyperlinks"` in tmux.conf.
+
+Packages whose name ends in "/cache" are filtered out: in
+*.gcr.io compat repos, GCR stores Cloud Build / kaniko layer
+caches as sibling packages named <image>/cache with sha256-digest
+tags. They are not pullable images, just build-cache buckets, and
+including them in the output is just noise.
 
 ARGUMENTS
   NEEDLE      Substring to match against the package name. Required.

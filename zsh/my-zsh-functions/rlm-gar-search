@@ -67,6 +67,10 @@ fi
 # a loop and is later assigned. Declaring once at function scope avoids that.
 local all_hits="" proj repos_json
 local repo_path loc repo_name parent body err_msg matches pkg
+local pkg_encoded image console_url link
+
+# ANSI blue + reset for the OSC 8 hyperlink label.
+local blue=$'\e[34m' reset=$'\e[0m'
 
 for proj in $projects; do
   print -u2 "gar-search: searching $proj …"
@@ -112,7 +116,20 @@ for l in sys.stdin:
 
     while IFS= read -r pkg; do
       [[ -z $pkg ]] && continue
-      all_hits+="${loc}-docker.pkg.dev/${proj}/${repo_name}/${pkg}"$'\n'
+      # Skip GCR layer-cache pseudo-packages. In *.gcr.io compat repos GCR
+      # stores Cloud Build / kaniko layer caches as sibling "packages" named
+      # <image>/cache, with sha256-digest tags. They are not pullable images.
+      [[ $pkg == */cache ]] && continue
+      image="${loc}-docker.pkg.dev/${proj}/${repo_name}/${pkg}"
+      # URL-encode `/` in the package path so cloud-builders/protoc becomes
+      # cloud-builders%2Fprotoc — the GCP console accepts the encoded form.
+      pkg_encoded=${pkg//\//%2F}
+      console_url="https://console.cloud.google.com/artifacts/docker/${proj}/${loc}/${repo_name}/${pkg_encoded}?project=${proj}"
+      # OSC 8 hyperlink: ESC ] 8 ; ; URL ESC \ TEXT ESC ] 8 ; ; ESC \
+      # Captured into a var via $(printf …) so the two terminator bytes
+      # survive intact. When re-emitting, use `print -r --` (see AGENTS.md).
+      link=$(printf '\e]8;;%s\e\\%s(GCP console)%s\e]8;;\e\\' "$console_url" "$blue" "$reset")
+      all_hits+="${image} ${link}"$'\n'
     done <<< "$matches"
   done
 done
