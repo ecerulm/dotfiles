@@ -115,21 +115,43 @@ _dbt_ls_save_history() {
 # Phase 1: pick a selector from all models + history
 # ---------------------------------------------------------------------------
 
-# Fetch all models (no selector) for the initial picker
+# Opportunistically locate the prod ref-state manifest via the shared
+# helper. Without `--require`, a missing/unset DBT_STATE_DIR (or a
+# stat-unreadable manifest) returns silently — rlm-dbt-ls is useful even
+# outside the deferred-state workflow. When present, the manifest path is
+# forwarded to dbt-model-preview as a fallback metadata source so it can
+# fill in `database`/`schema`/`alias` for nodes the local target leaves
+# null (otherwise rendered as `?:?.alias`).
+autoload -Uz _rlm-dbt-state-info
+local prod_manifest_arg=""
+local _state_info
+if _state_info=$(_rlm-dbt-state-info 2>/dev/null); then
+  eval "$_state_info"
+  prod_manifest_arg=" '$manifest'"
+fi
+
+# Fetch all models (no selector) for the initial picker. Use `--output json`
+# so the same metadata file can drive the rich fzf preview pane via
+# dbt-model-preview (the bare model names are extracted with jq for the
+# picker list, while the JSON file stays around for the preview).
 print "dbt-ls: fetching all models …" >&2
-local all_models
-all_models=$(
-  (cd "$project_root" && \
-    poetry run dbt ls \
-      --project-dir "$dbt_project_root" \
-      --profiles-dir "$profiles_dir" \
-      --profile "$profile_name" \
-      --resource-type model \
-      --quiet 2>/dev/null
-  ) \
+local all_models_json_file
+all_models_json_file=$(mktemp -t dbt-ls-all-models.XXXXXX.json)
+
+(cd "$project_root" && \
+  poetry run dbt ls \
+    --project-dir "$dbt_project_root" \
+    --profiles-dir "$profiles_dir" \
+    --profile "$profile_name" \
+    --resource-type model \
+    --output json \
+    --quiet 2>/dev/null
+) \
   | grep -v '^[0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}' \
-  | grep -v '^\s*$'
-)
+  | grep -v '^\s*$' >| "$all_models_json_file"
+
+local all_models
+all_models=$(jq -r '.name // empty' "$all_models_json_file" 2>/dev/null)
 
 local initial_list
 initial_list=$(
@@ -141,19 +163,26 @@ initial_list=$(
 
 if [[ -z $initial_list ]]; then
   print -u2 "dbt-ls: no models found in project"
+  rm -f "$all_models_json_file"
   return 1
 fi
+
+# Clean up the Phase 1 temp JSON when the function returns (covers both
+# the fzf cancel path and the normal-completion path).
+trap "rm -f '$all_models_json_file'" EXIT INT TERM
 
 local picked
 picked=$(
   print -- "$initial_list" \
   | fzf \
       --prompt="dbt selector> " \
+      --no-mouse \
+      --ansi \
       --height=80% \
       --reverse \
-      --preview="echo {}" \
-      --preview-window=bottom:40% \
-      --bind='ctrl-p:change-preview-window(bottom:70%|bottom:40%|hidden)' \
+      --preview="\$HOME/bin/dbt-model-preview '$all_models_json_file' '$dbt_project_root' {}${prod_manifest_arg}" \
+      --preview-window=bottom:40%:wrap \
+      --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)' \
       --header="Pick a model or past selector • Enter to edit before running"
 ) || return 130
 
@@ -202,10 +231,10 @@ fi
 # Save selector to history only after a successful dbt ls
 _dbt_ls_save_history "$selector"
 
-# Clean up the temp JSON file when the function returns. We deliberately keep
-# it around for the lifetime of the fzf picker (which reads it on every
-# preview redraw) — the trap fires only on exit / return.
-trap "rm -f '$models_json_file'" EXIT INT TERM
+# Clean up both temp JSON files when the function returns. We deliberately
+# keep them around for the lifetime of the fzf pickers (which read them on
+# every preview redraw) — the trap fires only on exit / return.
+trap "rm -f '$all_models_json_file' '$models_json_file'" EXIT INT TERM
 
 # ---------------------------------------------------------------------------
 # Phase 4: pick from the results
@@ -228,21 +257,6 @@ if [[ -n $clip_cmd ]]; then
   copy_header="TAB multi-select • Enter confirm • Ctrl-Y copy marked (or current line)"
 else
   copy_header="TAB multi-select • Enter confirm • (no clipboard tool found)"
-fi
-
-# Opportunistically locate the prod ref-state manifest via the shared
-# helper. Without `--require`, a missing/unset DBT_STATE_DIR (or a
-# stat-unreadable manifest) returns silently — rlm-dbt-ls is useful even
-# outside the deferred-state workflow. When present, the manifest path is
-# forwarded to dbt-model-preview as a fallback metadata source so it can
-# fill in `database`/`schema`/`alias` for nodes the local target leaves
-# null (otherwise rendered as `?:?.alias`).
-autoload -Uz _rlm-dbt-state-info
-local prod_manifest_arg=""
-local _state_info
-if _state_info=$(_rlm-dbt-state-info 2>/dev/null); then
-  eval "$_state_info"
-  prod_manifest_arg=" '$manifest'"
 fi
 
 local -a fzf_args
