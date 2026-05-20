@@ -25,6 +25,18 @@ Every invocation verifies that `acli jira auth status` succeeds. If
 not, the function transparently runs `acli jira auth login --web`
 before continuing.
 
+PREVIEW PANE
+  Rendered by `jira-preview <KEY>` (~/bin/jira-preview). Two header
+  lines are prepended to the standard `acli jira workitem view` body:
+
+    Updated:      <Stockholm local time>  (X units ago)
+    Last comment: <Stockholm local time>  (X units ago)
+
+  Both timestamps are shown in Europe/Stockholm local time alongside a
+  humanized "ago" delta (s/m/h/d/mo/y). "Last comment" reflects the
+  newest `updated` (falling back to `created`) across all comments on
+  the issue; if there are no comments the row reads "(no comments)".
+
 KEY BINDINGS
   Enter      Open the picked issue at
              https://storytel.atlassian.net/browse/<KEY>

@@ -1,0 +1,147 @@
+#!/usr/bin/env zsh
+# Usage: jira-preview <JIRA-KEY>
+#
+# Prints a JIRA work-item summary for fzf preview panes used by
+# `rlm-jira-pick`.
+#
+# Output (in order):
+#   Updated:       <Stockholm local time>  (X units ago)
+#   Last comment:  <Stockholm local time>  (X units ago)  [or "(no comments)"]
+#   <blank line>
+#   <plain `acli jira workitem view <KEY>` text body>
+#
+# Two `acli` calls run in parallel to keep preview latency low.
+emulate -L zsh
+set -o pipefail
+setopt local_options no_monitor no_notify
+
+local key="${1:-}"
+if [[ -z $key ]]; then
+  print -u2 -- "Usage: jira-preview <JIRA-KEY>"
+  exit 1
+fi
+
+if ! command -v acli >/dev/null 2>&1; then
+  print -u2 -- "jira-preview: acli not found in PATH"
+  exit 1
+fi
+if ! command -v python3 >/dev/null 2>&1; then
+  print -u2 -- "jira-preview: python3 not found in PATH"
+  exit 1
+fi
+
+local tmp_json tmp_text
+tmp_json=$(mktemp) || exit 1
+tmp_text=$(mktemp) || { rm -f "$tmp_json"; exit 1; }
+# shellcheck disable=SC2064
+trap "rm -f '$tmp_json' '$tmp_text'" EXIT
+
+acli jira workitem view "$key" \
+  --fields "key,updated,comment" \
+  --json >"$tmp_json" 2>/dev/null &
+local pid_json=$!
+
+acli jira workitem view "$key" >"$tmp_text" 2>&1 &
+local pid_text=$!
+
+wait "$pid_json" "$pid_text"
+
+# ---- header: Updated / Last comment in Stockholm time + humanized ----------
+python3 - "$tmp_json" <<'PY'
+import json, sys
+from datetime import datetime, timezone
+
+# ANSI
+RESET = "\x1b[0m"
+BOLD  = "\x1b[1m"
+DIM   = "\x1b[2m"
+CYAN  = "\x1b[36m"
+GRAY  = "\x1b[90m"
+
+STOCKHOLM = None
+try:
+    from zoneinfo import ZoneInfo
+    STOCKHOLM = ZoneInfo("Europe/Stockholm")
+except Exception:
+    STOCKHOLM = None
+
+def parse(ts):
+    if not ts:
+        return None
+    # JIRA emits e.g. "2026-04-07T11:10:33.813+0200"
+    try:
+        return datetime.fromisoformat(ts)
+    except Exception:
+        # Fallback for trailing "Z"
+        try:
+            return datetime.fromisoformat(ts.replace("Z", "+00:00"))
+        except Exception:
+            return None
+
+def humanize(dt):
+    if dt is None:
+        return ""
+    now = datetime.now(timezone.utc)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    delta = now - dt
+    secs = int(delta.total_seconds())
+    if secs < 0:
+        secs = 0
+    if secs < 60:
+        return f"{secs}s ago"
+    if secs < 3600:
+        return f"{secs // 60}m ago"
+    if secs < 86400:
+        return f"{secs // 3600}h ago"
+    if secs < 86400 * 30:
+        return f"{secs // 86400}d ago"
+    if secs < 86400 * 365:
+        return f"{secs // (86400 * 30)}mo ago"
+    return f"{secs // (86400 * 365)}y ago"
+
+def fmt_local(dt):
+    if dt is None:
+        return ""
+    if STOCKHOLM is not None:
+        local = dt.astimezone(STOCKHOLM)
+    else:
+        local = dt.astimezone()
+    return local.strftime("%Y-%m-%d %H:%M:%S %Z")
+
+path = sys.argv[1]
+try:
+    with open(path) as f:
+        data = json.load(f)
+except Exception:
+    print(f"{DIM}(unable to load issue metadata){RESET}")
+    sys.exit(0)
+
+fields = (data or {}).get("fields") or {}
+updated_dt = parse(fields.get("updated"))
+
+last_comment_dt = None
+comment_block = fields.get("comment") or {}
+comments = comment_block.get("comments") or []
+for c in comments:
+    cdt = parse(c.get("updated") or c.get("created"))
+    if cdt is not None and (last_comment_dt is None or cdt > last_comment_dt):
+        last_comment_dt = cdt
+
+label_w = 14  # "Last comment: " width for alignment
+
+def emit(label, dt, *, missing=None):
+    label_str = f"{BOLD}{label:<{label_w}}{RESET}"
+    if dt is None:
+        body = f"{DIM}{missing or '(unknown)'}{RESET}"
+    else:
+        body = f"{CYAN}{fmt_local(dt)}{RESET}  {GRAY}({humanize(dt)}){RESET}"
+    print(f"{label_str}{body}")
+
+emit("Updated:",     updated_dt)
+emit("Last comment:", last_comment_dt, missing="(no comments)")
+print()
+PY
+
+# ---- body: plain acli view -------------------------------------------------
+cat "$tmp_text"
