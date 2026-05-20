@@ -203,6 +203,26 @@ _hyperlink() {
   printf '\e]8;;%s\e\\%s\e]8;;\e\\' "$url" "$text"
 }
 
+# Pick an ANSI color for the relation display text based on the GCP
+# project suffix — at a glance the reader knows which environment the
+# table lives in:
+#   *-prod   → green   (`\e[32m`)
+#   *-dev    → magenta (`\e[35m`, the same purple used elsewhere in the
+#                       repo for sandbox/non-prod lines, e.g. rlm-bq-open)
+#   other    → orange  (`\e[38;5;208m`, 8-bit color — true orange is not
+#                       in the basic 8-color palette; supported by every
+#                       modern terminal in this setup)
+# The SGR sequences live *inside* the OSC 8 anchor text; terminals strip
+# them from the anchor and apply the color to the visible label only.
+_color_for_project() {
+  case "$1" in
+    *-prod) printf '\e[32m'        ;;  # green
+    *-dev)  printf '\e[35m'        ;;  # magenta / purple
+    *)      printf '\e[38;5;208m'  ;;  # orange
+  esac
+}
+local ANSI_RESET=$'\e[0m'
+
 local bq_ref="${rel_db}:${rel_sch}.${rel_alias}"
 local bq_relation_line
 if [[ $rel_db == '?' || $rel_sch == '?' ]]; then
@@ -212,7 +232,9 @@ if [[ $rel_db == '?' || $rel_sch == '?' ]]; then
 elif command -v "$HOME/bin/bq-console-url" >/dev/null 2>&1 \
      && bq_url=$("$HOME/bin/bq-console-url" "$bq_ref" 2>/dev/null) \
      && [[ -n $bq_url ]]; then
-  bq_relation_line=$(_hyperlink "$bq_url" "$bq_ref")
+  local color_open
+  color_open=$(_color_for_project "$rel_db")
+  bq_relation_line=$(_hyperlink "$bq_url" "${color_open}${bq_ref}${ANSI_RESET}")
 else
   bq_relation_line="$bq_ref"
 fi
