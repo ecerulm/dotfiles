@@ -232,22 +232,28 @@ for ref_i in "${to_process[@]}"; do
   # exact (project, dataset, table) triple, so same-named tables in a
   # different dataset don't pollute the result.
   #
-  # Single SQL pass: GROUP BY the *cleaned* query body (strip dbt's
-  # per-invocation `"<uuid>" AS sdp_invocation_id` literal that
-  # otherwise makes every dbt run look unique, plus all `/* ... */`
-  # comments, then collapse whitespace on the displayed excerpt) and
-  # emit `(runs, distinct_users, first_run, last_run, statement_type,
-  # excerpt)` per distinct query. The `runs` column carries the
-  # per-query count, so a separate "jobs per day by type" histogram
-  # would be redundant — the same total can be read off this listing
-  # at a glance.
+  # Single SQL pass with three CTEs:
+  #   hits      — raw jobs that touched the table, with the per-query
+  #               dedup key `query_clean` (strip dbt's per-invocation
+  #               `"<uuid>" AS sdp_invocation_id` literal that otherwise
+  #               makes every dbt run look unique, plus `/* ... */`
+  #               comments).
+  #   per_day   — (query_clean, day, jobs) — daily counts.
+  #   by_day    — (query_clean, ARRAY<STRUCT<day, jobs>>) — daily
+  #               counts re-aggregated as an ordered array per query.
+  # Final SELECT joins `per_query` (overall counts + first/last/excerpt)
+  # against `by_day` to attach the drilldown to each row. A correlated
+  # subquery on per_day was tried and rejected by BigQuery
+  # ("Correlated subqueries that reference other tables are not
+  # supported unless they can be de-correlated"); the JOIN is the
+  # canonical workaround.
   #
-  # NOTE: stays a single SELECT (a CTE is still one statement, no
-  # DECLARE / no script). bq query --format=prettyjson wraps any script
-  # result in an extra array layer ('[[{row}, ...]]' instead of
-  # '[{row}, ...]') which breaks the `.[] | .field` jq filter below.
-  # src_proj / src_ds / src_tbl come from the parsed bq ref so they're
-  # [A-Za-z0-9_-]+ identifiers — safe to inline.
+  # NOTE: stays a single SELECT (CTEs are one statement, no DECLARE /
+  # no script). bq query --format=prettyjson wraps any script result in
+  # an extra array layer ('[[{row}, ...]]' instead of '[{row}, ...]')
+  # which breaks the `.[] | .field` jq filter below. src_proj / src_ds /
+  # src_tbl come from the parsed bq ref so they're [A-Za-z0-9_-]+
+  # identifiers — safe to inline.
   print -P "%F{blue}-- Query A: distinct queries that reference ${src_proj}:${src_ds}.${src_tbl} (after view expansion) in the last ${lookback_days} days --%f"
   print -P "%F{8}   (scope: jobs billed to ${qp}; set BQ_ARCHIVE_QUERY_PROJECT to inspect a different billing project)%f"
   sql="WITH hits AS (
@@ -257,6 +263,7 @@ for ref_i in "${to_process[@]}"; do
       r'/\*[^*]*\*+(?:[^/*][^*]*\*+)*/', ''
     ) AS query_clean,
     creation_time,
+    DATE(creation_time) AS day,
     user_email,
     statement_type
   FROM \`${qp}\`.\`region-eu\`.\`INFORMATION_SCHEMA\`.\`JOBS\`
@@ -269,17 +276,42 @@ for ref_i in "${to_process[@]}"; do
         AND rt.dataset_id = '${src_ds}'
         AND rt.table_id   = '${src_tbl}'
     )
+),
+per_day AS (
+  SELECT query_clean, day, COUNT(*) AS jobs
+  FROM hits
+  GROUP BY query_clean, day
+),
+by_day AS (
+  SELECT
+    query_clean,
+    ARRAY_AGG(STRUCT(CAST(day AS STRING) AS day, jobs) ORDER BY day) AS days
+  FROM per_day
+  GROUP BY query_clean
+),
+per_query AS (
+  SELECT
+    query_clean,
+    ANY_VALUE(statement_type) AS statement_type,
+    COUNT(*) AS runs,
+    COUNT(DISTINCT user_email) AS distinct_users,
+    CAST(MIN(creation_time) AS STRING) AS first_run,
+    CAST(MAX(creation_time) AS STRING) AS last_run,
+    SUBSTR(REGEXP_REPLACE(TRIM(query_clean), r'\s+', ' '), 1, 280) AS query_excerpt
+  FROM hits
+  GROUP BY query_clean
 )
 SELECT
-  ANY_VALUE(statement_type) AS statement_type,
-  COUNT(*) AS runs,
-  COUNT(DISTINCT user_email) AS distinct_users,
-  CAST(MIN(creation_time) AS STRING) AS first_run,
-  CAST(MAX(creation_time) AS STRING) AS last_run,
-  SUBSTR(REGEXP_REPLACE(TRIM(query_clean), r'\s+', ' '), 1, 280) AS query_excerpt
-FROM hits
-GROUP BY query_clean
-ORDER BY runs DESC, last_run DESC
+  q.statement_type,
+  q.runs,
+  q.distinct_users,
+  q.first_run,
+  q.last_run,
+  b.days AS by_day,
+  q.query_excerpt
+FROM per_query q
+JOIN by_day b USING (query_clean)
+ORDER BY q.runs DESC, q.last_run DESC
 LIMIT 50;"
   out=$(_bq_archive_run_query "$qp" "$sql")
   if (( $? != 0 )); then
@@ -288,14 +320,24 @@ LIMIT 50;"
     row_count=$(print -r -- "$out" | jq 'length')
     print "distinct queries: $row_count"
     if (( row_count > 0 )); then
+      # Render: one paragraph per distinct query.
+      #   line 1: runs, distinct_users, statement_type, first/last
+      #           (truncated to minute granularity; the +tz suffix and
+      #           microseconds in MIN/MAX timestamps are noise).
+      #   line 2: by-day drilldown — `MM-DD:N MM-DD:N …` (strip the
+      #           year prefix since lookback is short and the
+      #           `last_run` row above already pins the year).
+      #   line 3: query excerpt (whitespace-collapsed, up to 280 chars
+      #           — done in SQL so the JSON payload stays small).
       print -r -- "$out" | jq -r '
         .[] |
         "  runs=" + ((.runs // "0") | tostring) +
         "  users=" + ((.distinct_users // "0") | tostring) +
         "  " + (.statement_type // "?") +
-        "  first=" + (.first_run // "?") +
-        "  last=" + (.last_run // "?") + "\n    " +
-        (.query_excerpt // "")
+        "  first=" + ((.first_run // "?") | .[0:16]) +
+        "  last=" + ((.last_run // "?") | .[0:16]) +
+        "\n      by-day: " + ((.by_day // []) | map(.day[5:] + ":" + (.jobs | tostring)) | join(" ")) +
+        "\n      " + (.query_excerpt // "")
       '
     fi
   else
