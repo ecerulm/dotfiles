@@ -232,29 +232,25 @@ for ref_i in "${to_process[@]}"; do
   # exact (project, dataset, table) triple, so same-named tables in a
   # different dataset don't pollute the result.
   #
-  # Single SQL pass with three CTEs:
-  #   hits      — raw jobs that touched the table, with the per-query
-  #               dedup key `query_clean` (strip dbt's per-invocation
-  #               `"<uuid>" AS sdp_invocation_id` literal that otherwise
-  #               makes every dbt run look unique, plus `/* ... */`
-  #               comments).
-  #   per_day   — (query_clean, day, jobs) — daily counts.
-  #   by_day    — (query_clean, ARRAY<STRUCT<day, jobs>>) — daily
-  #               counts re-aggregated as an ordered array per query.
-  # Final SELECT joins `per_query` (overall counts + first/last/excerpt)
-  # against `by_day` to attach the drilldown to each row. A correlated
-  # subquery on per_day was tried and rejected by BigQuery
-  # ("Correlated subqueries that reference other tables are not
-  # supported unless they can be de-correlated"); the JOIN is the
-  # canonical workaround.
+  # Output is pivoted by day: one row per `(day, query_clean)` with
+  # that day's `runs` and `distinct_users` count, ordered by day
+  # newest-first then runs descending. jq groups by day for display,
+  # so the user sees a calendar-like view ("on 05-20 these distinct
+  # queries hit the table N times each"), which makes spotting
+  # cadence shifts (a dbt model that ran daily until last week, an
+  # ad-hoc burst yesterday, etc.) trivial.
   #
-  # NOTE: stays a single SELECT (CTEs are one statement, no DECLARE /
-  # no script). bq query --format=prettyjson wraps any script result in
+  # Dedup key `query_clean` strips dbt's per-invocation
+  # `"<uuid>" AS sdp_invocation_id` literal (without which every dbt
+  # run looks unique) and `/* ... */` comments.
+  #
+  # NOTE: stays a single SELECT (CTE is one statement, no DECLARE / no
+  # script). bq query --format=prettyjson wraps any script result in
   # an extra array layer ('[[{row}, ...]]' instead of '[{row}, ...]')
   # which breaks the `.[] | .field` jq filter below. src_proj / src_ds /
   # src_tbl come from the parsed bq ref so they're [A-Za-z0-9_-]+
   # identifiers — safe to inline.
-  print -P "%F{blue}-- Query A: distinct queries that reference ${src_proj}:${src_ds}.${src_tbl} (after view expansion) in the last ${lookback_days} days --%f"
+  print -P "%F{blue}-- Query A: distinct queries per day that reference ${src_proj}:${src_ds}.${src_tbl} (after view expansion) in the last ${lookback_days} days --%f"
   print -P "%F{8}   (scope: jobs billed to ${qp}; set BQ_ARCHIVE_QUERY_PROJECT to inspect a different billing project)%f"
   sql="WITH hits AS (
   SELECT
@@ -276,68 +272,39 @@ for ref_i in "${to_process[@]}"; do
         AND rt.dataset_id = '${src_ds}'
         AND rt.table_id   = '${src_tbl}'
     )
-),
-per_day AS (
-  SELECT query_clean, day, COUNT(*) AS jobs
-  FROM hits
-  GROUP BY query_clean, day
-),
-by_day AS (
-  SELECT
-    query_clean,
-    ARRAY_AGG(STRUCT(CAST(day AS STRING) AS day, jobs) ORDER BY day) AS days
-  FROM per_day
-  GROUP BY query_clean
-),
-per_query AS (
-  SELECT
-    query_clean,
-    ANY_VALUE(statement_type) AS statement_type,
-    COUNT(*) AS runs,
-    COUNT(DISTINCT user_email) AS distinct_users,
-    CAST(MIN(creation_time) AS STRING) AS first_run,
-    CAST(MAX(creation_time) AS STRING) AS last_run,
-    SUBSTR(REGEXP_REPLACE(TRIM(query_clean), r'\s+', ' '), 1, 280) AS query_excerpt
-  FROM hits
-  GROUP BY query_clean
 )
 SELECT
-  q.statement_type,
-  q.runs,
-  q.distinct_users,
-  q.first_run,
-  q.last_run,
-  b.days AS by_day,
-  q.query_excerpt
-FROM per_query q
-JOIN by_day b USING (query_clean)
-ORDER BY q.runs DESC, q.last_run DESC
-LIMIT 50;"
+  CAST(day AS STRING) AS day,
+  ANY_VALUE(statement_type) AS statement_type,
+  COUNT(*) AS runs,
+  COUNT(DISTINCT user_email) AS distinct_users,
+  SUBSTR(REGEXP_REPLACE(TRIM(query_clean), r'\s+', ' '), 1, 280) AS query_excerpt
+FROM hits
+GROUP BY day, query_clean
+ORDER BY day DESC, runs DESC, statement_type
+LIMIT 200;"
   out=$(_bq_archive_run_query "$qp" "$sql")
   if (( $? != 0 )); then
     print -u2 "bq-archive: Query A failed (see error above)"
   elif [[ $out == \[* ]]; then
     row_count=$(print -r -- "$out" | jq 'length')
-    print "distinct queries: $row_count"
+    print "(day, query) rows: $row_count"
     if (( row_count > 0 )); then
-      # Render: one paragraph per distinct query.
-      #   line 1: runs, distinct_users, statement_type, first/last
-      #           (truncated to minute granularity; the +tz suffix and
-      #           microseconds in MIN/MAX timestamps are noise).
-      #   line 2: by-day drilldown — `MM-DD:N MM-DD:N …` (strip the
-      #           year prefix since lookback is short and the
-      #           `last_run` row above already pins the year).
-      #   line 3: query excerpt (whitespace-collapsed, up to 280 chars
-      #           — done in SQL so the JSON payload stays small).
+      # group_by emits sorted-ascending groups, so we sort_by(.[0].day)
+      # | reverse to put newest-first while preserving the SQL ORDER
+      # within each group (runs DESC, statement_type). Each group emits
+      # one header line (the day) and one paragraph per distinct query
+      # under it (`<statement_type> runs=<N> users=<M>` + indented
+      # excerpt on the next line).
       print -r -- "$out" | jq -r '
-        .[] |
-        "  runs=" + ((.runs // "0") | tostring) +
-        "  users=" + ((.distinct_users // "0") | tostring) +
-        "  " + (.statement_type // "?") +
-        "  first=" + ((.first_run // "?") | .[0:16]) +
-        "  last=" + ((.last_run // "?") | .[0:16]) +
-        "\n      by-day: " + ((.by_day // []) | map(.day[5:] + ":" + (.jobs | tostring)) | join(" ")) +
-        "\n      " + (.query_excerpt // "")
+        group_by(.day) | sort_by(.[0].day) | reverse | .[] |
+        .[0].day,
+        (.[] |
+          "  " + (.statement_type // "?") +
+          " runs=" + ((.runs // "0") | tostring) +
+          " users=" + ((.distinct_users // "0") | tostring) +
+          "\n    " + (.query_excerpt // "")
+        )
       '
     fi
   else
