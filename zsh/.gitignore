@@ -1,4 +1,6 @@
 .zsh_history
 .zcompdump
+.zcompdump.*
+.zcompdump-*
 .zshrc.thismachine
 .zshenv.thismachine
