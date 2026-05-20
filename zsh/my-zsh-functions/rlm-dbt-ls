@@ -94,22 +94,18 @@ autoload -Uz _rlm-dbt-ensure-deps
 _rlm-dbt-ensure-deps "$project_root" "$dbt_project_root" dbt-ls || return 1
 
 # ---------------------------------------------------------------------------
-# Cache: selector history per dbt project root
+# Shared cache wiring: pooled history + per-project nodes cache.
+# All four rlm-dbt-* commands share ~/.cache/rlm-dbt/history.tsv (pooled,
+# scoped per project_key) and ~/.cache/rlm-dbt/<project_key>/nodes.json
+# (covering model/seed/test/snapshot). See the three _rlm-dbt-{project-key,
+# history,nodes-cache} helpers.
 # ---------------------------------------------------------------------------
 
-local cache_dir="$HOME/.cache/dbt-ls"
-mkdir -p "$cache_dir"
-local cache_key
-cache_key=$(print -n "$dbt_project_root" | md5)
-local history_file="${cache_dir}/${cache_key}.history"
-
-_dbt_ls_save_history() {
-  local entry="$1"
-  local tmp
-  tmp=$(mktemp)
-  { print -- "$entry"; [[ -f $history_file ]] && grep -vxF "$entry" "$history_file"; } >| "$tmp"
-  mv "$tmp" "$history_file"
-}
+autoload -Uz _rlm-dbt-project-key _rlm-dbt-history _rlm-dbt-nodes-cache
+local project_key
+project_key=$(_rlm-dbt-project-key "$dbt_project_root") || return 1
+local nodes_cache_file
+nodes_cache_file=$(_rlm-dbt-nodes-cache path "$project_key")
 
 # ---------------------------------------------------------------------------
 # Phase 1: pick a selector from all models + history
@@ -130,46 +126,42 @@ if _state_info=$(_rlm-dbt-state-info 2>/dev/null); then
   prod_manifest_arg=" '$manifest'"
 fi
 
-# Fetch all models (no selector) for the initial picker. Use `--output json`
-# so the same metadata file can drive the rich fzf preview pane via
-# dbt-model-preview (the bare model names are extracted with jq for the
-# picker list, while the JSON file stays around for the preview).
-print "dbt-ls: fetching all models …" >&2
-local all_models_json_file
-all_models_json_file=$(mktemp -t dbt-ls-all-models.XXXXXX.json)
-
-(cd "$project_root" && \
-  poetry run dbt ls \
-    --project-dir "$dbt_project_root" \
-    --profiles-dir "$profiles_dir" \
-    --profile "$profile_name" \
-    --resource-type model \
-    --output json \
-    --quiet 2>/dev/null
-) \
-  | grep -v '^[0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}' \
-  | grep -v '^\s*$' >| "$all_models_json_file"
+# Refresh the shared nodes cache if missing. The shared cache covers
+# every resource type the four rlm-dbt-* commands care about (model +
+# seed + test + snapshot) — Phase 1's picker filters to just models via
+# the jq read API. The on-disk JSON file is also what dbt-model-preview
+# reads for the preview pane, so the same fetch serves both purposes.
+if [[ ! -f $nodes_cache_file ]]; then
+  _rlm-dbt-nodes-cache refresh \
+    "$project_key" \
+    "$project_root" \
+    "$dbt_project_root" \
+    "$profiles_dir" \
+    "$profile_name" \
+    "$profile_name" || true
+fi
 
 local all_models
-all_models=$(jq -r '.name // empty' "$all_models_json_file" 2>/dev/null)
+all_models=$(_rlm-dbt-nodes-cache read "$project_key" 'select(.resource_type == "model") | .name')
+
+# Build pooled history for the picker (every command's picks for this
+# project, deduped and project-scoped). Just the bare selectors here —
+# dbt-ls's Phase 1 picker doesn't have a label column.
+local history_selectors
+history_selectors=$(_rlm-dbt-history read "$project_key" | awk -F'\t' '{print $3}')
 
 local initial_list
 initial_list=$(
   {
-    [[ -f $history_file ]] && cat "$history_file"
+    [[ -n $history_selectors ]] && print -- "$history_selectors"
     print -- "$all_models"
-  } | awk '!seen[$0]++'
+  } | awk 'NF && !seen[$0]++'
 )
 
 if [[ -z $initial_list ]]; then
   print -u2 "dbt-ls: no models found in project"
-  rm -f "$all_models_json_file"
   return 1
 fi
-
-# Clean up the Phase 1 temp JSON when the function returns (covers both
-# the fzf cancel path and the normal-completion path).
-trap "rm -f '$all_models_json_file'" EXIT INT TERM
 
 local picked
 picked=$(
@@ -180,7 +172,7 @@ picked=$(
       --ansi \
       --height=80% \
       --reverse \
-      --preview="\$HOME/bin/dbt-model-preview '$all_models_json_file' '$dbt_project_root' {}${prod_manifest_arg}" \
+      --preview="\$HOME/bin/dbt-model-preview '$nodes_cache_file' '$dbt_project_root' {}${prod_manifest_arg}" \
       --preview-window=bottom:40%:wrap \
       --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)' \
       --header="Pick a model or past selector • Enter to edit before running"
@@ -228,13 +220,17 @@ if [[ -z $dbt_output ]]; then
   return 1
 fi
 
-# Save selector to history only after a successful dbt ls
-_dbt_ls_save_history "$selector"
+# Save selector to the shared pooled history only after a successful
+# dbt ls. The tag "dbt-ls" is what shows up in other commands' pickers
+# as "(last used Xm ago in dbt-ls)".
+_rlm-dbt-history append dbt-ls "$project_key" "$selector"
 
-# Clean up both temp JSON files when the function returns. We deliberately
-# keep them around for the lifetime of the fzf pickers (which read them on
-# every preview redraw) — the trap fires only on exit / return.
-trap "rm -f '$all_models_json_file' '$models_json_file'" EXIT INT TERM
+# Clean up the Phase 3 temp JSON when the function returns. We
+# deliberately keep it around for the lifetime of the Phase 4 fzf
+# picker (which reads it on every preview redraw) — the trap fires
+# only on exit / return. The Phase 1 picker reads from the shared
+# nodes cache, which lives on disk and is not cleaned up here.
+trap "rm -f '$models_json_file'" EXIT INT TERM
 
 # ---------------------------------------------------------------------------
 # Phase 4: pick from the results

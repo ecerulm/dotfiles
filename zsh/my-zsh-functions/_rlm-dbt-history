@@ -1,0 +1,153 @@
+emulate -L zsh
+
+# Shared pooled history for all rlm-dbt-* commands. One file
+# (~/.cache/rlm-dbt/history.tsv) records every pick from every command,
+# scoped per dbt project via project_key (md5 of dbt_project_root —
+# computed via _rlm-dbt-project-key). Selectors picked in any command
+# (e.g. dbt-ls) become first-class suggestions in every other command's
+# picker (e.g. dbt-run), so a one-off dbt-ls exploration immediately
+# feeds back into the next dbt-run / dbt-build / dbt-test invocation.
+#
+# File format: one line per pick, newest first, capped at 500 lines.
+#
+#   <epoch>\t<command>\t<project_key>\t<selector>
+#
+#   epoch        date +%s integer
+#   command      "dbt-run" / "dbt-build" / "dbt-test" / "dbt-ls"
+#   project_key  md5 of the dbt project root (see _rlm-dbt-project-key)
+#   selector     the raw value the picker handed back (may include +,
+#                tag:, source:, etc.). Tab is not a legal dbt selector
+#                char, so the field round-trips fine.
+#
+# Deduplication rule: entries are deduped by the (project_key, selector)
+# tuple. If dbt-build picks "my_model" after dbt-run picked the same
+# "my_model", only the newest line stays; the surviving command tag is
+# whichever wrote last.
+#
+# Usage:
+#   _rlm-dbt-history append <command> <project_key> <selector>
+#   _rlm-dbt-history read   <project_key>
+#       → "<epoch>\t<command>\t<selector>" lines, newest first, deduped
+#         on (project_key, selector), capped at 500 lines. Empty stdout
+#         if no history exists for this project.
+#
+# Return codes:
+#   0 — success.
+#   2 — usage error.
+#
+# Legacy migration:
+#   On first read/append after the new history file does not exist,
+#   _rlm-dbt-history opportunistically folds in entries from the four
+#   legacy paths (~/.cache/dbt-run/history_ts.txt, dbt-build, dbt-test,
+#   dbt-ls/<md5>.history). Legacy files are not deleted.
+#   Note: legacy entries are filed under the *current* project_key,
+#   since the per-command legacy files weren't project-scoped — this
+#   is the best we can do without manifest evidence of where they came
+#   from. dbt-ls legacy entries keep their own md5 project_key (already
+#   recorded in the filename).
+
+local history_file="$HOME/.cache/rlm-dbt/history.tsv"
+local history_dir="${history_file:h}"
+local history_cap=500
+
+_rlm_dbt_history_legacy_migrate() {
+  # Best-effort one-shot fold of legacy per-command history files into
+  # the new unified TSV. Triggered when the new file does not exist.
+  # Safe to re-run: the dedup pass in `append`/`read` collapses any
+  # duplicates that might arise if a caller resurrects a legacy file.
+  local current_project_key="$1"
+  [[ -e $history_file ]] && return 0
+
+  local -a legacy_lines
+  local cmd legacy ts node md5_key
+
+  # dbt-run / dbt-build / dbt-test legacy files: "<epoch>\t<node>"
+  for cmd in dbt-run dbt-build dbt-test; do
+    legacy="$HOME/.cache/${cmd}/history_ts.txt"
+    [[ -f $legacy ]] || continue
+    [[ -n $current_project_key ]] || continue
+    while IFS=$'\t' read -r ts node; do
+      [[ -z $node ]] && continue
+      [[ -z $ts ]] && ts=0
+      legacy_lines+=("${ts}"$'\t'"${cmd}"$'\t'"${current_project_key}"$'\t'"${node}")
+    done < "$legacy"
+  done
+
+  # dbt-ls legacy files: "<md5>.history" with plain selector lines (no
+  # timestamps available — use epoch 0 so they sort to the bottom).
+  if [[ -d $HOME/.cache/dbt-ls ]]; then
+    local f
+    for f in $HOME/.cache/dbt-ls/*.history(N); do
+      md5_key=${${f:t}%.history}
+      [[ -z $md5_key ]] && continue
+      while IFS= read -r node; do
+        [[ -z $node ]] && continue
+        legacy_lines+=("0"$'\t'"dbt-ls"$'\t'"${md5_key}"$'\t'"${node}")
+      done < "$f"
+    done
+  fi
+
+  (( ${#legacy_lines} == 0 )) && return 0
+
+  mkdir -p "$history_dir"
+  # Sort by epoch descending, then dedupe on (project_key, selector) =
+  # fields 3,4. awk keeps the first occurrence which, post-sort, is the
+  # newest.
+  printf '%s\n' "${legacy_lines[@]}" \
+    | sort -t $'\t' -k1,1nr \
+    | awk -F'\t' '!seen[$3"\t"$4]++' \
+    | head -n "$history_cap" >| "${history_file}.tmp" \
+    && mv "${history_file}.tmp" "$history_file"
+}
+
+local subcmd="$1"
+shift
+
+case $subcmd in
+  append)
+    local cmd_name="$1"
+    local project_key="$2"
+    local selector="$3"
+    if [[ -z $cmd_name || -z $project_key || -z $selector ]]; then
+      print -u2 "_rlm-dbt-history: usage: append <command> <project_key> <selector>"
+      return 2
+    fi
+    _rlm_dbt_history_legacy_migrate "$project_key"
+    mkdir -p "$history_dir"
+    local now
+    now=$(date +%s)
+    # Prepend new entry, drop any prior entry with the same
+    # (project_key, selector) tuple, truncate to cap. Atomic via tmp+mv.
+    {
+      printf '%s\t%s\t%s\t%s\n' "$now" "$cmd_name" "$project_key" "$selector"
+      if [[ -f $history_file ]]; then
+        awk -F'\t' -v pk="$project_key" -v sel="$selector" \
+          '!($3 == pk && $4 == sel)' "$history_file"
+      fi
+    } | head -n "$history_cap" >| "${history_file}.tmp" \
+      && mv "${history_file}.tmp" "$history_file"
+    ;;
+  read)
+    local project_key="$1"
+    if [[ -z $project_key ]]; then
+      print -u2 "_rlm-dbt-history: usage: read <project_key>"
+      return 2
+    fi
+    _rlm_dbt_history_legacy_migrate "$project_key"
+    [[ -f $history_file ]] || return 0
+    # Filter to entries for this project_key, dedupe on selector
+    # (file is already newest-first, so awk keeps the first/newest
+    # occurrence per selector), emit "<epoch>\t<command>\t<selector>".
+    awk -F'\t' -v pk="$project_key" '
+      $3 == pk && !seen[$4]++ {
+        printf "%s\t%s\t%s\n", $1, $2, $4
+      }
+    ' "$history_file"
+    ;;
+  *)
+    print -u2 "_rlm-dbt-history: unknown subcommand: ${subcmd:-(empty)}"
+    print -u2 "_rlm-dbt-history: usage: append <command> <project_key> <selector>"
+    print -u2 "                   read   <project_key>"
+    return 2
+    ;;
+esac

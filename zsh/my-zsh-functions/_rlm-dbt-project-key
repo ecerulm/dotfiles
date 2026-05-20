@@ -1,0 +1,41 @@
+emulate -L zsh
+
+# Compute the project key used across all rlm-dbt-* commands to scope
+# their shared history (~/.cache/rlm-dbt/history.tsv) and shared nodes
+# cache (~/.cache/rlm-dbt/<project_key>/nodes.json) to one dbt project.
+#
+# The key is md5(<absolute dbt_project_root>), matching the algorithm
+# rlm-dbt-ls has used since its introduction. Centralized here so the
+# formula has a single source of truth.
+#
+# Usage:
+#   _rlm-dbt-project-key <dbt_project_root>
+#
+#   dbt_project_root  directory containing dbt_project.yml (absolute path
+#                     recommended; not normalized here so callers can keep
+#                     their own canonicalization rules).
+#
+# Stdout (on success):
+#   The 32-char hex md5 digest, followed by a newline.
+#
+# Return codes:
+#   0 — success.
+#   2 — usage error (missing arg).
+
+local dbt_project_root="$1"
+
+if [[ -z $dbt_project_root ]]; then
+  print -u2 "_rlm-dbt-project-key: usage: <dbt_project_root>"
+  return 2
+fi
+
+# `md5` on macOS prints just the digest; `md5sum` on Linux prints
+# "<digest>  -". Normalize to the digest by taking the first field.
+if command -v md5 >/dev/null 2>&1; then
+  print -n -- "$dbt_project_root" | md5
+elif command -v md5sum >/dev/null 2>&1; then
+  print -n -- "$dbt_project_root" | md5sum | awk '{print $1}'
+else
+  print -u2 "_rlm-dbt-project-key: neither md5 nor md5sum found in PATH"
+  return 1
+fi

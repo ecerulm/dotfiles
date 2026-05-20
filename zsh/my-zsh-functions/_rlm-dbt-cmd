@@ -155,39 +155,43 @@ _rlm-dbt-ensure-deps "$dbt_root" "$dbt_root" "$label" || return 1
 
 local dbt_target="$DBT_TARGET"
 
-local cache_dir="$HOME/.cache/${label}"
-# Historical filename is models.txt — kept even for seeds-aware variants so
-# pre-refactor caches keep working after the upgrade.
-local nodes_cache="$cache_dir/models.txt"
-local history_file="$cache_dir/history.txt"
-# history_ts: tab-separated "epoch<TAB>node" entries, newest first
-local history_ts_file="$cache_dir/history_ts.txt"
-mkdir -p "$cache_dir"
+# Project key + shared cache wiring. All four rlm-dbt-* commands share
+# one history file (~/.cache/rlm-dbt/history.tsv, pooled across commands,
+# scoped per project) and one nodes cache (~/.cache/rlm-dbt/<key>/nodes.json,
+# covering every resource type the four commands care about). See the
+# three _rlm-dbt-{project-key,history,nodes-cache} helpers.
+autoload -Uz _rlm-dbt-project-key _rlm-dbt-history _rlm-dbt-nodes-cache
+local project_key
+project_key=$(_rlm-dbt-project-key "$dbt_root") || return 1
+local nodes_cache
+nodes_cache=$(_rlm-dbt-nodes-cache path "$project_key")
 
-# Fetch node list (models, and optionally seeds) from dbt ls, save to cache
-_dbt_cmd_fetch_nodes() {
-  print -u2 "${label}: fetching ${node_kind} list via dbt ls …"
-  local err_log="$cache_dir/dbt-ls.err"
-  local output rc
-  output=$(cd "$dbt_root" && poetry run dbt ls \
-    "${resource_args[@]}" \
-    --profiles-dir "$profiles_dir" \
-    --target "$dbt_target" \
-    --output name \
-    --quiet 2>"$err_log")
-  rc=$?
-  if (( rc != 0 )); then
-    print -u2 "${label}: dbt ls failed (exit $rc); falling back to empty ${node_kind} list"
-    print -u2 "${label}: command was:"
-    print -u2 "  cd $dbt_root && poetry run dbt ls ${resource_args[*]} --profiles-dir $profiles_dir --target $dbt_target --output name --quiet"
-    if [[ -s $err_log ]]; then
-      print -u2 "${label}: stderr saved to $err_log"
-    else
-      print -u2 "${label}: (no stderr captured; see $err_log)"
-    fi
-    return 1
+# Build a jq filter from the comma-list of resource_types passed in by
+# the wrapper (e.g. "model" -> select(.resource_type == "model") | .name;
+# "model,seed" -> select(.resource_type == "model" or .resource_type == "seed") | .name).
+local _jq_rt_filter=""
+local _rt
+for _rt in ${(s:,:)resource_types}; do
+  if [[ -z $_jq_rt_filter ]]; then
+    _jq_rt_filter=".resource_type == \"$_rt\""
+  else
+    _jq_rt_filter+=" or .resource_type == \"$_rt\""
   fi
-  print -- "$output" >| "$nodes_cache"
+done
+local nodes_jq_filter="select(${_jq_rt_filter}) | .name"
+
+# Refresh the shared nodes cache via the shared helper.
+_dbt_cmd_fetch_nodes() {
+  _rlm-dbt-nodes-cache refresh \
+    "$project_key" \
+    "$dbt_root" \
+    "$dbt_root" \
+    "$profiles_dir" \
+    "$dbt_target" \
+    || {
+      print -u2 "${label}: failed to refresh nodes cache"
+      return 1
+    }
 }
 
 # If no -s given, open fzf picker
@@ -214,29 +218,26 @@ if [[ -z $selector ]]; then
   local now_ts
   now_ts=$(date +%s)
 
-  # Build set of history node names (for exclusion from the unrun list)
+  # Build pooled-history lines from the shared TSV. Each line:
+  #   "<selector>\t<label>"
+  # where label is "(last used Xm ago in dbt-Y)". Pooled means every
+  # command's picks for this project show up here, not just the current
+  # command's — opted in by the user; see /Users/rubenlaguna/.claude/plans/can-all-the-rlm-dbt-logical-map.md.
   local -A history_seen
-  local -a history_lines  # "NODE_NAME\tLABEL" pairs
-  if [[ -f $history_ts_file ]]; then
-    while IFS=$'\t' read -r ts node; do
-      [[ -z $node ]] && continue
-      if [[ -z ${history_seen[$node]:-} ]]; then
-        local elapsed=$(( now_ts - ts ))
-        local hlabel=$(_dbt_cmd_elapsed_label "$elapsed")
-        history_lines+=("${node}"$'\t'"${hlabel}")
-        history_seen[$node]=1
-      fi
-    done < "$history_ts_file"
-  elif [[ -f $history_file ]]; then
-    # Migrate legacy plain-name history (no timestamps); show no time label
-    while IFS= read -r node; do
-      [[ -z $node ]] && continue
-      if [[ -z ${history_seen[$node]:-} ]]; then
-        history_lines+=("${node}"$'\t'"")
-        history_seen[$node]=1
-      fi
-    done < "$history_file"
-  fi
+  local -a history_lines
+  local _h_ts _h_cmd _h_sel _h_elapsed _h_lbl
+  while IFS=$'\t' read -r _h_ts _h_cmd _h_sel; do
+    [[ -z $_h_sel ]] && continue
+    [[ -n ${history_seen[$_h_sel]:-} ]] && continue
+    if [[ -n $_h_ts && $_h_ts != 0 ]]; then
+      _h_elapsed=$(( now_ts - _h_ts ))
+      _h_lbl="(last used $(_dbt_cmd_elapsed_label "$_h_elapsed") in ${_h_cmd})"
+    else
+      _h_lbl="(from ${_h_cmd})"
+    fi
+    history_lines+=("${_h_sel}"$'\t'"${_h_lbl}")
+    history_seen[$_h_sel]=1
+  done < <(_rlm-dbt-history read "$project_key")
 
   local cache_age_label=""
   if [[ -f $nodes_cache ]]; then
@@ -255,35 +256,33 @@ if [[ -z $selector ]]; then
     fi
   fi
 
-  local refresh_sentinel="--- REFRESH ${(U)node_kind} CACHE${cache_age_label:+ (cached ${cache_age_label})} ---"
+  local refresh_sentinel="--- REFRESH NODES CACHE${cache_age_label:+ (cached ${cache_age_label})} ---"
 
   # fzf input: sentinel, history with labels, then remaining nodes
   local raw_selection
   raw_selection=$(
     {
       print -- "$refresh_sentinel"
-      # History entries: "NODE  (last run LABEL)" — displayed text
+      # History entries (pooled across all rlm-dbt-* commands, project-scoped)
       local entry
       for entry in "${history_lines[@]}"; do
         local m="${entry%%$'\t'*}"
         local lbl="${entry##*$'\t'}"
-        if [[ -n $lbl ]]; then
-          printf '%s\t(last run %s)\n' "$m" "$lbl"
-        else
-          printf '%s\t\n' "$m"
-        fi
+        printf '%s\t%s\n' "$m" "$lbl"
       done
-      # Remaining nodes not in history
-      if [[ -f $nodes_cache ]]; then
-        while IFS= read -r node; do
-          [[ -z ${history_seen[$node]:-} ]] && printf '%s\t\n' "$node"
-        done < "$nodes_cache"
-      fi
+      # Remaining nodes not in history — filtered to this command's
+      # resource types via jq.
+      _rlm-dbt-nodes-cache read "$project_key" "$nodes_jq_filter" \
+        | while IFS= read -r node; do
+            [[ -z $node ]] && continue
+            [[ -z ${history_seen[$node]:-} ]] && printf '%s\t\n' "$node"
+          done
     } \
     | fzf --prompt="${label}> " \
+          --no-mouse \
+          --ansi \
           --height=80% \
           --reverse \
-          --no-mouse \
           --no-sort \
           --delimiter=$'\t' \
           --with-nth='1,2' \
@@ -300,22 +299,15 @@ if [[ -z $selector ]]; then
     return $?
   fi
 
-  # Extract just the node name (first tab-delimited field)
+  # Extract just the selector (first tab-delimited field)
   selector="${raw_selection%%$'\t'*}"
 fi
 
-# Record selector in history with timestamp (newest first, deduped, max 100)
-{
-  printf '%s\t%s\n' "$(date +%s)" "$selector"
-  if [[ -f $history_ts_file ]]; then
-    grep -v $'\t'"${selector}"'$' "$history_ts_file" 2>/dev/null || true
-  fi
-} | head -100 >| "${history_ts_file}.tmp" && mv "${history_ts_file}.tmp" "$history_ts_file"
-# Keep legacy history_file in sync (plain names, for any other consumers)
-{
-  print -- "$selector"
-  [[ -f $history_file ]] && grep -Fxv "$selector" "$history_file" 2>/dev/null || true
-} | head -100 >| "${history_file}.tmp" && mv "${history_file}.tmp" "$history_file"
+# Record selector in the shared pooled history (newest first, deduped on
+# (project_key, selector), capped at 500 lines). Done before running dbt
+# so the entry sticks even if dbt itself fails — matches the existing
+# behavior (the previous code also wrote history before the cost prompt).
+_rlm-dbt-history append "$label" "$project_key" "$selector"
 
 local -a dbt_cmd=(
   poetry run dbt "$dbt_subcmd"

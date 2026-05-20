@@ -1,0 +1,129 @@
+emulate -L zsh
+
+# Shared per-project nodes cache for all rlm-dbt-* commands. One JSON
+# file per dbt project (at ~/.cache/rlm-dbt/<project_key>/nodes.json)
+# holds the output of `dbt ls --output json` covering every resource
+# type the four commands care about (model + seed + test + snapshot).
+# Each command filters the cache to the resource types it needs at
+# picker time via a jq selector — no more per-command `dbt ls` calls.
+#
+# Project key is computed via _rlm-dbt-project-key (md5 of the dbt
+# project root); callers compute it once and pass it in.
+#
+# Usage:
+#   _rlm-dbt-nodes-cache path    <project_key>
+#       → prints the absolute path to the nodes.json file for that
+#         project (whether or not it exists yet). Useful for callers
+#         that want to stat the mtime for an "(cached Xm ago)" label,
+#         or that need to hand the path to dbt-model-preview.
+#
+#   _rlm-dbt-nodes-cache refresh <project_key> <project_root> <dbt_project_root> <profiles_dir> <target> [<profile>]
+#       → runs `dbt ls --output json --resource-type model --resource-type seed
+#         --resource-type test --resource-type snapshot` (cd'd into
+#         <project_root>, --project-dir <dbt_project_root>), captures
+#         stderr to <cache_dir>/dbt-ls.err, atomically rewrites the
+#         nodes.json file. project_root is where poetry runs (the
+#         pyproject.toml dir); dbt_project_root is the dbt_project.yml
+#         dir (often the same, sometimes a subdir). profile is optional
+#         and only needed when dbt cannot infer it from dbt_project.yml.
+#
+#   _rlm-dbt-nodes-cache read    <project_key> <jq_filter>
+#       → applies the given jq filter to nodes.json (which contains one
+#         JSON object per line) and prints the result, one entry per
+#         line. Empty stdout if the cache file does not exist.
+#         Example filter: 'select(.resource_type == "model") | .name'
+#
+# Return codes:
+#   0 — success.
+#   1 — dbt ls failed (refresh subcommand) or jq missing (read).
+#   2 — usage error.
+
+local subcmd="$1"
+shift
+
+_rlm_dbt_nodes_cache_dir() {
+  local project_key="$1"
+  print -- "$HOME/.cache/rlm-dbt/${project_key}"
+}
+
+_rlm_dbt_nodes_cache_file() {
+  local project_key="$1"
+  print -- "$(_rlm_dbt_nodes_cache_dir "$project_key")/nodes.json"
+}
+
+case $subcmd in
+  path)
+    local project_key="$1"
+    if [[ -z $project_key ]]; then
+      print -u2 "_rlm-dbt-nodes-cache: usage: path <project_key>"
+      return 2
+    fi
+    _rlm_dbt_nodes_cache_file "$project_key"
+    ;;
+  refresh)
+    local project_key="$1"
+    local project_root="$2"
+    local dbt_project_root="$3"
+    local profiles_dir="$4"
+    local target="$5"
+    local profile="${6:-}"
+    if [[ -z $project_key || -z $project_root || -z $dbt_project_root || -z $profiles_dir || -z $target ]]; then
+      print -u2 "_rlm-dbt-nodes-cache: usage: refresh <project_key> <project_root> <dbt_project_root> <profiles_dir> <target> [<profile>]"
+      return 2
+    fi
+    local cache_dir
+    cache_dir=$(_rlm_dbt_nodes_cache_dir "$project_key")
+    mkdir -p "$cache_dir"
+    local cache_file="${cache_dir}/nodes.json"
+    local err_log="${cache_dir}/dbt-ls.err"
+    local -a profile_args
+    [[ -n $profile ]] && profile_args=(--profile "$profile")
+    print -u2 "_rlm-dbt-nodes-cache: fetching nodes via dbt ls (project=${project_key:0:8}…) …"
+    local output rc
+    output=$(cd "$project_root" && poetry run dbt ls \
+      --project-dir "$dbt_project_root" \
+      --profiles-dir "$profiles_dir" \
+      "${profile_args[@]}" \
+      --target "$target" \
+      --resource-type model \
+      --resource-type seed \
+      --resource-type test \
+      --resource-type snapshot \
+      --output json \
+      --quiet 2>"$err_log" \
+      | grep -v '^[0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}' \
+      | grep -v '^[[:space:]]*$')
+    rc=$?
+    if (( rc != 0 )); then
+      print -u2 "_rlm-dbt-nodes-cache: dbt ls failed (exit $rc)"
+      if [[ -s $err_log ]]; then
+        print -u2 "_rlm-dbt-nodes-cache: stderr saved to $err_log"
+      fi
+      return 1
+    fi
+    print -r -- "$output" >| "${cache_file}.tmp" && mv "${cache_file}.tmp" "$cache_file"
+    ;;
+  read)
+    local project_key="$1"
+    local jq_filter="$2"
+    if [[ -z $project_key || -z $jq_filter ]]; then
+      print -u2 "_rlm-nodes-cache: usage: read <project_key> <jq_filter>"
+      return 2
+    fi
+    local cache_file
+    cache_file=$(_rlm_dbt_nodes_cache_file "$project_key")
+    [[ -f $cache_file ]] || return 0
+    if ! command -v jq >/dev/null 2>&1; then
+      print -u2 "_rlm-dbt-nodes-cache: jq not found in PATH"
+      return 1
+    fi
+    jq -r "$jq_filter" "$cache_file" 2>/dev/null
+    ;;
+  *)
+    print -u2 "_rlm-dbt-nodes-cache: unknown subcommand: ${subcmd:-(empty)}"
+    print -u2 "_rlm-dbt-nodes-cache: usage: path    <project_key>"
+    print -u2 "                          refresh <project_key> <project_root> <dbt_project_root> <profiles_dir> <target> [<profile>]"
+    print -u2 "                          read    <project_key> <jq_filter>"
+    return 2
+    ;;
+esac
