@@ -250,6 +250,7 @@ autoload -Uz rlm-gcp-project-open
 autoload -Uz rlm-gar-search
 autoload -Uz rlm-pubsub-open
 autoload -Uz rlm-jira-open
+autoload -Uz rlm-jira-pick
 autoload -Uz rlm-brew-unlock
 autoload -Uz rlm-fcmd
 autoload -Uz rlm-urldecode
@@ -290,6 +291,7 @@ alias gcp-project-open='rlm-gcp-project-open'
 alias gar-search='rlm-gar-search'
 alias pubsub-open='rlm-pubsub-open'
 alias jira-open='rlm-jira-open'
+alias jira-pick='rlm-jira-pick'
 alias brew-unlock='rlm-brew-unlock'
 alias fcmd='rlm-fcmd'
 alias urldecode='rlm-urldecode'

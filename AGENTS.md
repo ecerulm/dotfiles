@@ -101,6 +101,7 @@ Notable autoloaded functions in `zsh/my-zsh-functions/` (all prefixed `rlm-`; sh
 - `rlm-pr-worktree`, `rlm-pr-worktree-rm` — create/remove a git worktree for a GitHub PR
 - `rlm-pr-for-commit` — find the PR associated with a commit
 - `rlm-jira-open` — open the JIRA ticket inferred from branch/PR/commits
+- `rlm-jira-pick` — fzf picker over JIRA issues (assigned → reporter → watching → DATA project, sorted by recently-updated, MRU history)
 - `rlm-fcmd` — fzf picker over every alias/function/builtin/reserved word/`$PATH` command, with a preview of what each resolves to
 - `rlm-urldecode` — split a URL into components and percent-decode its query string (one `key = value` line per param); reads `$1` or stdin
 - `rlm-pyactivate`, `rlm-pyclean` — Python venv helpers

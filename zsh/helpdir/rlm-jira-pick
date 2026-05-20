@@ -1,0 +1,40 @@
+rlm-jira-pick
+
+Pick a JIRA issue via fzf and open it in the browser. The picker shows
+every issue you currently care about, grouped and color-coded by why it
+matters to you:
+
+  1. assigned — issues assigned to you (yellow)
+  2. reporter — issues you reported, but are assigned to someone else
+                (green)
+  3. watching — issues you watch, but neither assigned to you nor
+                reported by you (cyan)
+  4. DATA     — every other issue in the DATA project (magenta)
+
+Within each group, issues are sorted by most recently updated first.
+Groups are concatenated in the order above. A picker pick is also
+remembered and floats to the top on subsequent invocations (MRU
+history kept in ~/.cache/jira-pick/history.txt; cap 1000 lines), with
+its original group coloring preserved.
+
+The first line of the picker is "--- REFRESH CACHE (cached … ago)".
+Picking it deletes the items cache and re-runs the four JQL queries.
+History survives the refresh.
+
+Every invocation verifies that `acli jira auth status` succeeds. If
+not, the function transparently runs `acli jira auth login --web`
+before continuing.
+
+KEY BINDINGS
+  Enter      Open the picked issue at
+             https://storytel.atlassian.net/browse/<KEY>
+  Ctrl-P     Cycle preview pane height: tall (70%) → short (40%) →
+             hidden → tall
+  Escape     Cancel
+
+CACHE
+  ~/.cache/jira-pick/items.tsv    fetched issue list (tab-delimited)
+  ~/.cache/jira-pick/history.txt  MRU picks (one KEY per line)
+
+REQUIRES
+  acli, fzf, python3, open (macOS) or xdg-open (Linux).
