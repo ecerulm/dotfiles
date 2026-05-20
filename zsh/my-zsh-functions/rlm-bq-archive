@@ -189,12 +189,16 @@ _bq_archive_query_project() {
   print -r -- "${BQ_ARCHIVE_QUERY_PROJECT:-$src_proj}"
 }
 
-# Runs `bq query` and prints a CSV-style result table; returns the raw exit code.
+# Runs `bq query` and writes the JSON result to stdout. `--quiet` suppresses
+# the "Waiting on bqjob_… Current status: RUNNING/DONE" status spinner that
+# bq otherwise writes to stderr; without it, callers that capture `2>&1`
+# end up with status text prepended to the JSON, breaking JSON parsing.
+# Genuine errors (auth, syntax, missing dataset) still go to stderr.
 # Args: <query_project> <sql> [extra bq args...]
 _bq_archive_run_query() {
   local qp="$1" sql="$2"
   shift 2
-  bq query \
+  bq --quiet query \
     --use_legacy_sql=false \
     --format=prettyjson \
     --max_rows=200 \
@@ -238,10 +242,10 @@ WHERE DATE(creation_time) > DATE_SUB(CURRENT_DATE(), INTERVAL ${lookback_days} D
   AND LOWER(query) LIKE LOWER(TABLE_NAME_PATTERN)
 ORDER BY creation_time DESC
 LIMIT 50;"
-  out=$(_bq_archive_run_query "$qp" "$sql" 2>&1) || {
-    print -u2 "bq-archive: Query A failed: $out"
-  }
-  if [[ $out == "["* ]]; then
+  out=$(_bq_archive_run_query "$qp" "$sql")
+  if (( $? != 0 )); then
+    print -u2 "bq-archive: Query A failed (see error above)"
+  elif [[ $out == \[* ]]; then
     row_count=$(print -r -- "$out" | jq 'length')
     print "rows: $row_count"
     if (( row_count > 0 )); then
@@ -254,6 +258,9 @@ LIMIT 50;"
         ((.query_excerpt // "") | gsub("\\s+"; " "))
       '
     fi
+  else
+    print -u2 "bq-archive: Query A returned unexpected output:"
+    print -u2 -r -- "$out"
   fi
 
   # Query B: audit log (last N days, principals filtered)
@@ -273,15 +280,18 @@ WHERE DATE(timestamp) > DATE_SUB(CURRENT_DATE(), INTERVAL ${lookback_days} DAY)
 GROUP BY 1, 2, 3
 ORDER BY 1 DESC, 4 DESC
 LIMIT 100;"
-  out=$(_bq_archive_run_query "$qp" "$sql" 2>&1) || {
-    print -u2 "bq-archive: Query B failed (table may not exist or you lack access): $out"
-  }
-  if [[ $out == "["* ]]; then
+  out=$(_bq_archive_run_query "$qp" "$sql")
+  if (( $? != 0 )); then
+    print -u2 "bq-archive: Query B failed (table may not exist or you lack access; see error above)"
+  elif [[ $out == \[* ]]; then
     row_count=$(print -r -- "$out" | jq 'length')
     print "rows: $row_count"
     if (( row_count > 0 )); then
       print -r -- "$out" | jq -r '.[] | "  " + (.date // "?") + "  " + ((.hits|tostring) // "0") + "  " + (.principal // "?") + "  " + (.resource // "?")'
     fi
+  else
+    print -u2 "bq-archive: Query B returned unexpected output:"
+    print -u2 -r -- "$out"
   fi
 
   # Query C: TABLES + TABLE_STORAGE (freshness)
@@ -303,10 +313,10 @@ LEFT JOIN \`${qp}\`.\`region-eu\`.\`INFORMATION_SCHEMA\`.\`TABLE_STORAGE\` ts
 WHERE t.table_name LIKE TABLE_NAME_PATTERN
 ORDER BY ts.storage_last_modified_time DESC
 LIMIT 20;"
-  out=$(_bq_archive_run_query "$qp" "$sql" 2>&1) || {
-    print -u2 "bq-archive: Query C failed: $out"
-  }
-  if [[ $out == "["* ]]; then
+  out=$(_bq_archive_run_query "$qp" "$sql")
+  if (( $? != 0 )); then
+    print -u2 "bq-archive: Query C failed (see error above)"
+  elif [[ $out == \[* ]]; then
     row_count=$(print -r -- "$out" | jq 'length')
     print "rows: $row_count"
     if (( row_count > 0 )); then
@@ -320,6 +330,9 @@ LIMIT 20;"
         "  last_modified=" + (.storage_last_modified_time // "?")
       '
     fi
+  else
+    print -u2 "bq-archive: Query C returned unexpected output:"
+    print -u2 -r -- "$out"
   fi
 done
 
