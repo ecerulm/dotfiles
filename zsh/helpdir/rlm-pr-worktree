@@ -12,16 +12,26 @@ in this order:
      pick up a teammate's PR for local review.
 
 Selecting a PR creates a worktree at  ../<repo>-pr-<N>  on the PR
-branch. Selecting a JIRA issue creates a worktree at  ../<repo>-<KEY>
-on a new branch named <KEY> off origin/<default-branch>.
+branch. Selecting a JIRA issue first prompts (vared, editable) for
+an optional free-form suffix:
+
+  - Empty input keeps the legacy layout: worktree  ../<repo>-<KEY>
+    on a new branch named  <KEY>  off origin/<default-branch>.
+  - A non-empty value like "fix bq cost" becomes a path slug and a
+    branch slug: worktree  ../<repo>-<KEY>-fix-bq-cost  on a new
+    branch named  <KEY>/feat/fix_bq_cost  off the same base. Runs
+    of non-alphanumerics collapse to a single separator; the path
+    uses '-' and the branch slug uses '_' so the result matches the
+    project-wide  <KEY>/feat/<snake_case>  branch convention.
 
 When called with an argument, the picker is skipped:
   - A numeric value is treated as a PR number.
   - A value matching the JIRA key shape (e.g. DATA-1234) is treated
-    as a JIRA issue.
+    as a JIRA issue; the same suffix prompt is shown.
   - --suffix SUFFIX (or -s SUFFIX) creates a worktree at
     ../<repo>-<SUFFIX> on a new branch named <SUFFIX> off
-    origin/<default-branch>, with no PR or JIRA lookup.
+    origin/<default-branch>, with no PR or JIRA lookup and no
+    prompt — handy for scripts.
 
 If the target worktree path already exists, it is entered instead of
 recreated.

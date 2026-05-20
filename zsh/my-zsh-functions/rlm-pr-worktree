@@ -10,13 +10,16 @@
 #      up a teammate's PR to review locally.
 #
 # Selecting a PR     -> worktree at ../<repo>-pr-<N>      on the PR branch.
-# Selecting an issue -> worktree at ../<repo>-<KEY>       on a new branch
-#                       <KEY> created off origin/<default-branch>.
+# Selecting an issue -> prompts (vared) for an optional suffix:
+#   * empty   -> worktree ../<repo>-<KEY>            branch <KEY>
+#   * "foo bar" -> worktree ../<repo>-<KEY>-foo-bar  branch <KEY>/feat/foo_bar
+# In both cases the new branch is created off origin/<default-branch>.
 #
 # Usage: pr-worktree [PR_NUMBER | JIRA_KEY | --suffix SUFFIX]
-#   - no arg             -> fzf picker
+#   - no arg             -> fzf picker (JIRA selections also prompt for suffix)
 #   - PR num             -> skip picker, treat as PR
-#   - JIRA key           -> skip picker, treat as JIRA issue (e.g. DATA-1234)
+#   - JIRA key           -> skip picker, treat as JIRA issue (e.g. DATA-1234);
+#                           still prompts for the optional suffix
 #   - --suffix SUFFIX    -> create worktree at ../<repo>-<SUFFIX> off default branch
 #   - -s SUFFIX          -> same as --suffix
 #
@@ -120,9 +123,54 @@ _prwt_make_suffix_worktree() {
   git pull
 }
 
+# Normalize a free-form suffix into a token using the given separator.
+# Collapses runs of non-alphanumerics into a single separator, trims
+# leading/trailing separators, and lowercases the result. The two callers
+# pass '-' (path) and '_' (branch slug) so e.g. "Fix BQ Cost-Bug" becomes
+# "fix-bq-cost-bug" for the path and "fix_bq_cost_bug" for the branch.
+_prwt_slug() {
+  local raw=$1 sep=$2
+  print -r -- "${raw}" \
+    | tr '[:upper:]' '[:lower:]' \
+    | sed -E "s/[^a-z0-9]+/${sep}/g; s/^${sep}+//; s/${sep}+\$//"
+}
+
+# Prompt the user to optionally edit a worktree suffix for a JIRA key.
+# Echoes the (possibly empty) sanitized suffix on stdout. Empty input
+# means "keep the legacy behavior" (worktree at ../<repo>-<KEY>, branch
+# = <KEY>). Reads /dev/tty so it works even when called from inside the
+# fzf pipeline (where stdin is the fzf selection, not the terminal).
+_prwt_prompt_suffix() {
+  local key=$1 suffix=''
+  if [[ ! -t 0 || ! -t 1 ]]; then
+    # No interactive TTY (e.g. piped invocation) — skip the prompt.
+    print -r -- ''
+    return 0
+  fi
+  # vared edits the variable in place; pre-fill empty so the user can
+  # just press Enter to accept the legacy default, or type a description
+  # to get a DATA-NNNN/feat/<slug> branch. Redirect stdin from /dev/tty
+  # so zle still has a terminal when this helper is called from inside a
+  # pipeline (e.g. the fzf-driven picker path further down).
+  vared -p "pr-worktree: suffix for $key (Enter = none, e.g. 'fix bq cost') > " suffix </dev/tty || suffix=''
+  print -r -- "$(_prwt_slug "$suffix" '-')"
+}
+
 _prwt_make_jira_worktree() {
   local key=${1:u}
-  local worktree_path=${repo_root:h}/${repo_name}-${key}
+  local suffix=${2:-}
+  local path_slug branch_slug worktree_path branch
+  if [[ -n $suffix ]]; then
+    path_slug=$(_prwt_slug "$suffix" '-')
+    branch_slug=$(_prwt_slug "$suffix" '_')
+  fi
+  if [[ -n $path_slug ]]; then
+    worktree_path=${repo_root:h}/${repo_name}-${key}-${path_slug}
+    branch=${key}/feat/${branch_slug}
+  else
+    worktree_path=${repo_root:h}/${repo_name}-${key}
+    branch=${key}
+  fi
 
   if [[ -e $worktree_path ]]; then
     print "pr-worktree: $worktree_path already exists; entering it."
@@ -135,13 +183,13 @@ _prwt_make_jira_worktree() {
   default_branch=$(_prwt_default_branch) || default_branch=main
   [[ -z $default_branch ]] && default_branch=main
 
-  print "pr-worktree: creating worktree at $worktree_path on new branch $key off origin/$default_branch"
+  print "pr-worktree: creating worktree at $worktree_path on new branch $branch off origin/$default_branch"
   git -C "$repo_root" fetch origin "$default_branch" 2>/dev/null
 
-  if git -C "$repo_root" show-ref --verify --quiet "refs/heads/$key"; then
-    git -C "$repo_root" worktree add "$worktree_path" "$key" || return 1
+  if git -C "$repo_root" show-ref --verify --quiet "refs/heads/$branch"; then
+    git -C "$repo_root" worktree add "$worktree_path" "$branch" || return 1
   else
-    git -C "$repo_root" worktree add -b "$key" "$worktree_path" "origin/$default_branch" || return 1
+    git -C "$repo_root" worktree add -b "$branch" "$worktree_path" "origin/$default_branch" || return 1
   fi
 
   cd -- "$worktree_path"
@@ -164,7 +212,9 @@ if [[ -n $arg ]]; then
     _prwt_make_pr_worktree "$arg"
     return $?
   elif [[ $arg =~ '^[A-Za-z][A-Za-z0-9_]+-[0-9]+$' ]]; then
-    _prwt_make_jira_worktree "$arg"
+    local key=${arg:u} suffix
+    suffix=$(_prwt_prompt_suffix "$key")
+    _prwt_make_jira_worktree "$key" "$suffix"
     return $?
   else
     print -u2 "pr-worktree: argument must be a PR number, a JIRA key (e.g. DATA-1234), or --suffix SUFFIX"
@@ -274,9 +324,11 @@ case $kind in
     _prwt_make_pr_worktree "$pr_number"
     ;;
   JIRA)
-    local key
+    local key suffix
     key=$(print -- "$selection" | awk '{print $2}')
-    _prwt_make_jira_worktree "$key"
+    key=${key:u}
+    suffix=$(_prwt_prompt_suffix "$key")
+    _prwt_make_jira_worktree "$key" "$suffix"
     ;;
   *)
     print -u2 "pr-worktree: could not parse selection: $selection"

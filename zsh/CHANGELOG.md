@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [2026-05-20]
 
+### Changed
+
+- `rlm-pr-worktree`: after picking a JIRA issue from the fzf picker (or passing a JIRA key directly on the command line), a `vared` prompt now lets the user type an optional free-form description. Empty input keeps the legacy layout (worktree `../<repo>-<KEY>`, branch `<KEY>`). A non-empty value like `fix bq cost` is sanitized in two passes — runs of non-alphanumerics collapse to a single separator, the result is lowercased and trimmed — using `-` for the path slug and `_` for the branch slug, so the worktree lands at `../<repo>-<KEY>-fix-bq-cost` on a new branch `<KEY>/feat/fix_bq_cost`. Matches the project-wide `DATA-xxxx/feat/<snake_case>` branch convention documented for `/commit`. New internal helpers: `_prwt_slug` (separator-aware slugger reused for path + branch) and `_prwt_prompt_suffix` (reads `/dev/tty` so it works even when called from the fzf pipeline; auto-skips when stdin/stdout are not a TTY). The `--suffix` / `-s` flag is unchanged and remains non-interactive for scripting.
+
 ### Added
 
 - `_rlm-dbt-ensure-deps`: new internal helper. Given `(project_root, dbt_project_root, label)` it counts list entries in `<dbt_project_root>/packages.yml` vs subdirectories under `<dbt_project_root>/dbt_packages/`; if fewer packages are installed than declared, runs `poetry run dbt deps --project-dir <dbt_project_root>` once. No-op when `packages.yml` is absent or already satisfied.
