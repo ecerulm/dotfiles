@@ -313,10 +313,28 @@ LIMIT 200;"
   fi
 
   # Query B: audit log (last N days, principals filtered)
-  print ""
-  print -P "%F{blue}-- Query B: data-access audit log for '${src_tbl}' (excluding ${#ignored_principals} ignored principals) --%f"
+  # Match the exact (dataset, table) path at the end of resourceName,
+  # not a wildcard `%${src_tbl}%` on the whole path. The previous form
+  # was dominated by false positives — anywhere the table name appears
+  # as a substring of the resource path (e.g. dataset names that
+  # contain "events" like `sdp_psa_adjust_events`, or temp-result
+  # tables scoped under such datasets) would match. Anchoring on
+  # `/datasets/<src_ds>/tables/<src_tbl>` cuts the result down to
+  # genuine reads/writes of the table itself.
+  #
+  # Defense-in-depth: even with an anchored path, drop three classes
+  # of BigQuery-managed shadow tables that may share the same
+  # `tables/<name>` suffix when name collisions happen:
+  #   /datasets/_<hex>/...   — anonymous query-result cache (24h TTL)
+  #   /tables/anon<hex>      — script/session temp tables
+  #   /tables/..._dbt_tmp    — dbt incremental staging tables
+  # These don't represent user-visible reads of the source table —
+  # they're BigQuery's internal materialization plumbing.
+  #
   # See "single SELECT only" note on Query A — same constraint applies.
   # Inline the pattern + ignored-principals array as SQL literals.
+  print ""
+  print -P "%F{blue}-- Query B: data-access audit log for ${src_ds}.${src_tbl} (excluding ${#ignored_principals} ignored principals; cache/tmp tables filtered) --%f"
   sql="SELECT
   DATE(timestamp) AS date,
   protopayload_auditlog.authenticationInfo.principalEmail AS principal,
@@ -324,8 +342,11 @@ LIMIT 200;"
   COUNT(*)                                                 AS hits
 FROM \`${qp}.bq_log.cloudaudit_googleapis_com_data_access\`
 WHERE DATE(timestamp) > DATE_SUB(CURRENT_DATE(), INTERVAL ${lookback_days} DAY)
-  AND protopayload_auditlog.resourceName LIKE '%${src_tbl}%'
+  AND protopayload_auditlog.resourceName LIKE '%/datasets/${src_ds}/tables/${src_tbl}'
   AND protopayload_auditlog.authenticationInfo.principalEmail NOT IN UNNEST(${ignored_sql_array})
+  AND NOT REGEXP_CONTAINS(protopayload_auditlog.resourceName, r'/datasets/_[0-9a-f]+/tables/')
+  AND NOT REGEXP_CONTAINS(protopayload_auditlog.resourceName, r'/tables/anon[0-9a-f]+$')
+  AND NOT REGEXP_CONTAINS(protopayload_auditlog.resourceName, r'__dbt_tmp$')
 GROUP BY 1, 2, 3
 ORDER BY 1 DESC, 4 DESC
 LIMIT 100;"
