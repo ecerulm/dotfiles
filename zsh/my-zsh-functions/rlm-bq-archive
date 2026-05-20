@@ -365,13 +365,23 @@ LIMIT 100;"
   fi
 
   # Query C: TABLES + TABLE_STORAGE (freshness)
-  print ""
-  print -P "%F{blue}-- Query C: storage freshness for '${src_tbl}' --%f"
+  # Returns exactly one row for the exact (project, dataset, table)
+  # the picker selected. Previously matched WHERE t.table_name LIKE
+  # '%${src_tbl}%', which collapsed the project's whole namespace of
+  # similarly-named tables (e.g. for `events` it pulled rows for
+  # `events_archive`, `dim_events`, `fct_events_daily`, …) and
+  # capped with LIMIT 20 to hide the mess. Anchoring on
+  # `t.table_schema = '${src_ds}' AND t.table_name = '${src_tbl}'`
+  # makes the result single-row and exact.
+  #
+  # LEFT JOIN against TABLE_STORAGE because views, external tables,
+  # and snapshots are in TABLES but not in TABLE_STORAGE — keep the
+  # row visible (with NULL storage cols) for those cases.
+  #
   # See "single SELECT only" note on Query A — same constraint applies.
+  print ""
+  print -P "%F{blue}-- Query C: storage freshness for ${src_ds}.${src_tbl} --%f"
   sql="SELECT
-  t.table_catalog,
-  t.table_schema,
-  t.table_name,
   t.table_type,
   t.creation_time,
   ts.storage_last_modified_time,
@@ -380,24 +390,43 @@ LIMIT 100;"
 FROM \`${qp}\`.\`region-eu\`.\`INFORMATION_SCHEMA\`.\`TABLES\` t
 LEFT JOIN \`${qp}\`.\`region-eu\`.\`INFORMATION_SCHEMA\`.\`TABLE_STORAGE\` ts
   USING(table_catalog, table_schema, table_name)
-WHERE t.table_name LIKE '%${src_tbl}%'
-ORDER BY ts.storage_last_modified_time DESC
-LIMIT 20;"
+WHERE t.table_schema = '${src_ds}'
+  AND t.table_name   = '${src_tbl}';"
   out=$(_bq_archive_run_query "$qp" "$sql")
   if (( $? != 0 )); then
     print -u2 "bq-archive: Query C failed (see error above)"
   elif [[ $out == \[* ]]; then
     row_count=$(print -r -- "$out" | jq 'length')
-    print "rows: $row_count"
-    if (( row_count > 0 )); then
+    if (( row_count == 0 )); then
+      print -u2 "bq-archive: Query C — no row in INFORMATION_SCHEMA.TABLES for ${src_ds}.${src_tbl} (table may have been deleted already)"
+    else
+      # Labeled-block render. `rows` and `logical_bytes` are
+      # humanized in jq (K/M/B for rows, KiB/MiB/GiB/TiB for bytes)
+      # since the raw numbers are unreadable at a glance. Strings
+      # are quoted from prettyjson so .total_logical_bytes etc.
+      # come in as STRING — coerce via tonumber.
       print -r -- "$out" | jq -r '
+        def hbytes(n):
+          if n == null then "?"
+          elif n < 1024            then (n|tostring) + " B"
+          elif n < 1048576         then ((n/1024)        | . * 10 | floor / 10 | tostring) + " KiB"
+          elif n < 1073741824      then ((n/1048576)     | . * 10 | floor / 10 | tostring) + " MiB"
+          elif n < 1099511627776   then ((n/1073741824)  | . * 10 | floor / 10 | tostring) + " GiB"
+          else                          ((n/1099511627776)| . * 10 | floor / 10 | tostring) + " TiB"
+          end;
+        def hrows(n):
+          if n == null then "?"
+          elif n < 1000        then (n|tostring)
+          elif n < 1000000     then ((n/1000)    | . * 10 | floor / 10 | tostring) + "K"
+          elif n < 1000000000  then ((n/1000000) | . * 10 | floor / 10 | tostring) + "M"
+          else                      ((n/1000000000)|. * 10 | floor / 10 | tostring) + "B"
+          end;
         .[] |
-        "  " + (.table_catalog // "?") + "." + (.table_schema // "?") + "." + (.table_name // "?") +
-        "  type=" + (.table_type // "?") +
-        "  rows=" + ((.total_rows // 0) | tostring) +
-        "  bytes=" + ((.total_logical_bytes // 0) | tostring) +
-        "  created=" + (.creation_time // "?") +
-        "  last_modified=" + (.storage_last_modified_time // "?")
+        "  type:           " + (.table_type // "?"),
+        "  created:        " + (.creation_time // "?"),
+        "  last_modified:  " + (.storage_last_modified_time // "(no TABLE_STORAGE row — view/external/snapshot)"),
+        "  rows:           " + hrows((.total_rows // null) | if . == null then null else tonumber end) + ((.total_rows // null) | if . == null then "" else "  (" + . + ")" end),
+        "  logical_bytes:  " + hbytes((.total_logical_bytes // null) | if . == null then null else tonumber end) + ((.total_logical_bytes // null) | if . == null then "" else "  (" + . + ")" end)
       '
     fi
   else
