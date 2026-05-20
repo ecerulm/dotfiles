@@ -226,9 +226,13 @@ for ref_i in "${to_process[@]}"; do
   print -P "%F{magenta}=== [${idx}/${#to_process}] diagnostics for ${to_process_colored[$idx]} (queries in ${qp}) ===%f"
 
   # Query A: INFORMATION_SCHEMA.JOBS (last N days)
+  # NOTE: keep this query a single SELECT (no DECLARE / no multi-statement
+  # body). bq query --format=prettyjson wraps any *script* result in an
+  # extra array layer ('[[{row}, ...]]' instead of '[{row}, ...]'), which
+  # breaks the `.[] | .field` jq filters below. src_tbl comes from the
+  # parsed bq ref so it's a [A-Za-z0-9_]+ identifier — safe to inline.
   print -P "%F{blue}-- Query A: JOBS that reference '${src_tbl}' in the last ${lookback_days} days --%f"
-  sql="DECLARE TABLE_NAME_PATTERN DEFAULT '%${src_tbl}%';
-SELECT
+  sql="SELECT
   creation_time,
   user_email,
   job_type,
@@ -239,7 +243,7 @@ SELECT
   destination_table.table_id    AS dest_table
 FROM \`${qp}\`.\`region-eu\`.\`INFORMATION_SCHEMA\`.\`JOBS\`
 WHERE DATE(creation_time) > DATE_SUB(CURRENT_DATE(), INTERVAL ${lookback_days} DAY)
-  AND LOWER(query) LIKE LOWER(TABLE_NAME_PATTERN)
+  AND LOWER(query) LIKE LOWER('%${src_tbl}%')
 ORDER BY creation_time DESC
 LIMIT 50;"
   out=$(_bq_archive_run_query "$qp" "$sql")
@@ -266,17 +270,17 @@ LIMIT 50;"
   # Query B: audit log (last N days, principals filtered)
   print ""
   print -P "%F{blue}-- Query B: data-access audit log for '${src_tbl}' (excluding ${#ignored_principals} ignored principals) --%f"
-  sql="DECLARE TABLE_NAME_PATTERN DEFAULT '%${src_tbl}%';
-DECLARE IGNORED ARRAY<STRING> DEFAULT ${ignored_sql_array};
-SELECT
+  # See "single SELECT only" note on Query A — same constraint applies.
+  # Inline the pattern + ignored-principals array as SQL literals.
+  sql="SELECT
   DATE(timestamp) AS date,
   protopayload_auditlog.authenticationInfo.principalEmail AS principal,
   protopayload_auditlog.resourceName                       AS resource,
   COUNT(*)                                                 AS hits
 FROM \`${qp}.bq_log.cloudaudit_googleapis_com_data_access\`
 WHERE DATE(timestamp) > DATE_SUB(CURRENT_DATE(), INTERVAL ${lookback_days} DAY)
-  AND protopayload_auditlog.resourceName LIKE TABLE_NAME_PATTERN
-  AND protopayload_auditlog.authenticationInfo.principalEmail NOT IN UNNEST(IGNORED)
+  AND protopayload_auditlog.resourceName LIKE '%${src_tbl}%'
+  AND protopayload_auditlog.authenticationInfo.principalEmail NOT IN UNNEST(${ignored_sql_array})
 GROUP BY 1, 2, 3
 ORDER BY 1 DESC, 4 DESC
 LIMIT 100;"
@@ -297,8 +301,8 @@ LIMIT 100;"
   # Query C: TABLES + TABLE_STORAGE (freshness)
   print ""
   print -P "%F{blue}-- Query C: storage freshness for '${src_tbl}' --%f"
-  sql="DECLARE TABLE_NAME_PATTERN DEFAULT '%${src_tbl}%';
-SELECT
+  # See "single SELECT only" note on Query A — same constraint applies.
+  sql="SELECT
   t.table_catalog,
   t.table_schema,
   t.table_name,
@@ -310,7 +314,7 @@ SELECT
 FROM \`${qp}\`.\`region-eu\`.\`INFORMATION_SCHEMA\`.\`TABLES\` t
 LEFT JOIN \`${qp}\`.\`region-eu\`.\`INFORMATION_SCHEMA\`.\`TABLE_STORAGE\` ts
   USING(table_catalog, table_schema, table_name)
-WHERE t.table_name LIKE TABLE_NAME_PATTERN
+WHERE t.table_name LIKE '%${src_tbl}%'
 ORDER BY ts.storage_last_modified_time DESC
 LIMIT 20;"
   out=$(_bq_archive_run_query "$qp" "$sql")
