@@ -1,0 +1,94 @@
+emulate -L zsh
+
+# Garbage-collect BigQuery refs that bq-preview marked as dead.
+#
+# bq-preview appends "project:dataset.table" lines to
+# ~/.cache/bq-open/dead-refs.txt when it gets "Not found" from bq show.
+# This helper sweeps those refs out of:
+#   - every per-cache file in ~/.cache/bq-open/ matching <md5>.txt or
+#     <md5>-sandbox.txt (the non-sandbox and sandbox cache lists),
+#   - the unified history TSV (~/.cache/bq-open/history.tsv) — matches
+#     on the bq_ref column (field 3) so flags/command/epoch are
+#     irrelevant,
+# then deletes the dead-refs.txt file so the next run starts fresh.
+#
+# Originally inline in rlm-bq-open:36–59. Lifted into a shared helper
+# so every rlm-bq-* / rlm-sandbox-bq-* caller runs the GC on entry,
+# not just rlm-bq-open.
+#
+# Idempotent: no-op when ~/.cache/bq-open/dead-refs.txt is missing or
+# empty. Safe to invoke unconditionally at the top of any caller.
+#
+# Usage:
+#   _rlm-bq-dead-refs-gc
+#
+# Return codes:
+#   0 — always (best-effort).
+
+local cache_dir="$HOME/.cache/bq-open"
+local dead_refs_file="${cache_dir}/dead-refs.txt"
+
+[[ -s $dead_refs_file ]] || return 0
+
+local -a dead_refs
+# Use $(cat …) rather than $(<…) so the file is only opened at runtime;
+# `$(<file)` makes `zsh -n` (NO_EXEC) attempt the open during the
+# parse pass and emit a spurious "no such file or directory" on
+# machines where dead-refs.txt doesn't exist yet (i.e. almost always).
+dead_refs=("${(@f)$(cat "$dead_refs_file")}")
+
+# Drop dead refs from every cache file (<md5>.txt + <md5>-sandbox.txt).
+# Format: one ref per line (no flags, no command, no epoch).
+local tmp f
+for f in "$cache_dir"/*.txt(N); do
+  # Skip the dead-refs.txt itself and the legacy history.txt (handled
+  # below via a different match column).
+  [[ ${f:t} == dead-refs.txt ]] && continue
+  [[ ${f:t} == history.txt ]] && continue
+  tmp=$(mktemp)
+  awk -v deadlist="${(j:,:)dead_refs}" '
+    BEGIN {
+      n = split(deadlist, arr, ",")
+      for (i = 1; i <= n; i++) dead[arr[i]] = 1
+    }
+    { if (!($0 in dead)) print }
+  ' "$f" >| "$tmp"
+  mv "$tmp" "$f"
+done
+
+# Drop dead refs from the unified history TSV (field 3 = bq_ref).
+local hist="${cache_dir}/history.tsv"
+if [[ -f $hist ]]; then
+  tmp=$(mktemp)
+  awk -F'\t' -v deadlist="${(j:,:)dead_refs}" '
+    BEGIN {
+      n = split(deadlist, arr, ",")
+      for (i = 1; i <= n; i++) dead[arr[i]] = 1
+    }
+    { if (!($3 in dead)) print }
+  ' "$hist" >| "$tmp"
+  mv "$tmp" "$hist"
+fi
+
+# Drop dead refs from the legacy history.txt too, in case it still
+# exists (the legacy migration in _rlm-bq-history doesn't delete it).
+# Format: plain ref, optionally "[sandbox] <ref>".
+local legacy_hist="${cache_dir}/history.txt"
+if [[ -f $legacy_hist ]]; then
+  tmp=$(mktemp)
+  awk -v deadlist="${(j:,:)dead_refs}" '
+    BEGIN {
+      n = split(deadlist, arr, ",")
+      for (i = 1; i <= n; i++) dead[arr[i]] = 1
+    }
+    {
+      ref = $0
+      sub(/^\[sandbox\] /, "", ref)
+      if (!(ref in dead)) print
+    }
+  ' "$legacy_hist" >| "$tmp"
+  mv "$tmp" "$legacy_hist"
+fi
+
+rm -f "$dead_refs_file"
+return 0

@@ -15,47 +15,26 @@ for cmd in bq fzf jq; do
   fi
 done
 
-local -a projects sandbox_datasets
-projects=(${(s[:])BQ_SEARCH_PATH})
-# SANDBOX_BQ_DATASETS is colon-separated list of dataset IDs (no project prefix)
-sandbox_datasets=(${(s[:])SANDBOX_BQ_DATASETS})
+# Shared cache + history wiring. All five rlm-bq-* / rlm-sandbox-bq-*
+# commands share one cache pair (~/.cache/bq-open/<md5>.txt and
+# -sandbox.txt) and one pooled history TSV (~/.cache/bq-open/history.tsv)
+# via these helpers. See zsh/AGENTS.md "Current internal helpers".
+autoload -Uz _rlm-bq-cache _rlm-bq-history _rlm-bq-dead-refs-gc
 
-local cache_dir="$HOME/.cache/bq-open"
-mkdir -p "$cache_dir"
-# Cache key: md5 of sorted project list + sandbox vars so changes bust cache
-local cache_key cache_file sandbox_cache_file history_file dead_refs_file
-cache_key=$(print -l -- "${(o)projects[@]}" "${SANDBOX_BQ_PROJECT:-}" "${(o)sandbox_datasets[@]}" | md5)
-cache_file="${cache_dir}/${cache_key}.txt"
-sandbox_cache_file="${cache_dir}/${cache_key}-sandbox.txt"
-history_file="${cache_dir}/history.txt"
-# bq-preview appends "Not found" refs here so we can garbage-collect them from
-# the picker cache and history on subsequent invocations.
-dead_refs_file="${cache_dir}/dead-refs.txt"
+# Garbage-collect any refs that bq-preview marked as dead on a previous
+# run. No-op when ~/.cache/bq-open/dead-refs.txt is missing/empty.
+_rlm-bq-dead-refs-gc
 
-# Garbage-collect any refs that bq-preview detected as missing on a previous run.
-if [[ -s $dead_refs_file ]]; then
-  local -a dead_refs
-  dead_refs=("${(@f)$(<$dead_refs_file)}")
-  local tmp
-  local f
-  for f in "$cache_file" "$sandbox_cache_file" "$history_file"; do
-    [[ -f $f ]] || continue
-    tmp=$(mktemp)
-    # History stores plain refs and "[sandbox] <ref>"; strip the prefix for matching.
-    awk -v deadlist="${(j:,:)dead_refs}" '
-      BEGIN {
-        n = split(deadlist, arr, ",")
-        for (i = 1; i <= n; i++) dead[arr[i]] = 1
-      }
-      {
-        ref = $0
-        sub(/^\[sandbox\] /, "", ref)
-        if (!(ref in dead)) print
-      }
-    ' "$f" >| "$tmp"
-    mv "$tmp" "$f"
-  done
-  rm -f "$dead_refs_file"
+# Resolve current cache-key, paths.
+local key cache sandbox
+eval "$(_rlm-bq-cache paths)" || return 1
+
+# Fetch on first run if no cache exists yet
+if [[ ! -f $cache ]]; then
+  _rlm-bq-cache refresh --main-only || return 1
+fi
+if [[ -n $SANDBOX_BQ_PROJECT && ! -f $sandbox ]]; then
+  _rlm-bq-cache refresh --sandbox-only
 fi
 
 # Tab-delimited format for fzf lines: DISPLAY_TAG<TAB>BQ_REF
@@ -66,69 +45,6 @@ fi
 local PURPLE=$'\033[35m'
 local RESET=$'\033[0m'
 local SANDBOX_TAG="$PURPLE"   # colour opener — closed by RESET appended to BQ_REF
-
-_bq_open_fetch() {
-  local project dataset table_json
-  local -a tables
-  for project in "${projects[@]}"; do
-    print "bq-open: fetching datasets from $project …" >&2
-    while IFS= read -r dataset; do
-      table_json=$(bq ls --format=json --max_results=10000 --project_id="$project" "$dataset" 2>/dev/null) || continue
-      while IFS= read -r tbl; do
-        [[ -n $tbl ]] && tables+=("${project}:${dataset}.${tbl}")
-      done < <(print -- "$table_json" | jq -r '.[].tableReference.tableId // empty' 2>/dev/null)
-    done < <(bq ls --format=json --max_results=10000 --project_id="$project" 2>/dev/null \
-      | jq -r '.[].datasetReference.datasetId // empty' 2>/dev/null)
-  done
-
-  if (( ${#tables} == 0 )) && [[ -z $SANDBOX_BQ_PROJECT ]]; then
-    print -u2 "bq-open: no tables found in BQ_SEARCH_PATH='$BQ_SEARCH_PATH'"
-    return 1
-  fi
-
-  print -l -- "${tables[@]}" >| "$cache_file"
-}
-
-_bq_open_fetch_sandbox() {
-  [[ -z $SANDBOX_BQ_PROJECT ]] && { print -u2 "bq-open: SANDBOX_BQ_PROJECT not set, skipping sandbox fetch"; return 0; }
-  [[ ${#sandbox_datasets} -eq 0 ]] && { print -u2 "bq-open: SANDBOX_BQ_DATASETS is empty, skipping sandbox fetch"; return 0; }
-  local project="$SANDBOX_BQ_PROJECT"
-  local dataset
-  local tmp_dir
-  tmp_dir=$(mktemp -d)
-
-  print "bq-open: fetching sandbox tables from ${project} (${#sandbox_datasets} datasets in parallel) …" >&2
-
-  # Fetch all datasets in parallel; each writes to its own temp file
-  local -a pids
-  setopt LOCAL_OPTIONS
-  unsetopt MONITOR
-  for dataset in "${sandbox_datasets[@]}"; do
-    (
-      local out
-      out=$(bq ls --format=json --max_results=10000 --project_id="$project" "$dataset" 2>/dev/null) || exit 0
-      [[ -z $out ]] && exit 0
-      jq -r '.[].tableReference.tableId // empty' <<< "$out" 2>/dev/null \
-        | while IFS= read -r tbl; do
-            [[ -n $tbl ]] && printf '%s:%s.%s\n' "$project" "$dataset" "$tbl"
-          done > "$tmp_dir/${dataset}.txt"
-    ) &
-    pids+=($!)
-  done
-  wait "${pids[@]}"
-
-  # Merge results; always write the cache file (even if empty, to avoid re-fetching)
-  cat "$tmp_dir"/*.txt 2>/dev/null | sort >| "$sandbox_cache_file"
-  rm -rf "$tmp_dir"
-}
-
-# Fetch on first run if no cache exists yet
-if [[ ! -f $cache_file ]]; then
-  _bq_open_fetch || return 1
-fi
-if [[ -n $SANDBOX_BQ_PROJECT && ! -f $sandbox_cache_file ]]; then
-  _bq_open_fetch_sandbox
-fi
 
 _bq_cache_age() {
   local file="$1"
@@ -146,19 +62,52 @@ _bq_cache_age() {
 }
 
 # Sentinels use the tab format: empty-tag field <TAB> sentinel text
-local refresh_sentinel=$'\t'"--- REFRESH CACHE (cached $(_bq_cache_age "$cache_file")) ---"
+local refresh_sentinel=$'\t'"--- REFRESH CACHE (cached $(_bq_cache_age "$cache")) ---"
 local sandbox_age=""
-[[ -f $sandbox_cache_file ]] && sandbox_age=" (cached $(_bq_cache_age "$sandbox_cache_file"))"
+[[ -f $sandbox ]] && sandbox_age=" (cached $(_bq_cache_age "$sandbox"))"
 local refresh_sandbox_sentinel="${PURPLE}"$'\t'"--- REFRESH SANDBOX CACHE${sandbox_age} ---${RESET}"
 
-# Emit tab-delimited "COLOUR_OPENER<TAB>BQ_REF+RESET" lines.
-# Normal lines: empty first field, plain BQ ref.
-# Sandbox lines: PURPLE opener in field 1, BQ ref + RESET in field 2 — whole line purple.
+# Build set of bq_refs that exist in the current cache scope. Pooled
+# history may contain entries from other scopes (different
+# BQ_SEARCH_PATH); we suppress those so the picker never suggests a
+# ref the user can't actually open from here.
+local -A in_scope
+local _ref
+while IFS= read -r _ref; do
+  [[ -n $_ref ]] && in_scope[$_ref]=1
+done < <(_rlm-bq-cache read --both)
+
+# Build the picker input from the pooled history.tsv. Each line:
+#   <epoch>\t<command>\t<bq_ref>\t<flags>
+# Render as tab-delimited TAG\tBQ_REF (purple TAG when flags ~ sandbox).
+_bq_open_history_lines() {
+  local ts cmd ref flags display tag
+  while IFS=$'\t' read -r ts cmd ref flags; do
+    [[ -z $ref ]] && continue
+    [[ -z ${in_scope[$ref]:-} ]] && continue
+    if [[ ,${flags}, == *,sandbox,* ]]; then
+      tag="$SANDBOX_TAG"
+      display="${ref}${RESET}"
+    else
+      tag=""
+      display="$ref"
+    fi
+    printf '%s\t%s\n' "$tag" "$display"
+  done < <(_rlm-bq-history read)
+}
+
+# Sandbox cache entries that aren't in history yet
 _bq_open_sandbox_lines() {
-  [[ -f $sandbox_cache_file ]] || return 0
   while IFS= read -r line; do
     [[ -n $line ]] && printf '%s\t%s%s\n' "$SANDBOX_TAG" "$line" "$RESET"
-  done < "$sandbox_cache_file"
+  done < <(_rlm-bq-cache read --sandbox)
+}
+
+# Non-sandbox cache entries that aren't in history yet
+_bq_open_main_lines() {
+  while IFS= read -r line; do
+    [[ -n $line ]] && printf '\t%s\n' "$line"
+  done < <(_rlm-bq-cache read --main)
 }
 
 local selection
@@ -166,24 +115,12 @@ selection=$(
   {
     print -- "$refresh_sentinel"
     [[ -n $SANDBOX_BQ_PROJECT ]] && print -- "$refresh_sandbox_sentinel"
-    # History lines: stored as plain BQ refs (or "[sandbox] BQ_REF"), convert to tab format
-    if [[ -f $history_file ]]; then
-      while IFS= read -r line; do
-        if [[ $line == '[sandbox] '* ]]; then
-          printf '%s\t%s%s\n' "$SANDBOX_TAG" "${line#'[sandbox] '}" "$RESET"
-        else
-          printf '\t%s\n' "$line"
-        fi
-      done < "$history_file"
-    fi
-    # Sandbox lines right after history so they appear near the top of the picker
+    # History first (recents from any rlm-bq-* command), then remaining
+    # sandbox entries, then remaining non-sandbox entries. awk dedupes
+    # on the ANSI-stripped bq_ref so the same ref never appears twice.
+    _bq_open_history_lines
     _bq_open_sandbox_lines
-    # Non-sandbox lines (deduplicated against history); emit in tab format
-    if [[ -f $history_file ]]; then
-      grep -vxFf "$history_file" "$cache_file" 2>/dev/null || true
-    else
-      cat "$cache_file"
-    fi | while IFS= read -r line; do printf '\t%s\n' "$line"; done
+    _bq_open_main_lines
   } \
   | awk -F'\t' '
     { key = $2; gsub(/\033\[[0-9;]*m/, "", key); if (!seen[key]++) print }' \
@@ -206,15 +143,14 @@ sel_tag="${selection%%$'\t'*}"
 sel_bq_ref=$(printf '%s' "${selection#*$'\t'}" | sed 's/\x1b\[[0-9;]*m//g')
 
 if [[ $sel_bq_ref == "--- REFRESH CACHE"* ]]; then
-  rm -f "$cache_file" "$sandbox_cache_file"
-  _bq_open_fetch || return 1
-  _bq_open_fetch_sandbox
+  rm -f "$cache" "$sandbox"
+  _rlm-bq-cache refresh || return 1
   rlm-bq-open
   return $?
 fi
 if [[ $sel_bq_ref == "--- REFRESH SANDBOX CACHE"* ]]; then
-  rm -f "$sandbox_cache_file"
-  _bq_open_fetch_sandbox
+  rm -f "$sandbox"
+  _rlm-bq-cache refresh --sandbox-only
   rlm-bq-open
   return $?
 fi
@@ -234,13 +170,14 @@ local plain_tag
 plain_tag=$(printf '%s' "$sel_tag" | sed 's/\x1b\[[0-9;]*m//g')
 [[ -n $plain_tag ]] && is_sandbox=1
 
-# Persist to history as plain "BQ_REF" or "[sandbox] BQ_REF" (no ANSI)
-local history_entry
-(( is_sandbox )) && history_entry="[sandbox] ${raw_selection}" || history_entry="$raw_selection"
-local tmp_history
-tmp_history=$(mktemp)
-{ print -- "$history_entry"; [[ -f $history_file ]] && grep -vxF "$history_entry" "$history_file"; } >| "$tmp_history"
-mv "$tmp_history" "$history_file"
+# Append to the shared pooled history. The "sandbox" flag is recorded
+# whenever the pick came from a sandbox-coloured row, so every other
+# rlm-bq-* picker can render it in purple too.
+if (( is_sandbox )); then
+  _rlm-bq-history append bq-open "$raw_selection" sandbox
+else
+  _rlm-bq-history append bq-open "$raw_selection"
+fi
 
 # GCP console deep-link for a specific table in the BigQuery UI. URL
 # construction is delegated to the shared `~/bin/bq-console-url` helper,

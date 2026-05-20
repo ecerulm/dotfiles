@@ -1,0 +1,461 @@
+emulate -L zsh
+setopt LOCAL_OPTIONS NO_MONITOR
+set -o pipefail
+
+# ---------------------------------------------------------------------------
+# Precondition checks
+# ---------------------------------------------------------------------------
+
+for _cmd in bq fzf jq; do
+  if ! command -v "$_cmd" >/dev/null 2>&1; then
+    print -u2 "bq-archive: '$_cmd' not found in PATH"
+    return 1
+  fi
+done
+unset _cmd
+
+if [[ -z $BQ_SEARCH_PATH ]]; then
+  print -u2 "bq-archive: BQ_SEARCH_PATH must be set (same as bq-open)"
+  print -u2 "Set BQ_SEARCH_PATH to a colon-separated list of GCP projects, e.g.:"
+  print -u2 "  export BQ_SEARCH_PATH=my-project-prod:my-project-dev"
+  return 1
+fi
+
+# ---------------------------------------------------------------------------
+# Shared cache + history wiring. All five rlm-bq-* / rlm-sandbox-bq-*
+# commands share one cache pair (~/.cache/bq-open/<md5>.txt and
+# -sandbox.txt) and one pooled history TSV (~/.cache/bq-open/history.tsv)
+# via these helpers. See zsh/AGENTS.md "Current internal helpers".
+# ---------------------------------------------------------------------------
+
+autoload -Uz _rlm-bq-cache _rlm-bq-history _rlm-bq-dead-refs-gc
+
+# Garbage-collect any refs that bq-preview marked as dead on a previous
+# run. No-op when ~/.cache/bq-open/dead-refs.txt is missing/empty.
+_rlm-bq-dead-refs-gc
+
+local key cache sandbox
+eval "$(_rlm-bq-cache paths)" || return 1
+
+# Lazy refresh: fetch on first run if no cache exists yet for the
+# current scope.
+if [[ ! -f $cache ]]; then
+  _rlm-bq-cache refresh --main-only || return 1
+fi
+if [[ -n $SANDBOX_BQ_PROJECT && ! -f $sandbox ]]; then
+  _rlm-bq-cache refresh --sandbox-only
+fi
+
+# ---------------------------------------------------------------------------
+# Configuration
+# ---------------------------------------------------------------------------
+
+local lookback_days="${BQ_ARCHIVE_LOOKBACK_DAYS:-7}"
+
+local -a ignored_principals
+if [[ -n $BQ_ARCHIVE_IGNORED_PRINCIPALS ]]; then
+  ignored_principals=(${(s[:])BQ_ARCHIVE_IGNORED_PRINCIPALS})
+else
+  ignored_principals=(
+    "composer@storytel-data-platform-prod.iam.gserviceaccount.com"
+    "data-build-tool@storytel-data-platform-prod.iam.gserviceaccount.com"
+  )
+fi
+
+# ---------------------------------------------------------------------------
+# fzf multi-select — single-column layout to avoid leading whitespace.
+# Each line is just "BQ_REF" (uncolored) or "PURPLE+BQ_REF+RESET" (sandbox).
+# Sandbox classification on readback: did stripping ANSI shorten the line?
+# Ordering: history (most recent first) → sandbox cache → remaining
+# non-sandbox cache (deduped against history). awk drops any line whose
+# ANSI-stripped ref has already been seen.
+# ---------------------------------------------------------------------------
+
+local PURPLE=$'\033[35m'
+local RESET=$'\033[0m'
+
+# Build the set of bq_refs that exist in the current cache scope. Pooled
+# history may contain entries from other scopes (different
+# BQ_SEARCH_PATH); we suppress those so the picker never suggests a ref
+# the user can't actually operate on from here.
+local -A in_scope
+local _ref
+while IFS= read -r _ref; do
+  [[ -n $_ref ]] && in_scope[$_ref]=1
+done < <(_rlm-bq-cache read --both)
+
+# Pooled-history lines (newest first). Format: <epoch>\t<command>\t<ref>\t<flags>.
+# Emit bare ref for non-sandbox; PURPLE+ref+RESET for sandbox-flagged
+# entries. Filter out cross-scope refs via in_scope.
+_bq_archive_history_lines() {
+  local ts cmd ref flags
+  while IFS=$'\t' read -r ts cmd ref flags; do
+    [[ -z $ref ]] && continue
+    [[ -z ${in_scope[$ref]:-} ]] && continue
+    if [[ ,${flags}, == *,sandbox,* ]]; then
+      printf '%s%s%s\n' "$PURPLE" "$ref" "$RESET"
+    else
+      printf '%s\n' "$ref"
+    fi
+  done < <(_rlm-bq-history read)
+}
+
+# Sandbox cache entries (each wrapped in PURPLE/RESET).
+_bq_archive_sandbox_lines() {
+  local line
+  while IFS= read -r line; do
+    [[ -n $line ]] && printf '%s%s%s\n' "$PURPLE" "$line" "$RESET"
+  done < <(_rlm-bq-cache read --sandbox)
+}
+
+# Non-sandbox cache entries (bare lines).
+_bq_archive_main_lines() {
+  local line
+  while IFS= read -r line; do
+    [[ -n $line ]] && printf '%s\n' "$line"
+  done < <(_rlm-bq-cache read --main)
+}
+
+local fzf_out
+fzf_out=$(
+  {
+    _bq_archive_history_lines
+    _bq_archive_sandbox_lines
+    _bq_archive_main_lines
+  } \
+  | awk '{ key = $0; gsub(/\033\[[0-9;]*m/, "", key); if (key != "" && !seen[key]++) print }' \
+  | fzf \
+      --prompt="Select tables to ARCHIVE (TAB=multi)> " \
+      --height=80% \
+      --reverse \
+      --no-mouse \
+      --ansi \
+      --multi \
+      --preview='raw=$(printf "%s" {} | sed "s/\x1b\[[0-9;]*m//g"); "$HOME/bin/bq-preview" "$raw"' \
+      --preview-window=bottom:40%:wrap \
+      --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)'
+) || return 130
+
+if [[ -z $fzf_out ]]; then
+  print -u2 "bq-archive: no selection made"
+  return 130
+fi
+
+local -a to_process to_process_colored to_process_is_sandbox
+local sel_line sel_ref sel_proj sel_ds sel_tbl
+while IFS= read -r sel_line; do
+  [[ -z $sel_line ]] && continue
+  sel_ref=$(printf '%s' "$sel_line" | sed 's/\x1b\[[0-9;]*m//g')
+  [[ -z $sel_ref ]] && continue
+  sel_proj=${sel_ref%%:*}
+  sel_ds=${${sel_ref##*:}%%.*}
+  sel_tbl=${sel_ref##*.}
+  to_process+=("$sel_ref")
+  to_process_colored+=("$(print -P "%F{cyan}${sel_proj}%f:%F{yellow}${sel_ds}%f.%F{green}${sel_tbl}%f")")
+  # Sandbox classification: the raw fzf line is longer than its ANSI-stripped
+  # form iff a color sequence was present (only sandbox entries have one).
+  if [[ ${#sel_line} -gt ${#sel_ref} ]]; then
+    to_process_is_sandbox+=(1)
+  else
+    to_process_is_sandbox+=(0)
+  fi
+done <<< "$fzf_out"
+
+if (( ${#to_process} == 0 )); then
+  print -u2 "bq-archive: could not parse selection"
+  return 1
+fi
+
+# Persist selections to the shared pooled history TSV. The "sandbox" flag
+# is recorded whenever the pick came from a sandbox-coloured row, so every
+# other rlm-bq-* picker can render it in purple too.
+local hi
+for (( hi = 1; hi <= ${#to_process}; hi++ )); do
+  if (( to_process_is_sandbox[hi] )); then
+    _rlm-bq-history append bq-archive "${to_process[$hi]}" sandbox
+  else
+    _rlm-bq-history append bq-archive "${to_process[$hi]}"
+  fi
+done
+
+# ---------------------------------------------------------------------------
+# Diagnostics: three queries per selected table
+# ---------------------------------------------------------------------------
+
+# Returns the GCP project that the diagnostics + INFORMATION_SCHEMA queries
+# should run against. Defaults to the source project of the ref.
+_bq_archive_query_project() {
+  local src_proj="$1"
+  print -r -- "${BQ_ARCHIVE_QUERY_PROJECT:-$src_proj}"
+}
+
+# Runs `bq query` and prints a CSV-style result table; returns the raw exit code.
+# Args: <query_project> <sql> [extra bq args...]
+_bq_archive_run_query() {
+  local qp="$1" sql="$2"
+  shift 2
+  bq query \
+    --use_legacy_sql=false \
+    --format=prettyjson \
+    --max_rows=200 \
+    --project_id="$qp" \
+    "$@" \
+    "$sql"
+}
+
+local idx=0 ref_i src_proj src_ds src_tbl qp sql out row_count
+local -a ignored_quoted
+local _p
+for _p in "${ignored_principals[@]}"; do
+  ignored_quoted+=("\"$_p\"")
+done
+local ignored_sql_array="[${(j:,:)ignored_quoted}]"
+
+for ref_i in "${to_process[@]}"; do
+  idx=$(( idx + 1 ))
+  src_proj=${ref_i%%:*}
+  src_ds=${${ref_i##*:}%%.*}
+  src_tbl=${ref_i##*.}
+  qp=$(_bq_archive_query_project "$src_proj")
+
+  print ""
+  print -P "%F{magenta}=== [${idx}/${#to_process}] diagnostics for ${to_process_colored[$idx]} (queries in ${qp}) ===%f"
+
+  # Query A: INFORMATION_SCHEMA.JOBS (last N days)
+  print -P "%F{blue}-- Query A: JOBS that reference '${src_tbl}' in the last ${lookback_days} days --%f"
+  sql="DECLARE TABLE_NAME_PATTERN DEFAULT '%${src_tbl}%';
+SELECT
+  creation_time,
+  user_email,
+  job_type,
+  statement_type,
+  SUBSTR(query, 1, 200) AS query_excerpt,
+  destination_table.project_id  AS dest_project,
+  destination_table.dataset_id  AS dest_dataset,
+  destination_table.table_id    AS dest_table
+FROM \`${qp}\`.\`region-eu\`.\`INFORMATION_SCHEMA\`.\`JOBS\`
+WHERE DATE(creation_time) > DATE_SUB(CURRENT_DATE(), INTERVAL ${lookback_days} DAY)
+  AND LOWER(query) LIKE LOWER(TABLE_NAME_PATTERN)
+ORDER BY creation_time DESC
+LIMIT 50;"
+  out=$(_bq_archive_run_query "$qp" "$sql" 2>&1) || {
+    print -u2 "bq-archive: Query A failed: $out"
+  }
+  if [[ $out == "["* ]]; then
+    row_count=$(print -r -- "$out" | jq 'length')
+    print "rows: $row_count"
+    if (( row_count > 0 )); then
+      print -r -- "$out" | jq -r '
+        .[] |
+        "  " + (.creation_time // "?") + "  " +
+        (.user_email // "?") + "  " +
+        (.statement_type // .job_type // "?") + "  -> " +
+        ((.dest_project // "?") + ":" + (.dest_dataset // "?") + "." + (.dest_table // "?")) + "\n    " +
+        ((.query_excerpt // "") | gsub("\\s+"; " "))
+      '
+    fi
+  fi
+
+  # Query B: audit log (last N days, principals filtered)
+  print ""
+  print -P "%F{blue}-- Query B: data-access audit log for '${src_tbl}' (excluding ${#ignored_principals} ignored principals) --%f"
+  sql="DECLARE TABLE_NAME_PATTERN DEFAULT '%${src_tbl}%';
+DECLARE IGNORED ARRAY<STRING> DEFAULT ${ignored_sql_array};
+SELECT
+  DATE(timestamp) AS date,
+  protopayload_auditlog.authenticationInfo.principalEmail AS principal,
+  protopayload_auditlog.resourceName                       AS resource,
+  COUNT(*)                                                 AS hits
+FROM \`${qp}.bq_log.cloudaudit_googleapis_com_data_access\`
+WHERE DATE(timestamp) > DATE_SUB(CURRENT_DATE(), INTERVAL ${lookback_days} DAY)
+  AND protopayload_auditlog.resourceName LIKE TABLE_NAME_PATTERN
+  AND protopayload_auditlog.authenticationInfo.principalEmail NOT IN UNNEST(IGNORED)
+GROUP BY 1, 2, 3
+ORDER BY 1 DESC, 4 DESC
+LIMIT 100;"
+  out=$(_bq_archive_run_query "$qp" "$sql" 2>&1) || {
+    print -u2 "bq-archive: Query B failed (table may not exist or you lack access): $out"
+  }
+  if [[ $out == "["* ]]; then
+    row_count=$(print -r -- "$out" | jq 'length')
+    print "rows: $row_count"
+    if (( row_count > 0 )); then
+      print -r -- "$out" | jq -r '.[] | "  " + (.date // "?") + "  " + ((.hits|tostring) // "0") + "  " + (.principal // "?") + "  " + (.resource // "?")'
+    fi
+  fi
+
+  # Query C: TABLES + TABLE_STORAGE (freshness)
+  print ""
+  print -P "%F{blue}-- Query C: storage freshness for '${src_tbl}' --%f"
+  sql="DECLARE TABLE_NAME_PATTERN DEFAULT '%${src_tbl}%';
+SELECT
+  t.table_catalog,
+  t.table_schema,
+  t.table_name,
+  t.table_type,
+  t.creation_time,
+  ts.storage_last_modified_time,
+  ts.total_logical_bytes,
+  ts.total_rows
+FROM \`${qp}\`.\`region-eu\`.\`INFORMATION_SCHEMA\`.\`TABLES\` t
+LEFT JOIN \`${qp}\`.\`region-eu\`.\`INFORMATION_SCHEMA\`.\`TABLE_STORAGE\` ts
+  USING(table_catalog, table_schema, table_name)
+WHERE t.table_name LIKE TABLE_NAME_PATTERN
+ORDER BY ts.storage_last_modified_time DESC
+LIMIT 20;"
+  out=$(_bq_archive_run_query "$qp" "$sql" 2>&1) || {
+    print -u2 "bq-archive: Query C failed: $out"
+  }
+  if [[ $out == "["* ]]; then
+    row_count=$(print -r -- "$out" | jq 'length')
+    print "rows: $row_count"
+    if (( row_count > 0 )); then
+      print -r -- "$out" | jq -r '
+        .[] |
+        "  " + (.table_catalog // "?") + "." + (.table_schema // "?") + "." + (.table_name // "?") +
+        "  type=" + (.table_type // "?") +
+        "  rows=" + ((.total_rows // 0) | tostring) +
+        "  bytes=" + ((.total_logical_bytes // 0) | tostring) +
+        "  created=" + (.creation_time // "?") +
+        "  last_modified=" + (.storage_last_modified_time // "?")
+      '
+    fi
+  fi
+done
+
+# ---------------------------------------------------------------------------
+# Confirmation
+# ---------------------------------------------------------------------------
+
+print ""
+print "About to archive ${#to_process} table(s):"
+local i
+for (( i = 1; i <= ${#to_process_colored}; i++ )); do
+  print "  - ${to_process_colored[$i]}"
+done
+
+local archive_target_default archive_target archive_proj archive_ds
+archive_target_default="${${to_process[1]%%:*}}.archival_data"
+archive_target="${BQ_ARCHIVE_TARGET:-$archive_target_default}"
+archive_proj=${archive_target%%.*}
+archive_ds=${archive_target##*.}
+
+print ""
+print "Archive target dataset: ${archive_proj}.${archive_ds}"
+print ""
+
+local confirm
+vared -p "Proceed with archive copy? Type 'yes' to continue: " confirm
+
+if [[ $confirm != "yes" ]]; then
+  print "bq-archive: cancelled"
+  return 1
+fi
+
+# ---------------------------------------------------------------------------
+# Copy step: bq cp --no-clobber per table
+# ---------------------------------------------------------------------------
+
+local -a copied failed
+local src dst
+for src in "${to_process[@]}"; do
+  # src is "src_proj:src_ds.src_tbl" — derive bare table name
+  src_tbl=${src##*.}
+  dst="${archive_proj}:${archive_ds}.${src_tbl}"
+  print ""
+  print -u2 "bq-archive: copying ${src} -> ${dst} …"
+  if bq cp --no-clobber "$src" "$dst" 2>&1; then
+    copied+=("${src}|${dst}")
+    print -u2 "bq-archive: copied  ${src} -> ${dst}"
+  else
+    failed+=("$src")
+    print -u2 "bq-archive: FAILED  ${src} (target may already exist; bq cp --no-clobber refuses to overwrite)"
+  fi
+done
+
+print ""
+print "Summary: ${#copied} copied, ${#failed} failed"
+
+# ---------------------------------------------------------------------------
+# Verification: side-by-side preview for each successful copy
+# ---------------------------------------------------------------------------
+
+if (( ${#copied} > 0 )); then
+  print ""
+  print -P "%F{magenta}=== Verification (source vs archive) ===%f"
+  local pair s d
+  for pair in "${copied[@]}"; do
+    s=${pair%%|*}
+    d=${pair##*|}
+    print ""
+    print -P "%F{cyan}--- source: ${s} ---%f"
+    "$HOME/bin/bq-preview" "$s" 2>&1 | head -10
+    print -P "%F{cyan}--- archive: ${d} ---%f"
+    "$HOME/bin/bq-preview" "$d" 2>&1 | head -10
+  done
+fi
+
+# ---------------------------------------------------------------------------
+# Drop instructions: print + write to a timestamped .sql file
+# ---------------------------------------------------------------------------
+
+if (( ${#copied} == 0 )); then
+  print ""
+  print -u2 "bq-archive: nothing was copied; no DROP instructions emitted"
+  return 1
+fi
+
+local ts drop_file
+ts=$(date +%Y%m%d-%H%M%S)
+drop_file="${TMPDIR:-/tmp}/bq-archive-drop-${ts}.sql"
+
+{
+  print -- "-- bq-archive: generated $(date '+%Y-%m-%d %H:%M:%S')"
+  print -- "-- Source tables successfully copied to ${archive_proj}.${archive_ds}."
+  print -- "-- Review the diagnostics output above and your downstream consumers"
+  print -- "-- BEFORE running any of the statements below."
+  print -- ""
+  print -- "-- ============================================================"
+  print -- "-- Drop the original source tables (run in BigQuery UI / bq query):"
+  print -- "-- ============================================================"
+  for pair in "${copied[@]}"; do
+    s=${pair%%|*}
+    # SQL identifier uses dots, not colons
+    print -- "DROP TABLE \`${s/:/.}\`;"
+  done
+  print -- ""
+  print -- "-- ============================================================"
+  print -- "-- Or via the bq CLI:"
+  print -- "-- ============================================================"
+  for pair in "${copied[@]}"; do
+    s=${pair%%|*}
+    print -- "-- bq rm --table ${s}"
+  done
+  print -- ""
+  print -- "-- ============================================================"
+  print -- "-- Find downstream views / procedures that reference each table:"
+  print -- "-- ============================================================"
+  for pair in "${copied[@]}"; do
+    s=${pair%%|*}
+    src_proj=${s%%:*}
+    src_tbl=${s##*.}
+    qp=$(_bq_archive_query_project "$src_proj")
+    print -- "-- For ${s}:"
+    print -- "SELECT table_catalog, table_schema, table_name, table_type"
+    print -- "FROM \`${qp}\`.\`region-eu\`.\`INFORMATION_SCHEMA\`.\`VIEWS\`"
+    print -- "WHERE LOWER(view_definition) LIKE LOWER('%${src_tbl}%');"
+    print -- ""
+    print -- "SELECT routine_catalog, routine_schema, routine_name, routine_type"
+    print -- "FROM \`${qp}\`.\`region-eu\`.\`INFORMATION_SCHEMA\`.\`ROUTINES\`"
+    print -- "WHERE LOWER(routine_definition) LIKE LOWER('%${src_tbl}%');"
+    print -- ""
+  done
+} >| "$drop_file"
+
+print ""
+print -P "%F{yellow}=== DROP instructions (NOT executed) ===%f"
+cat "$drop_file"
+print ""
+print -P "%F{yellow}Drop instructions written to:%f $drop_file"
+
+return 0

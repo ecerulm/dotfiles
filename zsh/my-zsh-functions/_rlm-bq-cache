@@ -1,0 +1,187 @@
+emulate -L zsh
+
+# Shared per-cache-key BigQuery table-list cache for all rlm-bq-* /
+# rlm-sandbox-bq-* commands. Two files per key live under
+# ~/.cache/bq-open/:
+#
+#   <md5>.txt          — non-sandbox tables (one project:dataset.table
+#                        per line), populated by `bq ls` over every
+#                        project in BQ_SEARCH_PATH.
+#   <md5>-sandbox.txt  — sandbox tables (one project:dataset.table per
+#                        line), populated by `bq ls` over each dataset
+#                        in SANDBOX_BQ_DATASETS under SANDBOX_BQ_PROJECT.
+#
+# The md5 key is computed by the shared _rlm-bq-cache-key helper from
+# BQ_SEARCH_PATH + SANDBOX_BQ_PROJECT + SANDBOX_BQ_DATASETS, so any
+# change to the scope of "what tables are visible" busts the cache.
+#
+# Originally lived inline in rlm-bq-open (_bq_open_fetch and
+# _bq_open_fetch_sandbox). Lifted into a shared helper so all five
+# bq-related commands refresh and read from the same files.
+#
+# Usage:
+#   _rlm-bq-cache paths
+#       → "key=<md5>\ncache=<absolute path>\nsandbox=<absolute path>\n"
+#         on stdout, suitable for `eval`.
+#
+#   _rlm-bq-cache refresh [--main-only | --sandbox-only]
+#       Re-fetch the cache file(s) via `bq ls`. Default: both. Writes
+#       to <md5>.txt and/or <md5>-sandbox.txt atomically (each fetcher
+#       writes its own file). Stderr carries progress messages.
+#
+#   _rlm-bq-cache read [--main | --sandbox | --both]
+#       Concatenate the corresponding cache file(s) to stdout, one
+#       bq_ref per line. Default: --both (main first, then sandbox).
+#       Empty stdout if no cache file exists for the requested mode.
+#
+# Return codes:
+#   0 — success.
+#   1 — refresh failed (no usable tables in either source) or no
+#       BQ_SEARCH_PATH / SANDBOX_BQ_PROJECT set for the requested
+#       refresh.
+#   2 — usage error.
+
+autoload -Uz _rlm-bq-cache-key
+
+local cache_dir="$HOME/.cache/bq-open"
+mkdir -p "$cache_dir"
+local cache_key cache_file sandbox_cache_file
+cache_key=$(_rlm-bq-cache-key) || return 1
+cache_file="${cache_dir}/${cache_key}.txt"
+sandbox_cache_file="${cache_dir}/${cache_key}-sandbox.txt"
+
+# Refresh the non-sandbox cache file by listing every dataset/table in
+# each project in BQ_SEARCH_PATH. Lifted from rlm-bq-open:70–90.
+_rlm_bq_cache_refresh_main() {
+  if [[ -z $BQ_SEARCH_PATH ]]; then
+    print -u2 "_rlm-bq-cache: BQ_SEARCH_PATH is not set; cannot refresh main cache"
+    return 1
+  fi
+  local -a projects
+  projects=(${(s[:])BQ_SEARCH_PATH})
+  local project dataset table_json tbl
+  local -a tables
+  for project in "${projects[@]}"; do
+    print "_rlm-bq-cache: fetching datasets from $project …" >&2
+    while IFS= read -r dataset; do
+      table_json=$(bq ls --format=json --max_results=10000 --project_id="$project" "$dataset" 2>/dev/null) || continue
+      while IFS= read -r tbl; do
+        [[ -n $tbl ]] && tables+=("${project}:${dataset}.${tbl}")
+      done < <(print -- "$table_json" | jq -r '.[].tableReference.tableId // empty' 2>/dev/null)
+    done < <(bq ls --format=json --max_results=10000 --project_id="$project" 2>/dev/null \
+      | jq -r '.[].datasetReference.datasetId // empty' 2>/dev/null)
+  done
+
+  if (( ${#tables} == 0 )) && [[ -z $SANDBOX_BQ_PROJECT ]]; then
+    print -u2 "_rlm-bq-cache: no tables found in BQ_SEARCH_PATH='$BQ_SEARCH_PATH'"
+    return 1
+  fi
+
+  print -l -- "${tables[@]}" >| "$cache_file"
+}
+
+# Refresh the sandbox cache file. Lifted from rlm-bq-open:92–123 —
+# same parallel-per-dataset bq ls, same sort, same write-empty-on-no-results
+# behavior so we don't re-fetch indefinitely.
+_rlm_bq_cache_refresh_sandbox() {
+  if [[ -z $SANDBOX_BQ_PROJECT ]]; then
+    print -u2 "_rlm-bq-cache: SANDBOX_BQ_PROJECT not set, skipping sandbox fetch"
+    return 0
+  fi
+  local -a sandbox_datasets
+  sandbox_datasets=(${(s[:])SANDBOX_BQ_DATASETS})
+  if (( ${#sandbox_datasets} == 0 )); then
+    print -u2 "_rlm-bq-cache: SANDBOX_BQ_DATASETS is empty, skipping sandbox fetch"
+    return 0
+  fi
+  local project="$SANDBOX_BQ_PROJECT"
+  local dataset
+  local tmp_dir
+  tmp_dir=$(mktemp -d)
+
+  print "_rlm-bq-cache: fetching sandbox tables from ${project} (${#sandbox_datasets} datasets in parallel) …" >&2
+
+  # Fetch all datasets in parallel; each writes to its own temp file.
+  # MONITOR off so the job-notifications don't leak into the user's TTY.
+  local -a pids
+  setopt LOCAL_OPTIONS
+  unsetopt MONITOR
+  for dataset in "${sandbox_datasets[@]}"; do
+    (
+      local out
+      out=$(bq ls --format=json --max_results=10000 --project_id="$project" "$dataset" 2>/dev/null) || exit 0
+      [[ -z $out ]] && exit 0
+      jq -r '.[].tableReference.tableId // empty' <<< "$out" 2>/dev/null \
+        | while IFS= read -r tbl; do
+            [[ -n $tbl ]] && printf '%s:%s.%s\n' "$project" "$dataset" "$tbl"
+          done > "$tmp_dir/${dataset}.txt"
+    ) &
+    pids+=($!)
+  done
+  wait "${pids[@]}"
+
+  # Always write the cache file (even if empty) so we don't re-fetch
+  # on every invocation when the sandbox is genuinely empty.
+  cat "$tmp_dir"/*.txt 2>/dev/null | sort >| "$sandbox_cache_file"
+  rm -rf "$tmp_dir"
+}
+
+local subcmd="$1"
+shift
+
+case $subcmd in
+  paths)
+    print -- "key=${cache_key}"
+    print -- "cache=${cache_file}"
+    print -- "sandbox=${sandbox_cache_file}"
+    ;;
+  refresh)
+    local mode="both"
+    case ${1:-} in
+      --main-only)    mode="main";    shift ;;
+      --sandbox-only) mode="sandbox"; shift ;;
+      "" )            ;;
+      *)
+        print -u2 "_rlm-bq-cache: refresh: unknown option: $1"
+        return 2
+        ;;
+    esac
+    if [[ $mode == main || $mode == both ]]; then
+      _rlm_bq_cache_refresh_main || {
+        # Only hard-fail if the user asked specifically for --main-only;
+        # in --both mode we still want sandbox to try.
+        [[ $mode == main ]] && return 1
+      }
+    fi
+    if [[ $mode == sandbox || $mode == both ]]; then
+      _rlm_bq_cache_refresh_sandbox || return 1
+    fi
+    ;;
+  read)
+    local mode="both"
+    case ${1:-} in
+      --main)    mode="main"; shift ;;
+      --sandbox) mode="sandbox"; shift ;;
+      --both)    mode="both"; shift ;;
+      "")        ;;
+      *)
+        print -u2 "_rlm-bq-cache: read: unknown option: $1"
+        return 2
+        ;;
+    esac
+    if [[ $mode == main || $mode == both ]]; then
+      [[ -f $cache_file ]] && cat "$cache_file"
+    fi
+    if [[ $mode == sandbox || $mode == both ]]; then
+      [[ -f $sandbox_cache_file ]] && cat "$sandbox_cache_file"
+    fi
+    return 0
+    ;;
+  *)
+    print -u2 "_rlm-bq-cache: unknown subcommand: ${subcmd:-(empty)}"
+    print -u2 "_rlm-bq-cache: usage: paths"
+    print -u2 "                  refresh [--main-only | --sandbox-only]"
+    print -u2 "                  read    [--main | --sandbox | --both]"
+    return 2
+    ;;
+esac

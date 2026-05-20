@@ -1,0 +1,41 @@
+emulate -L zsh
+
+# Compute the md5 cache key shared by every rlm-bq-* / rlm-sandbox-bq-*
+# function. The key is derived from the current BQ_SEARCH_PATH,
+# SANDBOX_BQ_PROJECT, and SANDBOX_BQ_DATASETS env vars so that any
+# change to the scope of "what tables are visible" busts the cache.
+#
+# Centralizes the formula that was originally duplicated in
+# rlm-bq-open:27 and rlm-bq-archive:50.
+#
+# Usage:
+#   _rlm-bq-cache-key
+#
+# Stdout (on success):
+#   The 32-char hex md5 digest, followed by a newline.
+#
+# Return codes:
+#   0 — success.
+#   1 — neither md5 nor md5sum found in PATH.
+
+local -a projects sandbox_datasets
+projects=(${(s[:])BQ_SEARCH_PATH})
+sandbox_datasets=(${(s[:])SANDBOX_BQ_DATASETS})
+
+# Same input order as the original formula in rlm-bq-open:
+# sorted projects, then SANDBOX_BQ_PROJECT, then sorted sandbox datasets.
+# Pipe `print -l --` directly into the hasher — do NOT round-trip
+# through `$(...)`, which would strip trailing newlines and silently
+# change the digest when sandbox vars are unset (a blank trailing
+# arg legitimately contributes a blank line to the input).
+#
+# `md5` on macOS prints just the digest; `md5sum` on Linux prints
+# "<digest>  -". Normalize to the digest by taking the first field.
+if command -v md5 >/dev/null 2>&1; then
+  print -l -- "${(o)projects[@]}" "${SANDBOX_BQ_PROJECT:-}" "${(o)sandbox_datasets[@]}" | md5
+elif command -v md5sum >/dev/null 2>&1; then
+  print -l -- "${(o)projects[@]}" "${SANDBOX_BQ_PROJECT:-}" "${(o)sandbox_datasets[@]}" | md5sum | awk '{print $1}'
+else
+  print -u2 "_rlm-bq-cache-key: neither md5 nor md5sum found in PATH"
+  return 1
+fi

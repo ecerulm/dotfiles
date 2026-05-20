@@ -1,0 +1,53 @@
+rlm-bq-archive
+
+Multi-select BigQuery tables from the bq-open cache, run three
+diagnostic queries per table (recent jobs, audit-log access, storage
+freshness), print the results, ask for confirmation, then copy the
+selected table(s) into the archival_data dataset with
+`bq cp --no-clobber`.
+
+The original tables are NOT deleted. A `DROP TABLE` SQL block (plus
+`bq rm` equivalents and queries to locate downstream views and
+routines) is printed to stdout AND written to a timestamped file
+under $TMPDIR/bq-archive-drop-<timestamp>.sql so the user can run
+them later by hand.
+
+The picker reuses the `~/.cache/bq-open/` cache — run `bq-open` once
+first to populate it. The cache key is derived from BQ_SEARCH_PATH +
+SANDBOX_BQ_PROJECT + SANDBOX_BQ_DATASETS (the same algorithm
+rlm-bq-open uses), so changes to those env vars bust the cache for
+both tools at once.
+
+Key bindings:
+  TAB / Shift-TAB  toggle selection
+  Ctrl-P           cycle preview height (tall -> short -> hidden)
+  Enter            confirm selection and proceed to diagnostics
+
+Confirmation requires typing 'yes' before any copy happens.
+
+ENVIRONMENT
+  BQ_SEARCH_PATH
+      Required. Colon-separated GCP project IDs; same as bq-open.
+
+  BQ_ARCHIVE_QUERY_PROJECT
+      Optional. GCP project where the three diagnostic queries run
+      (must have region-eu INFORMATION_SCHEMA.JOBS, .TABLES,
+      .TABLE_STORAGE, and a bq_log.cloudaudit_googleapis_com_data_access
+      table). Default: the source project of the selected table.
+
+  BQ_ARCHIVE_TARGET
+      Optional. project.dataset to which the archive copies are
+      written. Default: <source_project>.archival_data.
+
+  BQ_ARCHIVE_LOOKBACK_DAYS
+      Optional. Interval (in days) for the JOBS + audit queries.
+      Default: 7.
+
+  BQ_ARCHIVE_IGNORED_PRINCIPALS
+      Optional, colon-separated audit-log principals excluded from
+      Query B (typically scheduled-job service accounts whose hits
+      are noise). Default: composer@... and data-build-tool@...
+      service accounts in storytel-data-platform-prod.
+
+REQUIRES
+  bq, fzf, jq

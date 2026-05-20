@@ -1,0 +1,145 @@
+emulate -L zsh
+
+# Shared pooled history for all rlm-bq-* / rlm-sandbox-bq-* commands.
+# One file (~/.cache/bq-open/history.tsv) records every pick from every
+# command. A pick made by any of them becomes a first-class suggestion
+# in every other picker — opted in by the user.
+#
+# File format: one line per pick, newest first, capped at 500 lines.
+#
+#   <epoch>\t<command>\t<bq_ref>\t<flags>
+#
+#   epoch     date +%s integer (0 for legacy entries with unknown time)
+#   command   "bq-open" / "bq-archive" / "bq-rm-tables" /
+#             "sandbox-bq-open" / "sandbox-bq-rm"
+#   bq_ref    project:dataset.table (the canonical BQ CLI form)
+#   flags     comma-separated set of single-word tags; today only
+#             "sandbox" (entry was a sandbox table) and "deleted" (the
+#             ref was just deleted by bq-rm-tables or sandbox-bq-rm,
+#             so don't blindly re-pick it). Empty when none apply.
+#
+# Deduplication rule: entries are deduped by bq_ref alone. The newest
+# write for a given bq_ref wins; its command + flags overwrite older
+# values. Rationale: a ref shouldn't appear twice in any picker, and
+# the most recent action on it is the most informative.
+#
+# Usage:
+#   _rlm-bq-history append <command> <bq_ref> [<flag> ...]
+#       Prepends a new entry. Flags are appended comma-joined to the
+#       flags column.
+#
+#   _rlm-bq-history read
+#       → "<epoch>\t<command>\t<bq_ref>\t<flags>" lines, newest first,
+#         deduped, capped at 500. Empty stdout if no history.
+#
+# Return codes:
+#   0 — success.
+#   2 — usage error.
+#
+# Legacy migration:
+#   On first read/append after the new TSV does not yet exist,
+#   _rlm-bq-history opportunistically folds in entries from the two
+#   legacy paths (~/.cache/bq-open/history.txt and
+#   ~/.cache/sandbox-bq-open/history.txt). Legacy files are not deleted.
+#
+#   bq-open/history.txt format: one bq_ref per line, optionally prefixed
+#   with "[sandbox] " for sandbox-sourced picks. The prefix becomes a
+#   flags=sandbox tag; the command is recorded as "bq-open"; epoch is 0.
+#
+#   sandbox-bq-open/history.txt format: bare bq_refs (no prefix). All
+#   are tagged flags=sandbox; command is "sandbox-bq-open"; epoch is 0.
+
+local history_file="$HOME/.cache/bq-open/history.tsv"
+local history_dir="${history_file:h}"
+local history_cap=500
+
+_rlm_bq_history_legacy_migrate() {
+  # Best-effort one-shot fold of legacy per-command history files into
+  # the new unified TSV. Triggered when the new file does not exist.
+  # Safe to re-run: the dedup pass in `append`/`read` collapses any
+  # duplicates that might arise.
+  [[ -e $history_file ]] && return 0
+
+  local -a legacy_lines
+  local f line ref flags
+
+  # bq-open legacy: plain ref OR "[sandbox] ref"
+  if [[ -f $HOME/.cache/bq-open/history.txt ]]; then
+    while IFS= read -r line; do
+      [[ -z $line ]] && continue
+      if [[ $line == '[sandbox] '* ]]; then
+        ref="${line#'[sandbox] '}"
+        flags="sandbox"
+      else
+        ref="$line"
+        flags=""
+      fi
+      legacy_lines+=("0"$'\t'"bq-open"$'\t'"${ref}"$'\t'"${flags}")
+    done < "$HOME/.cache/bq-open/history.txt"
+  fi
+
+  # sandbox-bq-open legacy: bare refs (all sandbox by definition)
+  if [[ -f $HOME/.cache/sandbox-bq-open/history.txt ]]; then
+    while IFS= read -r line; do
+      [[ -z $line ]] && continue
+      legacy_lines+=("0"$'\t'"sandbox-bq-open"$'\t'"${line}"$'\t'"sandbox")
+    done < "$HOME/.cache/sandbox-bq-open/history.txt"
+  fi
+
+  (( ${#legacy_lines} == 0 )) && return 0
+
+  mkdir -p "$history_dir"
+  # Sort by epoch descending, dedupe on bq_ref (field 3 — newest wins
+  # since we sorted descending), cap at 500.
+  printf '%s\n' "${legacy_lines[@]}" \
+    | sort -t $'\t' -k1,1nr \
+    | awk -F'\t' '!seen[$3]++' \
+    | head -n "$history_cap" >| "${history_file}.tmp" \
+    && mv "${history_file}.tmp" "$history_file"
+}
+
+local subcmd="$1"
+shift
+
+case $subcmd in
+  append)
+    local cmd_name="$1"
+    local bq_ref="$2"
+    shift 2 2>/dev/null
+    if [[ -z $cmd_name || -z $bq_ref ]]; then
+      print -u2 "_rlm-bq-history: usage: append <command> <bq_ref> [<flag> ...]"
+      return 2
+    fi
+    # Join remaining args with commas as the flags column.
+    local flags=""
+    if (( $# > 0 )); then
+      flags="${(j:,:)@}"
+    fi
+    _rlm_bq_history_legacy_migrate
+    mkdir -p "$history_dir"
+    local now
+    now=$(date +%s)
+    # Prepend new entry, drop any prior entry with the same bq_ref,
+    # truncate to cap. Atomic via tmp+mv.
+    {
+      printf '%s\t%s\t%s\t%s\n' "$now" "$cmd_name" "$bq_ref" "$flags"
+      if [[ -f $history_file ]]; then
+        awk -F'\t' -v r="$bq_ref" '$3 != r' "$history_file"
+      fi
+    } | head -n "$history_cap" >| "${history_file}.tmp" \
+      && mv "${history_file}.tmp" "$history_file"
+    ;;
+  read)
+    _rlm_bq_history_legacy_migrate
+    [[ -f $history_file ]] || return 0
+    # File is already newest-first and deduped on bq_ref by `append`.
+    # Just stream it back.
+    cat "$history_file"
+    ;;
+  *)
+    print -u2 "_rlm-bq-history: unknown subcommand: ${subcmd:-(empty)}"
+    print -u2 "_rlm-bq-history: usage: append <command> <bq_ref> [<flag> ...]"
+    print -u2 "                   read"
+    return 2
+    ;;
+esac

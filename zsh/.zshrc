@@ -241,6 +241,7 @@ autoload -Uz rlm-mkpw
 autoload -Uz rlm-pr-worktree
 autoload -Uz rlm-pr-worktree-rm
 autoload -Uz rlm-gh-repo-init
+autoload -Uz rlm-bq-archive
 autoload -Uz rlm-bq-open
 autoload -Uz rlm-sandbox-bq-open
 autoload -Uz rlm-sandbox-bq-rm
@@ -280,6 +281,7 @@ alias create-gh-repo='rlm-gh-repo-init'
 alias gh-permalink='rlm-gh-permalink'
 alias git-changed='rlm-git-changed'
 alias git-diff-base='rlm-git-diff-base'
+alias bq-archive='rlm-bq-archive'
 alias bq-open='rlm-bq-open'
 alias sandbox-bq-open='rlm-sandbox-bq-open'
 alias sandbox-bq-rm='rlm-sandbox-bq-rm'

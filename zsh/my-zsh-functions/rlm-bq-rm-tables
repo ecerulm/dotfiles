@@ -18,53 +18,109 @@ for cmd in bq fzf jq; do
   fi
 done
 
-local project="$SANDBOX_BQ_PROJECT"
-local -a matched_datasets
-matched_datasets=(${(s[:])SANDBOX_BQ_DATASETS})
+# Shared cache + history wiring. All five rlm-bq-* / rlm-sandbox-bq-*
+# commands share one cache pair (~/.cache/bq-open/<md5>.txt and
+# -sandbox.txt) and one pooled history TSV (~/.cache/bq-open/history.tsv)
+# via these helpers. See zsh/AGENTS.md "Current internal helpers".
+autoload -Uz _rlm-bq-cache _rlm-bq-history _rlm-bq-dead-refs-gc
 
-print -u2 "bq-rm-tables: fetching tables from ${#matched_datasets} datasets in parallel …"
+# Garbage-collect any refs that bq-preview marked as dead on a previous
+# run. No-op when ~/.cache/bq-open/dead-refs.txt is missing/empty.
+_rlm-bq-dead-refs-gc
 
-local tmp_dir
-tmp_dir=$(mktemp -d)
-trap "rm -rf ${tmp_dir}" EXIT INT TERM
+# Resolve current cache-key, paths.
+local key cache sandbox
+eval "$(_rlm-bq-cache paths)" || return 1
 
-local dataset
-for dataset in "${matched_datasets[@]}"; do
-  {
-    bq ls --format=json --project_id="$project" "$dataset" 2>/dev/null \
-      | jq -r --arg proj "$project" --arg ds "$dataset" \
-          '.[] | [(.type // "TABLE"), $proj, $ds, .tableReference.tableId] | @tsv' 2>/dev/null \
-      > "${tmp_dir}/${dataset}"
-  } &
-done
-wait
-
-local -a tables
-local line tbl table_type
-while IFS=$'\t' read -r table_type proj ds tbl; do
-  [[ -n $tbl ]] || continue
-  tables+=("${table_type}	${proj}	${ds}	${tbl}	${proj}:${ds}.${tbl}")
-done < <(cat "${tmp_dir}"/* 2>/dev/null)
-
-if (( ${#tables} == 0 )); then
-  print -u2 "bq-rm-tables: no tables found in ${project}"
-  return 1
+# Fetch on first run if no sandbox cache exists yet
+if [[ ! -f $sandbox ]]; then
+  _rlm-bq-cache refresh --sandbox-only || return 1
 fi
+
+# Tab-delimited format for fzf lines: DISPLAY_TAG<TAB>BQ_REF
+# DISPLAY_TAG is the ANSI open code that colours the whole line purple
+# (this command is sandbox-only); the RESET lives at the end of the
+# BQ_REF field. --with-nth=1,2 shows both fields; --nth=2 restricts
+# match highlighting to the BQ ref field so fzf never injects highlight
+# codes before the colour opener.
+local PURPLE=$'\033[35m'
+local RESET=$'\033[0m'
+local SANDBOX_TAG="$PURPLE"   # colour opener — closed by RESET appended to BQ_REF
+
+_bq_cache_age() {
+  local file="$1"
+  local mtime now elapsed
+  mtime=$(stat -f %m "$file" 2>/dev/null || stat -c %Y "$file" 2>/dev/null)
+  now=$(date +%s)
+  elapsed=$(( now - mtime ))
+  if (( elapsed < 3600 )); then
+    print "${elapsed}s ago"
+  elif (( elapsed < 86400 )); then
+    print "$(( elapsed / 3600 ))h ago"
+  else
+    print "$(( elapsed / 86400 ))d ago"
+  fi
+}
+
+# Sentinel uses the tab format: PURPLE-tag <TAB> sentinel text + RESET
+local sandbox_age=""
+[[ -f $sandbox ]] && sandbox_age=" (cached $(_bq_cache_age "$sandbox"))"
+local refresh_sandbox_sentinel="${PURPLE}"$'\t'"--- REFRESH SANDBOX CACHE${sandbox_age} ---${RESET}"
+
+# Build set of sandbox bq_refs visible in the current cache. Pooled
+# history may contain entries from other scopes or non-sandbox refs;
+# we suppress those so the picker never offers a ref this command
+# can't actually delete.
+local -A in_scope
+local _ref
+while IFS= read -r _ref; do
+  [[ -n $_ref ]] && in_scope[$_ref]=1
+done < <(_rlm-bq-cache read --sandbox)
+
+# Build the picker input from the pooled history.tsv. Each line:
+#   <epoch>\t<command>\t<bq_ref>\t<flags>
+# Render as tab-delimited PURPLE_TAG\tBQ_REF (every line in this picker
+# is sandbox-scoped).
+_bq_rm_history_lines() {
+  local ts cmd ref flags
+  while IFS=$'\t' read -r ts cmd ref flags; do
+    [[ -z $ref ]] && continue
+    [[ -z ${in_scope[$ref]:-} ]] && continue
+    printf '%s\t%s%s\n' "$SANDBOX_TAG" "$ref" "$RESET"
+  done < <(_rlm-bq-history read)
+}
+
+# Sandbox cache entries (every entry rendered purple).
+_bq_rm_sandbox_lines() {
+  while IFS= read -r line; do
+    [[ -n $line ]] && printf '%s\t%s%s\n' "$SANDBOX_TAG" "$line" "$RESET"
+  done < <(_rlm-bq-cache read --sandbox)
+}
 
 local fzf_out
 fzf_out=$(
-  print -l -- "${tables[@]}" \
+  {
+    print -- "$refresh_sandbox_sentinel"
+    # History first (recents from any rlm-bq-* command, filtered to
+    # sandbox-scope), then remaining sandbox cache entries. awk dedupes
+    # on the ANSI-stripped bq_ref so the same ref never appears twice.
+    _bq_rm_history_lines
+    _bq_rm_sandbox_lines
+  } \
+  | awk -F'\t' '
+    { key = $2; gsub(/\033\[[0-9;]*m/, "", key); if (!seen[key]++) print }' \
   | fzf \
       --prompt="Select tables to DELETE (TAB=multi)> " \
-      --height=80% \
-      --reverse \
+      --ansi \
       --no-mouse \
       --multi \
-      --preview="$HOME/bin/bq-preview \"\$(echo {} | cut -f5)\"" \
+      --height=80% --reverse \
+      --delimiter=$'\t' \
+      --with-nth=1,2 \
+      --nth=2 \
+      --preview='raw=$(printf "%s" {} | cut -f2 | sed "s/\x1b\[[0-9;]*m//g"); case "$raw" in ---*) echo "Select to refresh the sandbox cache and reopen the picker." ;; *) "$HOME/bin/bq-preview" "$raw" ;; esac' \
       --preview-window=bottom:40%:wrap \
-      --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)' \
-      --with-nth=1,3,4 \
-      --delimiter=$'\t'
+      --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)'
 ) || return 130
 
 if [[ -z $fzf_out ]]; then
@@ -73,15 +129,31 @@ if [[ -z $fzf_out ]]; then
 fi
 
 # Parse fzf output: one tab-delimited row per selection.
-# Field 5 is the full BigQuery ref (project:dataset.table).
+# Field 2 is the BQ ref (with trailing ANSI reset to strip).
 local -a to_delete to_delete_colored
-local sel_line proj ds tbl ref
-while IFS=$'\t' read -r _ proj ds tbl ref; do
-  [[ -n $ref ]] || continue
-  to_delete+=("$ref")
+local sel_line sel_ref sel_proj sel_ds_table sel_ds sel_tbl
+local refresh_picked=0
+while IFS= read -r sel_line; do
+  [[ -z $sel_line ]] && continue
+  sel_ref=$(printf '%s' "${sel_line#*$'\t'}" | sed 's/\x1b\[[0-9;]*m//g')
+  if [[ $sel_ref == "--- REFRESH SANDBOX CACHE"* ]]; then
+    refresh_picked=1
+    continue
+  fi
+  to_delete+=("$sel_ref")
+  sel_proj=${sel_ref%%:*}
+  sel_ds_table=${sel_ref##*:}
+  sel_ds=${sel_ds_table%%.*}
+  sel_tbl=${sel_ds_table##*.}
   # Colorize: project=cyan, dataset=yellow, table=green
-  to_delete_colored+=("$(print -P "%F{cyan}${proj}%f:%F{yellow}${ds}%f.%F{green}${tbl}%f")")
+  to_delete_colored+=("$(print -P "%F{cyan}${sel_proj}%f:%F{yellow}${sel_ds}%f.%F{green}${sel_tbl}%f")")
 done <<< "$fzf_out"
+
+if (( refresh_picked )); then
+  _rlm-bq-cache refresh --sandbox-only || return 1
+  rlm-bq-rm-tables
+  return $?
+fi
 
 if (( ${#to_delete} == 0 )); then
   print -u2 "bq-rm-tables: could not parse selection"
@@ -105,14 +177,19 @@ if [[ $confirm != "yes" ]]; then
 fi
 
 local failed=0
+local ref
 for ref in "${to_delete[@]}"; do
   print -u2 "bq-rm-tables: deleting ${ref} …"
   if bq rm --force --table "$ref" 2>&1; then
     print "bq-rm-tables: deleted ${ref}"
+    _rlm-bq-history append bq-rm-tables "$ref" sandbox deleted
   else
     print -u2 "bq-rm-tables: FAILED to delete ${ref}"
     failed=1
   fi
 done
+
+# Refresh the sandbox cache so deleted tables drop out of subsequent picks.
+_rlm-bq-cache refresh --sandbox-only
 
 return $failed

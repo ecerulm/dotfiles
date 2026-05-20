@@ -18,85 +18,86 @@ for _cmd in bq fzf jq; do
 done
 unset _cmd
 
-local project="$SANDBOX_BQ_PROJECT"
-local -a datasets
-datasets=(${(s[:])SANDBOX_BQ_DATASETS})
-local cache_dir="$HOME/.cache/sandbox-bq-open"
-mkdir -p "$cache_dir"
-local cache_file="${cache_dir}/items.txt"
-local history_file="${cache_dir}/history.txt"
+# Shared cache + history wiring. All five rlm-bq-* / rlm-sandbox-bq-*
+# commands share one cache pair (~/.cache/bq-open/<md5>.txt and
+# -sandbox.txt) and one pooled history TSV (~/.cache/bq-open/history.tsv)
+# via these helpers. See zsh/AGENTS.md "Current internal helpers".
+autoload -Uz _rlm-bq-cache _rlm-bq-history _rlm-bq-dead-refs-gc
 
-_sandbox_bq_rm_fetch() {
-  local dataset table_json
-  local -a tables
-  print "sandbox-bq-rm: fetching tables from ${project} …" >&2
-  for dataset in "${datasets[@]}"; do
-    table_json=$(bq ls --format=json --project_id="$project" "$dataset" 2>/dev/null) || continue
-    while IFS= read -r tbl; do
-      [[ -n $tbl ]] && tables+=("${project}:${dataset}.${tbl}")
-    done < <(print -- "$table_json" | jq -r '.[].tableReference.tableId // empty' 2>/dev/null)
-  done
+# Garbage-collect any refs that bq-preview marked as dead on a previous
+# run. No-op when ~/.cache/bq-open/dead-refs.txt is missing/empty.
+_rlm-bq-dead-refs-gc
 
-  if (( ${#tables} == 0 )); then
-    print -u2 "sandbox-bq-rm: no tables found"
-    return 1
+# Resolve current cache-key, paths.
+local key cache sandbox
+eval "$(_rlm-bq-cache paths)" || return 1
+
+# Fetch on first run if no sandbox cache exists yet
+if [[ ! -f $sandbox ]]; then
+  _rlm-bq-cache refresh --sandbox-only || return 1
+fi
+
+_bq_cache_age() {
+  local file="$1"
+  local mtime now elapsed
+  mtime=$(stat -f %m "$file" 2>/dev/null || stat -c %Y "$file" 2>/dev/null)
+  now=$(date +%s)
+  elapsed=$(( now - mtime ))
+  if (( elapsed < 3600 )); then
+    print "${elapsed}s ago"
+  elif (( elapsed < 86400 )); then
+    print "$(( elapsed / 3600 ))h ago"
+  else
+    print "$(( elapsed / 86400 ))d ago"
   fi
-
-  print -l -- "${tables[@]}" >| "$cache_file"
 }
 
-if [[ ! -f $cache_file ]]; then
-  _sandbox_bq_rm_fetch || return 1
-fi
+local refresh_sentinel="--- REFRESH SANDBOX CACHE (cached $(_bq_cache_age "$sandbox")) ---"
 
-local mtime now elapsed cache_age
-mtime=$(stat -f %m "$cache_file" 2>/dev/null || stat -c %Y "$cache_file" 2>/dev/null)
-now=$(date +%s)
-elapsed=$(( now - mtime ))
-if (( elapsed < 3600 )); then
-  cache_age="${elapsed}s ago"
-elif (( elapsed < 86400 )); then
-  cache_age="$(( elapsed / 3600 ))h ago"
-else
-  cache_age="$(( elapsed / 86400 ))d ago"
-fi
+# Build set of bq_refs that exist in the current sandbox cache scope.
+# Pooled history may contain entries from other scopes or non-sandbox
+# refs; we suppress those so the picker only suggests refs the user
+# can actually delete from here.
+local -A in_scope
+local _ref
+while IFS= read -r _ref; do
+  [[ -n $_ref ]] && in_scope[$_ref]=1
+done < <(_rlm-bq-cache read --sandbox)
 
-local refresh_sentinel="--- REFRESH CACHE (cached ${cache_age}) ---"
-
-_sandbox_bq_rm_sorted_list() {
-  if [[ -f $history_file ]]; then
-    while IFS= read -r entry; do
-      grep -m1 -F "$entry" "$cache_file" 2>/dev/null
-    done < <(tac "$history_file" | awk '!seen[$0]++')
-    grep -vFf "$history_file" "$cache_file" 2>/dev/null || true
-  else
-    cat "$cache_file"
-  fi
+# Pooled history entries (newest first), filtered to refs in the
+# current sandbox cache scope. Plain bare refs (single-column layout).
+_bq_open_history_lines() {
+  local ts cmd ref flags
+  while IFS=$'\t' read -r ts cmd ref flags; do
+    [[ -z $ref ]] && continue
+    [[ -z ${in_scope[$ref]:-} ]] && continue
+    print -r -- "$ref"
+  done < <(_rlm-bq-history read)
 }
 
 local selection
 selection=$(
-  { print -- "$refresh_sentinel"; _sandbox_bq_rm_sorted_list; } \
-  | fzf --prompt="Delete sandbox BQ table> " --height=80% --reverse \
+  {
+    print -r -- "$refresh_sentinel"
+    _bq_open_history_lines
+    _rlm-bq-cache read --sandbox
+  } \
+  | awk '!seen[$0]++' \
+  | fzf --prompt="Delete sandbox BQ table> " \
         --no-mouse \
+        --ansi \
         --multi \
-        --preview="
-          line={}
-          if [ \"\$line\" = '${refresh_sentinel}' ]; then
-            echo 'Select to refresh the table cache'
-          else
-            "$HOME/bin/bq-preview" \"\$line\"
-          fi
-        " \
+        --height=80% --reverse \
+        --preview="$HOME/bin/bq-preview {}" \
         --preview-window=bottom:40%:wrap \
         --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)'
 ) || return 130
 
 [[ -z $selection ]] && return 130
 
-if [[ $selection == "--- REFRESH CACHE"* ]]; then
-  rm -f "$cache_file"
-  _sandbox_bq_rm_fetch || return 1
+if [[ $selection == "--- REFRESH SANDBOX CACHE"* ]]; then
+  rm -f "$sandbox"
+  _rlm-bq-cache refresh --sandbox-only || return 1
   rlm-sandbox-bq-rm
   return $?
 fi
@@ -118,21 +119,19 @@ fi
 
 local failed=0
 for tbl in "${selected_tables[@]}"; do
-  local proj rest dataset_table
+  local proj rest
   proj=${tbl%%:*}
   rest=${tbl##*:}
   if bq rm -f -t "${proj}:${rest}" 2>&1; then
     print "sandbox-bq-rm: deleted ${tbl}"
-    print -- "$tbl" >> "$history_file"
+    _rlm-bq-history append sandbox-bq-rm "$tbl" sandbox deleted
   else
     print -u2 "sandbox-bq-rm: failed to delete ${tbl}"
     failed=1
   fi
 done
 
-local _tmp_hist
-_tmp_hist=$(tail -1000 "$history_file" 2>/dev/null) && print -- "$_tmp_hist" >| "$history_file"
-
-rm -f "$cache_file"
+# Refresh the shared sandbox cache once so the cache reflects current state.
+_rlm-bq-cache refresh --sandbox-only
 
 return $failed
