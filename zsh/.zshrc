@@ -246,6 +246,7 @@ autoload -Uz rlm-sandbox-bq-open
 autoload -Uz rlm-sandbox-bq-rm
 autoload -Uz rlm-bq-rm-tables
 autoload -Uz rlm-gcp-project-open
+autoload -Uz rlm-gar-search
 autoload -Uz rlm-pubsub-open
 autoload -Uz rlm-jira-open
 autoload -Uz rlm-brew-unlock
@@ -284,6 +285,7 @@ alias sandbox-bq-open='rlm-sandbox-bq-open'
 alias sandbox-bq-rm='rlm-sandbox-bq-rm'
 alias bq-rm-tables='rlm-bq-rm-tables'
 alias gcp-project-open='rlm-gcp-project-open'
+alias gar-search='rlm-gar-search'
 alias pubsub-open='rlm-pubsub-open'
 alias jira-open='rlm-jira-open'
 alias brew-unlock='rlm-brew-unlock'

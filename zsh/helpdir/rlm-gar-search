@@ -1,0 +1,39 @@
+rlm-gar-search [-p PROJECT] NEEDLE
+
+Search all DOCKER repositories in one or more Google Artifact
+Registry projects for image names matching NEEDLE (substring).
+
+Uses the Artifact Registry packages.list REST endpoint with
+AIP-160 server-side filtering, so a single API call per repo is
+enough — no client-side grep over every page of every repo. The
+packages endpoint covers gcr.io-compatibility repos
+(eu.gcr.io, gcr.io, us.gcr.io, asia.gcr.io) which Cloud Asset
+Inventory does not index for Docker images.
+
+Each matching package is printed as a fully qualified image path,
+e.g. europe-docker.pkg.dev/PROJECT/REPO/PACKAGE.
+
+ARGUMENTS
+  NEEDLE      Substring to match against the package name. Required.
+
+OPTIONS
+  -p, --project PROJECT
+              Restrict the search to a single GCP project. May be
+              given more than once is not supported; use the env
+              var for multiple projects.
+
+  -h, --help  Print usage and exit.
+
+ENVIRONMENT
+  GAR_SEARCH_PROJECTS
+              Colon-separated list of GCP project IDs to search
+              when -p is omitted. One of -p or this variable is
+              required; the function errors out if neither is set.
+
+REQUIRES
+  gcloud, jq, curl, python3 (for URL-decoding package names).
+
+EXIT STATUS
+  0   At least one match was found.
+  1   No matches, or a required command / token was missing.
+  2   Invalid arguments.

@@ -1,0 +1,126 @@
+emulate -L zsh
+set -o pipefail
+
+for _cmd in gcloud jq curl python3; do
+  if ! command -v "$_cmd" >/dev/null 2>&1; then
+    print -u2 "gar-search: '$_cmd' not found in PATH"
+    return 1
+  fi
+done
+unset _cmd
+
+local needle="" project=""
+while (( $# )); do
+  case $1 in
+    -p|--project) project=$2; shift 2 ;;
+    -h|--help)
+      print -r -- "Usage: gar-search [-p PROJECT] NEEDLE"
+      print -r -- ""
+      print -r -- "Search all DOCKER repositories in a GCP project for image"
+      print -r -- "names matching NEEDLE (substring). Uses the Artifact"
+      print -r -- "Registry packages.list REST endpoint with server-side filter."
+      print -r -- ""
+      print -r -- "If -p is omitted, searches GAR_SEARCH_PROJECTS (colon-separated)."
+      print -r -- "One of -p or GAR_SEARCH_PROJECTS is required."
+      return 0
+      ;;
+    -*)
+      print -u2 "gar-search: unknown flag: $1"
+      return 2
+      ;;
+    *)
+      if [[ -z $needle ]]; then
+        needle=$1
+      else
+        print -u2 "gar-search: unexpected argument: $1"
+        return 2
+      fi
+      shift
+      ;;
+  esac
+done
+
+if [[ -z $needle ]]; then
+  print -u2 "gar-search: NEEDLE is required (try -h for help)"
+  return 2
+fi
+
+local -a projects repo_paths
+if [[ -n $project ]]; then
+  projects=("$project")
+elif [[ -n $GAR_SEARCH_PROJECTS ]]; then
+  projects=(${(s.:.)GAR_SEARCH_PROJECTS})
+else
+  print -u2 "gar-search: no project specified — pass -p PROJECT or set GAR_SEARCH_PROJECTS"
+  return 2
+fi
+
+local token
+token=$(gcloud auth print-access-token 2>/dev/null)
+if [[ -z $token ]]; then
+  print -u2 "gar-search: failed to obtain gcloud access token"
+  return 1
+fi
+
+# Declare all loop-scoped locals up front: zsh in `emulate -L zsh` mode prints
+# noisy `var=value` traces when `local name` (without assignment) appears inside
+# a loop and is later assigned. Declaring once at function scope avoids that.
+local all_hits="" proj repos_json
+local repo_path loc repo_name parent body err_msg matches pkg
+
+for proj in $projects; do
+  print -u2 "gar-search: searching $proj …"
+  repos_json=$(gcloud artifacts repositories list --project="$proj" \
+                 --filter="format=DOCKER" --format=json 2>/dev/null)
+  if [[ -z $repos_json || $repos_json == "[]" ]]; then
+    print -u2 "gar-search: no DOCKER repositories in $proj"
+    continue
+  fi
+
+  repo_paths=(${(f)"$(print -r -- "$repos_json" | jq -r '.[].name')"})
+
+  for repo_path in $repo_paths; do
+    loc=${${(s./.)repo_path}[4]}
+    repo_name=${${(s./.)repo_path}[6]}
+    parent="projects/${proj}/locations/${loc}/repositories/${repo_name}"
+
+    # AIP-160 server-side filter: full resource-name pattern with * wildcards.
+    # The packages endpoint covers *.gcr.io repos, unlike Cloud Asset Inventory.
+    body=$(curl -sS -G \
+            -H "Authorization: Bearer ${token}" \
+            "https://artifactregistry.googleapis.com/v1/${parent}/packages" \
+            --data-urlencode "filter=name=\"${parent}/packages/*${needle}*\"" \
+            --data-urlencode "pageSize=1000" 2>/dev/null)
+
+    [[ -z $body ]] && continue
+
+    if print -r -- "$body" | jq -e '.error' >/dev/null 2>&1; then
+      err_msg=$(print -r -- "$body" | jq -r '.error.message')
+      print -u2 "gar-search: ${proj}/${loc}/${repo_name}: ${err_msg}"
+      continue
+    fi
+
+    # Package names come back URL-encoded (e.g. cloud-builders%2Fprotoc); decode with python.
+    matches=$(print -r -- "$body" \
+              | jq -r --arg prefix "${parent}/packages/" \
+                '.packages // [] | .[].name | sub($prefix; "")' \
+              | python3 -c 'import sys, urllib.parse
+for l in sys.stdin:
+    print(urllib.parse.unquote(l.rstrip()))' 2>/dev/null)
+
+    [[ -z $matches ]] && continue
+
+    while IFS= read -r pkg; do
+      [[ -z $pkg ]] && continue
+      all_hits+="${loc}-docker.pkg.dev/${proj}/${repo_name}/${pkg}"$'\n'
+    done <<< "$matches"
+  done
+done
+
+if [[ -z $all_hits ]]; then
+  print -u2 "gar-search: no matches for '${needle}'"
+  return 1
+fi
+
+print -rn -- "$all_hits"
+return 0
