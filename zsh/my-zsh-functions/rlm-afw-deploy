@@ -57,22 +57,117 @@ if [[ -f $cache_file ]]; then
 fi
 
 # ---------------------------------------------------------------------------
+# Determine the set of DAG files changed in this branch vs the merge-base
+# with the repository's default branch (origin/HEAD). Failure here is
+# non-fatal: the picker still works, just without the green-changed
+# highlighting / sort-changed-first behavior.
+# ---------------------------------------------------------------------------
+
+typeset -A changed_set
+local changed_ok=0
+if git rev-parse --git-dir >/dev/null 2>&1; then
+  local default_branch fork_point git_root
+  default_branch=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||')
+  if [[ -z $default_branch ]]; then
+    default_branch=$(git remote show origin 2>/dev/null | awk '/HEAD branch/ {print $NF}')
+  fi
+  if [[ -n $default_branch ]]; then
+    fork_point=$(git merge-base --fork-point "origin/${default_branch}" 2>/dev/null)
+    if [[ -z $fork_point ]]; then
+      fork_point=$(git merge-base HEAD "origin/${default_branch}" 2>/dev/null)
+    fi
+  fi
+  if [[ -n $fork_point ]]; then
+    git_root=$(git rev-parse --show-toplevel)
+    local cwd_rel
+    cwd_rel=${PWD#"${git_root}/"}
+    [[ $PWD == $git_root ]] && cwd_rel=""
+    local changed_file
+    while IFS= read -r changed_file; do
+      [[ -z $changed_file ]] && continue
+      # Convert repo-root-relative path to cwd-relative path (matches
+      # what `fd` emits below).
+      if [[ -n $cwd_rel ]]; then
+        case $changed_file in
+          "${cwd_rel}/"*) changed_file=${changed_file#${cwd_rel}/} ;;
+          *) continue ;;
+        esac
+      fi
+      changed_set[$changed_file]=1
+    done < <(git diff --name-only "$fork_point" 2>/dev/null)
+    changed_ok=1
+  fi
+fi
+
+# ---------------------------------------------------------------------------
+# Build the picker input: DAG files sorted with branch-changed first, then
+# by mtime (newer first). Each line carries two hidden sort-key columns
+# plus a colored display column and a raw-path column, tab-separated.
+# fzf's --with-nth shows only the display column and --delimiter lets us
+# read the raw path back from the selection without any ANSI round-trip.
+# ---------------------------------------------------------------------------
+
+local -a dag_files
+dag_files=(${(f)"$(fd -t f --max-depth 1 dag.py airflow_manager/dag_folder)"})
+
+if (( ${#dag_files} == 0 )); then
+  print -u2 "afw-deploy: no dag.py files found under airflow_manager/dag_folder/"
+  return 1
+fi
+
+# Detect stat flavor for mtime epoch (macOS vs GNU).
+local stat_fmt
+if stat -f %m / >/dev/null 2>&1; then
+  stat_fmt=(-f %m)   # BSD/macOS
+else
+  stat_fmt=(-c %Y)   # GNU/Linux
+fi
+
+# Each picker line: "<group>\t<-mtime>\t<display>\t<raw-path>"
+#   group:   0 = changed-in-branch (sorts first), 1 = unchanged
+#   -mtime:  negative epoch so plain numeric sort yields newer-first
+#   display: path with green ANSI for changed entries (shown by fzf)
+#   raw:     unstyled path (read back from fzf via --delimiter / cut)
+local -a picker_lines
+local f mtime group display
+local green=$'\e[32m' reset=$'\e[0m'
+for f in $dag_files; do
+  mtime=$(stat $stat_fmt "$f" 2>/dev/null) || mtime=0
+  if (( changed_ok )) && [[ -n ${changed_set[$f]} ]]; then
+    group=0
+    display="${green}${f}${reset}"
+  else
+    group=1
+    display="$f"
+  fi
+  picker_lines+=("${group}	-${mtime}	${display}	${f}")
+done
+
+picker_lines=(${(f)"$(printf '%s\n' "${picker_lines[@]}" | sort -t$'\t' -k1,1n -k2,2n)"})
+
+# ---------------------------------------------------------------------------
 # fzf picker over DAG files
 # ---------------------------------------------------------------------------
 
-local dag_file
-dag_file=$(
-  fd -t f --max-depth 1 dag.py airflow_manager/dag_folder \
-  | sort \
+local picker_out dag_file
+picker_out=$(
+  printf '%s\n' "${picker_lines[@]}" \
   | fzf \
+      --no-mouse \
+      --ansi \
+      --delimiter=$'\t' \
+      --with-nth=3 \
       --prompt="Select DAG> " \
-      --height=90% \
+      --height=80% \
       --reverse \
       ${default_dag:+--query="$(basename "$default_dag")"} \
-      --preview="cat {}" \
+      --preview='cat {4}' \
       --preview-window=bottom:40%:wrap \
       --bind="ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)"
 )
+
+# Extract the raw-path column (4th tab-separated field) from the selection.
+dag_file=${picker_out##*$'\t'}
 
 if [[ -z $dag_file ]]; then
   print -u2 "afw-deploy: no DAG selected, aborting"

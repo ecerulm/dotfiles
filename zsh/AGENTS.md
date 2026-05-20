@@ -201,6 +201,87 @@ in `tmux.conf`. Without it, tmux strips OSC 8 before the host terminal
 ever sees it. Document this in any function's helpdir entry whose
 preview emits clickable links.
 
+## Separating Display from ID in fzf Pickers
+
+When picker entries need styling (ANSI color, highlight markers) or hidden
+sort-key columns, do **not** inline ANSI escapes into the visible string
+and then strip them back out of the selection. fzf has native support for
+this through `--delimiter`, `--with-nth`, and field references inside
+`--preview`. Use that instead.
+
+The pattern: build each line as several tab-separated fields. Some fields
+are hidden sort keys, one is the *display* form (with color), one is the
+plain *id* (the raw value the function actually consumes). Hand fzf the
+delimiter, tell it which fields to render with `--with-nth`, and read any
+field back from the selection by index — either via `${selection##*$'\t'}`
+in zsh or by referencing `{N}` inside the preview command.
+
+```zsh
+# Each line: <group>\t<-mtime>\t<colored-display>\t<raw-path>
+#   group, -mtime: hidden sort keys (kept out of the display)
+#   colored-display: what fzf shows (green ANSI for branch-changed files)
+#   raw-path: the unstyled id, read back from the selection
+picker_lines+=("${group}	-${mtime}	${green}${path}${reset}	${path}")
+# ... sort by columns 1 and 2 ...
+selection=$(
+  printf '%s\n' "${picker_lines[@]}" \
+  | fzf \
+      --no-mouse \
+      --ansi \
+      --delimiter=$'\t' \
+      --with-nth=3 \
+      --preview='cat {4}' \
+      --height=80% --reverse \
+      --preview-window=bottom:40%:wrap \
+      --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)'
+)
+id=${selection##*$'\t'}     # field 4: the raw path, no ANSI strip needed
+```
+
+Key flags:
+
+- `--delimiter=$'\t'` — splits each line into fields. Use a literal tab
+  (not the string `\t`); zsh interprets `$'\t'` to the tab byte.
+- `--with-nth=3` — fzf renders **only** column 3. Columns 1, 2, and 4
+  are kept in the line but never shown. Supports ranges (`--with-nth=3..`)
+  and exclusions (`--with-nth=3,5`).
+- `--nth=3` (optional) — restricts fuzzy matching to a subset of fields.
+  Omit it if you want the user's query to match any field, including the
+  hidden id; include it if the sort keys would create spurious matches.
+- `--preview='cat {N}'` — field references inside the preview command
+  expand to the Nth field of the focused line. `{}` is the whole line,
+  `{1}`, `{2}`, etc. are individual fields, `{4..}` is field 4 onward.
+  This means the preview can call commands directly on the raw id
+  without any sed/cut/awk dance.
+- The selection echoed back to the caller is the **full original line**,
+  so you extract whatever field you need with a parameter expansion
+  (`${selection##*$'\t'}` for the last field, `${selection%%$'\t'*}` for
+  the first) or with `cut -f N`.
+
+Use this approach **whenever** a picker entry has any of the following:
+
+- ANSI color that distinguishes categories of entries (e.g. files changed
+  on this branch shown in green, others uncolored).
+- Hidden sort keys (group, timestamp) that should not be visible.
+- A display label that differs from the id (e.g. `<pr-title>` shown,
+  `<pr-number>` consumed).
+- Annotations like `[modified]`, `[stale]`, `(prod)` that exist for the
+  human eye but should not leak into the value passed downstream.
+
+Avoid the alternative — inlining ANSI into the visible string and then
+stripping it from the selection with `sed 's/\x1b\[[0-9;]*m//g'` or a
+zsh `${var//PATTERN/}` extended-glob expansion. That approach is fragile
+(extended glob is off by default in `emulate -L zsh`, and the literal
+`\e` byte inside a substitution pattern has surprising semantics), it
+duplicates the strip logic between the selection-readback and the
+preview command, and it makes the line content position-dependent in
+ways that break when a new field is added later.
+
+When the picker also needs MRU history (see the create-zsh-function
+skill, Step 5), store **only the id field** in `history.txt` — that
+keeps the history file readable and matches the field-1 key pattern
+used by the tab-delimited variant of `_<name>_sorted_list`.
+
 ## BigQuery fzf Preview Panes
 
 For any fzf picker that shows BigQuery table or view information in its
