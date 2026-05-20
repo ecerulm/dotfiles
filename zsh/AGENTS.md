@@ -323,6 +323,56 @@ and extract the ref before passing to `bq-preview`, e.g.:
 --preview='raw=$(printf "%s" {} | cut -f2 | sed "s/\x1b\[[0-9;]*m//g"); "$HOME/bin/bq-preview" "$raw"'
 ```
 
+## git-worktree fzf Preview Panes
+
+For any fzf picker that shows git-worktree information in its preview
+pane, always call the `wt-preview` script instead of inlining JIRA
+cache reads, `gh pr view`, `stat`-birthtime probes, and `find` mtime
+sweeps:
+
+```sh
+--preview='"$HOME/bin/wt-preview" {N}'
+```
+
+where `{N}` is the field that holds the worktree's **absolute path**.
+Use the standard `--no-mouse --ansi --preview-window=bottom:40%:wrap`
+fzf conventions and pair with the `ctrl-p` cycle binding.
+
+Always use the full path `$HOME/bin/wt-preview` (not bare `wt-preview`)
+— see the fzf conventions section above for why bare names fail in the
+preview subshell.
+
+`wt-preview` is a standalone executable at `~/dotfiles/bin/wt-preview`
+(symlinked to `~/bin/wt-preview`). It accepts a single absolute
+worktree path and prints these fields in order (each line is omitted
+silently when the underlying lookup fails):
+
+1. Path — relative to the caller's `$PWD`
+2. Branch — current branch in the worktree, or `<detached>`
+3. JIRA — `<KEY>  <Status + summary>` as an OSC 8 hyperlink to
+   `https://storytel.atlassian.net/browse/<KEY>` (blue), only when the
+   branch contains a `[A-Z][A-Z0-9]+-[0-9]+` key. Summary served from
+   `~/.cache/wts-jira/<KEY>.summary` with a 3-day-TTL `acli` refresh.
+4. PR — `#N  [state]  <title>` as an OSC 8 hyperlink to the PR url
+   (blue). Looked up per invocation via `cd "$abs_path" && gh pr list --head <branch>`; no cache.
+5. Created — `YYYY-MM-DD HH:MM:SS  (X units ago)`. Directory birthtime
+   (macOS `stat -f '%B'`, Linux `stat -c '%W'` with ctime fallback).
+6. Updated — same format, most recent file mtime under the worktree
+   excluding `.git/`. Uses `fd` when available, `find` otherwise.
+7. Changed — `N file(s) vs origin/<default>` followed by one line per
+   changed file: `+adds / -dels  <path>`, with adds in green and dels
+   in red. Derived from `git diff --numstat <fork-point>`, which
+   includes both committed and uncommitted changes. Fork point chain:
+   `git merge-base --fork-point origin/<default>`, falling back to
+   `git merge-base HEAD origin/<default>`. Binary files render as
+   `bin / bin`. Column widths are padded so the `+N / -M` column lines
+   up across rows.
+
+Used by `rlm-wts` and `rlm-pr-worktree-rm`.
+
+Click-through on the OSC 8 links requires a terminal with OSC 8
+support; inside tmux also requires `set -ga terminal-features "*:hyperlinks"` (already configured in `tmux.conf`).
+
 ## Linting / Formatting
 
 This directory has no standalone lint or test commands. The parent repo (`../`) uses lefthook with shfmt and shellcheck for `.sh` files, but zsh function files in `my-zsh-functions/` are not `.sh` and are not checked by those hooks. Validate zsh syntax manually:

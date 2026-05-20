@@ -1,0 +1,298 @@
+#!/usr/bin/env zsh
+# Usage: wt-preview <worktree-absolute-path>
+#
+# Prints a standardized git-worktree summary for fzf preview panes used by
+# `rlm-wts`, `rlm-pr-worktree-rm`, and similar pickers.
+#
+# Output fields (in order):
+#   path        relative path from the caller's $PWD (or absolute fallback)
+#   branch      current branch in the worktree (or "<detached>")
+#   JIRA        DATA-XXXX  Title          (OSC 8 hyperlink to storytel.atlassian.net,
+#                                           blue, only if branch matches a JIRA key)
+#   PR          #NNN  [state]  Title       (OSC 8 hyperlink to the PR URL, blue,
+#                                           only if a PR is associated with the branch)
+#   Created     local time + "(X units ago)"
+#   Updated     local time + "(X units ago)"  (most recent file mtime under the
+#                                              worktree, excluding .git)
+#
+# The script never fails the picker: every external call is guarded and the
+# missing sections are simply omitted.
+#
+# JIRA lookups are served from the same cache used by rlm-wts
+# (~/.cache/wts-jira/<KEY>.summary), refreshed on a 3-day TTL when `acli` is
+# available. PR lookups call `gh pr list` per invocation (no cache).
+emulate -L zsh
+set -o pipefail
+
+local abs_path="${1:-}"
+if [[ -z $abs_path ]]; then
+  print "Usage: wt-preview <worktree-absolute-path>" >&2
+  exit 1
+fi
+if [[ ! -d $abs_path ]]; then
+  print "wt-preview: not a directory: $abs_path" >&2
+  exit 0
+fi
+
+# ----- relative path ------------------------------------------------------
+# fzf preview inherits the caller's $PWD via the subshell. Compute the
+# display path from that. BSD `realpath` (macOS) has no --relative-to, so
+# prefer python3 (portable, always installed) and fall back to a
+# zsh-only prefix-trim that handles the common case "$abs_path is under
+# $PWD". Final fallback: collapse $HOME to ~.
+local rel_path=""
+if command -v python3 >/dev/null 2>&1; then
+  rel_path=$(python3 -c 'import os,sys; print(os.path.relpath(sys.argv[1], sys.argv[2]))' \
+              "$abs_path" "$PWD" 2>/dev/null)
+fi
+if [[ -z $rel_path ]]; then
+  if [[ $abs_path == $PWD ]]; then
+    rel_path="."
+  elif [[ $abs_path == "$PWD"/* ]]; then
+    rel_path="${abs_path#$PWD/}"
+  else
+    rel_path="${abs_path/#$HOME/~}"
+  fi
+fi
+
+# ----- color / hyperlink helpers -----------------------------------------
+local blue=$'\e[34m'
+local bold=$'\e[1m'
+local dim=$'\e[2m'
+local reset=$'\e[0m'
+
+# OSC 8 hyperlink: ESC ] 8 ; ; URL ESC \ TEXT ESC ] 8 ; ; ESC \
+# Captured into a var via $(printf ...) so the two ST terminator bytes
+# survive intact. Re-emit with `print -r --` (see zsh/CLAUDE.md).
+_wt_link() {
+  local url=$1 text=$2
+  printf '\e]8;;%s\e\\%s%s%s\e]8;;\e\\' "$url" "$blue" "$text" "$reset"
+}
+
+# ----- humanize seconds ---------------------------------------------------
+# "<N> <unit> ago" with the largest unit that yields >= 1.
+_wt_human_ago() {
+  local secs=$1
+  (( secs < 0 )) && secs=0
+  if   (( secs < 60      )); then print -r -- "${secs} seconds ago"
+  elif (( secs < 3600    )); then print -r -- "$(( secs / 60 )) minutes ago"
+  elif (( secs < 86400   )); then print -r -- "$(( secs / 3600 )) hours ago"
+  elif (( secs < 2592000 )); then print -r -- "$(( secs / 86400 )) days ago"
+  elif (( secs < 31536000)); then print -r -- "$(( secs / 2592000 )) months ago"
+  else                            print -r -- "$(( secs / 31536000 )) years ago"
+  fi
+}
+
+# Format an epoch as "YYYY-MM-DD HH:MM:SS (X units ago)". Empty on failure.
+_wt_format_epoch() {
+  local epoch=$1
+  [[ -z $epoch ]] && return 0
+  local now stamp
+  now=$(date +%s)
+  if date -r "$epoch" '+%Y-%m-%d %H:%M:%S' >/dev/null 2>&1; then
+    stamp=$(date -r "$epoch" '+%Y-%m-%d %H:%M:%S')          # macOS / BSD
+  else
+    stamp=$(date -d "@$epoch" '+%Y-%m-%d %H:%M:%S' 2>/dev/null)  # GNU
+  fi
+  [[ -z $stamp ]] && return 0
+  print -r -- "$stamp  ${dim}($(_wt_human_ago $(( now - epoch ))))${reset}"
+}
+
+# ----- branch + JIRA key --------------------------------------------------
+local branch=""
+branch=$(git -C "$abs_path" symbolic-ref --quiet --short HEAD 2>/dev/null) || branch=""
+
+local jira_key=""
+if [[ -n $branch ]]; then
+  if [[ $branch =~ '([A-Z][A-Z0-9]+-[0-9]+)' ]]; then
+    jira_key=${match[1]}
+  fi
+fi
+
+# ----- emit: path + branch -----------------------------------------------
+printf '%sPath:%s    %s\n'   "$bold" "$reset" "$rel_path"
+printf '%sBranch:%s  %s\n'   "$bold" "$reset" "${branch:-<detached>}"
+
+# ----- emit: JIRA ---------------------------------------------------------
+if [[ -n $jira_key ]]; then
+  local cache="$HOME/.cache/wts-jira/${jira_key}.summary"
+  local summary=""
+
+  # Refresh cache opportunistically if missing or older than 3 days.
+  local refresh=0
+  if [[ ! -s $cache ]]; then
+    refresh=1
+  else
+    local mtime now age
+    now=$(date +%s)
+    mtime=$(stat -f %m "$cache" 2>/dev/null || stat -c %Y "$cache" 2>/dev/null || echo 0)
+    age=$(( now - mtime ))
+    (( age >= 259200 )) && refresh=1
+  fi
+  if (( refresh )) && command -v acli >/dev/null 2>&1; then
+    mkdir -p "$HOME/.cache/wts-jira"
+    local raw
+    raw=$(acli jira workitem view "$jira_key" -f summary,status 2>/dev/null) || raw=""
+    if [[ -n $raw ]]; then
+      local jsum jstat short
+      jsum=$(printf '%s\n' "$raw" | awk -F': ' '/^Summary: /{sub(/^Summary: /,""); print; exit}')
+      jstat=$(printf '%s\n' "$raw" | awk -F': ' '/^Status: /{sub(/^Status: /,""); print; exit}')
+      short=$jsum
+      (( ${#short} > 60 )) && short="${short:0:57}..."
+      if [[ -n $jstat ]]; then
+        printf '(%s) %s\n' "$jstat" "$short" >"$cache"
+      else
+        printf '%s\n' "$short" >"$cache"
+      fi
+    fi
+  fi
+
+  [[ -s $cache ]] && summary=$(<"$cache")
+
+  local jira_url="https://storytel.atlassian.net/browse/${jira_key}"
+  local label
+  if [[ -n $summary ]]; then
+    label="${jira_key}  ${summary}"
+  else
+    label="${jira_key}"
+  fi
+  local link
+  link=$(_wt_link "$jira_url" "$label")
+  printf '%sJIRA:%s    ' "$bold" "$reset"
+  print -r -- "$link"
+fi
+
+# ----- emit: GitHub PR ----------------------------------------------------
+# Look up the PR by branch name (open or closed). Skip silently if `gh` is
+# missing, the dir isn't a GitHub-backed repo, or there's no PR.
+if [[ -n $branch ]] && command -v gh >/dev/null 2>&1; then
+  local pr_json pr_num pr_title pr_url pr_state
+  # gh has no -C/--cwd; it resolves the repo from the current directory.
+  # cd in a subshell so the rest of this script keeps $abs_path / $PWD intact.
+  pr_json=$(cd -- "$abs_path" && gh pr list --state all --head "$branch" --limit 1 \
+              --json number,title,url,state 2>/dev/null)
+  if [[ -n $pr_json && $pr_json != '[]' ]]; then
+    pr_num=$(  print -r -- "$pr_json" | jq -r '.[0].number // empty' 2>/dev/null)
+    pr_title=$(print -r -- "$pr_json" | jq -r '.[0].title  // empty' 2>/dev/null)
+    pr_url=$(  print -r -- "$pr_json" | jq -r '.[0].url    // empty' 2>/dev/null)
+    pr_state=$(print -r -- "$pr_json" | jq -r '.[0].state  // empty' 2>/dev/null)
+    if [[ -n $pr_num && -n $pr_url ]]; then
+      local pr_label="#${pr_num}"
+      [[ -n $pr_state ]] && pr_label+="  [${(L)pr_state}]"
+      [[ -n $pr_title ]] && pr_label+="  ${pr_title}"
+      local pr_link
+      pr_link=$(_wt_link "$pr_url" "$pr_label")
+      printf '%sPR:%s      ' "$bold" "$reset"
+      print -r -- "$pr_link"
+    fi
+  fi
+fi
+
+# ----- emit: Created / Updated -------------------------------------------
+# Created: directory birthtime (macOS: stat -f %B; GNU: stat -c %W). Fall
+# back to ctime/mtime if birthtime isn't recorded by the filesystem.
+local created_epoch=""
+if stat -f '%B' "$abs_path" >/dev/null 2>&1; then
+  created_epoch=$(stat -f '%B' "$abs_path" 2>/dev/null)
+else
+  created_epoch=$(stat -c '%W' "$abs_path" 2>/dev/null)
+  if [[ -z $created_epoch || $created_epoch == 0 || $created_epoch == "-" ]]; then
+    created_epoch=$(stat -c '%Z' "$abs_path" 2>/dev/null)
+  fi
+fi
+[[ $created_epoch == 0 ]] && created_epoch=""
+
+local created_line
+created_line=$(_wt_format_epoch "$created_epoch")
+[[ -n $created_line ]] && printf '%sCreated:%s %s\n' "$bold" "$reset" "$created_line"
+
+# Updated: most-recent file mtime under the worktree, excluding .git/.
+local updated_epoch=""
+if command -v fd >/dev/null 2>&1; then
+  updated_epoch=$(
+    fd --type f --hidden --exclude .git . "$abs_path" \
+       --exec-batch stat -f '%m' {} 2>/dev/null \
+    | sort -nr | head -1
+  )
+  if [[ -z $updated_epoch ]]; then
+    updated_epoch=$(
+      fd --type f --hidden --exclude .git . "$abs_path" \
+         --exec-batch stat -c '%Y' {} 2>/dev/null \
+      | sort -nr | head -1
+    )
+  fi
+else
+  updated_epoch=$(
+    find "$abs_path" -type d -name .git -prune -o -type f -print 2>/dev/null \
+    | xargs stat -f '%m' 2>/dev/null | sort -nr | head -1
+  )
+  if [[ -z $updated_epoch ]]; then
+    updated_epoch=$(
+      find "$abs_path" -type d -name .git -prune -o -type f -print 2>/dev/null \
+      | xargs stat -c '%Y' 2>/dev/null | sort -nr | head -1
+    )
+  fi
+fi
+
+local updated_line
+updated_line=$(_wt_format_epoch "$updated_epoch")
+[[ -n $updated_line ]] && printf '%sUpdated:%s %s\n' "$bold" "$reset" "$updated_line"
+
+# ----- emit: changed files vs fork point ----------------------------------
+# `git diff --numstat <fork-point>` shows committed AND uncommitted changes
+# (working tree vs fork-point commit). Format per line: <adds>\t<dels>\t<path>
+# with "-\t-" for binary files. Color adds green, dels red — matches how
+# the user reads diffs in the terminal.
+local repo_root_wt fork_point default_branch
+repo_root_wt=$(git -C "$abs_path" rev-parse --show-toplevel 2>/dev/null)
+if [[ -n $repo_root_wt ]]; then
+  default_branch=$(git -C "$repo_root_wt" symbolic-ref refs/remotes/origin/HEAD 2>/dev/null \
+                    | sed 's|refs/remotes/origin/||')
+  [[ -z $default_branch ]] && default_branch=main
+  # `--fork-point` is the strictest match but often fails when reflog has been
+  # pruned; fall back to plain `merge-base HEAD origin/<default>`. Same chain
+  # as the previous rlm-pr-worktree-rm preview.
+  fork_point=$(git -C "$repo_root_wt" merge-base --fork-point "origin/${default_branch}" 2>/dev/null)
+  [[ -z $fork_point ]] && fork_point=$(git -C "$repo_root_wt" merge-base HEAD "origin/${default_branch}" 2>/dev/null)
+
+  if [[ -n $fork_point ]]; then
+    local numstat
+    numstat=$(git -C "$repo_root_wt" diff --numstat "$fork_point" 2>/dev/null)
+    if [[ -n $numstat ]]; then
+      local file_count
+      file_count=$(printf '%s\n' "$numstat" | wc -l | tr -d ' ')
+      printf '%sChanged:%s %s file(s) vs %s\n' "$bold" "$reset" "$file_count" "origin/${default_branch}"
+
+      # Compute padding width so the "+N / -M" column lines up across rows.
+      # Skip binary entries ("-") for width math; they render as "+- / --".
+      local max_add=0 max_del=0 a d _p
+      while IFS=$'\t' read -r a d _p; do
+        [[ $a == '-' ]] && a=0
+        [[ $d == '-' ]] && d=0
+        (( ${#a} > max_add )) && max_add=${#a}
+        (( ${#d} > max_del )) && max_del=${#d}
+      done <<< "$numstat"
+
+      # Avoid `$path` and `$fpath` — both are zsh special arrays (lowercase
+      # aliases of $PATH / $FPATH); assigning a string to them splits and
+      # reprints the array contents. Use a neutral local name.
+      local green=$'\e[32m' red=$'\e[31m'
+      local relpath
+      while IFS=$'\t' read -r a d relpath; do
+        if [[ $a == '-' && $d == '-' ]]; then
+          printf '  %s%*s%s / %s%*s%s  %s\n' \
+            "$green" "$max_add" "bin" "$reset" \
+            "$red"   "$max_del" "bin" "$reset" \
+            "$relpath"
+        else
+          printf '  %s+%*s%s / %s-%*s%s  %s\n' \
+            "$green" "$max_add" "$a" "$reset" \
+            "$red"   "$max_del" "$d" "$reset" \
+            "$relpath"
+        fi
+      done <<< "$numstat"
+    else
+      printf '%sChanged:%s 0 file(s) vs origin/%s\n' "$bold" "$reset" "$default_branch"
+    fi
+  fi
+fi

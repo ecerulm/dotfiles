@@ -10,13 +10,11 @@
 #                  on pr-status to know they're actually landed)
 #   pr-status    = open#N | closed#N | merged#N | no-pr
 #
-# Preview pane (Ctrl-P to cycle height), in order:
-#   JIRA ticket number and title (if branch matches a JIRA key)
-#   PR number, URL and state
-#   git branch name
-#   worktree creation date (directory ctime) and last-update date
-#     (most recent file mtime under the worktree, excluding .git)
-#   git diff --name-only vs fork point
+# Preview pane (Ctrl-P to cycle height): the shared ~/bin/wt-preview
+# script (rel path, branch, JIRA + OSC 8 link, PR + OSC 8 link, created,
+# updated, and the +adds/-dels list of changed files vs the fork point —
+# the last block is what you check to sanity-check what work would be
+# discarded before deletion).
 #
 # Multi-select with TAB. Asks for confirmation before deleting.
 # The current worktree and the main worktree are excluded from the picker.
@@ -121,131 +119,13 @@ if (( ${#rows} == 0 )); then
   return 0
 fi
 
-# Write the preview script to a temp file to avoid quoting hell with jq filters.
-# col1=rel_path  col2=branch  col3=merge_status  col4=pr_status
-# col5=abs_path  col6=pr_number
-local preview_file
-preview_file=$(mktemp /tmp/prwtrm-preview.XXXXXX) || {
-  print -u2 "pr-worktree-rm: could not create temp file"
-  return 1
-}
-cat > "$preview_file" << 'PREVIEW_EOF'
-#!/bin/sh
-branch=$2
-abs_path=$5
-pr_number=$6
-
-# --- JIRA ---
-# Extract a JIRA key from the branch name (e.g. DATA-1234 or feature/DATA-1234).
-jira_key=$(printf '%s' "$branch" | grep -oE '[A-Z][A-Z0-9_]+-[0-9]+' | head -1)
-if [ -n "$jira_key" ]; then
-  jira_cache="$HOME/.cache/wts-jira/${jira_key}.summary"
-  cache_stale=1
-  if [ -f "$jira_cache" ]; then
-    # macOS stat: -f %m gives mtime in seconds; GNU stat: -c %Y
-    if stat -f %m "$jira_cache" >/dev/null 2>&1; then
-      mtime=$(stat -f %m "$jira_cache")
-    else
-      mtime=$(stat -c %Y "$jira_cache")
-    fi
-    age=$(( $(date +%s) - mtime ))
-    [ "$age" -lt 259200 ] && cache_stale=0  # 3 days = 259200 s
-  fi
-  if [ "$cache_stale" -eq 1 ] && command -v acli >/dev/null 2>&1; then
-    mkdir -p "$HOME/.cache/wts-jira"
-    fetched=$(acli jira workitem view "$jira_key" --json 2>/dev/null \
-      | jq -r '(.. | objects | select(has("key") and has("fields")?)) |
-          "\(.fields.status.name // "?")  \(.fields.summary // "")"' 2>/dev/null \
-      | head -1)
-    if [ -n "$fetched" ]; then
-      printf '%s' "$fetched" > "$jira_cache"
-    fi
-  fi
-  if [ -f "$jira_cache" ]; then
-    jira_summary=$(cat "$jira_cache")
-    printf 'JIRA:    %s  %s\n' "$jira_key" "$jira_summary"
-  else
-    printf 'JIRA:    %s\n' "$jira_key"
-  fi
-fi
-
-# --- PR ---
-if [ -n "$pr_number" ]; then
-  pr_info=$(gh pr view "$pr_number" --json number,title,url,state 2>/dev/null)
-  if [ -n "$pr_info" ]; then
-    pr_num=$(printf '%s' "$pr_info" | jq -r '.number')
-    pr_title=$(printf '%s' "$pr_info" | jq -r '.title')
-    pr_url=$(printf '%s' "$pr_info" | jq -r '.url')
-    pr_st=$(printf '%s' "$pr_info" | jq -r '.state')
-    printf 'PR:      #%s  [%s]  %s\n' "$pr_num" "$pr_st" "$pr_title"
-    printf '         %s\n' "$pr_url"
-  fi
-else
-  printf 'PR:      (none)\n'
-fi
-
-# --- Branch ---
-printf 'Branch:  %s\n' "$branch"
-
-# --- Timestamps ---
-# Creation:    directory's birth/ctime (best-effort proxy for when the worktree was added)
-# Last update: most recent file mtime under the worktree, excluding .git/
-if [ -d "$abs_path" ]; then
-  # macOS: stat -f "%SB" uses birthtime when -t format applied; fall back to ctime.
-  if stat -f '%SB' -t '%Y-%m-%d %H:%M:%S' "$abs_path" >/dev/null 2>&1; then
-    created=$(stat -f '%SB' -t '%Y-%m-%d %H:%M:%S' "$abs_path" 2>/dev/null)
-  else
-    created=$(stat -c '%w' "$abs_path" 2>/dev/null | cut -d. -f1)
-    [ -z "$created" ] || [ "$created" = "-" ] && created=$(stat -c '%y' "$abs_path" 2>/dev/null | cut -d. -f1)
-  fi
-  [ -n "$created" ] && printf 'Created: %s\n' "$created"
-
-  # Latest file mtime under the worktree, excluding .git. fd is faster when present.
-  if command -v fd >/dev/null 2>&1; then
-    latest_epoch=$(fd --type f --hidden --exclude .git . "$abs_path" --exec stat -f '%m' {} \; 2>/dev/null \
-      | sort -nr | head -1)
-    if [ -z "$latest_epoch" ]; then
-      latest_epoch=$(fd --type f --hidden --exclude .git . "$abs_path" --exec stat -c '%Y' {} \; 2>/dev/null \
-        | sort -nr | head -1)
-    fi
-  else
-    latest_epoch=$(find "$abs_path" -type d -name .git -prune -o -type f -print 2>/dev/null \
-      | xargs stat -f '%m' 2>/dev/null | sort -nr | head -1)
-    if [ -z "$latest_epoch" ]; then
-      latest_epoch=$(find "$abs_path" -type d -name .git -prune -o -type f -print 2>/dev/null \
-        | xargs stat -c '%Y' 2>/dev/null | sort -nr | head -1)
-    fi
-  fi
-  if [ -n "$latest_epoch" ]; then
-    if date -r "$latest_epoch" '+%Y-%m-%d %H:%M:%S' >/dev/null 2>&1; then
-      updated=$(date -r "$latest_epoch" '+%Y-%m-%d %H:%M:%S')
-    else
-      updated=$(date -d "@$latest_epoch" '+%Y-%m-%d %H:%M:%S' 2>/dev/null)
-    fi
-    [ -n "$updated" ] && printf 'Updated: %s\n' "$updated"
-  fi
-fi
-
-# --- Changed files ---
-printf '\n--- changed files vs fork point ---\n'
-repo_root=$(git -C "$abs_path" rev-parse --show-toplevel 2>/dev/null)
-if [ -n "$repo_root" ]; then
-  default_branch=$(git -C "$repo_root" symbolic-ref refs/remotes/origin/HEAD 2>/dev/null \
-    | sed 's|refs/remotes/origin/||')
-  [ -z "$default_branch" ] && default_branch=main
-  fork_point=$(git -C "$repo_root" merge-base --fork-point "origin/${default_branch}" 2>/dev/null)
-  [ -z "$fork_point" ] && fork_point=$(git -C "$repo_root" merge-base HEAD "origin/${default_branch}" 2>/dev/null)
-  if [ -n "$fork_point" ]; then
-    git -C "$repo_root" diff --name-only "$fork_point" 2>/dev/null || printf '(could not compute diff)\n'
-  else
-    printf '(could not find fork point)\n'
-  fi
-else
-  printf '(worktree path unavailable)\n'
-fi
-PREVIEW_EOF
-chmod +x "$preview_file"
-
+# Preview pane: the shared ~/bin/wt-preview (rel path, branch, JIRA +
+# OSC 8 link, PR + OSC 8 link, created, updated, +adds/-dels file list
+# vs the fork point — the changed-files block is what you check to
+# sanity-check what work would be discarded before deletion). Use the
+# absolute path (column 5) as the only argument. fzf's preview runs in
+# a plain sh subshell that does not inherit zsh's $PATH additions or
+# autoloaded functions; call wt-preview by full path.
 local selection
 selection=$(
   printf '%s\n' "${rows[@]}" \
@@ -255,12 +135,11 @@ selection=$(
         --with-nth=1 \
         --prompt='delete> ' \
         --header='TAB to multi-select, ENTER to confirm, ESC to cancel | Ctrl-P: toggle preview' \
-        --preview="sh '$preview_file' {1} {2} {3} {4} {5} {6}" \
+        --preview='"$HOME/bin/wt-preview" {5}' \
         --preview-window=bottom:40%:wrap \
         --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)'
 )
 local fzf_exit=$?
-rm -f "$preview_file"
 [[ $fzf_exit -ne 0 || -z $selection ]] && return 130
 
 # col5 (absolute path) is used for deletion; col1 (relative path) for display.

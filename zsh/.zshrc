@@ -578,35 +578,33 @@ rlm-wts() {
 		common=""
 	fi
 
-	local shown cache_dir="$HOME/.cache/wts-jira"
+	local shown abs
 	for (( i=1; i<=${#paths[@]}; i++ )); do
 		shown="${paths[$i]}"
 		if [[ -n "$common" && "$shown" != "$common" ]]; then
 			shown="${shown#$common/}"
 		fi
-		# Hidden columns: <index>\t<jira_key_or_->\t<branch_info>\t<path>. fzf shows only path via --with-nth=4.
-		display+=("$i	${jkeys[$i]:--}	${rest[$i]}	$shown")
+		abs="${paths[$i]/#\~/$HOME}"
+		# Hidden columns: <index>\t<jira_key_or_->\t<branch_info>\t<path>\t<abs_path>.
+		# fzf shows only column 4 via --with-nth; column 5 (abs path) is the id passed
+		# to wt-preview. See AGENTS.md → "Separating Display from ID in fzf Pickers".
+		display+=("$i	${jkeys[$i]:--}	${rest[$i]}	$shown	$abs")
 	done
 
-	local preview_cmd='
-		k={2}
-		branch={3}
-		f="'"$cache_dir"'/$k.preview"
-		printf "Branch: %s\n\n" "$branch"
-		if [ "$k" != "-" ] && [ -s "$f" ]; then
-			cat "$f"
-		else
-			echo "(no Jira info)"
-		fi
-	'
-
+	# Preview pane is the shared ~/bin/wt-preview script (rel path, branch,
+	# JIRA + OSC 8 link, PR + OSC 8 link, created, updated). Bare names
+	# don't resolve in fzf's sh subshell — use the full path.
 	selected=$(printf '%s\n' "${display[@]}" | fzf \
+		--no-mouse \
+		--ansi \
 		--height=80% --reverse \
 		--delimiter=$'\t' --with-nth=4 \
-		--preview="$preview_cmd" --preview-window=bottom:50%:wrap) || return
+		--preview='"$HOME/bin/wt-preview" {5}' \
+		--preview-window=bottom:40%:wrap \
+		--bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)') || return
 	[[ -z "$selected" ]] && return
 
-	# Selected format: "<index>\t<key>\t<branch_info>\t<path>". Use the index for lookup.
+	# Selected format: "<index>\t<key>\t<branch_info>\t<path>\t<abs_path>". Use the index for lookup.
 	local idx="${selected%%	*}"
 	if [[ "$idx" == <-> ]] && (( idx >= 1 && idx <= ${#paths[@]} )); then
 		dir="${paths[$idx]/#\~/$HOME}"
