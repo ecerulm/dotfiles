@@ -465,7 +465,7 @@ if [[ $confirm != "yes" ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# Copy step: bq cp --no-clobber per table
+# Copy step: bq cp --no_clobber per table
 # ---------------------------------------------------------------------------
 
 local -a copied failed
@@ -476,12 +476,12 @@ for src in "${to_process[@]}"; do
   dst="${archive_proj}:${archive_ds}.${src_tbl}"
   print ""
   print -u2 "bq-archive: copying ${src} -> ${dst} …"
-  if bq cp --no-clobber "$src" "$dst" 2>&1; then
+  if bq cp --no_clobber "$src" "$dst" 2>&1; then
     copied+=("${src}|${dst}")
     print -u2 "bq-archive: copied  ${src} -> ${dst}"
   else
     failed+=("$src")
-    print -u2 "bq-archive: FAILED  ${src} (target may already exist; bq cp --no-clobber refuses to overwrite)"
+    print -u2 "bq-archive: FAILED  ${src} (target may already exist; bq cp --no_clobber refuses to overwrite)"
   fi
 done
 
