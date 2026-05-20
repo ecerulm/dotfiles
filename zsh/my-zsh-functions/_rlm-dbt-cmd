@@ -1,25 +1,32 @@
 emulate -L zsh
 
-# Shared implementation for rlm-dbt-run / rlm-dbt-build.
+# Shared implementation for rlm-dbt-run / rlm-dbt-build / rlm-dbt-test.
 #
-# Called by the wrapper functions with two leading positional arguments
+# Called by the wrapper functions with three leading positional arguments
 # followed by the user's own argv:
 #
-#   _rlm-dbt-cmd <dbt_subcmd> <resource_types> -- "$@"
+#   _rlm-dbt-cmd <dbt_subcmd> <resource_types> <cost_resource_types> "$@"
 #
-#   dbt_subcmd       e.g. "run" or "build"
-#   resource_types   comma-separated dbt --resource-type values used for the
-#                    fzf picker / cost estimate / list view (e.g. "model" or
-#                    "model,seed"). The wrapper also drives the wording in
-#                    help / log output.
+#   dbt_subcmd            e.g. "run", "build", "test"
+#   resource_types        comma-separated dbt --resource-type values used for
+#                         the fzf picker / list view (e.g. "model",
+#                         "model,seed", "test"). Also drives the wording in
+#                         help / log output.
+#   cost_resource_types   comma-separated --resource-type values used for
+#                         the bq dry-run cost estimate. For `dbt run` and
+#                         `dbt build` this is "model" (seeds don't dry-run
+#                         through bq). For `dbt test` it's "test" so the
+#                         estimate covers the test queries that actually
+#                         scan data.
 #
 # All env / state / cache layout is identical to the original rlm-dbt-run;
 # the cache directory is keyed off the wrapper name (passed as $0 by zsh)
-# so dbt-run and dbt-build keep independent history.
+# so dbt-run / dbt-build / dbt-test keep independent history.
 
 local dbt_subcmd="$1"
 local resource_types="$2"
-shift 2
+local cost_resource_types="$3"
+shift 3
 
 local cmd_name="${funcstack[2]:-rlm-dbt-${dbt_subcmd}}"
 # Short label used in user-facing messages (e.g. "dbt-run", "dbt-build")
@@ -329,14 +336,21 @@ print ""
 _dbt_cmd_cost_estimate() {
   print "Estimating query cost (compiling + bq dry-run) …"
 
-  # Find which nodes build locally (not deferred from prod). Seeds don't run
-  # SQL through bq, so restrict the cost estimate to models.
+  # Find which nodes build locally (not deferred from prod). Restrict to
+  # resource types that actually scan data via bq dry-run — for run/build
+  # that's models only (seeds load static CSV); for test that's tests.
+  local -a cost_resource_args
+  local crt
+  for crt in ${(s:,:)cost_resource_types}; do
+    cost_resource_args+=(--resource-type "$crt")
+  done
+
   local tmp_local_nodes
   tmp_local_nodes=$(mktemp)
   (
     cd "$dbt_root" && poetry run dbt ls \
       -s "$selector" \
-      --resource-type model \
+      "${cost_resource_args[@]}" \
       --defer --state "$state_dir" \
       --profiles-dir "$profiles_dir" \
       --target "$dbt_target" \
@@ -351,8 +365,16 @@ _dbt_cmd_cost_estimate() {
   local count_local=${#local_nodes[@]}
   [[ ${local_nodes[1]:-} == '' ]] && count_local=0
 
+  # Human-readable label for items being costed (matches cost_resource_types).
+  local cost_kind_label
+  if [[ $cost_resource_types == *,* ]]; then
+    cost_kind_label="${cost_resource_types//,/s/}s"
+  else
+    cost_kind_label="${cost_resource_types}s"
+  fi
+
   if (( count_local == 0 )); then
-    print "  No models will be built locally (all deferred from prod) — cost: \$0.00"
+    print "  No ${cost_kind_label} will run locally (all deferred from prod) — cost: \$0.00"
     return 0
   fi
 
@@ -450,11 +472,11 @@ PYEOF
   cost_dollars="${_py_out##*|}"
 
   print ""
-  print "  Models building locally : $count_local"
-  print "  Data processed estimate : $size_label"
-  print "  Cost estimate           : $cost_dollars  (@ \$6.25/TB)"
+  print "  ${(C)cost_kind_label} running locally : $count_local"
+  print "  Data processed estimate    : $size_label"
+  print "  Cost estimate              : $cost_dollars  (@ \$6.25/TB)"
   if (( ${#per_model_lines[@]} )); then
-    print "  Per-model breakdown (path printed so you can dry-run it manually):"
+    print "  Per-${cost_resource_types%%,*} breakdown (path printed so you can dry-run it manually):"
     local line
     for line in "${per_model_lines[@]}"; do
       print -- "$line"

@@ -4,9 +4,11 @@ emulate -L zsh
 # See `rlm-dbt-build -h` (or `helpdir/rlm-dbt-build`) for the full description.
 #
 # Shared implementation lives in _rlm-dbt-cmd; this wrapper selects the
-# dbt subcommand (`build`) and the resource type(s) to expose in the
-# picker (models + seeds). The sibling rlm-dbt-run wraps `dbt run` with
-# models only.
+# dbt subcommand (`build`), the resource type(s) to expose in the picker
+# (models + seeds), and the resource type(s) to include in the cost
+# estimate (models only — seeds load static CSV and don't dry-run through
+# bq). The sibling rlm-dbt-run wraps `dbt run` with models only;
+# rlm-dbt-test wraps `dbt test`.
 
 autoload -Uz _rlm-dbt-cmd
-_rlm-dbt-cmd build model,seed "$@"
+_rlm-dbt-cmd build model,seed model "$@"

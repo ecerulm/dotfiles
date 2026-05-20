@@ -1,0 +1,46 @@
+dbt-test [-s SELECTOR] [-n] [-- EXTRA_ARGS...]
+
+Run `dbt test` locally with --defer against the production
+ref-state manifest. Use this to execute tests (schema and data tests)
+attached to a model or selector without re-running upstream models —
+those are read from prod via --defer.
+
+Omit -s to open an fzf picker over all dbt models. Pick a model and
+dbt-test will run every test attached to it. Recently selected models
+appear at the top with a "last run X ago" label. The model list is
+cached in ~/.cache/dbt-test/models.txt; select the REFRESH entry in
+the picker to re-run dbt ls and refresh the cache.
+
+  -s SELECTOR   dbt node selector; skips the fzf picker
+  -n, --list    dry-run: show which nodes will be built locally vs read from
+                prod (via --defer), then exit without running dbt
+  --            pass any additional arguments straight to dbt
+  -h, --help    show this help
+
+The ref-state manifest must exist at $DBT_STATE_DIR/manifest.json and be no
+older than 7 days. Run dbt-sync-state to refresh it.
+
+The cost estimate covers the test queries (not the models), since tests
+are what actually scan data during `dbt test`. If a model's compiled
+view/table is read from prod via --defer, the tests still run against it
+locally.
+
+Before running, dbt-test verifies that `poetry run dbt` resolves to a
+binary inside the project's poetry virtualenv (not a stray dbt on $PATH).
+If the venv is missing dbt, `poetry install` is run automatically in the
+project dir; if dbt is still not in the venv after that, dbt-test aborts
+with the resolved dbt path, the expected venv path, and the project dir.
+
+ENVIRONMENT (all required, set in ~/.zshrc.thismachine)
+  DBT_STATE_DIR      path to dir containing the ref-state manifest.json
+  DBT_PROJECT_SUBDIR subdir of the git root containing dbt_project.yml
+  DBT_TARGET         dbt target name (e.g. local_dev)
+  DBT_DEV_PROJECT    GCP project ID used for local runs
+  DBT_DATASET_PREFIX BigQuery dataset name for locally-built models
+
+Examples:
+  dbt-test
+  dbt-test -s my_model
+  dbt-test -s my_model+
+  dbt-test -n -s tag:finance
+  dbt-test -s my_model -- --store-failures

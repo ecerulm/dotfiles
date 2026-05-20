@@ -1,0 +1,15 @@
+emulate -L zsh
+
+# Run `dbt test` locally with --defer against the production ref-state
+# manifest. See `rlm-dbt-test -h` (or `helpdir/rlm-dbt-test`) for the full
+# description.
+#
+# Shared implementation lives in _rlm-dbt-cmd; this wrapper selects the
+# dbt subcommand (`test`), the resource type(s) to expose in the picker
+# (models — pick a model and run its tests), and the resource type(s) to
+# include in the cost estimate (tests — those are the queries that
+# actually scan data during `dbt test`). The siblings rlm-dbt-run /
+# rlm-dbt-build wrap `dbt run` and `dbt build` respectively.
+
+autoload -Uz _rlm-dbt-cmd
+_rlm-dbt-cmd test model test "$@"
