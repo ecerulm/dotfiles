@@ -226,12 +226,21 @@ for ref_i in "${to_process[@]}"; do
   print -P "%F{magenta}=== [${idx}/${#to_process}] diagnostics for ${to_process_colored[$idx]} (queries in ${qp}) ===%f"
 
   # Query A: INFORMATION_SCHEMA.JOBS (last N days)
+  # Filter on the `referenced_tables` ARRAY rather than on the raw query
+  # text. referenced_tables is populated by BigQuery *after* view / UDF
+  # expansion, so this catches jobs that touched the table transitively
+  # via a wrapping view — which a `LIKE '%<table>%'` text-grep on the SQL
+  # body would miss. The match is an exact (project, dataset, table)
+  # triple, so we also avoid false positives from another table that
+  # happens to share the same short name in a different dataset.
   # NOTE: keep this query a single SELECT (no DECLARE / no multi-statement
   # body). bq query --format=prettyjson wraps any *script* result in an
   # extra array layer ('[[{row}, ...]]' instead of '[{row}, ...]'), which
-  # breaks the `.[] | .field` jq filters below. src_tbl comes from the
-  # parsed bq ref so it's a [A-Za-z0-9_]+ identifier — safe to inline.
-  print -P "%F{blue}-- Query A: JOBS that reference '${src_tbl}' in the last ${lookback_days} days --%f"
+  # breaks the `.[] | .field` jq filters below. src_proj / src_ds /
+  # src_tbl come from the parsed bq ref so they're [A-Za-z0-9_-]+
+  # identifiers — safe to inline.
+  print -P "%F{blue}-- Query A: JOBS that reference ${src_proj}:${src_ds}.${src_tbl} (after view expansion) in the last ${lookback_days} days --%f"
+  print -P "%F{8}   (scope: jobs billed to ${qp}; set BQ_ARCHIVE_QUERY_PROJECT to inspect a different billing project)%f"
   sql="SELECT
   creation_time,
   user_email,
@@ -243,7 +252,14 @@ for ref_i in "${to_process[@]}"; do
   destination_table.table_id    AS dest_table
 FROM \`${qp}\`.\`region-eu\`.\`INFORMATION_SCHEMA\`.\`JOBS\`
 WHERE DATE(creation_time) > DATE_SUB(CURRENT_DATE(), INTERVAL ${lookback_days} DAY)
-  AND LOWER(query) LIKE LOWER('%${src_tbl}%')
+  AND job_type = 'QUERY'
+  AND EXISTS (
+    SELECT 1
+    FROM UNNEST(referenced_tables) AS rt
+    WHERE rt.project_id = '${src_proj}'
+      AND rt.dataset_id = '${src_ds}'
+      AND rt.table_id   = '${src_tbl}'
+  )
 ORDER BY creation_time DESC
 LIMIT 50;"
   out=$(_bq_archive_run_query "$qp" "$sql")
