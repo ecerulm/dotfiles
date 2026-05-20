@@ -1,8 +1,23 @@
 #!/usr/bin/env zsh
 # Usage: bq-preview <project:dataset.table>
 # Prints a standardized BigQuery table/view summary for fzf preview panes.
-# Fields shown: type, project_id, dataset_id, table_id, updated_at,
-#               num_rows (humanized), logical_bytes (humanized), then the rest.
+#
+# Field order:
+#   type
+#   project_id          (purple if it ends in -dev — see ANSI handling below)
+#   dataset_id
+#   table_id
+#   updated_at          local time + "(<humanized> ago)"
+#   created_at          same format as updated_at
+#   num_rows            humanized (K/M/B)
+#   logical_bytes       humanized (KiB/MiB/GiB/TiB)
+#   description         (optional, only if non-empty)
+#   partitions          (optional)
+#   partitioning        (optional, raw JSON)
+#   clustering          (optional, comma-separated field list)
+#   schema_fields       count
+#   fields              one line per field: "<name> <TYPE> [MODE]  — <description>"
+#                       nested RECORD fields are indented one level.
 emulate -L zsh
 set -o pipefail
 
@@ -14,7 +29,7 @@ fi
 
 local err
 err=$(mktemp)
-trap "rm -f $err" EXIT
+trap "rm -f $err ${err}.out" EXIT
 
 if ! bq show --format=prettyjson "$ref" >"${err}.out" 2>"$err"; then
   print "(bq show failed for ${ref})"
@@ -26,11 +41,44 @@ if ! bq show --format=prettyjson "$ref" >"${err}.out" 2>"$err"; then
     mkdir -p "$(dirname "$dead_file")"
     print -- "$ref" >>"$dead_file"
   fi
-  rm -f "${err}.out"
   exit 0
 fi
 
-cat "${err}.out" | jq -r '
+# Compute "now" and the local UTC offset (seconds) once, in zsh, and hand them
+# to jq so the formatting (local-time conversion + relative "x ago") stays
+# inside the single jq pass. macOS BSD `date` and GNU `date` both honor TZ.
+local now_epoch tz_offset tz_label
+now_epoch=$(date +%s)
+# %z prints ±HHMM. Convert to seconds. The TZ used is whatever the shell sees
+# (so a user in Stockholm sees CET/CEST; a user elsewhere sees their own zone).
+local off
+off=$(date +%z)              # e.g. +0200 or -0500
+local sign=${off[1]}
+local hh=${off[2,3]}
+local mm=${off[4,5]}
+tz_offset=$(( (10#$hh * 3600) + (10#$mm * 60) ))
+[[ $sign == '-' ]] && tz_offset=$(( -tz_offset ))
+tz_label=$(date +%Z)          # e.g. CEST
+
+# ANSI color for the project_id line. Applied *outside* of jq so the JSON
+# stays clean (jq doesn't know about our terminal palette). Matches the
+# convention used in dbt-model-preview / rlm-bq-open:
+#   *-prod → green, *-dev → magenta/purple, other → orange.
+local project_id
+project_id=$(jq -r '.tableReference.projectId // ""' "${err}.out")
+local color_open='' color_close=''
+case "$project_id" in
+  *-prod) color_open=$'\e[32m'; color_close=$'\e[0m' ;;
+  *-dev)  color_open=$'\e[35m'; color_close=$'\e[0m' ;;
+  *)      ;;  # leave uncolored for unknown suffixes
+esac
+
+jq -r \
+  --argjson now "$now_epoch" \
+  --argjson tzoff "$tz_offset" \
+  --arg tzlabel "$tz_label" \
+  --arg color_open "$color_open" \
+  --arg color_close "$color_close" '
   def hb:
     . as $b |
     if   $b == null          then "N/A"
@@ -48,18 +96,63 @@ cat "${err}.out" | jq -r '
     elif ($n|tonumber) >= 1000         then "\(($n|tonumber)/1000*10|round/10)K"
     else                                    ($n|tostring)
     end;
-  def fmt(lbl; val): "\(lbl)\(val)";
-  fmt("type          : "; (.type // "N/A")),
-  fmt("project_id    : "; (.tableReference.projectId // "N/A")),
-  fmt("dataset_id    : "; (.tableReference.datasetId // "N/A")),
-  fmt("table_id      : "; (.tableReference.tableId // "N/A")),
-  fmt("updated_at    : "; (if .lastModifiedTime then (.lastModifiedTime|tonumber/1000|todate) else "N/A" end)),
-  fmt("num_rows      : "; (.numRows | hr)),
-  fmt("logical_bytes : "; (if .numTotalLogicalBytes then (.numTotalLogicalBytes|tonumber|hb) else "N/A" end)),
-  (if .description and .description != "" then fmt("description   : "; .description) else empty end),
-  (if .numPartitions then fmt("partitions    : "; .numPartitions) else empty end),
-  (if .timePartitioning then fmt("partitioning  : "; (.timePartitioning | tojson)) else empty end),
-  (if .clustering then fmt("clustering    : "; (.clustering.fields | join(", "))) else empty end),
-  (if .creationTime then fmt("created_at    : "; (.creationTime|tonumber/1000|todate)) else empty end),
-  fmt("schema_fields : "; (if .schema.fields then (.schema.fields | length | tostring) else "N/A" end))
-'
+  # Relative time: input is an epoch (seconds). Returns "<n> <unit> ago"
+  # for past times, "in <n> <unit>" for future. Uses singular/plural.
+  def rel:
+    . as $t |
+    ($now - $t) as $d |
+    ($d | fabs) as $a |
+    (if   $a < 60       then [($a|floor),       "second"]
+     elif $a < 3600     then [(($a/60)|floor),  "minute"]
+     elif $a < 86400    then [(($a/3600)|floor),"hour"]
+     elif $a < 2592000  then [(($a/86400)|floor),"day"]
+     elif $a < 31536000 then [(($a/2592000)|floor),"month"]
+     else                    [(($a/31536000)|floor),"year"]
+     end) as [$n,$u] |
+    ($n|tostring) + " " + $u + (if $n == 1 then "" else "s" end) +
+    (if $d >= 0 then " ago" else " (in future)" end);
+  # Local time: epoch -> "YYYY-MM-DD HH:MM:SS <TZ>".
+  # jq has no TZ support, so we shift the epoch by the offset then format
+  # as if it were UTC, and append the label ourselves.
+  def localtime:
+    . as $t | (($t + $tzoff) | strftime("%Y-%m-%d %H:%M:%S")) + " " + $tzlabel;
+  # Format a (possibly missing) BQ millis timestamp as "<local> (<rel>)".
+  def fmt_ts:
+    if . then
+      (./1000) as $sec |
+      ($sec|localtime) + " (" + ($sec|rel) + ")"
+    else "N/A" end;
+  def fmt(lbl; val): "\(lbl): \(val)";
+  # Recursive schema walker. Emits one line per leaf field; RECORDs are
+  # printed with their description and their children indented by two
+  # spaces per nesting level. The walker takes the indent string as input
+  # to avoid threading it through every recursive call argument list.
+  def walk_fields($indent):
+    . as $f |
+    ($f.name // "?") as $n |
+    ($f.type // "?") as $t |
+    ($f.mode // "") as $m |
+    ($f.description // "") as $d |
+    ($indent + "- " + $n + " " + $t +
+       (if $m != "" and $m != "NULLABLE" then " [" + $m + "]" else "" end) +
+       (if $d != "" then "  — " + $d else "" end)),
+    (if $f.fields then $f.fields[] | walk_fields($indent + "    ") else empty end);
+
+  fmt("type          "; (.type // "N/A")),
+  fmt("project_id    "; $color_open + (.tableReference.projectId // "N/A") + $color_close),
+  fmt("dataset_id    "; (.tableReference.datasetId // "N/A")),
+  fmt("table_id      "; (.tableReference.tableId // "N/A")),
+  fmt("updated_at    "; (.lastModifiedTime | if . then tonumber|fmt_ts else "N/A" end)),
+  fmt("created_at    "; (.creationTime     | if . then tonumber|fmt_ts else "N/A" end)),
+  fmt("num_rows      "; (.numRows | hr)),
+  fmt("logical_bytes "; (if .numTotalLogicalBytes then .numTotalLogicalBytes|tonumber|hb else "N/A" end)),
+  (if .description and .description != "" then fmt("description   "; .description) else empty end),
+  (if .numPartitions    then fmt("partitions    "; .numPartitions)               else empty end),
+  (if .timePartitioning then fmt("partitioning  "; (.timePartitioning | tojson)) else empty end),
+  (if .clustering       then fmt("clustering    "; (.clustering.fields | join(", "))) else empty end),
+  fmt("schema_fields "; (if .schema.fields then .schema.fields|length|tostring else "N/A" end)),
+  (if .schema.fields then
+     "fields        :",
+     (.schema.fields[] | walk_fields("  "))
+   else empty end)
+' "${err}.out"

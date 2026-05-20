@@ -219,15 +219,18 @@ preview subshell.
 (symlinked to `~/bin/bq-preview`). It accepts a single `project:dataset.table`
 argument and prints standardized fields in this order:
 
-1. type
-2. project_id
-3. dataset_id
-4. table_id
-5. updated_at
-6. num_rows (humanized: K/M/B)
-7. logical_bytes (humanized: KiB/MiB/GiB/TiB)
-8. description, partitions, partitioning, clustering, created_at,
-   schema_fields (when present)
+01. type
+02. project_id (purple if it ends in `-dev`, green if `-prod`, otherwise uncolored)
+03. dataset_id
+04. table_id
+05. updated_at (local time + humanized "N units ago")
+06. created_at (same format as updated_at)
+07. num_rows (humanized: K/M/B)
+08. logical_bytes (humanized: KiB/MiB/GiB/TiB)
+09. description, partitions, partitioning, clustering (each only when present)
+10. schema_fields (count)
+11. fields — one line per column: `- <name> <TYPE> [<MODE>]  — <description>`,
+    with nested RECORD/REPEATED children indented one level per nesting depth
 
 Because fzf preview runs in a plain sh subshell, zsh autoloaded functions are
 not available there — `bq-preview` being on `$PATH` is what makes it callable.
