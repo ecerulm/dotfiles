@@ -110,10 +110,13 @@ for line in sys.stdin:
     if not line:
         continue
     parts = line.split("\t")
-    # Passthrough: already-rendered lines (group != 1..4, including the
-    # refresh sentinel) carry the shape <group>\t<display>\t<KEY> and
-    # are emitted unchanged.
-    if len(parts) < 5:
+    # Passthrough: already-rendered lines (group != 1..4, including
+    # the refresh sentinel) carry the shape <group>\t<display>\t<KEY>
+    # (3 fields) and are emitted unchanged. Raw cache rows have 7
+    # fields total; the renderer uses only parts[0..3] (group, key,
+    # status, summary). Assignee + two epoch timestamps in parts[4..6]
+    # exist for the composite-key sort upstream, not for display.
+    if len(parts) < 7:
         sys.stdout.write(line + "\n")
         continue
     group_str, key, status, summary = parts[0], parts[1], parts[2], parts[3]

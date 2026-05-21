@@ -3,11 +3,19 @@ emulate -L zsh
 # Shared MRU history for JIRA-issue pickers. One file:
 #
 #   ~/.cache/rlm-jira/history.txt
-#       One JIRA KEY per line, oldest first, newest at the bottom.
-#       Capped at 1000 lines. Callers append on every successful pick
-#       (both rlm-jira-pick and rlm-pr-worktree do); the entries float
-#       previously-picked issues to the top of the next picker via
-#       _rlm-jira-sorted-rows.
+#       Tab-delimited: `<epoch>\t<KEY>`, one entry per line, oldest
+#       first, newest at the bottom. Capped at 1000 lines. Callers
+#       append on every successful pick (both rlm-jira-pick and
+#       rlm-pr-worktree do); _rlm-jira-sorted-rows reads it to compute
+#       each cache row's sort key as
+#         max(picked_at, updated_epoch, last_commented_epoch).
+#
+# Legacy format (single-column, one KEY per line) is auto-migrated in
+# place on the first read/append/migrate-legacy invocation after the
+# upgrade. Each legacy line is assigned a synthetic timestamp of
+# `now - rank * 60` where rank is 0 for the newest line (bottom),
+# 1 for the line above, etc. — the existing MRU order is preserved
+# exactly. The file is rewritten atomically (`mv` from a temp file).
 #
 # Originally inline in rlm-jira-pick (the `print -r -- $key >>` /
 # `tail -1000` block at rlm-jira-pick:228–230). Lifted into a shared
@@ -19,20 +27,23 @@ emulate -L zsh
 #       → "<absolute path>" on stdout.
 #
 #   _rlm-jira-history append <KEY>
-#       Append KEY to the history file (creating it / its parent dir
-#       on first use), then re-cap to the newest 1000 lines via a
-#       tail-then-replace dance (same pattern as rlm-jira-pick:228–230).
+#       Write `<date +%s>\t<KEY>` to history.txt (creating it / its
+#       parent dir / migrating legacy single-column format on first
+#       use), then re-cap to the newest 1000 lines via a
+#       tail-then-replace dance.
 #
 #   _rlm-jira-history read
-#       Stream the history file back as-is (oldest first). Empty stdout
-#       if no history exists.
+#       Stream the history file back as-is (oldest first, TSV format).
+#       Empty stdout if no history exists. Triggers an auto-migration
+#       of the legacy single-column format before emitting.
 #
 #   _rlm-jira-history migrate-legacy
 #       One-shot, idempotent: if ~/.cache/jira-pick/history.txt exists
 #       and ~/.cache/rlm-jira/history.txt does not yet, copy the legacy
-#       file to the new path so an existing user's MRU survives the
-#       refactor. The legacy file is NOT deleted (matches the
-#       _rlm-bq-history / _rlm-dbt-history convention).
+#       file to the new path AND convert it to the new TSV format
+#       (each line gets a synthetic timestamp via `now - rank * 60`).
+#       The legacy file is NOT deleted (matches the _rlm-bq-history /
+#       _rlm-dbt-history convention).
 #
 # Return codes:
 #   0 — success.
@@ -41,6 +52,34 @@ emulate -L zsh
 local cache_dir="$HOME/.cache/rlm-jira"
 local history_file="${cache_dir}/history.txt"
 local legacy_history="$HOME/.cache/jira-pick/history.txt"
+
+# Auto-migrate a single-column-format history.txt to TSV in place.
+# Idempotent: a no-op if the file is missing, empty, or already TSV.
+# Synthetic timestamps: `now - rank * 60`, where rank=0 is the newest
+# line (bottom of the file in MRU semantics). Preserves order exactly.
+_rlm_jira_history_autoupgrade() {
+  [[ -s $history_file ]] || return 0
+  # Cheap probe: does any line contain a tab?
+  if grep -q $'\t' -- "$history_file" 2>/dev/null; then
+    return 0
+  fi
+  local tmp
+  tmp=$(mktemp) || return 1
+  awk -v now="$(date +%s)" '
+    { lines[NR] = $0 }
+    END {
+      # Bottom line (NR) is the most recent → rank 0 → timestamp = now.
+      # Top line (1)  is the oldest      → rank NR-1 → timestamp = now - (NR-1)*60.
+      for (i = 1; i <= NR; i++) {
+        rank = NR - i
+        ts = now - rank * 60
+        if (lines[i] != "") {
+          print ts "\t" lines[i]
+        }
+      }
+    }
+  ' "$history_file" >"$tmp" && mv -- "$tmp" "$history_file"
+}
 
 local subcmd=${1:-}
 shift 2>/dev/null || true
@@ -52,6 +91,7 @@ case $subcmd in
     ;;
 
   read)
+    _rlm_jira_history_autoupgrade
     [[ -s $history_file ]] || return 0
     cat -- "$history_file"
     return 0
@@ -64,7 +104,8 @@ case $subcmd in
       return 1
     fi
     mkdir -p "$cache_dir"
-    print -r -- "$key" >>"$history_file"
+    _rlm_jira_history_autoupgrade
+    print -r -- "$(date +%s)	${key}" >>"$history_file"
     local capped
     capped=$(tail -1000 "$history_file") && print -r -- "$capped" >|"$history_file"
     return 0
@@ -74,6 +115,7 @@ case $subcmd in
     if [[ -s $legacy_history && ! -e $history_file ]]; then
       mkdir -p "$cache_dir"
       cp -- "$legacy_history" "$history_file"
+      _rlm_jira_history_autoupgrade
     fi
     return 0
     ;;

@@ -8,17 +8,31 @@ emulate -L zsh
 #       One issue per line, tab-delimited, raw machine-parseable fields
 #       (no ANSI, no rendered display column — each caller adds its own):
 #
-#         <group>\t<KEY>\t<status>\t<summary>\t<assignee_display_name>
+#         <group>\t<KEY>\t<status>\t<summary>\t<assignee>\t<updated_epoch>\t<last_commented_epoch>
 #
 #       group: 1=assigned, 2=reporter, 3=watching, 4=DATA-only
 #       Within each group rows are kept in JQL ORDER BY updated DESC.
 #       Across groups, dedupe by KEY in priority order so an "assigned"
 #       hit always wins over a "DATA-only" hit for the same ticket.
+#       updated_epoch: Unix epoch seconds of fields.updated.
+#       last_commented_epoch: max(fields.updated || created across
+#         fields.comment.comments[]), or 0 if no comments.
+#       Both epoch fields are integers; downstream sort uses them via
+#         max(history_picked_at, updated_epoch, last_commented_epoch).
 #
-# Refresh runs the four JQL queries in parallel via `acli jira workitem
-# search` and atomically rewrites items.tsv. The freshness gate
-# (`resolved is EMPTY OR resolved >= -60d`) is applied per query, so
-# tickets closed more than ~2 months ago drop off the list.
+# Refresh runs in two phases:
+#   Phase A — four bulk JQL searches in parallel (`acli jira workitem
+#     search`) with the freshness gate `(resolved is EMPTY OR resolved
+#     >= -60d)` so tickets closed > ~2 months ago drop off. Per-group
+#     limit is 20 (so at most 4 * 20 = 80 raw rows before dedupe).
+#   Phase B — per-issue `acli jira workitem view <KEY> --fields
+#     key,updated,comment --json` for each deduped KEY, parallelized
+#     via xargs -P20. Each call's JSON is written to a per-key temp
+#     file, then a single Python pass parses all of them and merges
+#     with phase A's rows into the final 7-field items.tsv. The
+#     `comment` field is NOT returned by the bulk search (`acli` rejects
+#     it with "fields 'updated, comment' are not allowed"), so the
+#     per-issue follow-up is the only way to obtain it.
 #
 # Originally lived inline in rlm-jira-pick (_jira_pick_fetch and
 # _jira_pick_cache_age). Lifted into a shared helper so rlm-pr-worktree
@@ -32,8 +46,10 @@ emulate -L zsh
 #         `history` is a read-only variable in zsh.
 #
 #   _rlm-jira-cache refresh
-#       Re-fetch the four JQL groups in parallel and atomically rewrite
-#       items.tsv. Stderr carries `jira-cache: fetching…` progress.
+#       Re-fetch the four JQL groups in parallel (phase A), then
+#       per-issue parallel-fetch comments (phase B), and atomically
+#       rewrite items.tsv. Stderr carries progress + a final timing
+#       line `jira-cache: refreshed N issues in <elapsed>s`.
 #
 #   _rlm-jira-cache read
 #       Stream items.tsv to stdout (one tab-delimited row per line).
@@ -101,6 +117,10 @@ case $subcmd in
       print -u2 -r -- "jira-cache: 'python3' not found in PATH"
       return 1
     fi
+    if ! command -v xargs >/dev/null 2>&1; then
+      print -u2 -r -- "jira-cache: 'xargs' not found in PATH"
+      return 1
+    fi
     if ! acli jira auth status >/dev/null 2>&1; then
       print -u2 -r -- "jira-cache: acli is not authenticated (run: acli jira auth login --web)"
       return 1
@@ -108,7 +128,9 @@ case $subcmd in
 
     mkdir -p "$cache_dir"
 
-    print -u2 -r -- "jira-cache: fetching…"
+    local t_start
+    t_start=$(date +%s)
+    print -u2 -r -- "jira-cache: phase A — 4 bulk JQL queries…"
 
     # Hide issues resolved more than ~2 months ago. Unresolved issues
     # (resolved is EMPTY) always pass.
@@ -118,20 +140,27 @@ case $subcmd in
     local jql_watching="watcher = currentUser() AND assignee != currentUser() AND (reporter is EMPTY OR reporter != currentUser()) AND ${stale} ORDER BY updated DESC"
     local jql_data="project = DATA AND assignee != currentUser() AND (reporter is EMPTY OR reporter != currentUser()) AND (watcher != currentUser() OR watcher is EMPTY) AND ${stale} ORDER BY updated DESC"
 
+    # `comment` and `updated` are rejected by acli's bulk-search
+    # `--fields` flag ("Error: fields 'updated, comment' are not
+    # allowed"), so they're fetched per-issue in phase B below.
     local fields="key,summary,status,assignee"
     # Per-group cap. Each of the four JQL queries returns at most this
-    # many rows, so the upper bound on the cache is 4 * limit (before
-    # cross-group dedupe). Kept small enough that:
+    # many rows, so the upper bound on the cache is 4 * 20 = 80 raw
+    # rows before cross-group dedupe. Kept small enough that:
     #   - the picker stays snappy (one screenful of fzf candidates per
     #     group, not a multi-thousand-row scroll);
+    #   - the phase-B per-issue parallel comment fetch stays well under
+    #     ~10 seconds on a healthy JIRA day (measured ~3s at 30 keys,
+    #     -P20, so 80 keys ≈ 8s);
     #   - the upstream `column -t | fzf` pipe never gets large enough
     #     to risk the SIGPIPE-into-pipefail silent-exit class of bugs.
-    local limit=70
+    local limit=20
 
-    local tmp_a tmp_r tmp_w tmp_d tmp_out
-    tmp_a=$(mktemp) tmp_r=$(mktemp) tmp_w=$(mktemp) tmp_d=$(mktemp) tmp_out=$(mktemp)
+    local tmp_a tmp_r tmp_w tmp_d tmp_phase_a tmp_views_dir tmp_out
+    tmp_a=$(mktemp) tmp_r=$(mktemp) tmp_w=$(mktemp) tmp_d=$(mktemp) tmp_phase_a=$(mktemp) tmp_out=$(mktemp)
+    tmp_views_dir=$(mktemp -d)
     # shellcheck disable=SC2064
-    trap "rm -f '$tmp_a' '$tmp_r' '$tmp_w' '$tmp_d' '$tmp_out'" EXIT
+    trap "rm -rf '$tmp_a' '$tmp_r' '$tmp_w' '$tmp_d' '$tmp_phase_a' '$tmp_views_dir' '$tmp_out'" EXIT
 
     acli jira workitem search --jql "$jql_assigned" --fields "$fields" --limit "$limit" --json >"$tmp_a" 2>/dev/null &
     local pid_a=$!
@@ -144,7 +173,10 @@ case $subcmd in
 
     wait $pid_a $pid_r $pid_w $pid_d
 
-    python3 - "$tmp_a" "$tmp_r" "$tmp_w" "$tmp_d" >"$tmp_out" <<'PY'
+    # Phase A → 5-field TSV in $tmp_phase_a. Phase B reads the KEY
+    # list via `cut -f2 "$tmp_phase_a"`, so phase A's stdout is
+    # discarded (>/dev/null).
+    python3 - "$tmp_a" "$tmp_r" "$tmp_w" "$tmp_d" "$tmp_phase_a" >/dev/null <<'PY'
 import json, sys, os
 
 def load(path):
@@ -158,39 +190,136 @@ def load(path):
         return []
 
 paths = sys.argv[1:5]
+phase_a_out = sys.argv[5]
 seen = set()
-emitted = 0
-for group_idx, path in enumerate(paths, start=1):
-    issues = load(path)
-    for it in issues:
-        key = it.get("key", "")
-        if not key or key in seen:
-            continue
-        seen.add(key)
-        fields = it.get("fields") or {}
-        summary = (fields.get("summary") or "").replace("\t", " ").replace("\n", " ")
-        status_obj = fields.get("status") or {}
-        status = (status_obj.get("name") or "").replace("\t", " ")
-        assignee_obj = fields.get("assignee") or {}
-        assignee = (assignee_obj.get("displayName") or "unassigned").replace("\t", " ")
-        sys.stdout.write(f"{group_idx}\t{key}\t{status}\t{summary}\t{assignee}\n")
-        emitted += 1
-sys.exit(0 if emitted > 0 else 1)
+keys = []
+with open(phase_a_out, "w") as fh:
+    for group_idx, path in enumerate(paths, start=1):
+        for it in load(path):
+            key = it.get("key", "")
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            keys.append(key)
+            fields = it.get("fields") or {}
+            summary = (fields.get("summary") or "").replace("\t", " ").replace("\n", " ")
+            status_obj = fields.get("status") or {}
+            status = (status_obj.get("name") or "").replace("\t", " ")
+            assignee_obj = fields.get("assignee") or {}
+            assignee = (assignee_obj.get("displayName") or "unassigned").replace("\t", " ")
+            fh.write(f"{group_idx}\t{key}\t{status}\t{summary}\t{assignee}\n")
+sys.exit(0 if keys else 1)
 PY
     local py_rc=$?
 
-    if (( py_rc != 0 )) || [[ ! -s $tmp_out ]]; then
+    if (( py_rc != 0 )) || [[ ! -s $tmp_phase_a ]]; then
       trap - EXIT
-      rm -f "$tmp_a" "$tmp_r" "$tmp_w" "$tmp_d" "$tmp_out"
+      rm -rf "$tmp_a" "$tmp_r" "$tmp_w" "$tmp_d" "$tmp_phase_a" "$tmp_views_dir" "$tmp_out"
       print -u2 -r -- "jira-cache: refresh produced no rows"
+      return 1
+    fi
+
+    local n_keys
+    n_keys=$(wc -l <"$tmp_phase_a" | tr -d ' ')
+    # Phase A's stdout was the deduped KEY list — re-derive it here from
+    # the TSV (cut field 2) so we don't need to capture phase-A stdout.
+    print -u2 -r -- "jira-cache: phase B — per-issue updated+comment fetch (${n_keys} issues, -P20)…"
+
+    # Per-issue parallel fetch. Each xargs worker writes the raw JSON
+    # response to a per-KEY temp file ($tmp_views_dir/<KEY>.json) so a
+    # single downstream Python pass can read all of them without any
+    # streaming/locking dance. -P20 measured at ~3s per 30 keys; -P40
+    # showed no further speedup against this JIRA instance.
+    cut -f2 "$tmp_phase_a" \
+      | xargs -n1 -P20 -I{} sh -c '
+          acli jira workitem view "$1" --fields key,updated,comment --json \
+            > "$2/$1.json" 2>/dev/null
+        ' _ {} "$tmp_views_dir"
+
+    # Phase A + Phase B merge. Reads the 5-field TSV from $tmp_phase_a
+    # and every $tmp_views_dir/*.json, computes updated_epoch +
+    # last_commented_epoch per KEY, writes the final 7-field TSV.
+    python3 - "$tmp_phase_a" "$tmp_views_dir" "$tmp_out" <<'PY'
+import json, os, sys
+from datetime import datetime, timezone
+
+def parse_epoch(ts):
+    """JIRA emits 'YYYY-MM-DDTHH:MM:SS.mmm+ZZZZ'. Convert to int epoch."""
+    if not ts:
+        return 0
+    try:
+        dt = datetime.fromisoformat(ts)
+    except Exception:
+        try:
+            dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+        except Exception:
+            return 0
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return int(dt.timestamp())
+
+phase_a_path, views_dir, out_path = sys.argv[1], sys.argv[2], sys.argv[3]
+
+# Map KEY → (updated_epoch, last_commented_epoch) from per-issue JSONs.
+ts_by_key = {}
+for fname in os.listdir(views_dir):
+    if not fname.endswith(".json"):
+        continue
+    key = fname[:-5]
+    path = os.path.join(views_dir, fname)
+    if os.path.getsize(path) == 0:
+        ts_by_key[key] = (0, 0)
+        continue
+    try:
+        with open(path) as f:
+            data = json.load(f)
+    except Exception:
+        ts_by_key[key] = (0, 0)
+        continue
+    fields = (data or {}).get("fields") or {}
+    updated = parse_epoch(fields.get("updated"))
+    last_c = 0
+    comment_block = fields.get("comment") or {}
+    for c in comment_block.get("comments") or []:
+        e = parse_epoch(c.get("updated") or c.get("created"))
+        if e > last_c:
+            last_c = e
+    ts_by_key[key] = (updated, last_c)
+
+emitted = 0
+with open(phase_a_path) as f_in, open(out_path, "w") as f_out:
+    for line in f_in:
+        line = line.rstrip("\n")
+        if not line:
+            continue
+        parts = line.split("\t")
+        if len(parts) < 5:
+            continue
+        key = parts[1]
+        updated, last_c = ts_by_key.get(key, (0, 0))
+        f_out.write(f"{line}\t{updated}\t{last_c}\n")
+        emitted += 1
+sys.exit(0 if emitted > 0 else 1)
+PY
+    local merge_rc=$?
+
+    if (( merge_rc != 0 )) || [[ ! -s $tmp_out ]]; then
+      trap - EXIT
+      rm -rf "$tmp_a" "$tmp_r" "$tmp_w" "$tmp_d" "$tmp_phase_a" "$tmp_views_dir" "$tmp_out"
+      print -u2 -r -- "jira-cache: phase-B merge produced no rows"
       return 1
     fi
 
     # Atomic rewrite — mv on the same filesystem is the canonical move.
     mv -- "$tmp_out" "$cache_file"
 
+    local t_end elapsed
+    t_end=$(date +%s)
+    elapsed=$(( t_end - t_start ))
+    print -u2 -r -- "jira-cache: refreshed ${n_keys} issues in ${elapsed}s"
+
     trap - EXIT
-    rm -f "$tmp_a" "$tmp_r" "$tmp_w" "$tmp_d"
+    rm -rf "$tmp_a" "$tmp_r" "$tmp_w" "$tmp_d" "$tmp_phase_a" "$tmp_views_dir"
     return 0
     ;;
 

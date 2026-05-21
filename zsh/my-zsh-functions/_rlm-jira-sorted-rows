@@ -1,28 +1,37 @@
 emulate -L zsh
 
-# Emit JIRA cache rows in MRU-then-cache order:
+# Emit JIRA cache rows in composite-key DESC order:
 #
-#   1. History entries (newest first, deduped) whose KEY still exists
-#      in the cache — these float to the top so previously-picked
-#      issues are easy to re-find.
-#   2. The remaining cache rows in their stored order (group priority
-#      → JQL ORDER BY updated DESC), with no entry in history.
+#   sort_key = max(picked_at, updated_epoch, last_commented_epoch)
 #
-# Originally inline in rlm-jira-pick (_jira_pick_sorted_list at
-# rlm-jira-pick:151–171). Lifted into a shared helper so every JIRA
-# picker — rlm-jira-pick, rlm-pr-worktree, and any future caller —
-# sees the same MRU-first ordering off the same cache.
+# where picked_at is the most-recent timestamp from history.txt for
+# the row's KEY (or 0 if the KEY has never been picked), and
+# updated_epoch / last_commented_epoch are fields 6 / 7 of the cache
+# row (populated by _rlm-jira-cache's phase B per-issue fetch).
 #
-# Reads cache and history paths from the sibling helpers
-# (_rlm-jira-cache, _rlm-jira-history) so a single source of truth
-# governs where those files live.
+# This gives a single global ordering: a freshly-commented ticket can
+# outrank an old picked one, and a never-picked-but-recently-updated
+# ticket can outrank a picked-but-stale one. The 4-group priority
+# (assigned → reporter → watching → DATA-only) survives only as a
+# tiebreaker for the (extremely rare) case where two rows share a
+# sort_key.
+#
+# Output shape unchanged: one tab-delimited cache row per line in
+# final sort order. Empty stdout if no cache. Reads cache + history
+# paths from the two sibling helpers (_rlm-jira-cache, _rlm-jira-history).
+#
+# Originally inline in rlm-jira-pick (_jira_pick_sorted_list, a
+# hand-rolled "history rows first, then the rest" interleave). The
+# composite-key sort replaces that interleave: history is no longer a
+# separate tier, it's just one of three timestamps that contribute to
+# each row's sort_key.
 #
 # Usage:
 #   _rlm-jira-sorted-rows
 #       Stdin: none.
-#       Stdout: one tab-delimited cache row per line
-#               (<group>\t<KEY>\t<status>\t<summary>\t<assignee>)
-#               in final sort order. Empty stdout if no cache.
+#       Stdout: one tab-delimited 7-field cache row per line
+#               (<group>\t<KEY>\t<status>\t<summary>\t<assignee>\t<updated_epoch>\t<last_commented_epoch>)
+#               in sort_key DESC order.
 #
 # Return codes:
 #   0 — success (including the "no cache, nothing to emit" case).
@@ -36,31 +45,69 @@ local history_file=$(_rlm-jira-history path)
 
 [[ -s $cache_file ]] || return 0
 
-if [[ -s $history_file ]]; then
-  local key
-  local -a seen_keys=()
-  # Emit history entries (newest first, deduped) that still exist in
-  # the cache. Cache lines are tab-delimited; the KEY is field 2, so
-  # match against a tab-anchored substring to avoid false hits on KEYs
-  # that happen to be substrings of other KEYs (e.g. DATA-1 vs
-  # DATA-12).
-  while IFS= read -r key; do
-    [[ -z $key ]] && continue
-    [[ ${seen_keys[(Ie)$key]} -ne 0 ]] && continue
-    seen_keys+=("$key")
-    grep -m1 -F -- "	${key}	" "$cache_file" 2>/dev/null
-  done < <(tac "$history_file" 2>/dev/null || tail -r "$history_file" 2>/dev/null)
+# Ensure history is in the new TSV format before we parse it. A no-op
+# if the file is missing, empty, or already TSV. (Without this, a
+# legacy single-column history would silently parse with picked_at=0
+# for every KEY and the sort would degenerate to updated_epoch-only.)
+_rlm-jira-history read >/dev/null
 
-  # Emit remaining cache entries (those whose KEY is not in history).
-  # Build a tab-anchored key list so -F matches only the trailing KEY
-  # column (field 2 of the cache row).
-  local tmp_keys
-  tmp_keys=$(mktemp) || return 1
-  awk '!seen[$0]++ {print "\t" $0 "\t"}' "$history_file" >"$tmp_keys"
-  grep -vF -f "$tmp_keys" "$cache_file" 2>/dev/null || true
-  rm -f "$tmp_keys"
-else
-  cat -- "$cache_file"
-fi
+python3 - "$cache_file" "$history_file" <<'PY'
+import os, sys
+
+cache_path, history_path = sys.argv[1], sys.argv[2]
+
+# Build KEY → most-recent picked_at epoch from history.txt. The file
+# is appended to (oldest first, newest at the bottom), and may have
+# duplicate KEYs across appends — keep the max per KEY.
+picked_at = {}
+if os.path.exists(history_path) and os.path.getsize(history_path) > 0:
+    with open(history_path) as f:
+        for line in f:
+            line = line.rstrip("\n")
+            if not line:
+                continue
+            parts = line.split("\t", 1)
+            if len(parts) != 2:
+                continue
+            try:
+                ts = int(parts[0])
+            except ValueError:
+                continue
+            key = parts[1]
+            if ts > picked_at.get(key, 0):
+                picked_at[key] = ts
+
+rows = []
+with open(cache_path) as f:
+    for line in f:
+        line = line.rstrip("\n")
+        if not line:
+            continue
+        parts = line.split("\t")
+        if len(parts) < 7:
+            continue
+        try:
+            group_idx = int(parts[0])
+        except ValueError:
+            group_idx = 99
+        key = parts[1]
+        try:
+            updated_epoch = int(parts[5])
+        except ValueError:
+            updated_epoch = 0
+        try:
+            last_c_epoch = int(parts[6])
+        except ValueError:
+            last_c_epoch = 0
+        sort_key = max(picked_at.get(key, 0), updated_epoch, last_c_epoch)
+        rows.append((sort_key, group_idx, line))
+
+# Sort by sort_key DESC, with group_idx ASC as a deterministic tiebreak
+# (assigned wins over DATA-only for shared sort_keys — rare).
+rows.sort(key=lambda r: (-r[0], r[1]))
+
+for _, _, line in rows:
+    sys.stdout.write(line + "\n")
+PY
 
 return 0

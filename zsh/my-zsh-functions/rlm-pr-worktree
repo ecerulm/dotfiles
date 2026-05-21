@@ -316,13 +316,16 @@ if command -v acli >/dev/null 2>&1 && acli jira auth status >/dev/null 2>&1; the
   if ! _rlm-jira-cache read >/dev/null 2>&1; then
     _rlm-jira-cache refresh >/dev/null 2>&1 || true
   fi
-  # Reshape the helper's 5-field rows
-  #   <group>\t<KEY>\t<status>\t<summary>\t<assignee>
+  # Reshape the helper's 7-field rows
+  #   <group>\t<KEY>\t<status>\t<summary>\t<assignee>\t<updated_epoch>\t<last_commented_epoch>
   # into pr-worktree's expected 5-field rows
   #   JIRA\t<KEY>\t[<status>]\t<summary>\t[<assignee>]
+  # The two trailing epoch fields exist only for the composite-key
+  # sort that _rlm-jira-sorted-rows applies upstream; they don't
+  # surface in the picker's visible columns.
   jira_rows=$(
     _rlm-jira-sorted-rows 2>/dev/null \
-      | awk -F'\t' 'BEGIN{OFS="\t"} NF>=5 {print "JIRA", $2, "[" $3 "]", $4, "[" $5 "]"}'
+      | awk -F'\t' 'BEGIN{OFS="\t"} NF>=7 {print "JIRA", $2, "[" $3 "]", $4, "[" $5 "]"}'
   )
 fi
 
