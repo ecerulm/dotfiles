@@ -119,7 +119,14 @@ case $subcmd in
     local jql_data="project = DATA AND assignee != currentUser() AND (reporter is EMPTY OR reporter != currentUser()) AND (watcher != currentUser() OR watcher is EMPTY) AND ${stale} ORDER BY updated DESC"
 
     local fields="key,summary,status,assignee"
-    local limit=1500
+    # Per-group cap. Each of the four JQL queries returns at most this
+    # many rows, so the upper bound on the cache is 4 * limit (before
+    # cross-group dedupe). Kept small enough that:
+    #   - the picker stays snappy (one screenful of fzf candidates per
+    #     group, not a multi-thousand-row scroll);
+    #   - the upstream `column -t | fzf` pipe never gets large enough
+    #     to risk the SIGPIPE-into-pipefail silent-exit class of bugs.
+    local limit=70
 
     local tmp_a tmp_r tmp_w tmp_d tmp_out
     tmp_a=$(mktemp) tmp_r=$(mktemp) tmp_w=$(mktemp) tmp_d=$(mktemp) tmp_out=$(mktemp)

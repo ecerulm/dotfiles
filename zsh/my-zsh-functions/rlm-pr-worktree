@@ -332,8 +332,31 @@ if [[ -z $pr_rows && -z $jira_rows && -z $other_pr_rows ]]; then
 fi
 
 # Pretty-print into fzf using column for alignment.
+#
+# NOTE: `setopt local_options no_pipefail` inside this subshell is
+# REQUIRED. Without it, the function exits silently right after the
+# user picks an entry — the underlying mechanic is:
+#
+#   1. fzf renders the first screenful of candidates and stops
+#      reading from stdin until you scroll past what it has buffered.
+#   2. Upstream of fzf, `column -t` keeps writing into a pipe whose
+#      reader has paused. With a large input (the new 4-group JIRA
+#      cache, up to 1500 issues, vs the old 100-cap), column eventually
+#      gets SIGPIPE and dies with exit status 141.
+#   3. The function-scope `set -o pipefail` propagates that 141 out
+#      through the `$(...)` substitution. `|| return 130` then fires
+#      and the function returns silently, after the user has already
+#      picked — no vared prompt, no worktree, no error message.
+#
+# This bug was latent before the rlm-jira-cache refactor because the
+# old per-call `acli jira workitem search --limit 100` produced too
+# few rows to trigger SIGPIPE in practice. The fix is local to the
+# picker subshell; outer pipefail (which legitimately guards the jq
+# pipelines that build pr_rows / other_pr_rows / jira_rows above)
+# stays in effect.
 local selection
 selection=$(
+  setopt local_options no_pipefail
   {
     [[ -n $pr_rows       ]] && print -- "$pr_rows"
     [[ -n $jira_rows     ]] && print -- "$jira_rows"

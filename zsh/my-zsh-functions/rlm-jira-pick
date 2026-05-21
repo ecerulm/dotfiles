@@ -74,6 +74,15 @@ refresh_sentinel="--- REFRESH CACHE (cached ${cache_age}) ---"
 
 local selection
 selection=$(
+  # Disable pipefail inside this subshell only. fzf stops reading
+  # from its stdin once it has enough rows to render the first
+  # screenful; upstream writers (`_rlm-jira-sorted-rows`'s cat, the
+  # inline python3 renderer) then get SIGPIPE (exit 141) and the
+  # pipefail-aware $(...) returns 141, which makes the outer
+  # `|| return 130` fire and the function exit silently right after
+  # the user picks. local_options keeps the outer pipefail intact
+  # for the rest of the function.
+  setopt local_options no_pipefail
   {
     print -r -- "0	${refresh_sentinel}	__REFRESH__"
     _rlm-jira-sorted-rows
