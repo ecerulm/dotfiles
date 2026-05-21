@@ -1,0 +1,194 @@
+emulate -L zsh
+
+# Shared JIRA-issue cache for rlm-jira-pick, rlm-pr-worktree, and any
+# future caller that needs a list of "JIRA issues that matter to this
+# user". One file:
+#
+#   ~/.cache/rlm-jira/items.tsv
+#       One issue per line, tab-delimited, raw machine-parseable fields
+#       (no ANSI, no rendered display column — each caller adds its own):
+#
+#         <group>\t<KEY>\t<status>\t<summary>\t<assignee_display_name>
+#
+#       group: 1=assigned, 2=reporter, 3=watching, 4=DATA-only
+#       Within each group rows are kept in JQL ORDER BY updated DESC.
+#       Across groups, dedupe by KEY in priority order so an "assigned"
+#       hit always wins over a "DATA-only" hit for the same ticket.
+#
+# Refresh runs the four JQL queries in parallel via `acli jira workitem
+# search` and atomically rewrites items.tsv. The freshness gate
+# (`resolved is EMPTY OR resolved >= -60d`) is applied per query, so
+# tickets closed more than ~2 months ago drop off the list.
+#
+# Originally lived inline in rlm-jira-pick (_jira_pick_fetch and
+# _jira_pick_cache_age). Lifted into a shared helper so rlm-pr-worktree
+# can read the same cache without round-tripping to JIRA on every pick.
+#
+# Usage:
+#   _rlm-jira-cache path
+#       → "cache_path=<absolute path>\nhistory_path=<absolute path>"
+#         on stdout, suitable for `eval`. Keys are `cache_path` /
+#         `history_path` (not bare `cache` / `history`) because
+#         `history` is a read-only variable in zsh.
+#
+#   _rlm-jira-cache refresh
+#       Re-fetch the four JQL groups in parallel and atomically rewrite
+#       items.tsv. Stderr carries `jira-cache: fetching…` progress.
+#
+#   _rlm-jira-cache read
+#       Stream items.tsv to stdout (one tab-delimited row per line).
+#       Empty stdout if no cache file exists.
+#
+#   _rlm-jira-cache age
+#       Emit a humanized age of the cache file's mtime (`23s ago`,
+#       `4m ago`, `2h ago`, `3d ago`). Empty stdout if no cache file.
+#
+# Return codes:
+#   0 — success.
+#   1 — refresh failed (no usable issues in any of the four groups),
+#       read called with no cache, or unknown subcommand.
+
+setopt local_options no_monitor no_notify
+
+local cache_dir="$HOME/.cache/rlm-jira"
+local cache_file="${cache_dir}/items.tsv"
+local history_file="${cache_dir}/history.txt"
+
+local subcmd=${1:-}
+shift 2>/dev/null || true
+
+case $subcmd in
+  path)
+    # NOTE: keys are `cache_path` / `history_path` (not bare `cache` /
+    # `history`) because `history` is a read-only variable in zsh and
+    # callers `eval`-ing this output would otherwise fail with
+    # "read-only variable: history".
+    print -r -- "cache_path=${cache_file}"
+    print -r -- "history_path=${history_file}"
+    return 0
+    ;;
+
+  read)
+    [[ -s $cache_file ]] || return 1
+    cat -- "$cache_file"
+    return 0
+    ;;
+
+  age)
+    [[ -s $cache_file ]] || return 1
+    local mtime now elapsed
+    mtime=$(stat -f %m "$cache_file" 2>/dev/null || stat -c %Y "$cache_file" 2>/dev/null)
+    now=$(date +%s)
+    elapsed=$(( now - mtime ))
+    if (( elapsed < 60 )); then
+      print -r -- "${elapsed}s ago"
+    elif (( elapsed < 3600 )); then
+      print -r -- "$(( elapsed / 60 ))m ago"
+    elif (( elapsed < 86400 )); then
+      print -r -- "$(( elapsed / 3600 ))h ago"
+    else
+      print -r -- "$(( elapsed / 86400 ))d ago"
+    fi
+    return 0
+    ;;
+
+  refresh)
+    if ! command -v acli >/dev/null 2>&1; then
+      print -u2 -r -- "jira-cache: 'acli' not found in PATH"
+      return 1
+    fi
+    if ! command -v python3 >/dev/null 2>&1; then
+      print -u2 -r -- "jira-cache: 'python3' not found in PATH"
+      return 1
+    fi
+    if ! acli jira auth status >/dev/null 2>&1; then
+      print -u2 -r -- "jira-cache: acli is not authenticated (run: acli jira auth login --web)"
+      return 1
+    fi
+
+    mkdir -p "$cache_dir"
+
+    print -u2 -r -- "jira-cache: fetching…"
+
+    # Hide issues resolved more than ~2 months ago. Unresolved issues
+    # (resolved is EMPTY) always pass.
+    local stale='(resolved is EMPTY OR resolved >= -60d)'
+    local jql_assigned="assignee = currentUser() AND ${stale} ORDER BY updated DESC"
+    local jql_reporter="reporter = currentUser() AND assignee != currentUser() AND ${stale} ORDER BY updated DESC"
+    local jql_watching="watcher = currentUser() AND assignee != currentUser() AND (reporter is EMPTY OR reporter != currentUser()) AND ${stale} ORDER BY updated DESC"
+    local jql_data="project = DATA AND assignee != currentUser() AND (reporter is EMPTY OR reporter != currentUser()) AND (watcher != currentUser() OR watcher is EMPTY) AND ${stale} ORDER BY updated DESC"
+
+    local fields="key,summary,status,assignee"
+    local limit=1500
+
+    local tmp_a tmp_r tmp_w tmp_d tmp_out
+    tmp_a=$(mktemp) tmp_r=$(mktemp) tmp_w=$(mktemp) tmp_d=$(mktemp) tmp_out=$(mktemp)
+    # shellcheck disable=SC2064
+    trap "rm -f '$tmp_a' '$tmp_r' '$tmp_w' '$tmp_d' '$tmp_out'" EXIT
+
+    acli jira workitem search --jql "$jql_assigned" --fields "$fields" --limit "$limit" --json >"$tmp_a" 2>/dev/null &
+    local pid_a=$!
+    acli jira workitem search --jql "$jql_reporter" --fields "$fields" --limit "$limit" --json >"$tmp_r" 2>/dev/null &
+    local pid_r=$!
+    acli jira workitem search --jql "$jql_watching" --fields "$fields" --limit "$limit" --json >"$tmp_w" 2>/dev/null &
+    local pid_w=$!
+    acli jira workitem search --jql "$jql_data" --fields "$fields" --limit "$limit" --json >"$tmp_d" 2>/dev/null &
+    local pid_d=$!
+
+    wait $pid_a $pid_r $pid_w $pid_d
+
+    python3 - "$tmp_a" "$tmp_r" "$tmp_w" "$tmp_d" >"$tmp_out" <<'PY'
+import json, sys, os
+
+def load(path):
+    if not os.path.exists(path) or os.path.getsize(path) == 0:
+        return []
+    try:
+        with open(path) as f:
+            data = json.load(f)
+        return data or []
+    except Exception:
+        return []
+
+paths = sys.argv[1:5]
+seen = set()
+emitted = 0
+for group_idx, path in enumerate(paths, start=1):
+    issues = load(path)
+    for it in issues:
+        key = it.get("key", "")
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        fields = it.get("fields") or {}
+        summary = (fields.get("summary") or "").replace("\t", " ").replace("\n", " ")
+        status_obj = fields.get("status") or {}
+        status = (status_obj.get("name") or "").replace("\t", " ")
+        assignee_obj = fields.get("assignee") or {}
+        assignee = (assignee_obj.get("displayName") or "unassigned").replace("\t", " ")
+        sys.stdout.write(f"{group_idx}\t{key}\t{status}\t{summary}\t{assignee}\n")
+        emitted += 1
+sys.exit(0 if emitted > 0 else 1)
+PY
+    local py_rc=$?
+
+    if (( py_rc != 0 )) || [[ ! -s $tmp_out ]]; then
+      trap - EXIT
+      rm -f "$tmp_a" "$tmp_r" "$tmp_w" "$tmp_d" "$tmp_out"
+      print -u2 -r -- "jira-cache: refresh produced no rows"
+      return 1
+    fi
+
+    # Atomic rewrite — mv on the same filesystem is the canonical move.
+    mv -- "$tmp_out" "$cache_file"
+
+    trap - EXIT
+    rm -f "$tmp_a" "$tmp_r" "$tmp_w" "$tmp_d"
+    return 0
+    ;;
+
+  *)
+    print -u2 -r -- "jira-cache: unknown subcommand '${subcmd}' (want: path|refresh|read|age)"
+    return 1
+    ;;
+esac

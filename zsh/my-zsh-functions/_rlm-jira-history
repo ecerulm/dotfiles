@@ -1,0 +1,85 @@
+emulate -L zsh
+
+# Shared MRU history for JIRA-issue pickers. One file:
+#
+#   ~/.cache/rlm-jira/history.txt
+#       One JIRA KEY per line, oldest first, newest at the bottom.
+#       Capped at 1000 lines. Callers append on every successful pick
+#       (both rlm-jira-pick and rlm-pr-worktree do); the entries float
+#       previously-picked issues to the top of the next picker via
+#       _rlm-jira-sorted-rows.
+#
+# Originally inline in rlm-jira-pick (the `print -r -- $key >>` /
+# `tail -1000` block at rlm-jira-pick:228–230). Lifted into a shared
+# helper so a JIRA pick made from rlm-pr-worktree influences the
+# rlm-jira-pick picker on the next invocation, and vice versa.
+#
+# Usage:
+#   _rlm-jira-history path
+#       → "<absolute path>" on stdout.
+#
+#   _rlm-jira-history append <KEY>
+#       Append KEY to the history file (creating it / its parent dir
+#       on first use), then re-cap to the newest 1000 lines via a
+#       tail-then-replace dance (same pattern as rlm-jira-pick:228–230).
+#
+#   _rlm-jira-history read
+#       Stream the history file back as-is (oldest first). Empty stdout
+#       if no history exists.
+#
+#   _rlm-jira-history migrate-legacy
+#       One-shot, idempotent: if ~/.cache/jira-pick/history.txt exists
+#       and ~/.cache/rlm-jira/history.txt does not yet, copy the legacy
+#       file to the new path so an existing user's MRU survives the
+#       refactor. The legacy file is NOT deleted (matches the
+#       _rlm-bq-history / _rlm-dbt-history convention).
+#
+# Return codes:
+#   0 — success.
+#   1 — append called with no KEY, or unknown subcommand.
+
+local cache_dir="$HOME/.cache/rlm-jira"
+local history_file="${cache_dir}/history.txt"
+local legacy_history="$HOME/.cache/jira-pick/history.txt"
+
+local subcmd=${1:-}
+shift 2>/dev/null || true
+
+case $subcmd in
+  path)
+    print -r -- "$history_file"
+    return 0
+    ;;
+
+  read)
+    [[ -s $history_file ]] || return 0
+    cat -- "$history_file"
+    return 0
+    ;;
+
+  append)
+    local key=${1:-}
+    if [[ -z $key ]]; then
+      print -u2 -r -- "jira-history: append requires a KEY"
+      return 1
+    fi
+    mkdir -p "$cache_dir"
+    print -r -- "$key" >>"$history_file"
+    local capped
+    capped=$(tail -1000 "$history_file") && print -r -- "$capped" >|"$history_file"
+    return 0
+    ;;
+
+  migrate-legacy)
+    if [[ -s $legacy_history && ! -e $history_file ]]; then
+      mkdir -p "$cache_dir"
+      cp -- "$legacy_history" "$history_file"
+    fi
+    return 0
+    ;;
+
+  *)
+    print -u2 -r -- "jira-history: unknown subcommand '${subcmd}' (want: path|append|read|migrate-legacy)"
+    return 1
+    ;;
+esac

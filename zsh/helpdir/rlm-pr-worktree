@@ -6,8 +6,14 @@ in this order:
 
   1. GitHub PRs in the current repo that involve you (opened,
      commented, reviewed, assigned, mentioned).
-  2. Your open JIRA issues (assignee/reporter/watcher, not Done) via
-     acli. Skipped silently if acli is missing or unauthenticated.
+  2. JIRA issues that matter to you, served off the shared
+     ~/.cache/rlm-jira/items.tsv cache (assigned -> reporter ->
+     watching -> DATA-only, with previously-picked tickets floating
+     to the top via the shared MRU history at
+     ~/.cache/rlm-jira/history.txt). The cache is populated on the
+     first call to either rlm-pr-worktree or rlm-jira-pick; to force
+     a refresh, run rlm-jira-pick and pick the REFRESH sentinel.
+     Skipped silently if acli is missing or unauthenticated.
   3. Other open PRs in the repo that don't involve you, so you can
      pick up a teammate's PR for local review.
 

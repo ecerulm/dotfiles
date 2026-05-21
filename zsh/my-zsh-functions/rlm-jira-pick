@@ -17,6 +17,12 @@ for _cmd in acli fzf python3; do
 done
 unset _cmd
 
+autoload -Uz _rlm-jira-cache _rlm-jira-history _rlm-jira-sorted-rows
+
+# Migrate legacy ~/.cache/jira-pick/history.txt → ~/.cache/rlm-jira/history.txt
+# (one-shot, idempotent — does nothing if the new file already exists).
+_rlm-jira-history migrate-legacy
+
 # ---------------------------------------------------------------------------
 # Ensure acli is authenticated (run every invocation, per user request)
 # ---------------------------------------------------------------------------
@@ -30,60 +36,56 @@ if ! acli jira auth status >/dev/null 2>&1; then
 fi
 
 # ---------------------------------------------------------------------------
-# Cache + history setup
+# Cache + history paths (resolved from the shared helpers)
 # ---------------------------------------------------------------------------
 
-local cache_dir="$HOME/.cache/jira-pick"
-mkdir -p "$cache_dir"
-local cache_file="${cache_dir}/items.tsv"
-local history_file="${cache_dir}/history.txt"
+local cache_path history_path
+eval "$(_rlm-jira-cache path)"
+local cache_file=$cache_path
+local history_file=$history_path
 
-# Fetch all four groups and emit lines:
+# ---------------------------------------------------------------------------
+# Refresh cache if missing
+# ---------------------------------------------------------------------------
+
+if ! _rlm-jira-cache read >/dev/null 2>&1; then
+  _rlm-jira-cache refresh || {
+    print -u2 -r -- "jira-pick: failed to fetch any issues"
+    return 1
+  }
+fi
+
+local cache_age refresh_sentinel
+cache_age=$(_rlm-jira-cache age)
+refresh_sentinel="--- REFRESH CACHE (cached ${cache_age}) ---"
+
+# ---------------------------------------------------------------------------
+# fzf picker
+# ---------------------------------------------------------------------------
+#
+# Cache rows from _rlm-jira-sorted-rows are tab-delimited:
+#   <group>\t<KEY>\t<status>\t<summary>\t<assignee>
+# fzf expects:
 #   <group>\t<colored-display>\t<KEY>
-# group: 1=assigned, 2=reporter, 3=watching, 4=DATA-only
-# Within each group the input order is preserved (JQL = ORDER BY updated DESC).
-_jira_pick_fetch() {
-  # Hide issues resolved more than 2 months ago. Unresolved issues
-  # (resolved is EMPTY) always pass.
-  local stale='(resolved is EMPTY OR resolved >= -60d)'
-  local jql_assigned="assignee = currentUser() AND ${stale} ORDER BY updated DESC"
-  local jql_reporter="reporter = currentUser() AND assignee != currentUser() AND ${stale} ORDER BY updated DESC"
-  local jql_watching="watcher = currentUser() AND assignee != currentUser() AND (reporter is EMPTY OR reporter != currentUser()) AND ${stale} ORDER BY updated DESC"
-  local jql_data="project = DATA AND assignee != currentUser() AND (reporter is EMPTY OR reporter != currentUser()) AND (watcher != currentUser() OR watcher is EMPTY) AND ${stale} ORDER BY updated DESC"
+# A small python3 renderer prepends the colored display column. The
+# refresh sentinel is emitted directly in the already-rendered shape
+# (group == 0, KEY == __REFRESH__) BEFORE the renderer pipe, so we
+# also pass it through the renderer's "passthrough" branch.
 
-  local fields="key,summary,status"
-  # Per-group limit. assigned/reporter/watching are bounded by what the user
-  # personally touches; DATA-only is the large bucket. 1500 covers the active
-  # working set; older DATA tickets are findable via the JIRA web UI.
-  local limit=1500
+local selection
+selection=$(
+  {
+    print -r -- "0	${refresh_sentinel}	__REFRESH__"
+    _rlm-jira-sorted-rows
+  } \
+  | python3 -c '
+import sys
 
-  local tmp_a tmp_r tmp_w tmp_d
-  tmp_a=$(mktemp) tmp_r=$(mktemp) tmp_w=$(mktemp) tmp_d=$(mktemp)
-  # shellcheck disable=SC2064
-  trap "rm -f '$tmp_a' '$tmp_r' '$tmp_w' '$tmp_d'" EXIT
-
-  acli jira workitem search --jql "$jql_assigned" --fields "$fields" --limit "$limit" --json >"$tmp_a" 2>/dev/null &
-  local pid_a=$!
-  acli jira workitem search --jql "$jql_reporter" --fields "$fields" --limit "$limit" --json >"$tmp_r" 2>/dev/null &
-  local pid_r=$!
-  acli jira workitem search --jql "$jql_watching" --fields "$fields" --limit "$limit" --json >"$tmp_w" 2>/dev/null &
-  local pid_w=$!
-  acli jira workitem search --jql "$jql_data" --fields "$fields" --limit "$limit" --json >"$tmp_d" 2>/dev/null &
-  local pid_d=$!
-
-  wait $pid_a $pid_r $pid_w $pid_d
-
-  python3 - "$tmp_a" "$tmp_r" "$tmp_w" "$tmp_d" >"$cache_file" <<'PY'
-import json, sys, os
-
-# ANSI colors
 RESET   = "\x1b[0m"
-DIM     = "\x1b[2m"
 YELLOW  = "\x1b[33m"
 GREEN   = "\x1b[32m"
 CYAN    = "\x1b[36m"
 MAGENTA = "\x1b[35m"
-BLUE    = "\x1b[34m"
 GRAY    = "\x1b[90m"
 BOLD    = "\x1b[1m"
 
@@ -94,108 +96,30 @@ GROUP_LABEL = {
     4: f"{BOLD}{MAGENTA}DATA    {RESET}",
 }
 
-def load(path):
-    if not os.path.exists(path) or os.path.getsize(path) == 0:
-        return []
+for line in sys.stdin:
+    line = line.rstrip("\n")
+    if not line:
+        continue
+    parts = line.split("\t")
+    # Passthrough: already-rendered lines (group != 1..4, including the
+    # refresh sentinel) carry the shape <group>\t<display>\t<KEY> and
+    # are emitted unchanged.
+    if len(parts) < 5:
+        sys.stdout.write(line + "\n")
+        continue
+    group_str, key, status, summary = parts[0], parts[1], parts[2], parts[3]
     try:
-        with open(path) as f:
-            data = json.load(f)
-        return data or []
-    except Exception:
-        return []
-
-paths = sys.argv[1:5]
-seen = set()
-for group_idx, path in enumerate(paths, start=1):
-    issues = load(path)
-    for it in issues:
-        key = it.get("key", "")
-        if not key or key in seen:
-            continue
-        seen.add(key)
-        fields = it.get("fields") or {}
-        summary = (fields.get("summary") or "").replace("\t", " ").replace("\n", " ")
-        status_obj = fields.get("status") or {}
-        status = (status_obj.get("name") or "").replace("\t", " ")
-        # Status colored gray to keep visual weight on key + summary
-        line_disp = f"{GROUP_LABEL[group_idx]}  {BOLD}{key:<14}{RESET} {GRAY}[{status}]{RESET} {summary}"
-        sys.stdout.write(f"{group_idx}\t{line_disp}\t{key}\n")
-PY
-
-  trap - EXIT
-  rm -f "$tmp_a" "$tmp_r" "$tmp_w" "$tmp_d"
-
-  [[ -s $cache_file ]]
-}
-
-# Compute cache age for refresh sentinel
-_jira_pick_cache_age() {
-  local mtime now elapsed
-  mtime=$(stat -f %m "$cache_file" 2>/dev/null || stat -c %Y "$cache_file" 2>/dev/null)
-  now=$(date +%s)
-  elapsed=$(( now - mtime ))
-  if (( elapsed < 60 )); then
-    print -r -- "${elapsed}s ago"
-  elif (( elapsed < 3600 )); then
-    print -r -- "$(( elapsed / 60 ))m ago"
-  elif (( elapsed < 86400 )); then
-    print -r -- "$(( elapsed / 3600 ))h ago"
-  else
-    print -r -- "$(( elapsed / 86400 ))d ago"
-  fi
-}
-
-# Sorted list: history-matching entries first (MRU), then the rest in cache order
-# (cache is already group-then-updated DESC).
-# Cache lines are tab-delimited: <group>\t<display>\t<KEY>.  History stores KEY only.
-_jira_pick_sorted_list() {
-  if [[ -s $history_file ]]; then
-    local key seen_keys=()
-    # Emit history entries (newest first, deduped) that still exist in the cache.
-    while IFS= read -r key; do
-      [[ -z $key ]] && continue
-      [[ ${seen_keys[(Ie)$key]} -ne 0 ]] && continue
-      seen_keys+=("$key")
-      grep -m1 -F -- "	${key}" "$cache_file" 2>/dev/null
-    done < <(tac "$history_file" 2>/dev/null || tail -r "$history_file" 2>/dev/null)
-    # Emit remaining cache entries (those whose key is not in history).
-    # Build a tab-prefixed key list so -F matches only the trailing key column.
-    local tmp_keys
-    tmp_keys=$(mktemp) || return 1
-    awk '!seen[$0]++ {print "\t" $0}' "$history_file" >"$tmp_keys"
-    grep -vF -f "$tmp_keys" "$cache_file" 2>/dev/null || true
-    rm -f "$tmp_keys"
-  else
-    cat "$cache_file"
-  fi
-}
-
-# ---------------------------------------------------------------------------
-# Refresh cache if missing
-# ---------------------------------------------------------------------------
-
-if [[ ! -s $cache_file ]]; then
-  print -u2 -r -- "jira-pick: fetching JIRA issues…"
-  _jira_pick_fetch || {
-    print -u2 -r -- "jira-pick: failed to fetch any issues"
-    return 1
-  }
-fi
-
-local cache_age refresh_sentinel
-cache_age=$(_jira_pick_cache_age)
-refresh_sentinel="--- REFRESH CACHE (cached ${cache_age}) ---"
-
-# ---------------------------------------------------------------------------
-# fzf picker
-# ---------------------------------------------------------------------------
-
-local selection
-selection=$(
-  {
-    print -r -- "0	${refresh_sentinel}	__REFRESH__"
-    _jira_pick_sorted_list
-  } \
+        group_idx = int(group_str)
+    except ValueError:
+        sys.stdout.write(line + "\n")
+        continue
+    if group_idx not in GROUP_LABEL:
+        sys.stdout.write(line + "\n")
+        continue
+    label = GROUP_LABEL[group_idx]
+    display = f"{label}  {BOLD}{key:<14}{RESET} {GRAY}[{status}]{RESET} {summary}"
+    sys.stdout.write(f"{group_idx}\t{display}\t{key}\n")
+' \
   | fzf \
       --no-mouse \
       --ansi \
@@ -215,8 +139,7 @@ selection=$(
 local key=${selection##*$'\t'}
 
 if [[ $key == "__REFRESH__" ]]; then
-  rm -f "$cache_file"
-  _jira_pick_fetch || {
+  _rlm-jira-cache refresh || {
     print -u2 -r -- "jira-pick: failed to refresh"
     return 1
   }
@@ -224,10 +147,8 @@ if [[ $key == "__REFRESH__" ]]; then
   return $?
 fi
 
-# Record selection in history (cap at 1000 lines)
-print -r -- "$key" >>"$history_file"
-local _tmp_hist
-_tmp_hist=$(tail -1000 "$history_file") && print -r -- "$_tmp_hist" >|"$history_file"
+# Record selection in shared MRU history (cap at 1000 lines)
+_rlm-jira-history append "$key"
 
 local url="https://storytel.atlassian.net/browse/${key}"
 print -r -- "Opening ${key} — ${url}"

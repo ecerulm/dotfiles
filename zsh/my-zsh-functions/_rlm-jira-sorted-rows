@@ -1,0 +1,66 @@
+emulate -L zsh
+
+# Emit JIRA cache rows in MRU-then-cache order:
+#
+#   1. History entries (newest first, deduped) whose KEY still exists
+#      in the cache — these float to the top so previously-picked
+#      issues are easy to re-find.
+#   2. The remaining cache rows in their stored order (group priority
+#      → JQL ORDER BY updated DESC), with no entry in history.
+#
+# Originally inline in rlm-jira-pick (_jira_pick_sorted_list at
+# rlm-jira-pick:151–171). Lifted into a shared helper so every JIRA
+# picker — rlm-jira-pick, rlm-pr-worktree, and any future caller —
+# sees the same MRU-first ordering off the same cache.
+#
+# Reads cache and history paths from the sibling helpers
+# (_rlm-jira-cache, _rlm-jira-history) so a single source of truth
+# governs where those files live.
+#
+# Usage:
+#   _rlm-jira-sorted-rows
+#       Stdin: none.
+#       Stdout: one tab-delimited cache row per line
+#               (<group>\t<KEY>\t<status>\t<summary>\t<assignee>)
+#               in final sort order. Empty stdout if no cache.
+#
+# Return codes:
+#   0 — success (including the "no cache, nothing to emit" case).
+
+autoload -Uz _rlm-jira-cache _rlm-jira-history
+
+local cache_path history_path
+eval "$(_rlm-jira-cache path)"
+local cache_file=$cache_path
+local history_file=$(_rlm-jira-history path)
+
+[[ -s $cache_file ]] || return 0
+
+if [[ -s $history_file ]]; then
+  local key
+  local -a seen_keys=()
+  # Emit history entries (newest first, deduped) that still exist in
+  # the cache. Cache lines are tab-delimited; the KEY is field 2, so
+  # match against a tab-anchored substring to avoid false hits on KEYs
+  # that happen to be substrings of other KEYs (e.g. DATA-1 vs
+  # DATA-12).
+  while IFS= read -r key; do
+    [[ -z $key ]] && continue
+    [[ ${seen_keys[(Ie)$key]} -ne 0 ]] && continue
+    seen_keys+=("$key")
+    grep -m1 -F -- "	${key}	" "$cache_file" 2>/dev/null
+  done < <(tac "$history_file" 2>/dev/null || tail -r "$history_file" 2>/dev/null)
+
+  # Emit remaining cache entries (those whose KEY is not in history).
+  # Build a tab-anchored key list so -F matches only the trailing KEY
+  # column (field 2 of the cache row).
+  local tmp_keys
+  tmp_keys=$(mktemp) || return 1
+  awk '!seen[$0]++ {print "\t" $0 "\t"}' "$history_file" >"$tmp_keys"
+  grep -vF -f "$tmp_keys" "$cache_file" 2>/dev/null || true
+  rm -f "$tmp_keys"
+else
+  cat -- "$cache_file"
+fi
+
+return 0

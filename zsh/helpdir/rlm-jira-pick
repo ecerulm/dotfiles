@@ -45,8 +45,15 @@ KEY BINDINGS
   Escape     Cancel
 
 CACHE
-  ~/.cache/jira-pick/items.tsv    fetched issue list (tab-delimited)
-  ~/.cache/jira-pick/history.txt  MRU picks (one KEY per line)
+  ~/.cache/rlm-jira/items.tsv    fetched issue list (tab-delimited);
+                                 shared with rlm-pr-worktree.
+  ~/.cache/rlm-jira/history.txt  MRU picks (one KEY per line); a pick
+                                 made in rlm-pr-worktree also bumps
+                                 entries here, and vice versa.
+
+  On first run after the refactor, an existing
+  ~/.cache/jira-pick/history.txt is copied to the new path (the legacy
+  file is not deleted).
 
 REQUIRES
   acli, fzf, python3, open (macOS) or xdg-open (Linux).

@@ -4,8 +4,13 @@
 # Sources (current repo only), shown in this order in the picker:
 #   1. GitHub PRs where you opened/commented/reviewed/were assigned/were
 #      mentioned (gh search prs --involves=@me).
-#   2. Your open JIRA issues (assignee/reporter/watcher, not Done) via
-#      acli. Skipped silently if acli is missing or unauthenticated.
+#   2. JIRA issues that matter to you, via the shared
+#      ~/.cache/rlm-jira/ cache (assigned -> reporter -> watching ->
+#      DATA-only, with previously-picked tickets floating to the top).
+#      The cache is populated on first call to either rlm-jira-pick or
+#      rlm-pr-worktree; to force a refresh, run rlm-jira-pick and pick
+#      the REFRESH sentinel. Skipped silently if acli is missing or
+#      unauthenticated.
 #   3. Other open PRs in the repo that don't involve you, so you can pick
 #      up a teammate's PR to review locally.
 #
@@ -38,6 +43,8 @@ for cmd in gh git fzf; do
     return 1
   fi
 done
+
+autoload -Uz _rlm-jira-cache _rlm-jira-history _rlm-jira-sorted-rows
 
 local repo_root repo_slug repo_name
 repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || {
@@ -304,22 +311,19 @@ other_pr_rows=$(
     ' 2>/dev/null
 )
 
-if command -v acli >/dev/null 2>&1; then
-  if acli auth status >/dev/null 2>&1; then
-    jira_rows=$(
-      acli jira workitem search \
-        --jql '(assignee = currentUser() OR reporter = currentUser() OR watcher = currentUser()) AND statusCategory != Done ORDER BY updated DESC' \
-        --fields 'key,summary,status,assignee' \
-        --limit 100 \
-        --json 2>/dev/null \
-      | jq -r '
-          (.. | objects | select(has("key") and has("fields")?)) as $i |
-          "JIRA\t\($i.key)\t[\($i.fields.status.name // "?")]\t\($i.fields.summary // "")\t[\($i.fields.assignee.displayName // "unassigned")]"
-        ' 2>/dev/null
-    )
-  else
-    print -u2 "pr-worktree: acli is not authenticated (run: acli auth login) — skipping JIRA"
+if command -v acli >/dev/null 2>&1 && acli jira auth status >/dev/null 2>&1; then
+  # Ensure the shared JIRA cache exists; refresh once on cold cache.
+  if ! _rlm-jira-cache read >/dev/null 2>&1; then
+    _rlm-jira-cache refresh >/dev/null 2>&1 || true
   fi
+  # Reshape the helper's 5-field rows
+  #   <group>\t<KEY>\t<status>\t<summary>\t<assignee>
+  # into pr-worktree's expected 5-field rows
+  #   JIRA\t<KEY>\t[<status>]\t<summary>\t[<assignee>]
+  jira_rows=$(
+    _rlm-jira-sorted-rows 2>/dev/null \
+      | awk -F'\t' 'BEGIN{OFS="\t"} NF>=5 {print "JIRA", $2, "[" $3 "]", $4, "[" $5 "]"}'
+  )
 fi
 
 if [[ -z $pr_rows && -z $jira_rows && -z $other_pr_rows ]]; then
@@ -363,11 +367,16 @@ case $kind in
     _prwt_make_pr_worktree "$pr_number"
     ;;
   JIRA)
-    local key
+    local key jira_rc
     key=$(print -- "$selection" | awk '{print $2}')
     key=${key:u}
     _prwt_prompt_suffix "$key"
     _prwt_make_jira_worktree "$key" "$_prwt_suffix_out"
+    jira_rc=$?
+    if [[ $jira_rc -eq 0 ]]; then
+      _rlm-jira-history append "$key" >/dev/null 2>&1 || true
+    fi
+    return $jira_rc
     ;;
   *)
     print -u2 "pr-worktree: could not parse selection: $selection"
