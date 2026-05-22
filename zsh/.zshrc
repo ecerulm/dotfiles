@@ -1,178 +1,45 @@
-# This is only runs for interactive shells
-# login shells are also interactive shells
-# make  and other programs that open shells won't source this
+# Sourced by interactive shells (incl. login shells). Non-interactive
+# shells launched by make / scripts / editors do NOT source this — put
+# environment-only state in .zshenv instead.
 #
-#
-# This is where you define aliases, functions, shell options, keybindings, etc
-#
+# This is where you define aliases, functions, shell options, keybindings.
 
+# Homebrew prefix is hardcoded — avoids 4× `brew --prefix` subshells at
+# startup (~50ms each). Apple Silicon uses /opt/homebrew; Intel Macs use
+# /usr/local. Override per-machine in .zshrc.thismachine if needed.
+HOMEBREW_PREFIX=/opt/homebrew
 
-# # Enable Powerlevel10k instant prompt. Should stay close to the top of ~/dotfiles/zsh/.zshrc.
-# # Initialization code that may require console input (password prompts, [y/n]
-# # confirmations, etc.) must go above this block; everything else may go below.
-# if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
-#   source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
-# fi
+# Homebrew bin: kept in .zshrc (not .zshenv) so non-interactive shells
+# spawned by make/scripts use the system tools by default. typeset -U in
+# .zshenv keeps repeated path+= calls below idempotent.
+path+=($HOMEBREW_PREFIX/bin)
 
-# If you come from bash you might have to change your $PATH.
-# export PATH=$HOME/bin:/usr/local/bin:$PATH
-# You don't want the homebrew versions to override the default system ones
-# when you run shells from make, etc (otherwise you would have put this in .zshenv)
-path+=(/opt/homebrew/bin)
-RUBY_HOME=$(brew --prefix ruby)
-if [[ -d "$RUBY_HOME/bin" ]]; then
-	path=("$RUBY_HOME/bin" $path)
+# Ruby (brew) + gems — gives us `pod` etc.
+[[ -d "$HOMEBREW_PREFIX/opt/ruby/bin" ]] && path=("$HOMEBREW_PREFIX/opt/ruby/bin" $path)
+if (( $+commands[gem] )); then
+	_gem_home=$(gem env home)
+	[[ -d "$_gem_home/bin" ]] && path=("$_gem_home/bin" $path)
+	unset _gem_home
 fi
 
-GEM_HOME=$(gem env home)
-if [[ -d "$GEM_HOME/bin" ]]; then
-	# so that we can get cocoapods command `pod`
-	path=("$GEM_HOME/bin" $path)
-	# which pod
-fi
+# Postgres client (libpq)
+[[ -d "$HOMEBREW_PREFIX/opt/libpq/bin" ]] && path=("$HOMEBREW_PREFIX/opt/libpq/bin" $path)
 
-PSQL_HOME=$(brew --prefix libpq)
-if [[ -d "${PSQL_HOME}/bin" ]]; then
-	path=("${PSQL_HOME}/bin" $path)
-fi
-
-# Path to your oh-my-zsh installation.
-# export ZSH="$HOME/.oh-my-zsh"
-
-# Set name of the theme to load --- if set to "random", it will
-# load a random theme each time oh-my-zsh is loaded, in which case,
-# to know which specific one was loaded, run: echo $RANDOM_THEME
-# See https://github.com/ohmyzsh/ohmyzsh/wiki/Themes
-# ZSH_THEME="robbyrussell"
-# ZSH_THEME="powerlevel10k/powerlevel10k"
-
-# Set list of themes to pick from when loading at random
-# Setting this variable when ZSH_THEME=random will cause zsh to load
-# a theme from this variable instead of looking in $ZSH/themes/
-# If set to an empty array, this variable will have no effect.
-# ZSH_THEME_RANDOM_CANDIDATES=( "robbyrussell" "agnoster" )
-
-# Uncomment the following line to use case-sensitive completion.
-# CASE_SENSITIVE="true"
-
-# Uncomment the following line to use hyphen-insensitive completion.
-# Case-sensitive completion must be off. _ and - will be interchangeable.
-# HYPHEN_INSENSITIVE="true"
-
-# Uncomment one of the following lines to change the auto-update behavior
-# zstyle ':omz:update' mode disabled  # disable automatic updates
-# zstyle ':omz:update' mode auto      # update automatically without asking
-# zstyle ':omz:update' mode reminder  # just remind me to update when it's time
-
-# Uncomment the following line to change how often to auto-update (in days).
-# zstyle ':omz:update' frequency 13
-
-# Uncomment the following line if pasting URLs and other text is messed up.
-# DISABLE_MAGIC_FUNCTIONS="true"
-
-# Uncomment the following line to disable colors in ls.
-# DISABLE_LS_COLORS="true"
-
-# Uncomment the following line to disable auto-setting terminal title.
-# DISABLE_AUTO_TITLE="true"
-
-# Uncomment the following line to enable command auto-correction.
-# ENABLE_CORRECTION="true"
-
-# Uncomment the following line to display red dots whilst waiting for completion.
-# You can also set it to another string to have that shown instead of the default red dots.
-# e.g. COMPLETION_WAITING_DOTS="%F{yellow}waiting...%f"
-# Caution: this setting can cause issues with multiline prompts in zsh < 5.7.1 (see #5765)
-# COMPLETION_WAITING_DOTS="true"
-
-# Uncomment the following line if you want to disable marking untracked files
-# under VCS as dirty. This makes repository status check for large repositories
-# much, much faster.
-# DISABLE_UNTRACKED_FILES_DIRTY="true"
-
-# Uncomment the following line if you want to change the command execution time
-# stamp shown in the history command output.
-# You can set one of the optional three formats:
-# "mm/dd/yyyy"|"dd.mm.yyyy"|"yyyy-mm-dd"
-# or set a custom format using the strftime function format specifications,
-# see 'man strftime' for details.
 HIST_STAMPS="yyyy-mm-dd"
-
-# Would you like to use another custom folder than $ZSH/custom?
-# ZSH_CUSTOM=/path/to/new-custom-folder
-
-# Which plugins would you like to load?
-# Standard plugins can be found in $ZSH/plugins/
-# Custom plugins may be added to $ZSH_CUSTOM/plugins/
-# Example format: plugins=(rails git textmate ruby lighthouse)
-# Add wisely, as too many plugins slow down shell startup.
-path+=(/opt/homebrew/bin)
-plugins=(macos direnv) # for oh-my-zsh only
-
 
 # direnv will load the .envrc file on cd
 eval "$(direnv hook zsh)"
 
 
-
-
-
-# HISTORY_IGNORE="(#i)(ls*|pwd*|*password*|s *)"
-
-# zshaddhistory() {
-#   emulate -L zsh
-#   setopt LOCAL_OPTIONS
-#   setopt EXTENDED_GLOB
-#   unsetopt CASE_MATCH
-#   COMMAND=${1[1,-2]}
-#   PATTERN='^(ls|pwd|s|.*password.*)$'
-#   # ! [[ ${COMMAND} =~ ${PATTERN} ]] && echo "$COMMAND will be added to history" || echo "$COMMAND will not be added to history"
-#   ! [[ ${COMMAND} =~ ${PATTERN} ]]
-
-# }
-
-
-# if file exists then
-[[ -f "$ZSH/oh-my-zsh.sh" ]] && source "$ZSH/oh-my-zsh.sh"
-
-# history file
-# INC_APPEND_HISTORY_TIME,  INC_APPEND_HISTORY and SHARE_HISTORY should be considered mutually exclusive.
-# HISTFILE="$HOME/.zsh_history" # the default is set on /etc/zshrc
+# History — SHARE_HISTORY implies INC_APPEND_HISTORY and is mutually
+# exclusive with APPEND_HISTORY / INC_APPEND_HISTORY_TIME (zsh enforces
+# this), so an explicit `setopt SHARE_HISTORY` is all we need.
 HISTSIZE=10000000
 SAVEHIST=10000000
-unsetopt APPEND_HISTORY # https://zsh.sourceforge.io/Doc/Release/Options.html
-unsetopt INC_APPEND_HISTORY
-unsetopt INC_APPEND_HISTORY_TIME
-unsetopt SHARE_HISTORY
+setopt SHARE_HISTORY
 
-setopt SHARE_HISTORY # appends to history inmmediately, history is automatically read as well
-
-# User configuration
-
-# export MANPATH="/usr/local/man:$MANPATH"
-
-# You may need to manually set your language environment
-# export LANG=en_US.UTF-8
-
-# Preferred editor for local and remote sessions
-if [[ -n $SSH_CONNECTION ]]; then
-  export EDITOR='nvim'
-else
-  export EDITOR='nvim'
-fi
-
-# Compilation flags
-# export ARCHFLAGS="-arch x86_64"
-
-# Set personal aliases, overriding those provided by oh-my-zsh libs,
-# plugins, and themes. Aliases can be placed here, though oh-my-zsh
-# users are encouraged to define aliases within the ZSH_CUSTOM folder.
-# For a full list of active aliases, run `alias`.
-#
-# Example aliases
 alias rlm-zshconfig="nvim $ZDOTDIR/.zshrc"
 alias zshconfig='rlm-zshconfig'
-# alias ohmyzsh="mate ~/.oh-my-zsh"
 
 # To customize prompt, run `p10k configure` or edit ~/dotfiles/zsh/.p10k.zsh.
 [[ ! -f ~/dotfiles/zsh/.p10k.zsh ]] || source ~/dotfiles/zsh/.p10k.zsh
@@ -303,12 +170,13 @@ alias dbt-run='rlm-dbt-run'
 alias dbt-build='rlm-dbt-build'
 alias dbt-test='rlm-dbt-test'
 
-[ -x /opt/homebrew/bin/brew ] && eval $(/opt/homebrew/bin/brew shellenv)
-[ -x /usr/local/bin/brew ] && eval $(/usr/local/bin/brew shellenv)
+# brew shellenv — single eval based on the hardcoded prefix above.
+# Sets HOMEBREW_PREFIX, HOMEBREW_CELLAR, MANPATH, INFOPATH; PATH bits
+# are absorbed by `typeset -U path`.
+[[ -x $HOMEBREW_PREFIX/bin/brew ]] && eval "$($HOMEBREW_PREFIX/bin/brew shellenv)"
 
-# NVM node version manager
-export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" # This loads nvm
+# NVM (NVM_DIR is already exported from .zshenv)
+[[ -s "$NVM_DIR/nvm.sh" ]] && \. "$NVM_DIR/nvm.sh"
 
 alias rlm-randompassword="LC_ALL=C tr -cd '[:alnum:]' < /dev/urandom | fold -w30 |head -n1"
 alias randompassword="LC_ALL=C tr -cd '[:alnum:]' < /dev/urandom | fold -w30 |head -n1"
@@ -327,63 +195,44 @@ if builtin command -v zoxide >/dev/null ;then
   alias cd=z
 fi
 
-FZF_KEYBINDINGFILE=$(brew --prefix fzf)/shell/key-bindings.zsh
-[ -e $FZF_KEYBINDINGFILE   ] && eval source $FZF_KEYBINDINGFILE
-unset FZF_KEYBINDINGFILE
-
-FZF_COMPLETIONFILE=$(brew --prefix fzf)/shell/completion.zsh
-[ -e $FZF_COMPLETIONFILE ] && eval source $FZF_COMPLETIONFILE
-unset FZF_COMPLETIONFILE
+# fzf integration — keybindings + completion. Hardcode the fzf share dir
+# off the brew prefix to skip two `brew --prefix fzf` subshells at startup.
+_fzf_share=$HOMEBREW_PREFIX/opt/fzf/shell
+[[ -e $_fzf_share/key-bindings.zsh ]] && source $_fzf_share/key-bindings.zsh
+[[ -e $_fzf_share/completion.zsh ]] && source $_fzf_share/completion.zsh
+unset _fzf_share
 
 
 if builtin command -v fuck >/dev/null ;then
  eval $(thefuck --alias)
 fi
 
-[[ ! -f ~/.zshrc.thismachine ]] || source ~/.zshrc.thismachine
+[[ -f ~/.zshrc.thismachine ]] && source ~/.zshrc.thismachine
 
-[[ ! -f ~/.pyenv/bin/pyenv ]] || path+=~/.pyenv/bin
-# [[ ! -f ~/.pyenv/bin/pyenv ]] || eval "$(pyenv init -)"
-# [[ ! -f ~/.pyenv/bin/pyenv ]] || eval "$(pyenv virtualenv-init -)"
+# GPG_TTY — set here (not .zshenv) so we capture the interactive TTY.
 export GPG_TTY=$TTY
-
-path+=(~/go/bin)
-# path=("$HOME/.local/bin" $path) # put ~/.local/bin at the beginning
-path=(~/.local/bin $path) # put ~/.local/bin at the beginning
-# path+=~/.local/bin # this puts ~/.local/bin the last
-path+=/usr/local/bin # add it to the end
-# path+=$HOME/Library/Application\ Support/Coursier/bin/
-path+=~/Library/Application\ Support/Coursier/bin
-export PATH
 
 alias rlm-ctags="ctags -R --fields=+zK"
 alias ctags="ctags -R --fields=+zK"
-export LC_ALL="en_US.utf-8"
 
-#THIS MUST BE AT THE END OF THE FILE FOR SDKMAN TO WORK!!!
+# SDKMAN — install snippet says "must be at the end of the file"
 [[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]] && source "$HOME/.sdkman/bin/sdkman-init.sh"
 
+# gcloud shell completion (path.zsh.inc is in .zshenv so non-interactive shells see it too)
+[[ -f "$HOME/.local/google-cloud-sdk/completion.zsh.inc" ]] \
+    && . "$HOME/.local/google-cloud-sdk/completion.zsh.inc"
 
-# The next line updates PATH for the Google Cloud SDK. gcloud
-if [ -f "$HOME/.local/google-cloud-sdk/path.zsh.inc" ]; then . "$HOME/.local/google-cloud-sdk/path.zsh.inc"; fi
-
-# The next line enables shell command completion for gcloud.
-if [ -f "$HOME/.local/google-cloud-sdk/completion.zsh.inc" ]; then . "$HOME/.local/google-cloud-sdk/completion.zsh.inc"; fi
-
-
-# Key bindingins / bindkeys
+# Key bindings
 bindkey ' ' magic-space
 
+# VS Code CLI
+[[ -x "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code" ]] \
+    && path+=("/Applications/Visual Studio Code.app/Contents/Resources/app/bin")
 
-# If Visual Studio Code is installed / vscode
-if [ -x "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code" ]; then
-  path+="/Applications/Visual Studio Code.app/Contents/Resources/app/bin"
-fi
-
-if [ -x "/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home/bin/javac" ]; then
-  export JAVA_HOME="/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home"
-  # path+="${JAVA_HOME}/bin" # append
-  path=("${JAVA_HOME}/bin" $path) # prepend
+# OpenJDK 21 (brew). Prepend so `java`/`javac` resolve here first.
+if [[ -x "$HOMEBREW_PREFIX/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home/bin/javac" ]]; then
+    export JAVA_HOME="$HOMEBREW_PREFIX/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home"
+    path=("${JAVA_HOME}/bin" $path)
 fi
 
 autoload -Uz vcs_info
@@ -406,16 +255,8 @@ precmd() {
 PROMPT='%B%(!.#.$)%b '
 
 
-# If Google Antigravity is installed / vscode
-# if [ -x "/Applications/Antigravity.app/Contents/Resources/app/bin/antigravity" ]; then
-#   path+="/Applications/Antigravity.app/Contents/Resources/app/bin/"
-#   alias agy="antigravity"
-# fi
-AGY_PATH="$HOME/.antigravity/antigravity/bin"
-if [ -d "$AGY_PATH" ]; then
-  path+="$AGY_PATH"
-fi
-
+# Google Antigravity CLI
+[[ -d "$HOME/.antigravity/antigravity/bin" ]] && path+=("$HOME/.antigravity/antigravity/bin")
 
 alias rlm-pu="pulumi up"
 alias rlm-pus="pulumi up --skip-preview"
@@ -444,13 +285,6 @@ pre-commit run sqlfluff-lint --from-ref $(git merge-base --fork-point origin/mai
 }
 alias sqlfluff_fix='rlm-sqlfluff-fix'
 alias sqlfluff_lint='rlm-sqlfluff-lint'
-
-
-NVIM_HOME="$HOME/opt/nvim"
-if [[ -d "$NVIM_HOME/bin" ]]; then
-	path=("$NVIM_HOME/bin" $path)
-fi
-
 
 
 # resets Kitty Keyboard Protocol after each command, avoid the ctrl-c showing up as 9;5u after killing claude
@@ -655,3 +489,9 @@ alias rlm-lhd='rlm-lhdir'
 alias lhdir='rlm-lhdir'
 alias lhd='rlm-lhd'
 
+# pyenv — PYENV_ROOT/bin is on $PATH from .zshenv; this hooks shims into the shell.
+export PYENV_ROOT="$HOME/.pyenv"
+(( $+commands[pyenv] )) && eval "$(pyenv init -)"
+
+# dbt Fusion extension
+alias dbtf="$HOME/.local/bin/dbt"

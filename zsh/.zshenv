@@ -1,9 +1,13 @@
-# This file is  source for interactive and non-interative shells
-# Do not put aliases , or anything that will change the behaviour
-# tools like make will open shells to execute commands, the aliases
-# here will affect those shells
+# This file is sourced for interactive and non-interactive shells.
+# Do not put aliases or anything that changes shell behavior here —
+# tools like make open shells to execute commands, and any aliases
+# defined here would affect those shells.
+#
+# This is the place for $PATH, $EDITOR, $PAGER, $LANG, etc.
 
-# This is the place for changing @PATH, $EDITOR, $PAGER,
+# Dedupe path/PATH automatically: any later `path+=…` becomes idempotent,
+# so accidental double-adds in .zshrc / installer snippets are absorbed.
+typeset -U path PATH fpath
 
 # fpath is the search path for function definitions
 fpath+=~/dotfiles/zsh/my-zsh-functions
@@ -15,27 +19,33 @@ fpath+=~/dotfiles/zsh/my-zsh-functions-private
 # Private helpdir entries shadow the shared ones when names collide.
 export HELPDIR=~/dotfiles/zsh/helpdir-private:~/dotfiles/zsh/helpdir
 
-
-export PAGER="less" # unset PAGER
+export PAGER="less"
 export LESS="-FRX"
 export RIPGREP_CONFIG_PATH=~/.ripgreprc
 export FZF_DEFAULT_COMMAND="fd ."
+export EDITOR='nvim'
+export LC_ALL="en_US.utf-8"
+# GPG_TTY is set in .zshrc — it depends on $TTY which is only meaningful
+# in an interactive shell. Setting it here would capture an empty/wrong value.
+export NVM_DIR="${XDG_CONFIG_HOME:-$HOME}/nvm"
+[[ ! -d "$NVM_DIR" && -d "$HOME/.nvm" ]] && export NVM_DIR="$HOME/.nvm"
 
+# PATH additions that should be visible to non-interactive shells too
+# (scripts, make, editor subshells). Homebrew / Java / VS Code / Antigravity
+# stay in .zshrc because they're either interactive-only or installer-managed.
+[[ -d ~/.local/bin ]] && path=(~/.local/bin $path)
+[[ -d ~/go/bin ]] && path+=(~/go/bin)
+[[ -d ~/.pyenv/bin ]] && path+=(~/.pyenv/bin)
+[[ -d "$HOME/opt/nvim/bin" ]] && path=("$HOME/opt/nvim/bin" $path)
+[[ -d ~/Library/Application\ Support/Coursier/bin ]] \
+    && path+=(~/Library/Application\ Support/Coursier/bin)
 
-# The next line updates PATH for the Google Cloud SDK.
-if [ -f "$HOME/.local/google-cloud-sdk/path.zsh.inc" ]; then . "$HOME/.local/google-cloud-sdk/path.zsh.inc"; fi
-
-# The next line enables shell command completion for gcloud.
-if [ -f "$HOME/.local/google-cloud-sdk/completion.zsh.inc" ]; then . "$HOME/.local/google-cloud-sdk/completion.zsh.inc"; fi
+# Google Cloud SDK — path only (completion is interactive-only, stays in .zshrc)
+[[ -f "$HOME/.local/google-cloud-sdk/path.zsh.inc" ]] \
+    && . "$HOME/.local/google-cloud-sdk/path.zsh.inc"
 
 # Rust / Rustup / Cargo
-[ -f "$HOME/.cargo/env" ] && . "${HOME}/.cargo/env"
-
-
-# NVIM_HOME="$HOME/opt/nvim/"
-# if [[ -d "$NVIM_HOME/bin" ]]; then
-# 	path=("$NVIM_HOME/bin" $path)
-# fi
+[[ -f "$HOME/.cargo/env" ]] && . "${HOME}/.cargo/env"
 
 # For things that you don't want to share between all your machines
-[ -f ~/.zshenv.thismachine ] && . ~/.zshenv.thismachine
+[[ -f ~/.zshenv.thismachine ]] && . ~/.zshenv.thismachine
