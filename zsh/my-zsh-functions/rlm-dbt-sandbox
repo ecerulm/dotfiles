@@ -1,0 +1,123 @@
+emulate -L zsh
+set -o pipefail
+
+local usage="dbt-sandbox
+
+Create your personal dbt sandbox BigQuery datasets in DBT_DEV_PROJECT.
+
+For each layer L in DBT_SANDBOX_LAYERS, creates the dataset
+<DBT_DATASET_PREFIX>_<L> in DBT_DEV_PROJECT with:
+  - label sandbox:true
+  - default table expiration: 30 days (2592000 seconds)
+
+Skips datasets that already exist.
+
+Required environment:
+  DBT_DATASET_PREFIX   prefix for sandbox datasets (e.g. ecerulm)
+  DBT_DEV_PROJECT      target project, must not end in -prod
+  DBT_SANDBOX_LAYERS   colon-separated list of layer suffixes
+                       (e.g. prep:psa:dw:rd)
+
+Examples:
+  dbt-sandbox"
+
+if [[ ${1:-} == (-h|--help) ]]; then
+  print -r -- "$usage"
+  return 0
+fi
+
+for _cmd in bq; do
+  if ! command -v "$_cmd" >/dev/null 2>&1; then
+    print -u2 -r -- "dbt-sandbox: '$_cmd' not found in PATH"
+    return 1
+  fi
+done
+unset _cmd
+
+if [[ -z ${DBT_DATASET_PREFIX:-} ]]; then
+  print -u2 -r -- "dbt-sandbox: DBT_DATASET_PREFIX must be set and non-empty"
+  return 1
+fi
+
+if [[ -z ${DBT_DEV_PROJECT:-} ]]; then
+  print -u2 -r -- "dbt-sandbox: DBT_DEV_PROJECT must be set and non-empty"
+  return 1
+fi
+
+if [[ ${DBT_DEV_PROJECT} == *-prod ]]; then
+  print -u2 -r -- "dbt-sandbox: refusing to create sandbox datasets in a -prod project: $DBT_DEV_PROJECT"
+  return 1
+fi
+
+if [[ -z ${DBT_SANDBOX_LAYERS:-} ]]; then
+  print -u2 -r -- "dbt-sandbox: DBT_SANDBOX_LAYERS must be set and non-empty (colon-separated, e.g. prep:psa:dw)"
+  return 1
+fi
+
+local -a layers
+layers=(${(s.:.)DBT_SANDBOX_LAYERS})
+
+# Drop empty entries (leading/trailing/double colons in the env var).
+layers=("${(@)layers:#}")
+
+if (( ${#layers[@]} == 0 )); then
+  print -u2 -r -- "dbt-sandbox: DBT_SANDBOX_LAYERS parsed to zero layers"
+  return 1
+fi
+
+# Each layer must be a valid BigQuery dataset suffix: letters, digits, underscore.
+local _l
+for _l in "${layers[@]}"; do
+  if [[ ! $_l =~ ^[A-Za-z0-9_]+$ ]]; then
+    print -u2 -r -- "dbt-sandbox: invalid layer '$_l' in DBT_SANDBOX_LAYERS — only [A-Za-z0-9_] allowed"
+    return 1
+  fi
+done
+
+# Reject duplicates so users don't silently end up with fewer datasets than
+# layer entries they wrote in the env var.
+local -A _seen
+local -a _dups
+for _l in "${layers[@]}"; do
+  if (( ${+_seen[$_l]} )); then
+    _dups+=("$_l")
+  fi
+  _seen[$_l]=1
+done
+if (( ${#_dups[@]} > 0 )); then
+  local -a _dups_uniq
+  _dups_uniq=(${(u)_dups})
+  print -u2 -r -- "dbt-sandbox: DBT_SANDBOX_LAYERS contains duplicate layer(s): ${(j:, :)_dups_uniq}"
+  return 1
+fi
+unset _l _seen _dups _dups_uniq
+
+# 30 days in seconds (bq mk expects seconds for --default_table_expiration)
+local expiration=2592000
+
+print -r -- "dbt-sandbox: project=${DBT_DEV_PROJECT} prefix=${DBT_DATASET_PREFIX}"
+print -r -- "dbt-sandbox: layers=${layers[*]}"
+print -r -- ""
+
+local layer dataset full_ref rc=0
+for layer in "${layers[@]}"; do
+  dataset="${DBT_DATASET_PREFIX}_${layer}"
+  full_ref="${DBT_DEV_PROJECT}:${dataset}"
+
+  if bq --project_id="${DBT_DEV_PROJECT}" show --format=none "${dataset}" >/dev/null 2>&1; then
+    print -r -- "dbt-sandbox: ${full_ref} already exists, skipping"
+    continue
+  fi
+
+  print -r -- "dbt-sandbox: creating ${full_ref}"
+  if ! bq --project_id="${DBT_DEV_PROJECT}" mk \
+      --dataset \
+      --label=sandbox:true \
+      --default_table_expiration="${expiration}" \
+      "${dataset}"; then
+    print -u2 -r -- "dbt-sandbox: failed to create ${full_ref}"
+    rc=1
+  fi
+done
+
+return $rc

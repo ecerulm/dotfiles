@@ -1,0 +1,26 @@
+rlm-dbt-sandbox
+
+Create your personal dbt sandbox BigQuery datasets.
+
+For each layer L listed in DBT_SANDBOX_LAYERS, creates the dataset
+<DBT_DATASET_PREFIX>_<L> inside DBT_DEV_PROJECT. Each dataset is
+labelled sandbox:true and given a default table expiration of 30
+days. Datasets that already exist are skipped (idempotent).
+
+DBT_DEV_PROJECT must not end in -prod; the function refuses to run
+otherwise as a guard against accidentally polluting production.
+
+ENVIRONMENT
+  DBT_DATASET_PREFIX   Required. Prefix for sandbox datasets,
+                       typically your username (e.g. ecerulm).
+  DBT_DEV_PROJECT      Required. Target BigQuery project. Must not
+                       end in -prod.
+  DBT_SANDBOX_LAYERS   Required. Colon-separated list of layer
+                       suffixes (e.g. prep:psa:dw:rd). Each
+                       produces dataset <prefix>_<layer>.
+
+REQUIRES
+  bq (Google Cloud SDK)
+
+EXAMPLES
+  dbt-sandbox
