@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-05-22
+
+- Add `:DiffThisRemote` user command (gitsigns diffthis against upstream tracking branch)
+- Add `:DiffThisMain` user command (gitsigns diffthis against merge-base of PR base / origin/HEAD / origin/main)
+
 ## 2026-05-16
 
 - Wire local `git-pr-review.nvim` plugin into runtime via `vim.opt.rtp:prepend`

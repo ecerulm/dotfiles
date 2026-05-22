@@ -699,6 +699,35 @@ require("gitsigns").setup({
 	end,
 })
 
+-- :DiffThisRemote — diff buffer against the upstream tracking branch (origin/<branch>)
+vim.api.nvim_create_user_command("DiffThisRemote", function()
+	local upstream = vim.trim(vim.fn.system("git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null"))
+	if vim.v.shell_error ~= 0 or upstream == "" then
+		vim.notify("DiffThisRemote: no upstream tracking branch for current branch", vim.log.levels.ERROR)
+		return
+	end
+	require("gitsigns").diffthis(upstream)
+end, { desc = "Gitsigns diffthis against upstream tracking branch" })
+
+-- :DiffThisMain — diff buffer against the merge-base fork point of the default branch
+-- Prefers PR base branch (via gh), falls back to origin/HEAD, then origin/main.
+vim.api.nvim_create_user_command("DiffThisMain", function()
+	local pr_base = vim.trim(vim.fn.system("gh pr view --json baseRefName --jq .baseRefName 2>/dev/null"))
+	local ref
+	if vim.v.shell_error == 0 and pr_base ~= "" then
+		ref = "origin/" .. pr_base
+	else
+		local default = vim.trim(vim.fn.system("git symbolic-ref refs/remotes/origin/HEAD --short 2>/dev/null"))
+		ref = (vim.v.shell_error == 0 and default ~= "") and default or "origin/main"
+	end
+	local sha = vim.trim(vim.fn.system("git merge-base HEAD " .. ref .. " 2>/dev/null"))
+	if vim.v.shell_error ~= 0 or sha == "" then
+		vim.notify("DiffThisMain: failed to resolve merge-base against " .. ref, vim.log.levels.ERROR)
+		return
+	end
+	require("gitsigns").diffthis(sha)
+end, { desc = "Gitsigns diffthis against merge-base of default branch" })
+
 vim.opt.rtp:append("/opt/homebrew/opt/fzf")
 
 thismachine.post()

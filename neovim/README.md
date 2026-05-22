@@ -47,6 +47,8 @@ https://github.com/nvim-mini/mini.nvim/blob/main/doc/mini-completion.txt
 `<leader>gc`: copy github remote link
 `gqae`: format entire file
 :Format
+`:DiffThisRemote`: gitsigns diffthis against upstream tracking branch
+`:DiffThisMain`: gitsigns diffthis against merge-base of default branch (PR base → origin/HEAD → origin/main)
 `<leader>gg` : Open lazygit
 `gs`: sort mini.operators
 `gr`: replace with clipboard / mini.operators
