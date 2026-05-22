@@ -19,7 +19,6 @@ vim.pack.add({
 	-- "https://github.com/kylechui/nvim-surround", -- like tpope vim-surround but implemented in lua, it cause nvim-treesitter for simpler config
 	"https://github.com/AndrewRadev/switch.vim", -- cycle between alternatives true->false, enabled->disabled, etc
 	"https://github.com/rafamadriz/friendly-snippets",
-	"https://github.com/rafamadriz/friendly-snippets",
 	"https://github.com/chrisgrieser/nvim-various-textobjs",
 	"https://github.com/nvim-treesitter/nvim-treesitter-textobjects.git",
 	"https://github.com/mfussenegger/nvim-lint.git", -- run linter like mypy and parse the input and feeds it to vim.diagnostic
@@ -32,56 +31,8 @@ require("mini_config").setup()
 -- nvim-surround
 -- require("nvim-surround").setup() -- replaced by mini.surround
 
--- nvim-lspconfig lua
+-- nvim-lspconfig lua_ls — settings live in after/lsp/lua.lua (auto-loaded & merged since nvim 0.11)
 -- https://github.com/neovim/nvim-lspconfig/blob/master/doc/configs.md#lua_ls
-vim.lsp.config("lua_ls", {
-	on_init = function(client)
-		if client.workspace_folders then
-			local path = client.workspace_folders[1].name
-			if
-				path ~= vim.fn.stdpath("config")
-				and (vim.uv.fs_stat(path .. "/.luarc.json") or vim.uv.fs_stat(path .. "/.luarc.jsonc"))
-			then
-				return
-			end
-		end
-
-		client.config.settings.Lua = vim.tbl_deep_extend("force", client.config.settings.Lua, {
-			runtime = {
-				-- Tell the language server which version of Lua you're using (most
-				-- likely LuaJIT in the case of Neovim)
-				version = "LuaJIT",
-				-- Tell the language server how to find Lua modules same way as Neovim
-				-- (see `:h lua-module-load`)
-				path = {
-					"lua/?.lua",
-					"lua/?/init.lua",
-				},
-			},
-			-- Make the server aware of Neovim runtime files
-			workspace = {
-				checkThirdParty = false,
-				library = {
-					vim.env.VIMRUNTIME,
-					-- Depending on the usage, you might want to add additional paths
-					-- here.
-					-- '${3rd}/luv/library'
-					-- '${3rd}/busted/library'
-				},
-				-- Or pull in all of 'runtimepath'.
-				-- NOTE: this is a lot slower and will cause issues when working on
-				-- your own configuration.
-				-- See https://github.com/neovim/nvim-lspconfig/issues/3189
-				-- library = {
-				--   vim.api.nvim_get_runtime_file('', true),
-				-- }
-			},
-		})
-	end,
-	settings = {
-		Lua = {},
-	},
-})
 vim.lsp.enable("lua_ls")
 
 -- nvim-lspconfig LSP basedpyright (fork of pyright with pylance features)
@@ -129,6 +80,8 @@ require("nvim-treesitter").install({
 	"json",
 	"json5",
 	"jsonnet",
+	"markdown",
+	"markdown_inline",
 	"zsh",
 	"bash",
 	"dart",
@@ -309,7 +262,7 @@ vim.api.nvim_create_autocmd("BufWinEnter", { -- BufReadPost won't work because f
 		end
 		-- check that the position is still valid, line > 1 and less than max line in buffer
 		local targetline = vim.fn.line([['"]])
-		if targetline > 1 or targetline <= vim.fn.line("$") then
+		if targetline > 1 and targetline <= vim.fn.line("$") then
 			vim.cmd('silent! normal! g`"zvzz', false) -- zv to open fold, zz to center
 		end
 	end,
