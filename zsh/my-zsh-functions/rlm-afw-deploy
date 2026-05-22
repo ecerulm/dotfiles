@@ -163,7 +163,8 @@ picker_out=$(
       ${default_dag:+--query="$(basename "$default_dag")"} \
       --preview='cat {4}' \
       --preview-window=bottom:40%:wrap \
-      --bind="ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)"
+      --bind="ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)" \
+      --bind='ctrl-g:abort'
 )
 
 # Extract the raw-path column (4th tab-separated field) from the selection.

@@ -88,7 +88,8 @@ EOF
     fzf \
       --height=70% --reverse --no-multi --cycle \
       --query="${1:-}" --prompt='cmd> ' \
-      --preview="zsh $preview_script {}" --preview-window=right:60%:wrap) || return
+      --preview="zsh $preview_script {}" --preview-window=right:60%:wrap \
+      --bind='ctrl-g:abort') || return
 
   [[ -n $picked ]] || return
   print -z -- "$picked "

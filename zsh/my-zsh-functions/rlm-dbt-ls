@@ -205,6 +205,7 @@ picked=$(
       --preview="\$HOME/bin/dbt-model-preview '$nodes_cache_file' '$dbt_project_root' {}${prod_manifest_arg}" \
       --preview-window=bottom:40%:wrap \
       --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)' \
+      --bind='ctrl-g:abort' \
       --header="Pick a model or past selector • Enter to edit before running"
 ) || return 130
 
@@ -296,6 +297,7 @@ fzf_args=(
   --preview="\$HOME/bin/dbt-model-preview '$models_json_file' '$dbt_project_root' {}${prod_manifest_arg}"
   --preview-window=bottom:40%:wrap
   --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)'
+  --bind='ctrl-g:abort'
   --header="$copy_header"
 )
 

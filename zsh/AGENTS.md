@@ -177,7 +177,8 @@ fzf \
     --ansi \
     --height=80% --reverse \
     --preview-window=bottom:40%:wrap \
-    --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)'
+    --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)' \
+    --bind='ctrl-g:abort'
 ```
 
 - `--no-mouse` — keeps fzf from capturing mouse events, so the terminal
@@ -194,6 +195,19 @@ fzf \
 - `--height=80%`, `--reverse`, `--preview-window=bottom:40%:wrap`, and
   the `ctrl-p` binding match the conventions used across all `rlm-*`
   pickers (see `memory/fzf_conventions.md`).
+- `--bind='ctrl-g:abort'` — provides a reliable escape hatch from a
+  picker when the terminal swallows Ctrl-C. Ghostty's keyboard-protocol
+  handling can intercept Ctrl-C before fzf ever sees it, leaving the
+  picker visibly running (confirmed by `ps -ef | grep fzf`) but
+  unresponsive to every key, with no way out short of killing the fzf
+  process from another terminal. This was hit in practice in
+  `rlm-dbt-ls` Phase 4. Ctrl-G is dispatched through fzf's own
+  keyboard handler rather than the OS signal path, so it still aborts
+  the picker even when the terminal layer eats the interrupt signal.
+  Add this bind to **every** new fzf invocation, regardless of
+  terminal — it costs nothing on terminals that pass Ctrl-C through,
+  and the rule "every fzf has ctrl-g" is easier to enforce than "every
+  fzf running under Ghostty has ctrl-g".
 
 The fzf preview command runs in a plain `sh` subshell that does **not**
 inherit the zsh `$PATH` additions or autoloaded functions. Bare command

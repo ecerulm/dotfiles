@@ -131,7 +131,8 @@ selection=$(
         --nth=2 \
         --preview='raw=$(printf "%s" {} | cut -f2 | sed "s/\x1b\[[0-9;]*m//g"); case "$raw" in ---*) echo "Select to refresh the cache and reopen the picker." ;; *) "$HOME/bin/bq-preview" "$raw" ;; esac' \
         --preview-window=bottom:40%:wrap \
-        --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)'
+        --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)' \
+        --bind='ctrl-g:abort'
 ) || return 130
 
 [[ -z $selection ]] && return 130

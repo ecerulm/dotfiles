@@ -137,7 +137,8 @@ selection=$(
         --header='TAB to multi-select, ENTER to confirm, ESC to cancel | Ctrl-P: toggle preview' \
         --preview='"$HOME/bin/wt-preview" {5}' \
         --preview-window=bottom:40%:wrap \
-        --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)'
+        --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)' \
+        --bind='ctrl-g:abort'
 )
 local fzf_exit=$?
 [[ $fzf_exit -ne 0 || -z $selection ]] && return 130

@@ -24,7 +24,7 @@ repo_root=$(git rev-parse --show-toplevel)
 
 # Pick a file respecting .gitignore via git ls-files
 local rel_path
-rel_path=$(git -C "$repo_root" ls-files | fzf --prompt="Select file> " --height=80% --preview="git -C $repo_root show HEAD:{}" --preview-window=bottom:40%)
+rel_path=$(git -C "$repo_root" ls-files | fzf --prompt="Select file> " --height=80% --preview="git -C $repo_root show HEAD:{}" --preview-window=bottom:40% --bind='ctrl-g:abort')
 [[ -z "$rel_path" ]] && return 0
 
 # Resolve the GitHub remote URL to an https base

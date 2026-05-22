@@ -605,7 +605,8 @@ rlm-wts() {
 		--delimiter=$'\t' --with-nth=4 \
 		--preview='"$HOME/bin/wt-preview" {5}' \
 		--preview-window=bottom:40%:wrap \
-		--bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)') || return
+		--bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)' \
+		--bind='ctrl-g:abort') || return
 	[[ -z "$selected" ]] && return
 
 	# Selected format: "<index>\t<key>\t<branch_info>\t<path>\t<abs_path>". Use the index for lookup.

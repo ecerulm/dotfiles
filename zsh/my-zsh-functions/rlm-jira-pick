@@ -143,7 +143,8 @@ for line in sys.stdin:
       --reverse \
       --preview='key={3}; if [ "$key" = "__REFRESH__" ]; then echo "Refresh the cached list of JIRA issues."; else "$HOME/bin/jira-preview" "$key" 2>&1; fi' \
       --preview-window=bottom:70%:wrap \
-      --bind='ctrl-p:change-preview-window(bottom:40%:wrap|hidden|bottom:70%:wrap)'
+      --bind='ctrl-p:change-preview-window(bottom:40%:wrap|hidden|bottom:70%:wrap)' \
+      --bind='ctrl-g:abort'
 ) || return 130
 
 [[ -z $selection ]] && return 130

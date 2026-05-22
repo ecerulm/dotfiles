@@ -133,7 +133,8 @@ fzf_out=$(
       --multi \
       --preview='raw=$(printf "%s" {} | sed "s/\x1b\[[0-9;]*m//g"); "$HOME/bin/bq-preview" "$raw"' \
       --preview-window=bottom:40%:wrap \
-      --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)'
+      --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)' \
+      --bind='ctrl-g:abort'
 ) || return 130
 
 if [[ -z $fzf_out ]]; then

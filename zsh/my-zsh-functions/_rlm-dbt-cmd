@@ -287,7 +287,8 @@ if [[ -z $selector ]]; then
           --delimiter=$'\t' \
           --with-nth='1,2' \
           --preview-window=bottom:40%:wrap \
-          --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)'
+          --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)' \
+          --bind='ctrl-g:abort'
   ) || return 130
 
   [[ -z $raw_selection ]] && return 130
@@ -626,6 +627,7 @@ PYEOF
       ' \
       --preview-window=bottom:40%:wrap \
       --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)' \
+      --bind='ctrl-g:abort' \
       < <(tr '\n' '\0' < "$tmp_fzf")
 
   rm -f "$tmp_fzf"
