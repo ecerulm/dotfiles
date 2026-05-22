@@ -1,0 +1,143 @@
+emulate -L zsh
+
+# Shared MRU history for rlm-git-changed. One file
+# (~/.cache/rlm-git-changed/history.tsv) records every pick, scoped per
+# git repo via repo_key (md5 of the absolute git_root path). Picks in
+# one repo don't shuffle the picker of another, but every repo's MRU
+# lives in one file so it's easy to inspect / back up / reason about
+# — matches the _rlm-dbt-history convention.
+#
+# File format: one line per pick, newest first, capped at 500 lines.
+#
+#   <epoch>\t<command>\t<repo_key>\t<path>
+#
+#   epoch     date +%s integer (0 for legacy entries with unknown time)
+#   command   "git-changed" (only caller today; reserved for future
+#             rlm-git-* commands that want to share the MRU)
+#   repo_key  md5 of the absolute git_root (see in-line calculation
+#             in rlm-git-changed; symmetrical to _rlm-dbt-project-key)
+#   path      repo-relative path (the raw value the picker handed back).
+#             Tab is not a legal POSIX filename byte, so the field
+#             round-trips fine.
+#
+# Deduplication rule: entries are deduped by the (repo_key, path) tuple.
+# Re-picking the same file overwrites its prior entry, so the newest
+# pick wins.
+#
+# Usage:
+#   _rlm-git-changed-history append <command> <repo_key> <path>
+#   _rlm-git-changed-history read   <repo_key>
+#       → "<epoch>\t<command>\t<path>" lines, newest first, deduped
+#         on (repo_key, path), capped at 500 lines. Empty stdout if no
+#         history exists for this repo.
+#
+# Return codes:
+#   0 — success.
+#   2 — usage error.
+#
+# Legacy migration:
+#   On first read/append after the new history file does not exist,
+#   _rlm-git-changed-history opportunistically folds in entries from the
+#   legacy per-repo paths ~/.cache/git-changed/<md5>.history (one path
+#   per line, newest at the bottom — same scheme rlm-git-changed
+#   originally shipped with). The legacy md5 in the filename is reused
+#   as the repo_key, so entries land in the correct per-repo bucket
+#   even though no shell context knows which git_root produced them.
+#   Synthetic timestamps: `now - rank * 60`, rank=0 for the newest line.
+#   Legacy files are not deleted, matching the _rlm-bq-history /
+#   _rlm-dbt-history convention.
+
+local history_file="$HOME/.cache/rlm-git-changed/history.tsv"
+local history_dir="${history_file:h}"
+local history_cap=500
+
+_rlm_git_changed_history_legacy_migrate() {
+  # Best-effort one-shot fold of legacy per-repo history files into the
+  # new unified TSV. Triggered when the new file does not exist. Safe
+  # to re-run: the dedup pass in `append`/`read` collapses any
+  # duplicates that might arise if a caller resurrects a legacy file.
+  [[ -e $history_file ]] && return 0
+  [[ -d $HOME/.cache/git-changed ]] || return 0
+
+  local -a legacy_lines
+  local f md5_key now rank n line
+  now=$(date +%s)
+
+  for f in $HOME/.cache/git-changed/*.history(N); do
+    md5_key=${${f:t}%.history}
+    [[ -z $md5_key ]] && continue
+    # Count lines in the legacy file so we can assign synthetic
+    # timestamps preserving MRU order (bottom = newest = rank 0).
+    n=$(grep -c '' -- "$f" 2>/dev/null) || n=0
+    rank=$(( n - 1 ))
+    while IFS= read -r line; do
+      [[ -z $line ]] && continue
+      legacy_lines+=("$(( now - rank * 60 ))"$'\t'"git-changed"$'\t'"${md5_key}"$'\t'"${line}")
+      (( rank-- ))
+    done < "$f"
+  done
+
+  (( ${#legacy_lines} == 0 )) && return 0
+
+  mkdir -p "$history_dir"
+  # Sort by epoch descending, then dedupe on (repo_key, path) =
+  # fields 3,4. awk keeps the first occurrence which, post-sort, is the
+  # newest.
+  printf '%s\n' "${legacy_lines[@]}" \
+    | sort -t $'\t' -k1,1nr \
+    | awk -F'\t' '!seen[$3"\t"$4]++' \
+    | head -n "$history_cap" >|"${history_file}.tmp" \
+    && mv "${history_file}.tmp" "$history_file"
+}
+
+local subcmd="$1"
+shift 2>/dev/null
+
+case $subcmd in
+  append)
+    local cmd_name="$1"
+    local repo_key="$2"
+    local path_arg="$3"
+    if [[ -z $cmd_name || -z $repo_key || -z $path_arg ]]; then
+      print -u2 "_rlm-git-changed-history: usage: append <command> <repo_key> <path>"
+      return 2
+    fi
+    _rlm_git_changed_history_legacy_migrate
+    mkdir -p "$history_dir"
+    local now
+    now=$(date +%s)
+    # Prepend new entry, drop any prior entry with the same
+    # (repo_key, path) tuple, truncate to cap. Atomic via tmp+mv.
+    {
+      printf '%s\t%s\t%s\t%s\n' "$now" "$cmd_name" "$repo_key" "$path_arg"
+      if [[ -f $history_file ]]; then
+        awk -F'\t' -v rk="$repo_key" -v p="$path_arg" \
+          '!($3 == rk && $4 == p)' "$history_file"
+      fi
+    } | head -n "$history_cap" >|"${history_file}.tmp" \
+      && mv "${history_file}.tmp" "$history_file"
+    ;;
+  read)
+    local repo_key="$1"
+    if [[ -z $repo_key ]]; then
+      print -u2 "_rlm-git-changed-history: usage: read <repo_key>"
+      return 2
+    fi
+    _rlm_git_changed_history_legacy_migrate
+    [[ -f $history_file ]] || return 0
+    # Filter to entries for this repo_key, dedupe on path (file is
+    # already newest-first, so awk keeps the first/newest occurrence
+    # per path), emit "<epoch>\t<command>\t<path>".
+    awk -F'\t' -v rk="$repo_key" '
+      $3 == rk && !seen[$4]++ {
+        printf "%s\t%s\t%s\n", $1, $2, $4
+      }
+    ' "$history_file"
+    ;;
+  *)
+    print -u2 "_rlm-git-changed-history: unknown subcommand: ${subcmd:-(empty)}"
+    print -u2 "_rlm-git-changed-history: usage: append <command> <repo_key> <path>"
+    print -u2 "                          read   <repo_key>"
+    return 2
+    ;;
+esac

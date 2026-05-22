@@ -5,8 +5,18 @@ the default remote branch (origin/HEAD) using fzf, then open it in
 $EDITOR. The diff preview for the selected file is shown in the fzf
 preview pane. Press Ctrl-P to cycle the preview pane height.
 
+Entries are sorted by recently-selected first, then by file mtime
+descending for entries that have never been picked. Within
+previously-picked entries, the most-recent pick wins.
+
+MRU history is recorded by the shared helper
+_rlm-git-changed-history in ~/.cache/rlm-git-changed/history.tsv,
+scoped per repo via repo_key (md5 of the absolute git_root). The
+legacy per-repo files at ~/.cache/git-changed/<md5>.history are
+folded in on first use and then left in place.
+
 ENVIRONMENT
   EDITOR   Editor to open the selected file (falls back to vi).
 
 REQUIRES
-  git, fzf
+  git, fzf, python3, md5 or md5sum

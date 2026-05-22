@@ -1,6 +1,8 @@
 emulate -L zsh
 set -o pipefail
 
+autoload -Uz _rlm-git-changed-history
+
 # ---------------------------------------------------------------------------
 # Precondition checks
 # ---------------------------------------------------------------------------
@@ -44,15 +46,99 @@ fi
 
 local git_root preview_cmd
 git_root=$(git rev-parse --show-toplevel)
-preview_cmd="git -C ${(q)git_root} diff ${(q)fork_point} -- {}"
+preview_cmd="git -C ${(q)git_root} diff ${(q)fork_point} -- {2}"
+
+# ---------------------------------------------------------------------------
+# MRU history: shared pooled file at ~/.cache/rlm-git-changed/history.tsv
+# scoped per repo via repo_key (md5 of the absolute git_root path).
+# See _rlm-git-changed-history for the file format and dedup rules.
+# ---------------------------------------------------------------------------
+local repo_key
+if command -v md5 >/dev/null 2>&1; then
+  repo_key=$(print -n -- "$git_root" | md5)
+elif command -v md5sum >/dev/null 2>&1; then
+  repo_key=$(print -n -- "$git_root" | md5sum | awk '{print $1}')
+else
+  print -u2 "git-changed: neither md5 nor md5sum found in PATH"
+  return 1
+fi
+
+# Emit changed files as <picked_at>\t<path>\t<mtime>, sorted by
+# (is_picked DESC, picked_at DESC, mtime DESC). picked_at = epoch of the
+# most-recent pick for that path (from the shared history), or 0 if
+# never picked. mtime = file mtime (0 if missing, e.g. deleted-on-disk
+# paths).
+_git_changed_sorted_list() {
+  local -a changed
+  changed=("${(@f)$(git diff --name-only "$fork_point")}")
+  (( ${#changed} == 0 )) && return 0
+
+  local history_payload
+  history_payload=$(_rlm-git-changed-history read "$repo_key")
+
+  {
+    print -r -- "$git_root"
+    print -r -- "__HISTORY__"
+    [[ -n $history_payload ]] && print -r -- "$history_payload"
+    print -r -- "__FILES__"
+    printf '%s\n' "${changed[@]}"
+  } | python3 -c '
+import os, sys
+
+lines = sys.stdin.read().splitlines()
+git_root = lines[0]
+i = lines.index("__HISTORY__")
+j = lines.index("__FILES__")
+history_lines = [l for l in lines[i+1:j] if l]
+file_lines = [l for l in lines[j+1:] if l]
+
+# history_lines: "<epoch>\t<command>\t<path>", newest first, already
+# deduped per path by _rlm-git-changed-history. picked_at = epoch.
+picked_at = {}
+for line in history_lines:
+    parts = line.split("\t")
+    if len(parts) < 3:
+        continue
+    try:
+        epoch = int(parts[0])
+    except ValueError:
+        epoch = 0
+    path = parts[2]
+    # File is newest-first; only the first occurrence per path matters.
+    if path not in picked_at:
+        picked_at[path] = epoch
+
+rows = []
+for rel in file_lines:
+    abs_path = os.path.join(git_root, rel)
+    try:
+        mtime = int(os.stat(abs_path).st_mtime)
+    except OSError:
+        mtime = 0
+    pa = picked_at.get(rel, 0)
+    # Scale: any picked entry beats any unpicked mtime; within picked
+    # entries newer picks win; within unpicked entries newer mtimes win.
+    sort_key = (1 if pa > 0 else 0, pa, mtime)
+    rows.append((sort_key, pa, rel, mtime))
+
+rows.sort(key=lambda r: r[0], reverse=True)
+for _, pa, rel, mtime in rows:
+    print(f"{pa}\t{rel}\t{mtime}")
+'
+}
 
 local selection
 selection=$(
-  git diff --name-only "$fork_point" \
-  | fzf \
+  _git_changed_sorted_list \
+    | fzf \
       --prompt="Changed files> " \
+      --no-mouse \
+      --ansi \
       --height=80% \
       --reverse \
+      --delimiter=$'\t' \
+      --with-nth=2 \
+      --nth=2 \
       --preview="$preview_cmd" \
       --preview-window=bottom:40%:wrap \
       --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)' \
@@ -61,4 +147,11 @@ selection=$(
 
 [[ -z $selection ]] && return 0
 
-${EDITOR:-vi} "${git_root}/${selection}"
+# selection is "<picked_at>\t<path>\t<mtime>"; extract field 2.
+local sel_path
+sel_path=$(print -r -- "$selection" | cut -f2)
+[[ -z $sel_path ]] && return 0
+
+_rlm-git-changed-history append git-changed "$repo_key" "$sel_path"
+
+${EDITOR:-vi} "${git_root}/${sel_path}"
