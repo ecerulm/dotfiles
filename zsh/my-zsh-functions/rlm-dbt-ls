@@ -76,7 +76,24 @@ if [[ -z $profile_name ]]; then
   return 1
 fi
 
-print "dbt-ls: using profiles-dir='${profiles_dir}' profile='${profile_name}'" >&2
+# Determine the dbt target. Prefer $DBT_TARGET (the convention used by
+# the other rlm-dbt-* commands); fall back to the profile's default
+# `target:` key in profiles.yml; finally fall back to "dev".
+local dbt_target="$DBT_TARGET"
+if [[ -z $dbt_target ]]; then
+  dbt_target=$(awk -v profile="$profile_name" '
+    $0 ~ "^" profile ":" { in_profile = 1; next }
+    in_profile && /^[a-zA-Z]/ { in_profile = 0 }
+    in_profile && /^[[:space:]]+target:[[:space:]]*/ {
+      sub(/^[[:space:]]+target:[[:space:]]*/, "")
+      sub(/[[:space:]]*$/, "")
+      print; exit
+    }
+  ' "$profiles_yml")
+fi
+[[ -z $dbt_target ]] && dbt_target="dev"
+
+print "dbt-ls: using profiles-dir='${profiles_dir}' profile='${profile_name}' target='${dbt_target}'" >&2
 
 # ---------------------------------------------------------------------------
 # Ensure poetry env is synced and dbt resolves to the project venv
@@ -126,18 +143,19 @@ if _state_info=$(_rlm-dbt-state-info 2>/dev/null); then
   prod_manifest_arg=" '$manifest'"
 fi
 
-# Refresh the shared nodes cache if missing. The shared cache covers
-# every resource type the four rlm-dbt-* commands care about (model +
-# seed + test + snapshot) — Phase 1's picker filters to just models via
-# the jq read API. The on-disk JSON file is also what dbt-model-preview
-# reads for the preview pane, so the same fetch serves both purposes.
-if [[ ! -f $nodes_cache_file ]]; then
+# Refresh the shared nodes cache if missing or empty. The shared cache
+# covers every resource type the four rlm-dbt-* commands care about
+# (model + seed + test + snapshot) — Phase 1's picker filters to just
+# models via the jq read API. The on-disk JSON file is also what
+# dbt-model-preview reads for the preview pane, so the same fetch
+# serves both purposes.
+if [[ ! -s $nodes_cache_file ]]; then
   _rlm-dbt-nodes-cache refresh \
     "$project_key" \
     "$project_root" \
     "$dbt_project_root" \
     "$profiles_dir" \
-    "$profile_name" \
+    "$dbt_target" \
     "$profile_name" || true
 fi
 
@@ -160,6 +178,18 @@ initial_list=$(
 
 if [[ -z $initial_list ]]; then
   print -u2 "dbt-ls: no models found in project"
+  print -u2 "dbt-ls: cache file: $nodes_cache_file"
+  if [[ -s $nodes_cache_file ]]; then
+    print -u2 "dbt-ls: cache exists but yielded no models — first lines:"
+    head -5 "$nodes_cache_file" | sed 's/^/    /' >&2
+    print -u2 "dbt-ls: try removing the cache and re-running:"
+    print -u2 "    rm '$nodes_cache_file'"
+  fi
+  local _err_log="${nodes_cache_file:h}/dbt-ls.err"
+  if [[ -s $_err_log ]]; then
+    print -u2 "dbt-ls: last dbt stderr ($_err_log):"
+    sed 's/^/    /' "$_err_log" >&2
+  fi
   return 1
 fi
 
@@ -199,9 +229,9 @@ local -a dbt_cmd
 # (resource_type, package_name, original_file_path, config.materialized,
 # database/schema/alias, depends_on, description, …) in a single dbt call.
 # The fzf preview pane reads names back out of this file.
-dbt_cmd=(poetry run dbt ls --project-dir "$dbt_project_root" --profiles-dir "$profiles_dir" --profile "$profile_name" --resource-type model --output json --quiet -s "$selector")
+dbt_cmd=(poetry run dbt ls --project-dir "$dbt_project_root" --profiles-dir "$profiles_dir" --profile "$profile_name" --target "$dbt_target" --resource-type model --output json --quiet -s "$selector")
 
-print "dbt-ls: running ${dbt_cmd[*]} …" >&2
+print -u2 "$ ${dbt_cmd[*]}"
 
 local models_json_file
 models_json_file=$(mktemp -t dbt-ls-models.XXXXXX.json)

@@ -4,6 +4,19 @@ All notable changes to the zsh configuration are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2026-05-22]
+
+### Fixed
+
+- `rlm-dbt-ls`: passed `$profile_name` as both the `--profile` and the `--target` to `_rlm-dbt-nodes-cache refresh`, so on projects where the profile name doesn't happen to coincide with a target name (e.g. profile `storytel` with targets `local_dev` / `dev` / `prod` / `ci`) the cache fetch failed with `Runtime Error: The profile 'storytel' does not have a target named 'storytel'`. Wrong since the shared-cache refactor — latent because the previous Storytel profile had a target named after itself. The target is now derived from (1) `$DBT_TARGET` (the env var the other `rlm-dbt-*` commands already use), then (2) the profile's `target:` key in `profiles.yml`, then (3) the literal `dev`. Phase 3's `dbt ls --target` is now also passed explicitly. The startup line shows the resolved target alongside the profile: `using profiles-dir=… profile='storytel' target='local_dev'`.
+
+### Changed
+
+- `rlm-dbt-ls`: prints the full `poetry run dbt ls …` command (with every flag) to stderr in `$ <cmd>` shell-prompt style before running it — both for the Phase 3 selector-resolution call and (indirectly via `_rlm-dbt-nodes-cache refresh` below) for the cache refresh. The previous `dbt-ls: running <cmd> …` line is gone; the new format matches the convention `_rlm-dbt-cmd` already uses so the four commands are visually consistent.
+- `rlm-dbt-ls`: the "no models found in project" failure path is now actionable. Prints the cache file path, the first 5 lines of the cache file when it exists (so a malformed cache surfaces immediately), the suggested `rm '<cache>'` command, and the last `dbt-ls.err` stderr — instead of failing silently with a one-line generic error.
+- `_rlm-dbt-nodes-cache refresh`: prints the exact `poetry run dbt ls …` command in `$ (cd <project_root> && <cmd>)` form before running, so a stale or empty cache no longer fails opaquely. Validates that the first non-empty line of output parses as JSON before overwriting the cache; on validation failure prints up to 10 lines of the offending output (a compilation error like `Encountered an error: macro 'dbt_macro__test_accepted_values' takes no keyword argument 'arguments'` now surfaces in the terminal instead of getting silently written into `nodes.json` and then parsed back to zero models by jq). Existing cache is left untouched in this case.
+- `rlm-dbt-ls`: cache-refresh trigger changes from `[[ ! -f $nodes_cache_file ]]` to `[[ ! -s $nodes_cache_file ]]` so a zero-byte cache file (e.g. from a previous interrupted refresh) is treated as missing and re-fetched.
+
 ## [2026-05-21]
 
 ### Added
