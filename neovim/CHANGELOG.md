@@ -10,6 +10,12 @@
 - Add `markdown`/`markdown_inline` treesitter parsers and populate `after/ftplugin/markdown.lua` (highlight + folds)
 - Drop dead `cindent` from `after/indent/python.lua` (overridden by treesitter `indentexpr`)
 - Sync `install_dependencies.sh`: `ruff` (replaces isort/black), add `mypy`, `jq`, `clang-format`, `tombi`
+- Move insert-mode uppercase-last-WORD from `<C-u>` to `<C-l>`, restoring the built-in `i_CTRL-U`
+- Disable global `cursorcolumn` (redraw lag with treesitter on large files)
+- Drop global `smartindent` (misbehaves; superseded by treesitter `indentexpr`)
+- Lower `mini.completion` delay from 1000ms to 150ms
+- Gate the restore-cursor autocmd on normal buffers (skip help/terminal/plugin windows)
+- Remove dead `align_blame` function and commented-out MiniGit block
 
 ## 2026-05-16
 

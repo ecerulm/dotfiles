@@ -161,7 +161,7 @@ end, {
 	desc = "Re-enable autoformat-on-save",
 })
 
-require("snacks_config").setup() -- 2026-03-14 disable
+require("snacks_config").setup()
 
 -- Keymaps / inoremap / nnoremap, etc
 vim.keymap.set("i", "jk", "<Esc>", { unique = true })
@@ -169,8 +169,8 @@ vim.keymap.set("i", "jk", "<Esc>", { unique = true })
 -- textobject / text objects / text-objects / motions
 vim.keymap.set({ "o", "v" }, "ae", ":<C-u>normal! m'ggVG<cr>", { noremap = true, silent = true, unique = true }) -- "o" is the operator pending mode :help omap-info, :help mapmode-o
 
--- uppercase last word / uppercase word / 2026-03-12 / conflict with default <c-u>  :h i_CTRL-U
-vim.keymap.set({ "i" }, "<c-u>", "<Esc>viW~Ea", { noremap = true, silent = true, unique = false }) -- <esc> exit insert mode, viW select last word, ~ invert case on selection, E go to end of word, a enter insert-mode again
+-- uppercase last word / uppercase word / <c-l> is unmapped in Neovim insert mode so the built-in i_CTRL-U is preserved
+vim.keymap.set({ "i" }, "<c-l>", "<Esc>viW~Ea", { noremap = true, silent = true, unique = true }) -- <esc> exit insert mode, viW select last word, ~ invert case on selection, E go to end of word, a enter insert-mode again
 
 -- global options
 vim.opt.clipboard = "unnamedplus" -- paste from system clipboard , consider vim.opt.clipboard:append { 'unnamedplus' }
@@ -202,9 +202,9 @@ vim.opt.ignorecase = true -- ignore case in search
 vim.opt.breakindent = true
 
 -- indent / indentation related settings
-vim.opt.autoindent = true -- this may conflict with nvim-treesitter indentexpr thing, disable nvim-treesitter indent
-vim.opt.smartindent = true -- this may conflict with nvim-treesitter indentexpr thing, disable nvim-treesitter indent, if smartindent, autoindent must be also on
--- autoindent/smartident are alternatives to cindent/indentexpr, if indentexpr is set it overrides autoindent/smartindent
+vim.opt.autoindent = true -- a fallback for filetypes without an indentexpr; indentexpr overrides it when set
+-- smartindent intentionally left off: it misbehaves (e.g. forces '#' lines to column 0) and is superseded by treesitter indentexpr
+-- autoindent/smartindent are alternatives to cindent/indentexpr; if indentexpr is set it overrides autoindent/smartindent
 -- vim.opt.expandtab = true -- insert spaces instead of tabs
 vim.opt.shiftwidth = 2
 vim.opt.tabstop = 2
@@ -254,6 +254,10 @@ vim.opt.formatoptions:remove({ "c", "r", "o" }) -- this will be overwritten by s
 vim.api.nvim_create_autocmd("BufWinEnter", { -- BufReadPost won't work because for zz we need the window
 	pattern = { "*" },
 	callback = function()
+		-- only restore in normal file buffers, not help/terminal/plugin/special windows
+		if vim.bo.buftype ~= "" then
+			return
+		end
 		-- skip if the filetype is commit or rebase
 		for _, value in ipairs({ "commit", "rebase" }) do
 			if vim.regex(value):match_str(vim.bo.filetype) then
@@ -374,21 +378,6 @@ vim.keymap.set("n", "grd", function() -- Go to definition / Go to declaration / 
 	vim.lsp.buf.definition()
 end, { desc = "Go to definition/implmentation", unique = true })
 
-local align_blame = function(au_data)
-	if au_data.data.git_subcommand ~= "blame" then
-		return
-	end
-
-	-- Align blame output with source
-	local win_src = au_data.data.win_source
-	vim.wo.wrap = false
-	vim.fn.winrestview({ topline = vim.fn.line("w0", win_src) })
-	vim.api.nvim_win_set_cursor(0, { vim.fn.line(".", win_src), 0 })
-
-	-- Bind both windows so that they scroll together
-	vim.wo[win_src].scrollbind, vim.wo.scrollbind = true, true
-end
-
 vim.opt.showbreak = "↪ " -- added to lines that have been wrapped
 vim.opt.listchars = { -- set list / yol
 	tab = "→ ",
@@ -410,7 +399,7 @@ require("various-textobjs").setup({
 
 vim.opt.cursorline = true -- the line will be higlighted with hl-CursorLine hl-CursorLineNr
 vim.opt.cursorlineopt = "both" -- line, screenline, number, both means 'line,number'
-vim.opt.cursorcolumn = true
+vim.opt.cursorcolumn = false -- off: the vertical column highlight causes redraw lag with treesitter on large files
 -- vim.api.nvim_set_hl(0, "CursorColumn", { reverse = true, bold = true, bg = "#000000", fg = "#880033" }) -- cursorcolumn color light pink
 -- vim.api.nvim_set_hl(0, "CursorColumn", { bg = "NvimDarkGray3" }) -- same as CursorLine
 

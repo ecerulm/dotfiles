@@ -11,7 +11,6 @@ ______________________________________________________________________
 |-----|-------------|-------------|--------|
 | `<Space>` | Enter a space (insert), leader candidate | Cycle window forward (`<C-w>w`) | `init.lua` |
 | `<Tab>` | Jump to next tab stop / indent | Cycle window forward (`<C-w>w`) | `init.lua` |
-| `<C-u>` (insert) | Delete to start of line | Uppercase last WORD and return to insert | `init.lua` |
 | `]c` / `[c` | Jump to next/prev diff change | gitsigns: next/prev hunk (falls back to diff jump in diff mode) | `init.lua` |
 | `[c` / `]c` | mini.bracketed would also use these | mini.bracketed comment suffix disabled (`comment = { suffix = "" }`) to avoid this | `mini_config.lua` |
 | `>` / `<` (visual) | Indent once, drop selection | Indent and re-select (`>gv` / `<gv`) | `init.lua` |
@@ -45,7 +44,7 @@ ______________________________________________________________________
 | Mode | Key | Action | Source |
 |------|-----|--------|--------|
 | i | `jk` | Exit insert mode (`<Esc>`) | `init.lua` |
-| i | `<C-u>` | Uppercase last WORD (overrides default delete-to-BOL) | `init.lua` |
+| i | `<C-l>` | Uppercase last WORD and return to insert (unmapped by default in Neovim) | `init.lua` |
 
 ______________________________________________________________________
 
