@@ -142,9 +142,20 @@ fi
 
 # Verify `poetry run dbt` resolves to the project venv (not a stray $PATH
 # dbt) and auto-install if not. Shared helper handles the three-line
-# diagnostic on hard failure.
+# diagnostic on hard failure. Skipped under DBT_USE_FUSION=1 — the
+# fusion path runs `dbtf` (a standalone binary), not poetry.
 autoload -Uz _rlm-poetry-ensure-venv
-_rlm-poetry-ensure-venv "$dbt_root" dbt "$label" || return 1
+if [[ ${DBT_USE_FUSION:-0} != 1 ]]; then
+  _rlm-poetry-ensure-venv "$dbt_root" dbt "$label" || return 1
+fi
+
+# Resolve the dbt command-prefix tokens once. Under DBT_USE_FUSION=1 this
+# is the single token `dbtf`; otherwise it's `poetry run dbt`. Every
+# invocation of dbt below uses "${dbt_bin[@]}" instead of hard-coding
+# `poetry run dbt`.
+autoload -Uz _rlm-dbt-bin
+local -a dbt_bin
+dbt_bin=(${(f)"$(_rlm-dbt-bin)"}) || return 1
 
 # Ensure dbt packages declared in packages.yml are installed (a fresh
 # checkout or a newly added package would otherwise cause `dbt ls` to
@@ -311,7 +322,7 @@ fi
 _rlm-dbt-history append "$label" "$project_key" "$selector"
 
 local -a dbt_cmd=(
-  poetry run dbt "$dbt_subcmd"
+  "${dbt_bin[@]}" "$dbt_subcmd"
   -s "$selector"
   --defer
   --state "$state_dir"
@@ -341,7 +352,7 @@ _dbt_cmd_cost_estimate() {
   local tmp_local_nodes
   tmp_local_nodes=$(mktemp)
   (
-    cd "$dbt_root" && poetry run dbt ls \
+    cd "$dbt_root" && "${dbt_bin[@]}" ls \
       -s "$selector" \
       "${cost_resource_args[@]}" \
       --defer --state "$state_dir" \
@@ -379,7 +390,7 @@ _dbt_cmd_cost_estimate() {
   # do not need the stdout SQL anyway — we read each model's compiled SQL
   # from target/compiled/ below.
   (
-    cd "$dbt_root" && poetry run dbt compile \
+    cd "$dbt_root" && "${dbt_bin[@]}" compile \
       -s "$selector" \
       --defer --state "$state_dir" \
       --profiles-dir "$profiles_dir" \
@@ -510,7 +521,7 @@ if (( list_only )); then
   setopt LOCAL_OPTIONS
   unsetopt MONITOR
   (
-    cd "$dbt_root" && poetry run dbt ls \
+    cd "$dbt_root" && "${dbt_bin[@]}" ls \
       -s "$selector" \
       "${resource_args[@]}" \
       --defer --state "$state_dir" \
@@ -522,7 +533,7 @@ if (( list_only )); then
   local pid_local=$!
 
   (
-    cd "$dbt_root" && poetry run dbt ls \
+    cd "$dbt_root" && "${dbt_bin[@]}" ls \
       -s "+${selector}" \
       "${resource_args[@]}" \
       --profiles-dir "$profiles_dir" \

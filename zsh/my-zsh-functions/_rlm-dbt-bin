@@ -1,0 +1,72 @@
+emulate -L zsh
+
+# Emit the command-prefix tokens (one per line, newline-separated) for
+# invoking dbt across all rlm-dbt-* commands. Callers consume the output
+# by splitting on newlines:
+#
+#   local -a dbt_bin
+#   dbt_bin=(${(f)"$(_rlm-dbt-bin)"}) || return 1
+#   "${dbt_bin[@]}" ls --select tag:finance
+#
+# Two modes:
+#
+#   DBT_USE_FUSION=1  → emits a single line: `dbtf`
+#                       (the user's $HOME/.local/bin/dbt Fusion binary,
+#                       aliased as `dbtf` in .zshrc).
+#                       On the first call per shell, validates that
+#                       `dbtf` is on PATH AND that `dbtf --version`
+#                       output mentions "fusion" (case-insensitive) —
+#                       so a stray `dbt` in $PATH that happens to be
+#                       named `dbtf` won't silently masquerade as
+#                       Fusion. The validation result is cached in a
+#                       typeset -g shell-global so subsequent calls
+#                       skip the version probe.
+#
+#   otherwise         → emits three lines: `poetry`, `run`, `dbt`
+#                       (the project-pinned dbt-core invocation that
+#                       every rlm-dbt-* command has used historically).
+#                       No validation here; _rlm-poetry-ensure-venv is
+#                       the caller's job for that path.
+#
+# Centralizes the fusion/poetry switch so a future rename of the alias
+# (e.g. `dbtf` → `dbt-fusion`) or a change to the validation rule
+# (e.g. require a minimum Fusion version) has exactly one site to edit
+# instead of one per rlm-dbt-* command.
+#
+# Usage:
+#   _rlm-dbt-bin
+#
+# Stdout (on success): one token per line.
+#
+# Return codes:
+#   0 — success; stdout populated.
+#   1 — DBT_USE_FUSION=1 but `dbtf` is missing from PATH or its
+#       --version output does not look like Fusion. Diagnostic on
+#       stderr. Subsequent calls in the same shell will re-probe
+#       (the cache only stores positive results).
+
+if [[ ${DBT_USE_FUSION:-0} != 1 ]]; then
+  print -r -- poetry
+  print -r -- run
+  print -r -- dbt
+  return 0
+fi
+
+typeset -g _RLM_DBT_BIN_FUSION_OK
+if [[ ${_RLM_DBT_BIN_FUSION_OK:-} != 1 ]]; then
+  if ! command -v dbtf >/dev/null 2>&1; then
+    print -u2 "_rlm-dbt-bin: DBT_USE_FUSION=1 but \`dbtf\` is not on PATH"
+    return 1
+  fi
+  local version_out
+  version_out=$(dbtf --version 2>&1)
+  if ! print -r -- "$version_out" | grep -qi fusion; then
+    print -u2 "_rlm-dbt-bin: DBT_USE_FUSION=1 but \`dbtf --version\` does not mention 'fusion':"
+    print -u2 "$version_out"
+    return 1
+  fi
+  _RLM_DBT_BIN_FUSION_OK=1
+fi
+
+print -r -- dbtf
+return 0

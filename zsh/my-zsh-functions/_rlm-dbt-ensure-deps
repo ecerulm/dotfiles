@@ -3,7 +3,8 @@ emulate -L zsh
 # Ensure dbt packages declared in packages.yml are installed under
 # dbt_packages/. If packages.yml exists but dbt_packages/ is missing,
 # empty, or has fewer entries than packages.yml declares, run
-# `poetry run dbt deps` once from <project_root>.
+# `dbt deps` once from <project_root> via the command prefix emitted
+# by _rlm-dbt-bin (poetry-core or dbtf/Fusion).
 #
 # Without this, the first `dbt ls` after a fresh checkout (or after
 # adding a new package) prints:
@@ -55,4 +56,7 @@ fi
 (( installed >= declared )) && return 0
 
 print -u2 "${label}: dbt packages out of date (${installed}/${declared} installed) — running dbt deps in $dbt_project_root …"
-(cd "$project_root" && poetry run dbt deps --project-dir "$dbt_project_root")
+autoload -Uz _rlm-dbt-bin
+local -a dbt_bin
+dbt_bin=(${(f)"$(_rlm-dbt-bin)"}) || return 1
+(cd "$project_root" && "${dbt_bin[@]}" deps --project-dir "$dbt_project_root")

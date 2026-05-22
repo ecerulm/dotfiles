@@ -78,8 +78,11 @@ case $subcmd in
     local err_log="${cache_dir}/dbt-ls.err"
     local -a profile_args
     [[ -n $profile ]] && profile_args=(--profile "$profile")
+    autoload -Uz _rlm-dbt-bin
+    local -a dbt_bin
+    dbt_bin=(${(f)"$(_rlm-dbt-bin)"}) || return 1
     local -a dbt_cmd
-    dbt_cmd=(poetry run dbt ls
+    dbt_cmd=("${dbt_bin[@]}" ls
       --project-dir "$dbt_project_root"
       --profiles-dir "$profiles_dir"
       "${profile_args[@]}"

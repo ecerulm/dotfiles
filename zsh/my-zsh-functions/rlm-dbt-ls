@@ -5,7 +5,13 @@ set -o pipefail
 # Precondition checks
 # ---------------------------------------------------------------------------
 
-for cmd in poetry fzf; do
+local -a required_cmds=(fzf)
+if [[ ${DBT_USE_FUSION:-0} == 1 ]]; then
+  required_cmds+=(dbtf)
+else
+  required_cmds+=(poetry)
+fi
+for cmd in "${required_cmds[@]}"; do
   if ! command -v "$cmd" >/dev/null 2>&1; then
     print -u2 "dbt-ls: '$cmd' not found in PATH"
     return 1
@@ -27,8 +33,12 @@ while [[ $dir != / ]]; do
 done
 
 if [[ -z $project_root ]]; then
-  print -u2 "dbt-ls: 'pyproject.toml' not found in '$PWD' or any parent directory"
-  return 1
+  if [[ ${DBT_USE_FUSION:-0} == 1 ]]; then
+    : # project_root will be set to dbt_project_root once we find it below
+  else
+    print -u2 "dbt-ls: 'pyproject.toml' not found in '$PWD' or any parent directory"
+    return 1
+  fi
 fi
 
 # ---------------------------------------------------------------------------
@@ -49,6 +59,8 @@ if [[ -z $dbt_project_root ]]; then
   print -u2 "dbt-ls: 'dbt_project.yml' not found in '$PWD' or any parent (outside package dirs)"
   return 1
 fi
+
+[[ -z $project_root ]] && project_root="$dbt_project_root"
 
 local profiles_dir="$dbt_project_root/profile"
 
@@ -100,8 +112,10 @@ print "dbt-ls: using profiles-dir='${profiles_dir}' profile='${profile_name}' ta
 # (not a stray $PATH dbt). Auto-installs once if not.
 # ---------------------------------------------------------------------------
 
-autoload -Uz _rlm-poetry-ensure-venv
-_rlm-poetry-ensure-venv "$project_root" dbt dbt-ls || return 1
+if [[ ${DBT_USE_FUSION:-0} != 1 ]]; then
+  autoload -Uz _rlm-poetry-ensure-venv
+  _rlm-poetry-ensure-venv "$project_root" dbt dbt-ls || return 1
+fi
 
 # ---------------------------------------------------------------------------
 # Ensure dbt packages declared in packages.yml are installed
@@ -230,7 +244,10 @@ local -a dbt_cmd
 # (resource_type, package_name, original_file_path, config.materialized,
 # database/schema/alias, depends_on, description, …) in a single dbt call.
 # The fzf preview pane reads names back out of this file.
-dbt_cmd=(poetry run dbt ls --project-dir "$dbt_project_root" --profiles-dir "$profiles_dir" --profile "$profile_name" --target "$dbt_target" --resource-type model --output json --quiet -s "$selector")
+autoload -Uz _rlm-dbt-bin
+local -a dbt_bin
+dbt_bin=(${(f)"$(_rlm-dbt-bin)"}) || return 1
+dbt_cmd=("${dbt_bin[@]}" ls --project-dir "$dbt_project_root" --profiles-dir "$profiles_dir" --profile "$profile_name" --target "$dbt_target" --resource-type model --output json --quiet -s "$selector")
 
 print -u2 "$ ${dbt_cmd[*]}"
 
