@@ -351,6 +351,10 @@ _dbt_cmd_cost_estimate() {
 
   local tmp_local_nodes
   tmp_local_nodes=$(mktemp)
+  # Same noise-filter as the list-only block: dbt-core (HH:MM:SS log
+  # prefix) and Fusion (trailing "suggestion: …" hint, "[warning] …"
+  # lines, "===…===" separators) both leak non-name lines into stdout
+  # even under --quiet. Restrict to strict dotted-identifier lines.
   (
     cd "$dbt_root" && "${dbt_bin[@]}" ls \
       -s "$selector" \
@@ -359,6 +363,7 @@ _dbt_cmd_cost_estimate() {
       --profiles-dir "$profiles_dir" \
       --target "$dbt_target" \
       --output name --quiet 2>/dev/null \
+    | grep -E '^[A-Za-z0-9_.]+$' \
     | sort
   ) >| "$tmp_local_nodes" 2>/dev/null
 
@@ -520,6 +525,11 @@ if (( list_only )); then
   # Run both dbt ls calls in parallel (MONITOR off to suppress job notifications)
   setopt LOCAL_OPTIONS
   unsetopt MONITOR
+  # Filter to lines that look like dbt node names. Both dbt-core (HH:MM:SS
+  # log prefix) and Fusion (trailing "suggestion: …" hint, "[warning] …"
+  # lines, "===…===" separators) can leak non-name lines into stdout even
+  # under --quiet; node names are pure dotted identifiers, so a strict
+  # `[A-Za-z0-9_.]+$` keep-list catches both.
   (
     cd "$dbt_root" && "${dbt_bin[@]}" ls \
       -s "$selector" \
@@ -528,6 +538,7 @@ if (( list_only )); then
       --profiles-dir "$profiles_dir" \
       --target "$dbt_target" \
       --output name --quiet 2>/dev/null \
+    | grep -E '^[A-Za-z0-9_.]+$' \
     | sort >| "$tmp_local"
   ) &
   local pid_local=$!
@@ -539,6 +550,7 @@ if (( list_only )); then
       --profiles-dir "$profiles_dir" \
       --target "$dbt_target" \
       --output name --quiet 2>/dev/null \
+    | grep -E '^[A-Za-z0-9_.]+$' \
     | sort >| "$tmp_all"
   ) &
   local pid_all=$!

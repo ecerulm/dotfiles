@@ -254,9 +254,16 @@ print -u2 "$ ${dbt_cmd[*]}"
 local models_json_file
 models_json_file=$(mktemp -t dbt-ls-models.XXXXXX.json)
 
+# Keep only JSON object lines. dbt-core prefixes log lines with HH:MM:SS;
+# Fusion appends a "suggestion: ..." compatibility hint (and may print
+# other non-JSON lines) to stdout alongside the actual JSON. Filtering
+# to lines starting with `{` is correct for both — actual JSON nodes
+# from `--output json` always start at column 0 with `{`. The `|| true`
+# protects against `grep` returning 1 (no matches) tripping pipefail
+# when the selector matched zero models — the empty-output handler
+# below is the right error path for that case.
 (cd "$project_root" && "${dbt_cmd[@]}" 2>/dev/null) \
-  | grep -v '^[0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}' \
-  | grep -v '^\s*$' >| "$models_json_file"
+  | { grep '^{' || true; } >| "$models_json_file"
 
 local dbt_output
 # Extract bare model names from the JSON (one object per line)

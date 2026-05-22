@@ -10,17 +10,25 @@ emulate -L zsh
 #
 # Two modes:
 #
-#   DBT_USE_FUSION=1  → emits a single line: `dbtf`
-#                       (the user's $HOME/.local/bin/dbt Fusion binary,
-#                       aliased as `dbtf` in .zshrc).
+#   DBT_USE_FUSION=1  → emits a single line: the absolute path the
+#                       `dbtf` alias resolves to (typically
+#                       $HOME/.local/bin/dbt). Emits a PATH, not the
+#                       alias name `dbtf`, because every caller runs
+#                       under `emulate -L zsh` (which sets NO_ALIASES
+#                       locally) AND invokes the command via quoted
+#                       array expansion `"${dbt_bin[@]}"`, which by
+#                       itself never triggers alias expansion. Either
+#                       condition alone is enough to turn `dbtf` into
+#                       a `command not found` — so the helper resolves
+#                       the alias once and emits the underlying path.
 #                       On the first call per shell, validates that
-#                       `dbtf` is on PATH AND that `dbtf --version`
-#                       output mentions "fusion" (case-insensitive) —
-#                       so a stray `dbt` in $PATH that happens to be
-#                       named `dbtf` won't silently masquerade as
-#                       Fusion. The validation result is cached in a
-#                       typeset -g shell-global so subsequent calls
-#                       skip the version probe.
+#                       the alias is defined AND that the resolved
+#                       binary's `--version` output mentions "fusion"
+#                       (case-insensitive) — so a stray `dbt` named
+#                       `dbtf` can't silently masquerade as Fusion.
+#                       The resolved path is cached in a typeset -g
+#                       shell-global so subsequent calls skip both
+#                       the alias lookup and the version probe.
 #
 #   otherwise         → emits three lines: `poetry`, `run`, `dbt`
 #                       (the project-pinned dbt-core invocation that
@@ -40,10 +48,10 @@ emulate -L zsh
 #
 # Return codes:
 #   0 — success; stdout populated.
-#   1 — DBT_USE_FUSION=1 but `dbtf` is missing from PATH or its
-#       --version output does not look like Fusion. Diagnostic on
-#       stderr. Subsequent calls in the same shell will re-probe
-#       (the cache only stores positive results).
+#   1 — DBT_USE_FUSION=1 but the `dbtf` alias is undefined / resolves
+#       to a missing file / its --version output does not look like
+#       Fusion. Diagnostic on stderr. Subsequent calls in the same
+#       shell will re-probe (the cache only stores positive results).
 
 if [[ ${DBT_USE_FUSION:-0} != 1 ]]; then
   print -r -- poetry
@@ -52,21 +60,41 @@ if [[ ${DBT_USE_FUSION:-0} != 1 ]]; then
   return 0
 fi
 
-typeset -g _RLM_DBT_BIN_FUSION_OK
-if [[ ${_RLM_DBT_BIN_FUSION_OK:-} != 1 ]]; then
-  if ! command -v dbtf >/dev/null 2>&1; then
-    print -u2 "_rlm-dbt-bin: DBT_USE_FUSION=1 but \`dbtf\` is not on PATH"
+# Cache the resolved Fusion binary path (NOT just an OK flag) so every
+# call after the first one is a single env-var read with no PATH /
+# alias / --version probe. Re-probing the alias every call would mean
+# every rlm-dbt-* command pays a fork-exec for `dbtf --version` even
+# on a cache hit.
+typeset -g _RLM_DBT_BIN_FUSION_PATH
+if [[ -z ${_RLM_DBT_BIN_FUSION_PATH:-} ]]; then
+  # The `dbtf` alias is defined in .zshrc and points at the Fusion
+  # binary (typically $HOME/.local/bin/dbt). Read the alias body
+  # directly with the (e) parameter-expansion flag — `alias dbtf` is
+  # of the form `dbtf=/path/to/dbt` so stripping the `dbtf=` prefix
+  # gives the path. `command -v dbtf` would also work but only when
+  # alias expansion is active in the current scope, which it is NOT
+  # inside an `emulate -L zsh` function (the NO_ALIASES option is
+  # set locally). Reading the alias table via ${aliases[…]} works
+  # regardless of the local NO_ALIASES setting.
+  local resolved="${aliases[dbtf]:-}"
+  if [[ -z $resolved ]]; then
+    print -u2 "_rlm-dbt-bin: DBT_USE_FUSION=1 but the \`dbtf\` alias is not defined"
+    print -u2 "  (set in .zshrc; if you're in a non-interactive shell, that's expected — \`dbtf\` is an alias, not a PATH binary)"
+    return 1
+  fi
+  if [[ ! -x $resolved ]]; then
+    print -u2 "_rlm-dbt-bin: DBT_USE_FUSION=1 but \`dbtf\` alias resolves to '$resolved' which is not an executable file"
     return 1
   fi
   local version_out
-  version_out=$(dbtf --version 2>&1)
+  version_out=$("$resolved" --version 2>&1)
   if ! print -r -- "$version_out" | grep -qi fusion; then
-    print -u2 "_rlm-dbt-bin: DBT_USE_FUSION=1 but \`dbtf --version\` does not mention 'fusion':"
+    print -u2 "_rlm-dbt-bin: DBT_USE_FUSION=1 but '$resolved' --version does not mention 'fusion':"
     print -u2 "$version_out"
     return 1
   fi
-  _RLM_DBT_BIN_FUSION_OK=1
+  _RLM_DBT_BIN_FUSION_PATH="$resolved"
 fi
 
-print -r -- dbtf
+print -r -- "$_RLM_DBT_BIN_FUSION_PATH"
 return 0

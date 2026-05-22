@@ -96,9 +96,16 @@ case $subcmd in
     print -u2 "_rlm-dbt-nodes-cache: fetching nodes via dbt ls (project=${project_key:0:8}…) …"
     print -u2 "$ (cd $project_root && ${dbt_cmd[*]})"
     local output rc
+    # Keep only JSON object lines. dbt-core prefixes log lines with HH:MM:SS;
+    # Fusion appends a "suggestion: ..." compatibility hint (and may print
+    # other non-JSON lines) to stdout alongside the actual JSON. Filtering
+    # to lines starting with `{` is correct for both — actual JSON nodes
+    # from `--output json` always start at column 0 with `{`. grep returns
+    # 1 (no matches) when dbt produced zero nodes; treat that as success
+    # so the JSON-validation guard below — not pipefail — controls the
+    # error path.
     output=$(cd "$project_root" && "${dbt_cmd[@]}" 2>"$err_log" \
-      | grep -v '^[0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}' \
-      | grep -v '^[[:space:]]*$')
+      | { grep '^{' || true; })
     rc=$?
     if (( rc != 0 )); then
       print -u2 "_rlm-dbt-nodes-cache: dbt ls failed (exit $rc)"
