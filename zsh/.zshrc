@@ -225,6 +225,10 @@ alias ctags="ctags -R --fields=+zK"
     && . "$HOME/.local/google-cloud-sdk/completion.zsh.inc"
 
 # Key bindings
+# Uncomment to force emacs-mode keymap so Ctrl-A / Ctrl-E (and other emacs
+# bindings) work. zsh picks viins when $EDITOR or $VISUAL matches *vi* —
+# our EDITOR='nvim' (.zshenv) triggers that, leaving ^A/^E as self-insert.
+# bindkey -e
 bindkey ' ' magic-space
 
 # VS Code CLI
