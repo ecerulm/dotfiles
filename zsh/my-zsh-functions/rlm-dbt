@@ -1,0 +1,104 @@
+emulate -L zsh
+set -o pipefail
+
+local usage="dbt <subcommand> [args...]
+
+Generic dbt dispatcher.
+
+Behavior:
+  1. If \`rlm-dbt-<subcommand>\` exists as a function or alias, delegate
+     to it (passing any remaining args through). Example: \`dbt run\`
+     opens the rlm-dbt-run fzf picker; \`dbt run -s tag:foo\` forwards
+     \`-s tag:foo\` to rlm-dbt-run.
+  2. Otherwise, invoke plain dbt via _rlm-dbt-bin (respects
+     DBT_USE_FUSION). Examples: \`dbt parse\`, \`dbt deps\`,
+     \`dbt debug\`, \`dbt source freshness\`, etc.
+
+For the plain-dbt path, rlm-dbt auto-injects:
+  --project-dir <root>   nearest dbt_project.yml walking up from \$PWD
+                         (skipped if --project-dir is already in args)
+  --profiles-dir <dir>   \$DBT_PROFILES_DIR if set
+                         (skipped if --profiles-dir is already in args)
+  --defer --state <dir>  \$DBT_STATE_DIR (via _rlm-dbt-state-info, hard-fails
+                         when missing or > 7 days old) — only for subcommands
+                         that accept these flags: build, clone, compile, ls,
+                         parse, retry, run, seed, show, snapshot, source, test
+                         (skipped if --defer / --no-defer / --state already
+                         in args)
+
+Examples:
+  dbt run                  # delegates to rlm-dbt-run (fzf picker)
+  dbt run -s tag:finance   # delegates to rlm-dbt-run with args
+  dbt compile -s my_model  # plain dbt compile, --project-dir + --defer/--state auto-injected
+  dbt parse                # plain dbt parse, --project-dir auto-injected
+  dbt deps                 # plain dbt deps (no defer — not a defer-aware subcommand)
+  dbt --help               # plain dbt --help (no auto-injection without subcmd)"
+
+if [[ ${1:-} == (-h|--help) || $# -eq 0 ]]; then
+  print -r -- "$usage"
+  [[ $# -eq 0 ]] && return 1
+  return 0
+fi
+
+local subcmd=$1
+shift
+
+# Delegate to rlm-dbt-<subcmd> if one exists (function or alias).
+local wrapper="rlm-dbt-${subcmd}"
+if (( ${+functions[$wrapper]} )) || (( ${+aliases[$wrapper]} )); then
+  "$wrapper" "$@"
+  return $?
+fi
+
+# Plain-dbt path: resolve the dbt invocation.
+autoload -Uz _rlm-dbt-bin
+local -a dbt_bin
+dbt_bin=(${(f)"$(_rlm-dbt-bin)"}) || return 1
+
+# Auto-inject --project-dir by walking up from $PWD for dbt_project.yml,
+# unless the user already supplied one.
+local -a injected=()
+if ! (( ${@[(I)--project-dir]} )); then
+  local dir=$PWD
+  while [[ $dir != / && $dir != "" ]]; do
+    if [[ -f "$dir/dbt_project.yml" ]]; then
+      injected+=(--project-dir "$dir")
+      break
+    fi
+    dir=${dir:h}
+  done
+fi
+
+# Auto-inject --profiles-dir from $DBT_PROFILES_DIR if set, unless the
+# user already supplied one.
+if [[ -n ${DBT_PROFILES_DIR:-} ]] && ! (( ${@[(I)--profiles-dir]} )); then
+  injected+=(--profiles-dir "$DBT_PROFILES_DIR")
+fi
+
+# Auto-inject --defer + --state for the subcommands that accept them. The
+# allowlist matches the set documented in `dbt <subcmd> --help` as accepting
+# both flags. Skipped when the user has already supplied --defer, --no-defer,
+# or --state. Uses the shared _rlm-dbt-state-info helper with --require so a
+# missing / stale (>7d) DBT_STATE_DIR hard-fails with the same diagnostic
+# the rlm-dbt-{run,build,test} wrappers emit — matching their behavior.
+local -a defer_aware_subcmds=(
+  build clone compile ls parse retry run seed show snapshot source test
+)
+if (( ${defer_aware_subcmds[(I)$subcmd]} )) \
+  && ! (( ${@[(I)--defer]} )) \
+  && ! (( ${@[(I)--no-defer]} )) \
+  && ! (( ${@[(I)--state]} )); then
+  autoload -Uz _rlm-dbt-state-info
+  local _state_info
+  _state_info=$(_rlm-dbt-state-info --require --max-age-days 7 --label "rlm-dbt $subcmd") || return 1
+  eval "$_state_info"
+  # state_dir is set by the eval above.
+  injected+=(--defer --state "$state_dir")
+fi
+
+# Echo the full command to stderr (use ${(q-)x} so args with spaces /
+# globs / quotes round-trip safely as something a human can paste back).
+local -a full_cmd=("${dbt_bin[@]}" "$subcmd" "${injected[@]}" "$@")
+print -r -- "+ ${(j: :)${(@q-)full_cmd}}" >&2
+
+"${dbt_bin[@]}" "$subcmd" "${injected[@]}" "$@"

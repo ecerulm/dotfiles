@@ -1,0 +1,36 @@
+dbt <subcommand> [args...]
+
+Generic dbt dispatcher.
+
+If `rlm-dbt-<subcommand>` exists as a function or alias, delegate to
+it (passing any remaining args through). Example: `dbt run` opens
+the rlm-dbt-run fzf picker; `dbt run -s tag:foo` forwards `-s
+tag:foo` to rlm-dbt-run.
+
+Otherwise, invoke plain dbt via _rlm-dbt-bin (respects
+DBT_USE_FUSION). Examples: `dbt parse`, `dbt deps`, `dbt debug`,
+`dbt source freshness`.
+
+For the plain-dbt path, rlm-dbt auto-injects:
+  --project-dir <root>   nearest dbt_project.yml walking up from
+                         $PWD (skipped if --project-dir is already
+                         in args)
+  --profiles-dir <dir>   $DBT_PROFILES_DIR if set (skipped if
+                         --profiles-dir is already in args)
+  --defer --state <dir>  $DBT_STATE_DIR (via _rlm-dbt-state-info,
+                         hard-fails when missing or > 7 days old) —
+                         only for subcommands that accept these
+                         flags: build, clone, compile, ls, parse,
+                         retry, run, seed, show, snapshot, source,
+                         test (skipped if --defer / --no-defer /
+                         --state already in args)
+
+Existing wrappers (which dbt <subcmd> delegates to): run, build,
+test, ls, sandbox.
+
+Examples:
+  dbt run                  # delegates to rlm-dbt-run (fzf picker)
+  dbt run -s tag:finance   # delegates to rlm-dbt-run with args
+  dbt compile -s my_model  # plain dbt compile, --defer/--state auto-injected
+  dbt parse                # plain dbt parse, --project-dir auto-injected
+  dbt deps                 # plain dbt deps (no defer — not defer-aware)

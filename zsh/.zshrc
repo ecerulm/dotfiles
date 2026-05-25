@@ -127,6 +127,7 @@ autoload -Uz rlm-afw-deploy
 autoload -Uz rlm-gh-permalink
 autoload -Uz rlm-git-changed
 autoload -Uz rlm-git-diff-base
+autoload -Uz rlm-dbt
 autoload -Uz rlm-dbt-ls
 autoload -Uz rlm-dbt-run
 autoload -Uz rlm-dbt-build
@@ -166,6 +167,7 @@ alias urldecode='rlm-urldecode'
 alias generatectags='rlm-generatectags'
 alias pr-for-commit='rlm-pr-for-commit'
 alias afw-deploy='rlm-afw-deploy'
+alias dbt='rlm-dbt'
 alias dbt-ls='rlm-dbt-ls'
 alias dbt-run='rlm-dbt-run'
 alias dbt-build='rlm-dbt-build'
