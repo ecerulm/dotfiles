@@ -37,7 +37,8 @@ CACHING
   the picker.
 
 On selection the function:
-  1. Prints the GCP console URL to stdout.
+  1. Prints the fully-qualified table name (project.dataset.table)
+     and the GCP console URL to stdout, one per line.
   2. Copies the URL to the clipboard (pbcopy on macOS,
      xclip/xsel on Linux).
   3. Opens the URL in the system browser (open on macOS,

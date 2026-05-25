@@ -185,9 +185,11 @@ fi
 # which is the single source of truth for the deep-link format (also used
 # by rlm-sandbox-bq-open, rlm-dbt-bq-link, and the OSC 8 hyperlink in
 # dbt-model-preview).
-local url
+local url fqn
 url=$("$HOME/bin/bq-console-url" "${sel_project}:${sel_dataset}.${sel_table}")
+fqn="${sel_project}.${sel_dataset}.${sel_table}"
 
+print "$fqn"
 print "$url"
 
 # Copy to clipboard (macOS pbcopy, Linux xclip/xsel fallback)
