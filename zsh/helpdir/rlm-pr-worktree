@@ -21,8 +21,10 @@ Selecting a PR creates a worktree at  ../<repo>-pr-<N>  on the PR
 branch. Selecting a JIRA issue first prompts (vared, editable) for
 an optional free-form suffix:
 
-  - Empty input keeps the legacy layout: worktree  ../<repo>-<KEY>
-    on a new branch named  <KEY>  off origin/<default-branch>.
+  - Empty input: worktree  ../<repo>-<KEY>  on a new branch named
+    <KEY>/feat/<key_lowercased>  off origin/<default-branch>, e.g.
+    DATA-1234 -> branch DATA-1234/feat/data_1234. The branch always
+    follows the project-wide <KEY>/feat/<slug> convention.
   - A non-empty value like "fix bq cost" becomes a path slug and a
     branch slug: worktree  ../<repo>-<KEY>-fix-bq-cost  on a new
     branch named  <KEY>/feat/fix_bq_cost  off the same base. Runs

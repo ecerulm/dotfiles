@@ -16,7 +16,8 @@
 #
 # Selecting a PR     -> worktree at ../<repo>-pr-<N>      on the PR branch.
 # Selecting an issue -> prompts (vared) for an optional suffix:
-#   * empty   -> worktree ../<repo>-<KEY>            branch <KEY>
+#   * empty   -> worktree ../<repo>-<KEY>            branch <KEY>/feat/<key_lowercased>
+#                (e.g. DATA-1234 -> branch DATA-1234/feat/data_1234)
 #   * "foo bar" -> worktree ../<repo>-<KEY>-foo-bar  branch <KEY>/feat/foo_bar
 # In both cases the new branch is created off origin/<default-branch>.
 #
@@ -203,12 +204,15 @@ _prwt_make_jira_worktree() {
     path_slug=$(_prwt_slug "$suffix" '-')
     branch_slug=$(_prwt_slug "$suffix" '_')
   fi
+  # Always use <KEY>/feat/<slug> branch structure for JIRA picks.
+  # When no suffix is provided, default the slug to the lowercased key
+  # (with '-' -> '_'), e.g. DATA-1234 -> DATA-1234/feat/data_1234.
   if [[ -n $path_slug ]]; then
     default_dirname=${repo_name}-${key}-${path_slug}
     branch=${key}/feat/${branch_slug}
   else
     default_dirname=${repo_name}-${key}
-    branch=${key}
+    branch=${key}/feat/$(_prwt_slug "$key" '_')
   fi
 
   _prwt_prompt_dirname "$default_dirname" || {
