@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-05-25
+
+- Add `:Mergetool` user command — opens a 3-way merge view (LOCAL | MERGED | REMOTE, with BASE above) for the current buffer using its git index stages 1/2/3; requires the file to be in a conflicted state
+
 ## 2026-05-22
 
 - Add `:DiffThisRemote` user command (gitsigns diffthis against upstream tracking branch)

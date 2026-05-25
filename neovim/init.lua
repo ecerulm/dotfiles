@@ -670,6 +670,83 @@ vim.api.nvim_create_user_command("DiffThisMain", function()
 	require("gitsigns").diffthis(sha)
 end, { desc = "Gitsigns diffthis against merge-base of default branch" })
 
+-- :Mergetool — open a 3-way merge view for the current buffer.
+-- Layout (vimdiff3-style):
+--   +--------+--------+--------+
+--   | LOCAL  | MERGED | REMOTE |   stages :2: | working buffer | :3:
+--   +--------+--------+--------+
+--                |
+--             BASE (:1:)         opened in a horizontal split above MERGED
+-- Requires the file to be in a conflicted state (have all three stages in the index).
+vim.api.nvim_create_user_command("Mergetool", function()
+	local file = vim.api.nvim_buf_get_name(0)
+	if file == "" then
+		vim.notify("Mergetool: current buffer has no file", vim.log.levels.ERROR)
+		return
+	end
+	local dir = vim.fn.fnamemodify(file, ":h")
+	local toplevel = vim.trim(vim.fn.system({ "git", "-C", dir, "rev-parse", "--show-toplevel" }))
+	if vim.v.shell_error ~= 0 or toplevel == "" then
+		vim.notify("Mergetool: not inside a git repository", vim.log.levels.ERROR)
+		return
+	end
+	local rel = vim.fn.fnamemodify(file, ":p"):sub(#toplevel + 2) -- strip "<toplevel>/"
+
+	-- Verify the file has all three merge stages (i.e., is actually conflicted).
+	local stages = vim.fn.system({ "git", "-C", toplevel, "ls-files", "-u", "--", rel })
+	if vim.v.shell_error ~= 0 or stages == "" then
+		vim.notify("Mergetool: " .. rel .. " is not in a conflicted state", vim.log.levels.ERROR)
+		return
+	end
+
+	local ft = vim.bo.filetype
+
+	local function load_stage(stage, label)
+		local content = vim.fn.systemlist({ "git", "-C", toplevel, "show", ":" .. stage .. ":" .. rel })
+		if vim.v.shell_error ~= 0 then
+			vim.notify("Mergetool: failed to read stage :" .. stage .. ": for " .. rel, vim.log.levels.ERROR)
+			return nil
+		end
+		local buf = vim.api.nvim_create_buf(false, true)
+		vim.api.nvim_buf_set_lines(buf, 0, -1, false, content)
+		vim.api.nvim_buf_set_name(buf, label .. "//" .. rel)
+		vim.bo[buf].buftype = "nofile"
+		vim.bo[buf].bufhidden = "wipe"
+		vim.bo[buf].swapfile = false
+		vim.bo[buf].modifiable = false
+		vim.bo[buf].filetype = ft
+		return buf
+	end
+
+	local local_buf = load_stage(2, "LOCAL")
+	local remote_buf = load_stage(3, "REMOTE")
+	local base_buf = load_stage(1, "BASE")
+	if not (local_buf and remote_buf and base_buf) then
+		return
+	end
+
+	-- Start from the working (MERGED) buffer; put LOCAL to its left, REMOTE to its right,
+	-- and BASE in a horizontal split above the MERGED window.
+	vim.cmd("diffthis")
+	local merged_win = vim.api.nvim_get_current_win()
+
+	vim.cmd("leftabove vsplit")
+	vim.api.nvim_win_set_buf(0, local_buf)
+	vim.cmd("diffthis")
+
+	vim.api.nvim_set_current_win(merged_win)
+	vim.cmd("rightbelow vsplit")
+	vim.api.nvim_win_set_buf(0, remote_buf)
+	vim.cmd("diffthis")
+
+	vim.api.nvim_set_current_win(merged_win)
+	vim.cmd("leftabove split")
+	vim.api.nvim_win_set_buf(0, base_buf)
+	vim.cmd("diffthis")
+
+	vim.api.nvim_set_current_win(merged_win)
+end, { desc = "Open 3-way merge view (LOCAL | MERGED | REMOTE, with BASE above) for current buffer" })
+
 vim.opt.rtp:append("/opt/homebrew/opt/fzf")
 
 thismachine.post()
