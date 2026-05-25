@@ -185,11 +185,25 @@ fi
 # which is the single source of truth for the deep-link format (also used
 # by rlm-sandbox-bq-open, rlm-dbt-bq-link, and the OSC 8 hyperlink in
 # dbt-model-preview).
-local url fqn
+local url fqn kind type_raw
 url=$("$HOME/bin/bq-console-url" "${sel_project}:${sel_dataset}.${sel_table}")
 fqn="${sel_project}.${sel_dataset}.${sel_table}"
 
-print "$fqn"
+# Determine TABLE vs VIEW (or MATERIALIZED_VIEW/EXTERNAL/SNAPSHOT) for the
+# label prefix. `bq show --format=json` is one round-trip; if it fails we
+# fall back to a bare "TABLE" prefix rather than blocking the open.
+type_raw=$(bq show --format=json "${sel_project}:${sel_dataset}.${sel_table}" 2>/dev/null \
+  | jq -r '.type // "TABLE"' 2>/dev/null)
+case "$type_raw" in
+  VIEW)               kind="VIEW" ;;
+  MATERIALIZED_VIEW)  kind="MATERIALIZED_VIEW" ;;
+  EXTERNAL)           kind="EXTERNAL" ;;
+  SNAPSHOT)           kind="SNAPSHOT" ;;
+  "" )                kind="TABLE" ;;
+  *)                  kind="$type_raw" ;;
+esac
+
+print "${kind}: ${fqn}"
 print "$url"
 
 # Copy to clipboard (macOS pbcopy, Linux xclip/xsel fallback)
