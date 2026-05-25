@@ -113,6 +113,14 @@ print "dbt-ls: using profiles-dir='${profiles_dir}' profile='${profile_name}' ta
 # ---------------------------------------------------------------------------
 
 if [[ ${DBT_USE_FUSION:-0} != 1 ]]; then
+  # Probe pyenv's `python` shim from $dbt_project_root *before* poetry,
+  # so a missing/misconfigured .python-version surfaces with a clear
+  # diagnostic instead of bubbling up as "poetry install failed".
+  # Probe runs from $dbt_project_root (where .python-version typically
+  # lives) rather than $project_root (the pyproject.toml parent) —
+  # pyenv only walks up from cwd to find .python-version.
+  autoload -Uz _rlm-python-ensure-version
+  _rlm-python-ensure-version "$dbt_project_root" dbt-ls || return 1
   autoload -Uz _rlm-poetry-ensure-venv
   _rlm-poetry-ensure-venv "$project_root" dbt dbt-ls || return 1
 fi

@@ -56,12 +56,20 @@ local -a dbt_bin
 dbt_bin=(${(f)"$(_rlm-dbt-bin)"}) || return 1
 
 # Auto-inject --project-dir by walking up from $PWD for dbt_project.yml,
-# unless the user already supplied one.
+# unless the user already supplied one. The resolved dir is also reused
+# below as the cwd for the `_rlm-python-ensure-version` probe; capture it
+# from either source.
 local -a injected=()
-if ! (( ${@[(I)--project-dir]} )); then
+local _proj_dir=""
+local _user_proj_idx=${@[(I)--project-dir]}
+if (( _user_proj_idx )); then
+  # User passed --project-dir <path>; the value is the very next arg.
+  _proj_dir=${@[_user_proj_idx + 1]:-}
+else
   local dir=$PWD
   while [[ $dir != / && $dir != "" ]]; do
     if [[ -f "$dir/dbt_project.yml" ]]; then
+      _proj_dir="$dir"
       injected+=(--project-dir "$dir")
       break
     fi
@@ -94,6 +102,17 @@ if (( ${defer_aware_subcmds[(I)$subcmd]} )) \
   eval "$_state_info"
   # state_dir is set by the eval above.
   injected+=(--defer --state "$state_dir")
+fi
+
+# Probe pyenv's `python` shim from the dbt project dir before invoking
+# poetry-run-dbt, so a missing/misconfigured .python-version surfaces
+# with a clear diagnostic instead of bubbling up as a downstream poetry
+# error. Skipped under DBT_USE_FUSION=1 (dbtf is a standalone binary
+# that does not touch pyenv) and skipped when no project dir is
+# resolvable (let dbt itself emit its own "no dbt_project.yml" error).
+if [[ ${DBT_USE_FUSION:-0} != 1 && -n $_proj_dir ]]; then
+  autoload -Uz _rlm-python-ensure-version
+  _rlm-python-ensure-version "$_proj_dir" "rlm-dbt $subcmd" || return 1
 fi
 
 # Echo the full command to stderr (use ${(q-)x} so args with spaces /

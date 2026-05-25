@@ -1,0 +1,70 @@
+emulate -L zsh
+
+# Verify that a `python` interpreter resolves from the given directory.
+#
+# Runs `python -EsSc 'import sys; print(sys.executable)'` from $cwd. The
+# probe is exactly the call Poetry makes internally when it bootstraps a
+# venv, so if this passes Poetry will see the same interpreter.
+#
+# Failure mode this catches: pyenv's `python` shim is on $PATH but the
+# directory does not have a `.python-version` file in its ancestry that
+# names an *installed* version. The shim then writes a helpful "no such
+# version" message to stderr and exits 127. Without this check, the next
+# step downstream (`poetry install` / `poetry run`) fails with a message
+# like "Command '[...python, -EsSc, ...]' returned non-zero exit status
+# 127" buried several layers deep — making the user think poetry is
+# broken when the real cause is missing pyenv config.
+#
+# The cwd matters because pyenv only walks up from the cwd to find
+# `.python-version`. In layouts where pyproject.toml lives in a parent
+# dir and `.python-version` lives in a child (e.g. ./pyproject.toml +
+# ./dbt_subdir/.python-version), running this from the parent fails and
+# running it from the child succeeds. Always pass the dir that has the
+# `.python-version` you intend to use — for rlm-dbt-*, that's the dbt
+# project root (the one with dbt_project.yml).
+#
+# Usage:
+#   _rlm-python-ensure-version <cwd> <label>
+#
+#   cwd     directory to invoke the probe from
+#   label   short caller name used as a prefix in stderr messages
+#           (e.g. dbt-ls, dbt-run, "rlm-dbt parse")
+#
+# Returns:
+#   0 if `python` resolves and exits cleanly.
+#   1 if anything failed; a multi-line diagnostic has been printed to
+#     stderr including the failing command, cwd, captured output, and a
+#     hint about .python-version / pyenv install.
+#   2 on usage error (missing arguments).
+
+local cwd="$1"
+local label="$2"
+
+if [[ -z $cwd || -z $label ]]; then
+  print -u2 "_rlm-python-ensure-version: usage: <cwd> <label>"
+  return 2
+fi
+
+if [[ ! -d $cwd ]]; then
+  print -u2 "${label}: _rlm-python-ensure-version: cwd does not exist: $cwd"
+  return 1
+fi
+
+local output rc
+output=$(cd "$cwd" && python -EsSc 'import sys; print(sys.executable)' 2>&1)
+rc=$?
+
+if (( rc == 0 )); then
+  return 0
+fi
+
+print -u2 "${label}: python is not resolvable from $cwd (exit $rc)"
+print -u2 "         probe   : python -EsSc 'import sys; print(sys.executable)'"
+print -u2 "         output  :"
+# Indent each line of the captured output for readability.
+print -r -- "$output" | while IFS= read -r line; do
+  print -u2 "           $line"
+done
+print -u2 "         hint    : ensure ${cwd}/.python-version (or an ancestor) names a version that"
+print -u2 "                   \`pyenv versions --bare\` lists; install it with \`pyenv install <ver>\` if missing."
+return 1
