@@ -4,6 +4,12 @@ All notable changes to the zsh configuration are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2026-05-25]
+
+### Changed
+
+- `_rlm-dbt-cmd`: pass `--project-dir "$dbt_root"` explicitly on every `dbt` invocation instead of relying on dbt's parent-directory walk for `dbt_project.yml` (main `run`/`build`/`test`) or on a `cd "$dbt_root" && …` subshell prefix (the four secondary invocations). Five sites touched: the main `dbt_cmd` array, the cost-estimate `dbt ls` and `dbt compile`, and the list-only `dbt ls` for the deferred-local and upstream sets. The four secondary `(cd "$dbt_root" && …)` subshells lose their `cd` prefix since `--project-dir` makes the directory explicit at the dbt layer — same effective working dir from dbt's perspective, one fewer place where a future caller change could silently break the project lookup. Behavior is unchanged for users; the goal is robustness, not a feature.
+
 ## [2026-05-22]
 
 ### Fixed

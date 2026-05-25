@@ -323,6 +323,7 @@ _rlm-dbt-history append "$label" "$project_key" "$selector"
 
 local -a dbt_cmd=(
   "${dbt_bin[@]}" "$dbt_subcmd"
+  --project-dir "$dbt_root"
   -s "$selector"
   --defer
   --state "$state_dir"
@@ -356,7 +357,8 @@ _dbt_cmd_cost_estimate() {
   # lines, "===…===" separators) both leak non-name lines into stdout
   # even under --quiet. Restrict to strict dotted-identifier lines.
   (
-    cd "$dbt_root" && "${dbt_bin[@]}" ls \
+    "${dbt_bin[@]}" ls \
+      --project-dir "$dbt_root" \
       -s "$selector" \
       "${cost_resource_args[@]}" \
       --defer --state "$state_dir" \
@@ -395,7 +397,8 @@ _dbt_cmd_cost_estimate() {
   # do not need the stdout SQL anyway — we read each model's compiled SQL
   # from target/compiled/ below.
   (
-    cd "$dbt_root" && "${dbt_bin[@]}" compile \
+    "${dbt_bin[@]}" compile \
+      --project-dir "$dbt_root" \
       -s "$selector" \
       --defer --state "$state_dir" \
       --profiles-dir "$profiles_dir" \
@@ -531,7 +534,8 @@ if (( list_only )); then
   # under --quiet; node names are pure dotted identifiers, so a strict
   # `[A-Za-z0-9_.]+$` keep-list catches both.
   (
-    cd "$dbt_root" && "${dbt_bin[@]}" ls \
+    "${dbt_bin[@]}" ls \
+      --project-dir "$dbt_root" \
       -s "$selector" \
       "${resource_args[@]}" \
       --defer --state "$state_dir" \
@@ -544,7 +548,8 @@ if (( list_only )); then
   local pid_local=$!
 
   (
-    cd "$dbt_root" && "${dbt_bin[@]}" ls \
+    "${dbt_bin[@]}" ls \
+      --project-dir "$dbt_root" \
       -s "+${selector}" \
       "${resource_args[@]}" \
       --profiles-dir "$profiles_dir" \
