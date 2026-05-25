@@ -23,6 +23,13 @@ SANDBOX_BQ_PROJECT + SANDBOX_BQ_DATASETS (the same algorithm
 rlm-bq-open uses), so changes to those env vars bust the cache for
 both tools at once.
 
+The first one or two lines of the picker are REFRESH sentinels:
+  --- REFRESH CACHE (cached <age>) ---
+  --- REFRESH SANDBOX CACHE (cached <age>) ---   (sandbox only)
+Selecting either one refreshes the corresponding cache file(s) and
+re-invokes bq-archive with a fresh picker. Picking a REFRESH line
+takes precedence over any real refs picked alongside it.
+
 Key bindings:
   TAB / Shift-TAB  toggle selection
   Ctrl-P           cycle preview height (tall -> short -> hidden)

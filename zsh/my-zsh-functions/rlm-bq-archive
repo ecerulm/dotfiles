@@ -74,6 +74,30 @@ fi
 local PURPLE=$'\033[35m'
 local RESET=$'\033[0m'
 
+# Humanized mtime age of the named cache file (for the REFRESH sentinels).
+_bq_cache_age() {
+  local file="$1"
+  local mtime now elapsed
+  mtime=$(stat -f %m "$file" 2>/dev/null || stat -c %Y "$file" 2>/dev/null)
+  now=$(date +%s)
+  elapsed=$(( now - mtime ))
+  if (( elapsed < 3600 )); then
+    print "${elapsed}s ago"
+  elif (( elapsed < 86400 )); then
+    print "$(( elapsed / 3600 ))h ago"
+  else
+    print "$(( elapsed / 86400 ))d ago"
+  fi
+}
+
+# REFRESH sentinels — single-column layout (matches the rest of this
+# picker). Selecting either line refreshes the relevant cache and
+# re-invokes rlm-bq-archive.
+local refresh_sentinel="--- REFRESH CACHE (cached $(_bq_cache_age "$cache")) ---"
+local sandbox_age=""
+[[ -f $sandbox ]] && sandbox_age=" (cached $(_bq_cache_age "$sandbox"))"
+local refresh_sandbox_sentinel="${PURPLE}--- REFRESH SANDBOX CACHE${sandbox_age} ---${RESET}"
+
 # Build the set of bq_refs that exist in the current cache scope. Pooled
 # history may contain entries from other scopes (different
 # BQ_SEARCH_PATH); we suppress those so the picker never suggests a ref
@@ -119,6 +143,8 @@ _bq_archive_main_lines() {
 local fzf_out
 fzf_out=$(
   {
+    print -- "$refresh_sentinel"
+    [[ -n $SANDBOX_BQ_PROJECT ]] && print -- "$refresh_sandbox_sentinel"
     _bq_archive_history_lines
     _bq_archive_sandbox_lines
     _bq_archive_main_lines
@@ -131,7 +157,7 @@ fzf_out=$(
       --no-mouse \
       --ansi \
       --multi \
-      --preview='raw=$(printf "%s" {} | sed "s/\x1b\[[0-9;]*m//g"); "$HOME/bin/bq-preview" "$raw"' \
+      --preview='raw=$(printf "%s" {} | sed "s/\x1b\[[0-9;]*m//g"); case "$raw" in ---*) echo "Select to refresh the cache and reopen the picker." ;; *) "$HOME/bin/bq-preview" "$raw" ;; esac' \
       --preview-window=bottom:40%:wrap \
       --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)' \
       --bind='ctrl-g:abort'
@@ -144,10 +170,19 @@ fi
 
 local -a to_process to_process_colored to_process_is_sandbox
 local sel_line sel_ref sel_proj sel_ds sel_tbl
+local refresh_main_picked=0 refresh_sandbox_picked=0
 while IFS= read -r sel_line; do
   [[ -z $sel_line ]] && continue
   sel_ref=$(printf '%s' "$sel_line" | sed 's/\x1b\[[0-9;]*m//g')
   [[ -z $sel_ref ]] && continue
+  if [[ $sel_ref == "--- REFRESH CACHE"* ]]; then
+    refresh_main_picked=1
+    continue
+  fi
+  if [[ $sel_ref == "--- REFRESH SANDBOX CACHE"* ]]; then
+    refresh_sandbox_picked=1
+    continue
+  fi
   sel_proj=${sel_ref%%:*}
   sel_ds=${${sel_ref##*:}%%.*}
   sel_tbl=${sel_ref##*.}
@@ -161,6 +196,23 @@ while IFS= read -r sel_line; do
     to_process_is_sandbox+=(0)
   fi
 done <<< "$fzf_out"
+
+# A REFRESH pick short-circuits the rest of the run — re-invoke after
+# refreshing the relevant cache(s). Picking REFRESH alongside real refs
+# still wins (mirrors rlm-bq-rm-tables); the user can re-select the
+# refreshed entries on the next pass.
+if (( refresh_main_picked )); then
+  rm -f "$cache" "$sandbox"
+  _rlm-bq-cache refresh || return 1
+  rlm-bq-archive
+  return $?
+fi
+if (( refresh_sandbox_picked )); then
+  rm -f "$sandbox"
+  _rlm-bq-cache refresh --sandbox-only || return 1
+  rlm-bq-archive
+  return $?
+fi
 
 if (( ${#to_process} == 0 )); then
   print -u2 "bq-archive: could not parse selection"
