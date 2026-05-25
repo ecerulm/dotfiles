@@ -1,5 +1,5 @@
 emulate -L zsh
-setopt LOCAL_OPTIONS NO_MONITOR
+setopt LOCAL_OPTIONS NO_MONITOR NO_NOTIFY
 set -o pipefail
 
 # ---------------------------------------------------------------------------
@@ -166,6 +166,161 @@ if (( ${#to_process} == 0 )); then
   print -u2 "bq-archive: could not parse selection"
   return 1
 fi
+
+# ---------------------------------------------------------------------------
+# View detection. `bq cp` on a view returns a confusing error several
+# steps later in the flow ("BigQuery error in cp operation: Not found:
+# Table … is a view"). Catch it upfront so we can give the user a clear
+# "views don't need archiving" message and drop those entries before
+# spending money on the three diagnostic queries per ref.
+#
+# Fan out `bq show` in parallel — one fork per selected ref — into a
+# tmpdir; main process re-reads the type files in order. Output lines
+# are limited to TABLE / VIEW / MATERIALIZED_VIEW / EXTERNAL / SNAPSHOT
+# (anything else is treated as a hard error and bails the function).
+# ---------------------------------------------------------------------------
+
+local _type_dir
+_type_dir=$(mktemp -d -t bq-archive-types.XXXXXX) || {
+  print -u2 "bq-archive: failed to create tmpdir for type lookups"
+  return 1
+}
+
+local _i _ref _pid
+local -a _type_pids
+for (( _i = 1; _i <= ${#to_process}; _i++ )); do
+  _ref="${to_process[$_i]}"
+  # bq's project:dataset.table form is unambiguous; the dotted form is
+  # not (bq treats project.dataset.table as dataset.table under the
+  # default project). Keep the colon form.
+  #
+  # bq writes errors to *stdout* under --format=json (e.g. "BigQuery
+  # error in show operation: Not found: Dataset ..."), so we capture
+  # stdout to a separate .raw file and only feed jq a stream that
+  # actually starts with '{'. The .raw file lets us detect "Not found"
+  # errors below and mark the ref dead for the shared GC sweep.
+  (
+    bq --quiet show --format=json "$_ref" \
+      >"${_type_dir}/${_i}.raw" 2>"${_type_dir}/${_i}.err"
+    if [[ -s "${_type_dir}/${_i}.raw" ]] && head -c 1 "${_type_dir}/${_i}.raw" | grep -q '{'; then
+      jq -r '.type // "UNKNOWN"' <"${_type_dir}/${_i}.raw" \
+        2>>"${_type_dir}/${_i}.err" \
+        >"${_type_dir}/${_i}.type"
+    else
+      : >"${_type_dir}/${_i}.type"
+    fi
+  ) &
+  _type_pids+=($!)
+done
+
+for _pid in "${_type_pids[@]}"; do
+  wait "$_pid" 2>/dev/null
+done
+
+local -a tables_to_process tables_to_process_colored tables_to_process_is_sandbox tables_to_process_type
+local -a views_skipped views_skipped_colored views_skipped_types
+local -a type_unknown dead_refs
+local _type _raw_first _err_blob
+for (( _i = 1; _i <= ${#to_process}; _i++ )); do
+  _type=$(<"${_type_dir}/${_i}.type")
+  case "$_type" in
+    VIEW|MATERIALIZED_VIEW)
+      views_skipped+=("${to_process[$_i]}")
+      views_skipped_colored+=("${to_process_colored[$_i]}")
+      views_skipped_types+=("$_type")
+      ;;
+    TABLE|EXTERNAL|SNAPSHOT)
+      tables_to_process+=("${to_process[$_i]}")
+      tables_to_process_colored+=("${to_process_colored[$_i]}")
+      tables_to_process_is_sandbox+=("${to_process_is_sandbox[$_i]}")
+      tables_to_process_type+=("$_type")
+      ;;
+    *)
+      # Unknown type: most often this is a stale ref that the picker
+      # cache still lists but BigQuery no longer has (dataset deleted,
+      # table renamed, etc). `bq show` writes its error to *stdout*
+      # under --format=json, so we sniff both .raw (stdout) and .err
+      # (stderr) for "Not found" and write the ref to the shared
+      # dead-refs file. _rlm-bq-dead-refs-gc, which runs at the top of
+      # every rlm-bq-* invocation, will then prune the ref from every
+      # cache file and from the pooled history on the user's next
+      # picker launch.
+      _raw_first=""
+      [[ -s "${_type_dir}/${_i}.raw" ]] && _raw_first=$(head -c 200 "${_type_dir}/${_i}.raw" 2>/dev/null)
+      _err_blob=""
+      [[ -s "${_type_dir}/${_i}.err" ]] && _err_blob=$(<"${_type_dir}/${_i}.err")
+      print -u2 "bq-archive: could not determine type for ${to_process[$_i]} (got '${_type:-empty}')"
+      if [[ $_raw_first == *"Not found"* || $_err_blob == *"Not found"* ]]; then
+        # Ref doesn't exist — mark dead so it gets GC'd on the next picker run.
+        local _dead_file="$HOME/.cache/bq-open/dead-refs.txt"
+        mkdir -p "${_dead_file:h}"
+        print -r -- "${to_process[$_i]}" >>"$_dead_file"
+        dead_refs+=("${to_process[$_i]}")
+        print -u2 "  → ref does not exist; queued for pruning on next rlm-bq-* run"
+      else
+        if [[ -n $_raw_first ]]; then
+          print -u2 -r -- "  bq show stdout: ${_raw_first}"
+        fi
+        if [[ -n $_err_blob ]]; then
+          print -u2 -r -- "  bq show stderr: ${_err_blob}"
+        fi
+      fi
+      type_unknown+=("${to_process[$_i]}")
+      ;;
+  esac
+done
+rm -rf "$_type_dir"
+
+if (( ${#dead_refs} > 0 )); then
+  print -u2 ""
+  print -u2 "bq-archive: ${#dead_refs} ref(s) marked dead — re-run bq-archive and the picker will offer a clean list."
+fi
+
+if (( ${#views_skipped} > 0 )); then
+  print ""
+  print -P "%F{yellow}=== Skipping ${#views_skipped} view(s) — views do not need to be archived ===%f"
+  print "  A view stores no data of its own; it is just a saved SELECT."
+  print "  Archiving a view would copy nothing and break the link to its source tables."
+  print "  To retire a view: save its definition first, then drop it."
+  print ""
+  local _v_ref _v_type _v_url _v_show_flag
+  for (( _i = 1; _i <= ${#views_skipped}; _i++ )); do
+    _v_ref="${views_skipped[$_i]}"
+    _v_type="${views_skipped_types[$_i]}"
+    _v_url=$("$HOME/bin/bq-console-url" "$_v_ref" 2>/dev/null)
+    # `bq show --view <ref>` works only for standard VIEWs. For
+    # MATERIALIZED_VIEWs use `--materialized_view` so the SQL definition
+    # comes back in the output.
+    if [[ $_v_type == MATERIALIZED_VIEW ]]; then
+      _v_show_flag="--materialized_view"
+    else
+      _v_show_flag="--view"
+    fi
+    print -P "  - ${views_skipped_colored[$_i]}  %F{8}[${_v_type}]%f"
+    [[ -n $_v_url ]] && print -P "    %F{8}${_v_url}%f"
+    print -P "    %F{8}# save the SQL definition before deleting:%f"
+    print -P "    bq show ${_v_show_flag} ${_v_ref}"
+    print -P "    %F{8}# then delete the view:%f"
+    print -P "    bq rm -f --table ${_v_ref}"
+    print ""
+  done
+fi
+
+if (( ${#tables_to_process} == 0 )); then
+  print ""
+  print "bq-archive: no archivable tables in selection"
+  return 0
+fi
+
+# Collapse to_process to the table-only subset so every downstream step
+# (history append, diagnostics, copy, verification, drop instructions)
+# operates on archivable refs only. Carry the per-ref TYPE forward so
+# the copy block can label "Origin TABLE:" / "Origin EXTERNAL:" / etc.
+to_process=("${tables_to_process[@]}")
+to_process_colored=("${tables_to_process_colored[@]}")
+to_process_is_sandbox=("${tables_to_process_is_sandbox[@]}")
+local -a to_process_type
+to_process_type=("${tables_to_process_type[@]}")
 
 # Persist selections to the shared pooled history TSV. The "sandbox" flag
 # is recorded whenever the pick came from a sandbox-coloured row, so every
@@ -466,20 +621,41 @@ if [[ $confirm != "yes" ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# Copy step: bq cp --no_clobber per table
+# Copy step: bq cp --no_clobber per table.
+#
+# For every copy we print, in order:
+#   1. the exact `bq cp --no_clobber <src> <dst>` command (so the user
+#      can re-run it manually or paste it into a runbook)
+#   2. Origin <TYPE>: <fqn>  + GCP console URL
+#   3. Destination TABLE: <fqn>  + GCP console URL
+# The destination type is always TABLE because `bq cp` of any source
+# materializes a managed table; the origin TYPE is whatever the
+# upfront `bq show` classified it as (TABLE / EXTERNAL / SNAPSHOT —
+# VIEWs were filtered out earlier).
 # ---------------------------------------------------------------------------
 
 local -a copied failed
-local src dst
-for src in "${to_process[@]}"; do
+local src dst src_type src_url dst_url ci
+for (( ci = 1; ci <= ${#to_process}; ci++ )); do
+  src="${to_process[$ci]}"
+  src_type="${to_process_type[$ci]}"
   # src is "src_proj:src_ds.src_tbl" — derive bare table name
   src_tbl=${src##*.}
   dst="${archive_proj}:${archive_ds}.${src_tbl}"
+  src_url=$("$HOME/bin/bq-console-url" "$src" 2>/dev/null)
+  dst_url=$("$HOME/bin/bq-console-url" "$dst" 2>/dev/null)
+
   print ""
-  print -u2 "bq-archive: copying ${src} -> ${dst} …"
+  print -P "%F{magenta}=== [${ci}/${#to_process}] copy ===%f"
+  print -P "%F{8}command:%f bq cp --no_clobber ${src} ${dst}"
+
   if bq cp --no_clobber "$src" "$dst" 2>&1; then
     copied+=("${src}|${dst}")
     print -u2 "bq-archive: copied  ${src} -> ${dst}"
+    print -P "%F{cyan}Origin      ${src_type}:%f ${src}"
+    [[ -n $src_url ]] && print -P "%F{8}            %f${src_url}"
+    print -P "%F{green}Destination TABLE:%f ${dst}"
+    [[ -n $dst_url ]] && print -P "%F{8}            %f${dst_url}"
   else
     failed+=("$src")
     print -u2 "bq-archive: FAILED  ${src} (target may already exist; bq cp --no_clobber refuses to overwrite)"

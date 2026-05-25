@@ -6,6 +6,11 @@ freshness), print the results, ask for confirmation, then copy the
 selected table(s) into the archival_data dataset with
 `bq cp --no-clobber`.
 
+Selected entries are first classified via `bq show`. Anything whose
+type is VIEW or MATERIALIZED_VIEW is dropped from the run with a
+"views do not need to be archived" notice — the diagnostics and copy
+only operate on actual tables (TABLE / EXTERNAL / SNAPSHOT).
+
 The original tables are NOT deleted. A `DROP TABLE` SQL block (plus
 `bq rm` equivalents and queries to locate downstream views and
 routines) is printed to stdout AND written to a timestamped file

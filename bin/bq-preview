@@ -7,8 +7,12 @@
 #   project_id          (purple if it ends in -dev — see ANSI handling below)
 #   dataset_id
 #   table_id
-#   updated_at          local time + "(<humanized> ago)"
-#   created_at          same format as updated_at
+#   metadata_updated    local time + "(<humanized> ago)" — from .lastModifiedTime
+#                       (bumps on schema changes, options changes, OR data writes)
+#   data_changed        local time + "(<humanized> ago)" — from
+#                       MAX(INFORMATION_SCHEMA.PARTITIONS.last_modified_time);
+#                       N/A for views / external / snapshot tables
+#   created_at          same format as metadata_updated
 #   num_rows            humanized (K/M/B)
 #   logical_bytes       humanized (KiB/MiB/GiB/TiB)
 #   description         (optional, only if non-empty)
@@ -29,9 +33,67 @@ fi
 
 local err
 err=$(mktemp)
-trap "rm -f $err ${err}.out" EXIT
+local data_changed_out="${err}.dc"
+trap "rm -f $err ${err}.out ${data_changed_out}" EXIT
+
+# Parse ref into project/dataset/table (accepts both project:ds.tbl and project.ds.tbl)
+local _ref_norm="${ref/:/.}"
+local proj_id="${_ref_norm%%.*}"
+local _rest="${_ref_norm#*.}"
+local ds_id="${_rest%%.*}"
+local tbl_id="${_rest##*.}"
+
+# Parallel: fire `bq query` for data_changed concurrently with `bq show`.
+# This is MAX(last_modified_time) across all rows in INFORMATION_SCHEMA.PARTITIONS
+# for the table, which reflects the last data mutation (not metadata edits).
+# Non-partitioned tables still appear as a single synthetic partition row, so
+# this works uniformly. Views / external / snapshot tables have no PARTITIONS
+# rows and will produce an empty result — handled in jq as N/A.
+#
+# Cache per-ref at ~/.cache/bq-open/data-changed/<md5>.txt with 5-min TTL so
+# repeatedly previewing the same row in a single fzf session is instant.
+local dc_cache_dir="$HOME/.cache/bq-open/data-changed"
+mkdir -p "$dc_cache_dir"
+local dc_key
+dc_key=$(print -rn -- "$ref" | md5 2>/dev/null || print -rn -- "$ref" | md5sum | awk '{print $1}')
+local dc_cache="${dc_cache_dir}/${dc_key}.txt"
+local dc_pid=
+local dc_age=999999
+if [[ -f $dc_cache ]]; then
+  local dc_mtime now_for_dc
+  dc_mtime=$(stat -f %m "$dc_cache" 2>/dev/null || stat -c %Y "$dc_cache" 2>/dev/null || print 0)
+  now_for_dc=$(date +%s)
+  dc_age=$(( now_for_dc - dc_mtime ))
+fi
+if (( dc_age > 300 )); then
+  # Cache stale or absent — kick off the query in the background.
+  # Always write the cache file (even on empty/failed result) so we don't
+  # re-query on every preview render for refs that legitimately have no
+  # PARTITIONS row (very old non-partitioned tables, views, etc).
+  #
+  # bq may write error messages (e.g. "User does not have
+  # bigquery.jobs.create permission ...") to STDOUT — not stderr — so a
+  # naive `awk 'NR==2'` captures a permissions-error string and tries to
+  # treat it as a timestamp. Defense: keep only lines that look like a
+  # positive integer (the UNIX_MILLIS value); fall back to empty.
+  (
+    local _dc_raw _dc_result
+    _dc_raw=$(bq --quiet --project_id="$proj_id" query \
+      --use_legacy_sql=false \
+      --format=csv \
+      --max_rows=1 \
+      "SELECT CAST(UNIX_MILLIS(MAX(last_modified_time)) AS STRING) AS ms FROM \`${proj_id}\`.\`${ds_id}\`.INFORMATION_SCHEMA.PARTITIONS WHERE table_name = '${tbl_id}'" \
+      2>/dev/null)
+    _dc_result=$(print -r -- "$_dc_raw" | awk 'NR==2 && /^[0-9]+$/ {print; exit}')
+    print -rn -- "$_dc_result" >|"$dc_cache".tmp \
+      && mv -f "$dc_cache".tmp "$dc_cache" \
+      || rm -f "$dc_cache".tmp
+  ) &
+  dc_pid=$!
+fi
 
 if ! bq show --format=prettyjson "$ref" >"${err}.out" 2>"$err"; then
+  [[ -n $dc_pid ]] && { wait "$dc_pid" 2>/dev/null; }
   print "(bq show failed for ${ref})"
   cat "$err"
   # If the failure is a "Not found" error, record the ref so rlm-bq-open can
@@ -43,6 +105,17 @@ if ! bq show --format=prettyjson "$ref" >"${err}.out" 2>"$err"; then
   fi
   exit 0
 fi
+
+# Wait for the background data-changed query if we launched one.
+[[ -n $dc_pid ]] && { wait "$dc_pid" 2>/dev/null; }
+local dc_ms=""
+if [[ -f $dc_cache ]]; then
+  dc_ms=$(<"$dc_cache")
+fi
+# Belt-and-braces: even with the producer-side digit filter, a corrupted
+# cache file from an earlier (looser) version of this script must not
+# crash jq. Drop anything that isn't a positive integer.
+[[ $dc_ms == <-> ]] || dc_ms=""
 
 # Compute "now" and the local UTC offset (seconds) once, in zsh, and hand them
 # to jq so the formatting (local-time conversion + relative "x ago") stays
@@ -78,7 +151,8 @@ jq -r \
   --argjson tzoff "$tz_offset" \
   --arg tzlabel "$tz_label" \
   --arg color_open "$color_open" \
-  --arg color_close "$color_close" '
+  --arg color_close "$color_close" \
+  --arg data_changed_ms "$dc_ms" '
   def hb:
     . as $b |
     if   $b == null          then "N/A"
@@ -138,21 +212,25 @@ jq -r \
        (if $d != "" then "  — " + $d else "" end)),
     (if $f.fields then $f.fields[] | walk_fields($indent + "    ") else empty end);
 
-  fmt("type          "; (.type // "N/A")),
-  fmt("project_id    "; $color_open + (.tableReference.projectId // "N/A") + $color_close),
-  fmt("dataset_id    "; (.tableReference.datasetId // "N/A")),
-  fmt("table_id      "; (.tableReference.tableId // "N/A")),
-  fmt("updated_at    "; (.lastModifiedTime | if . then tonumber|fmt_ts else "N/A" end)),
-  fmt("created_at    "; (.creationTime     | if . then tonumber|fmt_ts else "N/A" end)),
-  fmt("num_rows      "; (.numRows | hr)),
-  fmt("logical_bytes "; (if .numTotalLogicalBytes then .numTotalLogicalBytes|tonumber|hb else "N/A" end)),
-  (if .description and .description != "" then fmt("description   "; .description) else empty end),
-  (if .numPartitions    then fmt("partitions    "; .numPartitions)               else empty end),
-  (if .timePartitioning then fmt("partitioning  "; (.timePartitioning | tojson)) else empty end),
-  (if .clustering       then fmt("clustering    "; (.clustering.fields | join(", "))) else empty end),
-  fmt("schema_fields "; (if .schema.fields then .schema.fields|length|tostring else "N/A" end)),
+  fmt("type            "; (.type // "N/A")),
+  fmt("project_id      "; $color_open + (.tableReference.projectId // "N/A") + $color_close),
+  fmt("dataset_id      "; (.tableReference.datasetId // "N/A")),
+  fmt("table_id        "; (.tableReference.tableId // "N/A")),
+  fmt("metadata_updated"; (.lastModifiedTime | if . then tonumber|fmt_ts else "N/A" end)),
+  fmt("data_changed    ";
+      (if $data_changed_ms == "" or $data_changed_ms == "NULL" then
+         (if (.type // "") == "TABLE" then "N/A (no partition rows yet)" else "N/A (not a managed table)" end)
+       else ($data_changed_ms|tonumber|fmt_ts) end)),
+  fmt("created_at      "; (.creationTime     | if . then tonumber|fmt_ts else "N/A" end)),
+  fmt("num_rows        "; (.numRows | hr)),
+  fmt("logical_bytes   "; (if .numTotalLogicalBytes then .numTotalLogicalBytes|tonumber|hb else "N/A" end)),
+  (if .description and .description != "" then fmt("description     "; .description) else empty end),
+  (if .numPartitions    then fmt("partitions      "; .numPartitions)               else empty end),
+  (if .timePartitioning then fmt("partitioning    "; (.timePartitioning | tojson)) else empty end),
+  (if .clustering       then fmt("clustering      "; (.clustering.fields | join(", "))) else empty end),
+  fmt("schema_fields   "; (if .schema.fields then .schema.fields|length|tostring else "N/A" end)),
   (if .schema.fields then
-     "fields        :",
+     "fields          :",
      (.schema.fields[] | walk_fields("  "))
    else empty end)
 ' "${err}.out"
