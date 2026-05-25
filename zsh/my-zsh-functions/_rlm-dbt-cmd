@@ -320,6 +320,18 @@ if [[ -z $selector ]]; then
 
   # Extract just the selector (first tab-delimited field)
   selector="${raw_selection%%$'\t'*}"
+
+  # Give the user a chance to edit the selector before running dbt — handy
+  # for tacking on graph operators (`my_model+`, `+my_model`, `my_model+1`)
+  # or switching to a tag/path selector based on the picked model name.
+  # `vared` opens zsh's line editor pre-populated with the value; Enter
+  # accepts, Ctrl-C aborts (return 130, matching the fzf abort convention).
+  print -u2 "${label}: edit selector (Enter to accept, Ctrl-C to abort)"
+  vared -p "${label} -s " selector || return 130
+  if [[ -z $selector ]]; then
+    print -u2 "${label}: empty selector"
+    return 1
+  fi
 fi
 
 # Record selector in the shared pooled history (newest first, deduped on

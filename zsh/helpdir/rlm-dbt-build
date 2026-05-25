@@ -10,6 +10,11 @@ selected nodes appear at the top with a "last run X ago" label. The node
 list is cached in ~/.cache/dbt-build/nodes.txt; select the REFRESH entry
 in the picker to re-run dbt ls and refresh the cache.
 
+After picking, the selector opens in a one-line editor (zsh `vared`) so you
+can tack on graph operators (`my_model+`, `+my_model`, `my_model+1`) or
+switch to a tag/path selector before dbt runs. Press Enter to accept the
+picked value as-is, or Ctrl-C to abort.
+
   -s SELECTOR   dbt node selector; skips the fzf picker
   -n, --list    dry-run: show which nodes will be built locally vs read from
                 prod (via --defer), then exit without running dbt
