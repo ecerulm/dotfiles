@@ -47,11 +47,20 @@ done
 
 autoload -Uz _rlm-jira-cache _rlm-jira-history _rlm-jira-sorted-rows
 
-local repo_root repo_slug repo_name
+local repo_root main_root repo_slug repo_name
 repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || {
   print -u2 "pr-worktree: not inside a git repository"
   return 1
 }
+# When invoked from inside a secondary worktree, `--show-toplevel` returns
+# the *worktree* root, not the main repo. New worktrees must be siblings of
+# the main repo (the one originally cloned), not siblings of whichever
+# worktree we happen to be in. `--git-common-dir` always points at the main
+# repo's .git directory, regardless of which worktree is the cwd; its
+# parent is the main repo root.
+main_root=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
+main_root=${main_root:h}
+[[ -z $main_root ]] && main_root=$repo_root
 repo_slug=$(git -C "$repo_root" -c gh.protocol=https config --get remote.origin.url 2>/dev/null \
   | sed -E 's#(git@github\.com:|https://github\.com/)##; s#\.git$##')
 if [[ -z $repo_slug ]]; then
@@ -61,7 +70,7 @@ if [[ -z $repo_slug ]]; then
   print -u2 "pr-worktree: could not resolve GitHub repo (gh repo view failed)"
   return 1
 fi
-repo_name=${repo_root:t}
+repo_name=${main_root:t}
 
 # --- helpers ---------------------------------------------------------------
 
@@ -82,7 +91,7 @@ _prwt_make_pr_worktree() {
     print -u2 "pr-worktree: cancelled (empty worktree name)"
     return 1
   }
-  local worktree_path=${repo_root:h}/${_prwt_dirname_out}
+  local worktree_path=${main_root:h}/${_prwt_dirname_out}
 
   if [[ -e $worktree_path ]]; then
     print "pr-worktree: $worktree_path already exists; entering it."
@@ -119,7 +128,7 @@ _prwt_make_suffix_worktree() {
     print -u2 "pr-worktree: cancelled (empty worktree name)"
     return 1
   }
-  local worktree_path=${repo_root:h}/${_prwt_dirname_out}
+  local worktree_path=${main_root:h}/${_prwt_dirname_out}
 
   if [[ -e $worktree_path ]]; then
     print "pr-worktree: $worktree_path already exists; entering it."
@@ -174,7 +183,7 @@ _prwt_prompt_suffix() {
 }
 
 # Prompt the user to edit the final worktree directory name (the basename,
-# not the full path — the parent is always ${repo_root:h}). Pre-fills with
+# not the full path — the parent is always ${main_root:h}). Pre-fills with
 # the proposed default name so the user can just press Enter to accept, or
 # tweak the tail.
 #
@@ -191,7 +200,7 @@ _prwt_prompt_suffix() {
 _prwt_prompt_dirname() {
   local default_name=$1
   typeset -g _prwt_dirname_out=$default_name
-  vared -p "pr-worktree: worktree dir (under ${repo_root:h}/) > " _prwt_dirname_out
+  vared -p "pr-worktree: worktree dir (under ${main_root:h}/) > " _prwt_dirname_out
   [[ -z $_prwt_dirname_out ]] && return 1
   return 0
 }
@@ -219,7 +228,7 @@ _prwt_make_jira_worktree() {
     print -u2 "pr-worktree: cancelled (empty worktree name)"
     return 1
   }
-  worktree_path=${repo_root:h}/${_prwt_dirname_out}
+  worktree_path=${main_root:h}/${_prwt_dirname_out}
 
   if [[ -e $worktree_path ]]; then
     print "pr-worktree: $worktree_path already exists; entering it."
