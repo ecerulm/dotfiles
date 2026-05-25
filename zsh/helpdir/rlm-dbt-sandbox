@@ -4,8 +4,15 @@ Create your personal dbt sandbox BigQuery datasets.
 
 For each layer L listed in DBT_SANDBOX_LAYERS, creates the dataset
 <DBT_DATASET_PREFIX>_<L> inside DBT_DEV_PROJECT. Each dataset is
-labelled sandbox:true and given a default table expiration of 30
-days. Datasets that already exist are skipped (idempotent).
+created in the EU multi-region, labelled sandbox:true, and given a
+default table expiration of 30 days. Datasets that already exist
+in EU are skipped (idempotent).
+
+If a dataset already exists in a non-EU location, the function
+interactively prompts whether to delete it (and ALL its tables)
+and recreate it in EU. Declining leaves the dataset untouched and
+moves on to the next layer. When stdin is not a TTY, the function
+refuses to prompt and reports the mismatch as an error instead.
 
 DBT_DEV_PROJECT must not end in -prod; the function refuses to run
 otherwise as a guard against accidentally polluting production.

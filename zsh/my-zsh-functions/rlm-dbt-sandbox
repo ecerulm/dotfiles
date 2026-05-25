@@ -7,10 +7,13 @@ Create your personal dbt sandbox BigQuery datasets in DBT_DEV_PROJECT.
 
 For each layer L in DBT_SANDBOX_LAYERS, creates the dataset
 <DBT_DATASET_PREFIX>_<L> in DBT_DEV_PROJECT with:
+  - location: EU (multi-region)
   - label sandbox:true
   - default table expiration: 30 days (2592000 seconds)
 
-Skips datasets that already exist.
+Skips datasets that already exist in EU. If a dataset exists in
+a different location, prompts whether to delete and recreate it
+in EU.
 
 Required environment:
   DBT_DATASET_PREFIX   prefix for sandbox datasets (e.g. ecerulm)
@@ -99,18 +102,56 @@ print -r -- "dbt-sandbox: project=${DBT_DEV_PROJECT} prefix=${DBT_DATASET_PREFIX
 print -r -- "dbt-sandbox: layers=${layers[*]}"
 print -r -- ""
 
-local layer dataset full_ref rc=0
+local layer dataset full_ref show_json location rc=0
+local want_location=EU
+local reply
 for layer in "${layers[@]}"; do
   dataset="${DBT_DATASET_PREFIX}_${layer}"
   full_ref="${DBT_DEV_PROJECT}:${dataset}"
 
-  if bq --project_id="${DBT_DEV_PROJECT}" show --format=none "${dataset}" >/dev/null 2>&1; then
-    print -r -- "dbt-sandbox: ${full_ref} already exists, skipping"
-    continue
+  if show_json=$(bq --project_id="${DBT_DEV_PROJECT}" --format=json show "${dataset}" 2>/dev/null); then
+    location=$(print -r -- "$show_json" | python3 -c 'import json,sys; print((json.load(sys.stdin).get("location") or "").upper())' 2>/dev/null)
+
+    if [[ -z $location ]]; then
+      print -u2 -r -- "dbt-sandbox: ${full_ref} exists but could not determine its location, skipping"
+      rc=1
+      continue
+    fi
+
+    if [[ $location == "$want_location" ]]; then
+      print -r -- "dbt-sandbox: ${full_ref} already exists in ${location}, skipping"
+      continue
+    fi
+
+    print -r -- "dbt-sandbox: ${full_ref} exists in ${location}, but ${want_location} is required."
+    if [[ ! -t 0 ]]; then
+      print -u2 -r -- "dbt-sandbox: stdin is not a TTY, refusing to prompt — leaving ${full_ref} as-is"
+      rc=1
+      continue
+    fi
+
+    print -nr -- "dbt-sandbox: delete ${full_ref} (and ALL its tables) and recreate in ${want_location}? [y/N] "
+    if ! read -r reply; then
+      print -u2 -r -- ""
+      print -u2 -r -- "dbt-sandbox: read failed / aborted, leaving ${full_ref} as-is"
+      rc=1
+      continue
+    fi
+    if [[ $reply != [yY] && $reply != [yY][eE][sS] ]]; then
+      print -r -- "dbt-sandbox: skipping ${full_ref} (not recreated)"
+      continue
+    fi
+
+    print -r -- "dbt-sandbox: deleting ${full_ref} (location=${location})"
+    if ! bq --project_id="${DBT_DEV_PROJECT}" --location="${location}" rm -r -f --dataset "${dataset}"; then
+      print -u2 -r -- "dbt-sandbox: failed to delete ${full_ref}"
+      rc=1
+      continue
+    fi
   fi
 
-  print -r -- "dbt-sandbox: creating ${full_ref}"
-  if ! bq --project_id="${DBT_DEV_PROJECT}" mk \
+  print -r -- "dbt-sandbox: creating ${full_ref} (location=${want_location})"
+  if ! bq --project_id="${DBT_DEV_PROJECT}" --location="${want_location}" mk \
       --dataset \
       --label=sandbox:true \
       --default_table_expiration="${expiration}" \
