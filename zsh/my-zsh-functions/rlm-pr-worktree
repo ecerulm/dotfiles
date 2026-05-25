@@ -2,8 +2,9 @@
 # worktree.
 #
 # Sources (current repo only), shown in this order in the picker:
-#   1. GitHub PRs where you opened/commented/reviewed/were assigned/were
-#      mentioned (gh search prs --involves=@me).
+#   1. All open PRs in the repo updated in the last 2 weeks, sorted by
+#      updatedAt desc. Rows authored by you are highlighted in green so
+#      they stand out from teammates' PRs.
 #   2. JIRA issues that matter to you, via the shared
 #      ~/.cache/rlm-jira/ cache (assigned -> reporter -> watching ->
 #      DATA-only, with previously-picked tickets floating to the top).
@@ -11,8 +12,6 @@
 #      rlm-pr-worktree; to force a refresh, run rlm-jira-pick and pick
 #      the REFRESH sentinel. Skipped silently if acli is missing or
 #      unauthenticated.
-#   3. Other open PRs in the repo that don't involve you, so you can pick
-#      up a teammate's PR to review locally.
 #
 # Selecting a PR     -> worktree at ../<repo>-pr-<N>      on the PR branch.
 # Selecting an issue -> prompts (vared) for an optional suffix:
@@ -86,7 +85,14 @@ _prwt_default_branch() {
 
 _prwt_make_pr_worktree() {
   local pr_number=$1
+  # Optional free-form suffix (slug-normalized). Symmetrical with the
+  # JIRA flow's _prwt_prompt_suffix: empty -> legacy <repo>-pr-<N>;
+  # non-empty -> <repo>-pr-<N>-<slug>. The follow-up
+  # `_prwt_prompt_dirname` still lets the user edit the full basename
+  # before the worktree is actually created.
+  _prwt_prompt_suffix "PR #$pr_number"
   local default_dirname=${repo_name}-pr-${pr_number}
+  [[ -n $_prwt_suffix_out ]] && default_dirname=${default_dirname}-${_prwt_suffix_out}
   _prwt_prompt_dirname "$default_dirname" || {
     print -u2 "pr-worktree: cancelled (empty worktree name)"
     return 1
@@ -288,38 +294,35 @@ fi
 #   JIRA   DATA-1234  [In Progress]  Summary [assignee]
 
 local -a rows
-local pr_rows jira_rows other_pr_rows pr_involved_json
+local pr_rows jira_rows me cutoff_date
 
-pr_involved_json=$(
+# Current GitHub login, used by the picker's awk filter to color rows
+# you authored. Empty string if `gh api` fails — coloring is then a no-op
+# and every row renders uncolored, which is a safe fallback.
+me=$(gh api user --jq .login 2>/dev/null)
+
+# Date cutoff for the `updated:>` search qualifier. 14 days back from
+# today in YYYY-MM-DD form. GNU and BSD date have incompatible flag
+# syntax; -v is BSD/macOS, -d is GNU/Linux.
+if cutoff_date=$(date -v-14d +%Y-%m-%d 2>/dev/null); then
+  : # BSD/macOS path
+else
+  cutoff_date=$(date -d '14 days ago' +%Y-%m-%d 2>/dev/null) || cutoff_date=""
+fi
+
+# Single query: every open PR in this repo updated in the last 2 weeks.
+# `gh search prs` accepts free-form qualifiers via positional args; we
+# pass `updated:>YYYY-MM-DD` so the API does the date filtering server-
+# side instead of pulling 200 PRs and trimming locally.
+pr_rows=$(
   gh search prs \
     --repo "$repo_slug" \
-    --involves=@me \
     --state=open \
     --limit=200 \
-    --json number,title,author,isDraft,updatedAt 2>/dev/null
-)
-
-pr_rows=$(
-  print -r -- "$pr_involved_json" \
+    --json number,title,author,isDraft,updatedAt \
+    ${cutoff_date:+"updated:>$cutoff_date"} 2>/dev/null \
   | jq -r '
       sort_by(.updatedAt) | reverse | .[] |
-      "PR\t#\(.number)\t\(if .isDraft then "[draft]" else "[ready]" end)\t\(.title)\t[\(.author.login)]"
-    ' 2>/dev/null
-)
-
-# All other open PRs in the repo, excluding the ones already listed above.
-local involved_numbers
-involved_numbers=$(print -r -- "$pr_involved_json" | jq -r '.[].number' 2>/dev/null | paste -sd, -)
-other_pr_rows=$(
-  gh pr list \
-    --repo "$repo_slug" \
-    --state open \
-    --limit 200 \
-    --json number,title,author,isDraft,updatedAt 2>/dev/null \
-  | jq -r --arg involved "$involved_numbers" '
-      ($involved | split(",") | map(select(length > 0) | tonumber)) as $skip |
-      sort_by(.updatedAt) | reverse | .[] |
-      select(.number as $n | ($skip | index($n)) | not) |
       "PR\t#\(.number)\t\(if .isDraft then "[draft]" else "[ready]" end)\t\(.title)\t[\(.author.login)]"
     ' 2>/dev/null
 )
@@ -342,7 +345,7 @@ if command -v acli >/dev/null 2>&1 && acli jira auth status >/dev/null 2>&1; the
   )
 fi
 
-if [[ -z $pr_rows && -z $jira_rows && -z $other_pr_rows ]]; then
+if [[ -z $pr_rows && -z $jira_rows ]]; then
   print -u2 "pr-worktree: no PRs or JIRA issues found in $repo_slug"
   return 1
 fi
@@ -374,14 +377,28 @@ local selection
 selection=$(
   setopt local_options no_pipefail
   {
-    [[ -n $pr_rows       ]] && print -- "$pr_rows"
-    [[ -n $jira_rows     ]] && print -- "$jira_rows"
-    [[ -n $other_pr_rows ]] && print -- "$other_pr_rows"
+    [[ -n $pr_rows   ]] && print -- "$pr_rows"
+    [[ -n $jira_rows ]] && print -- "$jira_rows"
   } \
   | column -t -s $'\t' \
+  | awk -v me="$me" '
+      # Color PR rows authored by $me green. column -t already aligned the
+      # row, so injecting ANSI here does not skew widths. The author marker
+      # is the trailing "[<login>]" field; matching it against me is enough
+      # to identify the row regardless of how column padded the columns.
+      BEGIN { reset = "\033[0m"; green = "\033[32m" }
+      {
+        if (me != "" && match($0, /\[[^][]+\][[:space:]]*$/)) {
+          author = substr($0, RSTART + 1, RLENGTH - 2)
+          sub(/[[:space:]]+$/, "", author)
+          if (author == me) { print green $0 reset; next }
+        }
+        print
+      }
+    ' \
   | fzf --ansi --prompt='PR/JIRA> ' --height=80% --reverse \
         --no-mouse \
-        --header='Yours first, then your JIRA, then other open PRs. Enter = create worktree. Ctrl-P: toggle preview' \
+        --header='PRs updated in last 2 weeks (green = you), then your JIRA. Enter = create worktree. Ctrl-P: toggle preview' \
         --preview='
           line={};
           kind=$(echo "$line" | awk "{print \$1}");
