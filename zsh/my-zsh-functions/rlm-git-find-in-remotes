@@ -1,0 +1,52 @@
+emulate -L zsh
+set -o pipefail
+
+# ---------------------------------------------------------------------------
+# Precondition checks
+# ---------------------------------------------------------------------------
+
+if ! git rev-parse --git-dir >/dev/null 2>&1; then
+  print -u2 "git-find-in-remotes: not inside a git repository"
+  return 1
+fi
+
+if (( $# < 1 )); then
+  print -u2 "git-find-in-remotes: missing pattern"
+  print -u2 "usage: git-find-in-remotes <regex> [remote-glob]"
+  print -u2 "  regex        : extended regex matched against tracked paths"
+  print -u2 "  remote-glob  : optional refname glob, default refs/remotes/"
+  print -u2 "                 e.g. refs/remotes/origin/ to limit to origin"
+  return 1
+fi
+
+local pattern="$1"
+local ref_glob="${2:-refs/remotes/}"
+
+# ---------------------------------------------------------------------------
+# Main logic
+# ---------------------------------------------------------------------------
+
+local -a branches
+branches=("${(@f)$(git for-each-ref --format='%(refname)' "$ref_glob")}")
+
+if (( ${#branches} == 0 )); then
+  print -u2 "git-find-in-remotes: no branches matching '$ref_glob'"
+  return 1
+fi
+
+local branch matches found=0
+for branch in $branches; do
+  # Skip symbolic refs like refs/remotes/origin/HEAD to avoid duplicate hits
+  if git symbolic-ref --quiet "$branch" >/dev/null 2>&1; then
+    continue
+  fi
+  matches=$(git ls-tree -r --name-only "$branch" 2>/dev/null | grep -E -- "$pattern") || continue
+  if [[ -n $matches ]]; then
+    found=1
+    print -r -- "${branch#refs/remotes/}:"
+    print -r -- "$matches" | sed 's/^/  /'
+  fi
+done
+
+(( found == 0 )) && return 1
+return 0

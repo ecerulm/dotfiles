@@ -1,0 +1,24 @@
+rlm-git-find-in-remotes <regex> [remote-glob]
+
+Search every remote-tracking branch in the current repository for
+tracked paths matching an extended regex. Prints one block per branch
+that contains at least one matching path, with the branch name (with
+the refs/remotes/ prefix stripped) followed by the indented paths.
+Symbolic refs such as refs/remotes/origin/HEAD are skipped so each
+matching commit is reported once.
+
+Run `git fetch --all` beforehand if you need to include branches that
+were recently pushed to a remote.
+
+ARGUMENTS
+  regex        Extended regex (grep -E) matched against tracked
+               paths. Quote it to protect shell metacharacters.
+  remote-glob  Optional refname pattern in for-each-ref form,
+               default refs/remotes/. Use refs/remotes/origin/ to
+               restrict to a single remote.
+
+EXIT STATUS
+  0 if at least one matching path was found, non-zero otherwise.
+
+REQUIRES
+  git, grep
