@@ -12,8 +12,12 @@
 #      rlm-pr-worktree; to force a refresh, run rlm-jira-pick and pick
 #      the REFRESH sentinel. Skipped silently if acli is missing or
 #      unauthenticated.
+#   3. A CUSTOM sentinel row. Picking it prompts (vared) for a free-form
+#      suffix; the slugified suffix becomes BOTH the worktree dirname
+#      tail and the new branch name (off origin/<default-branch>).
 #
 # Selecting a PR     -> worktree at ../<repo>-pr-<N>      on the PR branch.
+# Selecting CUSTOM   -> worktree at ../<repo>-<slug>      branch <slug>.
 # Selecting an issue -> prompts (vared) for an optional suffix:
 #   * empty   -> worktree ../<repo>-<KEY>            branch <KEY>/feat/<key_lowercased>
 #                (e.g. DATA-1234 -> branch DATA-1234/feat/data_1234)
@@ -377,6 +381,10 @@ local selection
 selection=$(
   setopt local_options no_pipefail
   {
+    # Sentinel (always first): pick this to be prompted for a free-form
+    # suffix that becomes both the worktree dirname tail and the branch
+    # name. Handled by the CUSTOM branch of the selection case below.
+    print -- $'CUSTOM\t<type your own worktree name>'
     [[ -n $pr_rows   ]] && print -- "$pr_rows"
     [[ -n $jira_rows ]] && print -- "$jira_rows"
   } \
@@ -405,6 +413,12 @@ selection=$(
           if [ "$kind" = "PR" ]; then
             num=$(echo "$line" | sed -E "s/^PR[[:space:]]+#([0-9]+).*/\1/");
             gh pr view "$num";
+          elif [ "$kind" = "CUSTOM" ]; then
+            echo "Pick this to be prompted for a free-form suffix.";
+            echo "";
+            echo "The suffix is normalized to a slug (e.g. \"fix bq cost\" -> \"fix-bq-cost\")";
+            echo "and used as BOTH the worktree dirname tail AND the new branch name,";
+            echo "branched off origin/<default-branch>.";
           else
             key=$(echo "$line" | awk "{print \$2}");
             acli jira workitem view "$key" 2>/dev/null || echo "(install/auth acli to preview $key)";
@@ -434,6 +448,19 @@ case $kind in
       _rlm-jira-history append "$key" >/dev/null 2>&1 || true
     fi
     return $jira_rc
+    ;;
+  CUSTOM)
+    # Prompt for a free-form suffix; both the path tail and the branch
+    # name are derived from it. Same vared caveat as the other prompts:
+    # call as a plain statement, not via $(...).
+    local custom_raw='' custom_suffix
+    vared -p "pr-worktree: worktree suffix (also used as branch name, e.g. 'fix bq cost') > " custom_raw
+    custom_suffix=$(_prwt_slug "$custom_raw" '-')
+    if [[ -z $custom_suffix ]]; then
+      print -u2 "pr-worktree: cancelled (empty suffix)"
+      return 1
+    fi
+    _prwt_make_suffix_worktree "$custom_suffix"
     ;;
   *)
     print -u2 "pr-worktree: could not parse selection: $selection"

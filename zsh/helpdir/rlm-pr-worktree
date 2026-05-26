@@ -16,6 +16,12 @@ in this order:
      Skipped silently if acli is missing or unauthenticated.
   3. Other open PRs in the repo that don't involve you, so you can
      pick up a teammate's PR for local review.
+  4. A sentinel row "CUSTOM <type your own worktree name>". Picking
+     it prompts (vared) for a free-form suffix; the suffix is
+     slugified and used as BOTH the worktree dirname tail and the
+     new branch name, branched off origin/<default-branch>. E.g.
+     entering "fix bq cost" yields  ../<repo>-fix-bq-cost  on
+     branch  fix-bq-cost. Empty input cancels.
 
 Selecting a PR creates a worktree at  ../<repo>-pr-<N>  on the PR
 branch. Selecting a JIRA issue first prompts (vared, editable) for
