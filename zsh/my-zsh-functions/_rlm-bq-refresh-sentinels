@@ -1,0 +1,184 @@
+emulate -L zsh
+
+# Shared --- REFRESH CACHE --- / --- REFRESH SANDBOX CACHE --- sentinel
+# logic for every rlm-bq-* / rlm-sandbox-bq-* fzf picker. Each picker
+# in the family historically inlined three things:
+#
+#   1. A verbatim copy of `_bq_cache_age` (mtime → "23s ago" / "4h ago"
+#      / "3d ago"). The body was byte-identical across 5 callers.
+#   2. The sentinel string itself: "--- REFRESH CACHE (cached <age>) ---"
+#      and, for sandbox-capable pickers, the purple-wrapped sibling
+#      "${PURPLE}--- REFRESH SANDBOX CACHE (cached <age>) ---${RESET}".
+#      Two layouts in use: bare/single-column (rlm-bq-archive,
+#      rlm-sandbox-bq-{open,rm}) and tab-prefixed for `--with-nth=2`
+#      pickers (rlm-bq-open, rlm-bq-rm-tables).
+#   3. A detection branch in the selection-parsing loop:
+#        if [[ $sel == "--- REFRESH CACHE"* ]]; then
+#          rm -f "$cache" "$sandbox"
+#          _rlm-bq-cache refresh || return 1
+#          rlm-bq-open
+#          return $?
+#        fi
+#      Plus a sandbox sibling. The `rm -f` + `_rlm-bq-cache refresh`
+#      pair and the recursive re-invoke were copy-pasted with only the
+#      function name (`rlm-bq-open` → `rlm-bq-archive` → …) differing.
+#
+# This helper centralizes all three so the bare sentinel literal,
+# the cache-file paths, and the age formatter each live in exactly one
+# place. Adding a 6th picker — or changing the sentinel wording, or
+# adding a freshness threshold to the age formatter — becomes a
+# single-site edit instead of a 5-way grep-and-replace.
+#
+# Internally calls `_rlm-bq-cache paths` so callers don't have to
+# thread $cache / $sandbox through. Cache age is read from disk on
+# each `emit-*` call (cheap — one stat).
+#
+# ----------------------------------------------------------------------
+# Usage
+# ----------------------------------------------------------------------
+#
+#   _rlm-bq-refresh-sentinels emit-main [--tab]
+#       Print the main-cache sentinel line. With `--tab`, the line is
+#       prefixed with a literal TAB so it parses as field-2 under fzf
+#       `--delimiter=$'\t' --with-nth=2` (the rlm-bq-open layout). The
+#       sentinel itself is uncolored.
+#       Exit 0 always (no cache file = "(cached <unknown>)").
+#
+#   _rlm-bq-refresh-sentinels emit-sandbox [--tab] [--no-color]
+#       Print the sandbox-cache sentinel line wrapped in the standard
+#       PURPLE/RESET pair (matches the sandbox row coloring used by
+#       every caller in the family). With `--tab`, the TAB goes
+#       *after* the PURPLE opener, so the color escape stays in the
+#       hidden field-1 chrome rather than leaking into the visible
+#       field-2 display — symmetric to how callers wrap sandbox refs
+#       themselves. With `--no-color`, the PURPLE/RESET wrap is
+#       omitted (used by rlm-sandbox-bq-{open,rm}, where every row
+#       in the picker is sandbox-scoped so the color would be
+#       redundant). The "(cached <age>)" suffix is omitted when no
+#       sandbox cache file exists yet (first-run behavior, mirrors
+#       the historical inline code).
+#       Exit 0 always.
+#
+#   _rlm-bq-refresh-sentinels is-main <ansi-stripped-ref>
+#   _rlm-bq-refresh-sentinels is-sandbox <ansi-stripped-ref>
+#       Test whether the (already ANSI-stripped, already field-2-
+#       extracted) ref string matches the corresponding sentinel.
+#       Exit 0 on match, 1 otherwise. Callers pass `$sel_ref`, not
+#       `$sel_line`, so the helper does not need to know which
+#       layout (tab-prefixed vs bare) the caller used.
+#
+#   _rlm-bq-refresh-sentinels apply-main
+#       Delete both cache files (main *and* sandbox — matches what
+#       the inline rlm-bq-open path did, on the theory that a user
+#       who asks for a full refresh wants both halves rebuilt),
+#       then `_rlm-bq-cache refresh` (no flag = both). Returns the
+#       refresh exit code; on success, the caller is expected to
+#       recursively re-invoke itself to reopen the picker.
+#
+#   _rlm-bq-refresh-sentinels apply-sandbox
+#       Delete only the sandbox cache file, then
+#       `_rlm-bq-cache refresh --sandbox-only`. Returns the refresh
+#       exit code.
+#
+# ----------------------------------------------------------------------
+# Return codes
+# ----------------------------------------------------------------------
+#   0 — success (emit-* always; is-* on match; apply-* on refresh OK).
+#   1 — is-* no match; apply-* refresh failed; usage error.
+#   2 — unknown subcommand.
+
+autoload -Uz _rlm-bq-cache
+
+# Resolve $key, $cache, $sandbox from the shared cache helper. Same
+# eval-the-paths-output trick every other caller in the family uses.
+local key cache sandbox
+eval "$(_rlm-bq-cache paths)" || return 1
+
+# Verbatim copy of the previously-duplicated _bq_cache_age. Lives here
+# now; the 5 inline copies were deleted by their respective migration
+# commits. If the file does not exist, mtime is empty and the
+# subtraction yields a large negative number — we render that as
+# "(unknown)" to avoid leaking a `-2056493213s ago` string into the
+# picker.
+_rlm_bq_cache_age() {
+  local file="$1"
+  local mtime now elapsed
+  [[ ! -f $file ]] && {
+    print "unknown"
+    return 0
+  }
+  mtime=$(stat -f %m "$file" 2>/dev/null || stat -c %Y "$file" 2>/dev/null)
+  now=$(date +%s)
+  elapsed=$((now - mtime))
+  if ((elapsed < 3600)); then
+    print "${elapsed}s ago"
+  elif ((elapsed < 86400)); then
+    print "$((elapsed / 3600))h ago"
+  else
+    print "$((elapsed / 86400))d ago"
+  fi
+}
+
+local PURPLE=$'\033[35m'
+local RESET=$'\033[0m'
+
+local subcmd="$1"
+shift 2>/dev/null
+
+case "$subcmd" in
+  emit-main)
+    local prefix=""
+    [[ "$1" == "--tab" ]] && prefix=$'\t'
+    print -r -- "${prefix}--- REFRESH CACHE (cached $(_rlm_bq_cache_age "$cache")) ---"
+    return 0
+    ;;
+  emit-sandbox)
+    local tab="" use_color=1
+    while (($#)); do
+      case "$1" in
+        --tab) tab=$'\t' ;;
+        --no-color) use_color=0 ;;
+        *) print -u2 "_rlm-bq-refresh-sentinels emit-sandbox: unknown flag: $1"; return 1 ;;
+      esac
+      shift
+    done
+    local open="" close=""
+    (( use_color )) && { open="$PURPLE"; close="$RESET"; }
+    local age_suffix=""
+    # Match the historical "omit suffix when the sandbox cache does
+    # not yet exist" behavior — every caller's previous inline code
+    # gated on `[[ -f $sandbox ]]` before adding the "(cached …)" tail.
+    [[ -f $sandbox ]] && age_suffix=" (cached $(_rlm_bq_cache_age "$sandbox"))"
+    print -r -- "${open}${tab}--- REFRESH SANDBOX CACHE${age_suffix} ---${close}"
+    return 0
+    ;;
+  is-main)
+    [[ "$1" == "--- REFRESH CACHE"* ]]
+    return $?
+    ;;
+  is-sandbox)
+    [[ "$1" == "--- REFRESH SANDBOX CACHE"* ]]
+    return $?
+    ;;
+  apply-main)
+    rm -f "$cache" "$sandbox"
+    _rlm-bq-cache refresh
+    return $?
+    ;;
+  apply-sandbox)
+    rm -f "$sandbox"
+    _rlm-bq-cache refresh --sandbox-only
+    return $?
+    ;;
+  "")
+    print -u2 "_rlm-bq-refresh-sentinels: missing subcommand"
+    print -u2 "usage: _rlm-bq-refresh-sentinels {emit-main|emit-sandbox} [--tab]"
+    print -u2 "       _rlm-bq-refresh-sentinels {is-main|is-sandbox} <stripped-ref>"
+    print -u2 "       _rlm-bq-refresh-sentinels {apply-main|apply-sandbox}"
+    return 1
+    ;;
+  *)
+    print -u2 "_rlm-bq-refresh-sentinels: unknown subcommand: $subcmd"
+    return 2
+    ;;
+esac

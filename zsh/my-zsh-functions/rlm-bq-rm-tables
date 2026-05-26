@@ -22,7 +22,7 @@ done
 # commands share one cache pair (~/.cache/bq-open/<md5>.txt and
 # -sandbox.txt) and one pooled history TSV (~/.cache/bq-open/history.tsv)
 # via these helpers. See zsh/AGENTS.md "Current internal helpers".
-autoload -Uz _rlm-bq-cache _rlm-bq-history _rlm-bq-dead-refs-gc
+autoload -Uz _rlm-bq-cache _rlm-bq-history _rlm-bq-dead-refs-gc _rlm-bq-refresh-sentinels
 
 # Garbage-collect any refs that bq-preview marked as dead on a previous
 # run. No-op when ~/.cache/bq-open/dead-refs.txt is missing/empty.
@@ -47,25 +47,10 @@ local PURPLE=$'\033[35m'
 local RESET=$'\033[0m'
 local SANDBOX_TAG="$PURPLE"   # colour opener — closed by RESET appended to BQ_REF
 
-_bq_cache_age() {
-  local file="$1"
-  local mtime now elapsed
-  mtime=$(stat -f %m "$file" 2>/dev/null || stat -c %Y "$file" 2>/dev/null)
-  now=$(date +%s)
-  elapsed=$(( now - mtime ))
-  if (( elapsed < 3600 )); then
-    print "${elapsed}s ago"
-  elif (( elapsed < 86400 )); then
-    print "$(( elapsed / 3600 ))h ago"
-  else
-    print "$(( elapsed / 86400 ))d ago"
-  fi
-}
-
-# Sentinel uses the tab format: PURPLE-tag <TAB> sentinel text + RESET
-local sandbox_age=""
-[[ -f $sandbox ]] && sandbox_age=" (cached $(_bq_cache_age "$sandbox"))"
-local refresh_sandbox_sentinel="${PURPLE}"$'\t'"--- REFRESH SANDBOX CACHE${sandbox_age} ---${RESET}"
+# Sentinel (tab-prefixed for --with-nth=2 layout) comes from the
+# shared _rlm-bq-refresh-sentinels helper.
+local refresh_sandbox_sentinel
+refresh_sandbox_sentinel=$(_rlm-bq-refresh-sentinels emit-sandbox --tab)
 
 # Build set of sandbox bq_refs visible in the current cache. Pooled
 # history may contain entries from other scopes or non-sandbox refs;
@@ -137,7 +122,7 @@ local refresh_picked=0
 while IFS= read -r sel_line; do
   [[ -z $sel_line ]] && continue
   sel_ref=$(printf '%s' "${sel_line#*$'\t'}" | sed 's/\x1b\[[0-9;]*m//g')
-  if [[ $sel_ref == "--- REFRESH SANDBOX CACHE"* ]]; then
+  if _rlm-bq-refresh-sentinels is-sandbox "$sel_ref"; then
     refresh_picked=1
     continue
   fi
@@ -151,7 +136,7 @@ while IFS= read -r sel_line; do
 done <<< "$fzf_out"
 
 if (( refresh_picked )); then
-  _rlm-bq-cache refresh --sandbox-only || return 1
+  _rlm-bq-refresh-sentinels apply-sandbox || return 1
   rlm-bq-rm-tables
   return $?
 fi

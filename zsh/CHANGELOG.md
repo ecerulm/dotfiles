@@ -4,6 +4,12 @@ All notable changes to the zsh configuration are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2026-05-26]
+
+### Changed
+
+- New shared helper `_rlm-bq-refresh-sentinels` consolidates the `--- REFRESH CACHE ---` / `--- REFRESH SANDBOX CACHE ---` picker chrome that was previously duplicated across all 5 `rlm-bq-*` / `rlm-sandbox-bq-*` pickers. Three pieces fold in: (1) the verbatim `_bq_cache_age` mtime formatter, byte-identical across all 5 callers; (2) the sentinel string construction (with the two layouts — tab-prefixed for `--with-nth=2` callers, bare for single-column callers — selected via a `--tab` flag, plus a `--no-color` flag for the sandbox-only pickers where the PURPLE wrap would be redundant); (3) the cache-deletion + recursive-refresh action (`apply-main` deletes both cache files then `_rlm-bq-cache refresh`; `apply-sandbox` deletes the sandbox cache then `_rlm-bq-cache refresh --sandbox-only`). Callers `eval` no cache paths themselves — the helper resolves them internally via `_rlm-bq-cache paths`. Sentinel detection collapses to `_rlm-bq-refresh-sentinels is-main "$sel_ref"` / `is-sandbox` so no caller needs to memorize the literal sentinel string. Migrated `rlm-bq-open`, `rlm-bq-archive`, `rlm-bq-rm-tables`, `rlm-sandbox-bq-open`, `rlm-sandbox-bq-rm`. The 5 inline `_bq_cache_age` copies are deleted; the sentinel literals now appear in exactly one source file. One behavior tweak: when the cache file does not exist, `_rlm_bq_cache_age` renders `"unknown"` instead of leaking a large-negative-`elapsed` string into the picker (the inline copies all assumed the file existed because callers gated on `[[ -f $sandbox ]]` upstream, but the helper sees both paths and the cheap defensive fallback costs nothing).
+
 ## [2026-05-25]
 
 ### Fixed
