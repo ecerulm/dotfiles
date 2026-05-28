@@ -1,0 +1,74 @@
+dbt-find-source-code
+
+Interactive fzf picker over every resource (model, seed, test,
+snapshot, source, analysis, exposure) in the current dbt project.
+On selection, the resource's source file path is printed to stdout,
+copied to the system clipboard, and opened in $EDITOR.
+
+Each picker entry has the form:
+
+  <resource_type>:<short_name>
+
+where short_name is the dbt unique_id with the leading
+"<resource_type>.<package>." prefix stripped. Examples:
+
+  source:storytel_order_service.state
+  model:dim_customer_demographics_latest
+  test:accepted_values_book_metadata_latest_v2_book_type__abook__ebook
+  seed:country_codes
+
+This means you can narrow the picker to a single resource type by
+typing the prefix, e.g. "source:" or "model:".
+
+WORKFLOW
+  1. Searches upward from the current directory for dbt_project.yml
+     (skipping dbt_packages/ and dbt_internal_packages/) and for
+     pyproject.toml.
+  2. Uses the shared per-project nodes cache at
+     ~/.cache/rlm-dbt/<project_key>/nodes.json. If the cache is
+     missing, it is populated via "dbt ls --output json" covering
+     every resource type. The same cache is shared with rlm-dbt-ls,
+     rlm-dbt-run, rlm-dbt-build, rlm-dbt-test.
+  3. Entries are sorted MRU-first using the shared pooled history at
+     ~/.cache/rlm-dbt/history.tsv. A pick recorded by this command
+     appears under the "dbt-find-source-code" command tag.
+  4. The first entry in the picker is "--- REFRESH CACHE (cached
+     ...) ---". Selecting it deletes the cache file, repopulates it,
+     and re-enters the picker. History is preserved.
+  5. The fzf preview pane shows the contents of the resource's
+     source file (rendered by `bat` if available, `cat` otherwise).
+  6. On confirmation:
+       - The absolute file path is printed to stdout.
+       - The absolute file path is copied to the clipboard (pbcopy
+         on macOS, xclip / xsel on Linux).
+       - $EDITOR is opened on the file.
+
+KEY BINDINGS
+  Enter       confirm selection
+  Ctrl-P      cycle preview height (tall → short → hidden)
+  Ctrl-G      abort the picker
+  Esc / Ctrl-C  abort the picker (Ctrl-G also works under terminals
+                 that swallow Ctrl-C, e.g. Ghostty)
+
+ENVIRONMENT
+  EDITOR            Required. The editor invoked on the selected
+                    file.
+  DBT_TARGET        Optional. dbt target name. Defaults to the
+                    profile's default target, then "dev".
+  DBT_USE_FUSION    Optional. When set to "1", invokes "dbtf" (the
+                    Fusion binary) instead of "poetry run dbt".
+
+PREREQUISITES
+  - Must be run from inside a dbt project (a dbt_project.yml file
+    must exist in the current directory or any parent, outside
+    package directories).
+  - poetry must be available in PATH and the project venv must
+    include dbt-core (unless DBT_USE_FUSION=1, in which case the
+    `dbtf` alias must point at a Fusion binary).
+  - profile/profiles.yml must exist under dbt_project_root.
+
+REQUIRES
+  fzf, jq, poetry (or dbtf when DBT_USE_FUSION=1)
+OPTIONAL
+  bat (better-rendered preview), pbcopy / xclip / xsel (clipboard
+  copy of the selected path)

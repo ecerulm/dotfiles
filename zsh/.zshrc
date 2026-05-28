@@ -131,11 +131,12 @@ autoload -Uz rlm-git-diff-base
 autoload -Uz rlm-git-find-in-remotes
 autoload -Uz rlm-git-squash-branch
 autoload -Uz rlm-dbt
+autoload -Uz rlm-dbt-build
+autoload -Uz rlm-dbt-find-source-code
 autoload -Uz rlm-dbt-ls
 autoload -Uz rlm-dbt-run
-autoload -Uz rlm-dbt-build
-autoload -Uz rlm-dbt-test
 autoload -Uz rlm-dbt-sandbox
+autoload -Uz rlm-dbt-test
 # run-help: use the real autoloaded version (default is aliased to man)
 unalias run-help 2>/dev/null
 autoload -Uz run-help
@@ -174,11 +175,12 @@ alias generatectags='rlm-generatectags'
 alias pr-for-commit='rlm-pr-for-commit'
 alias afw-deploy='rlm-afw-deploy'
 alias dbt='rlm-dbt'
+alias dbt-build='rlm-dbt-build'
+alias dbt-find-source-code='rlm-dbt-find-source-code'
 alias dbt-ls='rlm-dbt-ls'
 alias dbt-run='rlm-dbt-run'
-alias dbt-build='rlm-dbt-build'
-alias dbt-test='rlm-dbt-test'
 alias dbt-sandbox='rlm-dbt-sandbox'
+alias dbt-test='rlm-dbt-test'
 
 # brew shellenv — single eval based on the hardcoded prefix above.
 # Sets HOMEBREW_PREFIX, HOMEBREW_CELLAR, MANPATH, INFOPATH; PATH bits

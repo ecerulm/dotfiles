@@ -1,0 +1,345 @@
+emulate -L zsh
+set -o pipefail
+
+# ---------------------------------------------------------------------------
+# Precondition checks
+# ---------------------------------------------------------------------------
+
+local -a required_cmds=(fzf jq)
+if [[ ${DBT_USE_FUSION:-0} == 1 ]]; then
+  required_cmds+=(dbtf)
+else
+  required_cmds+=(poetry)
+fi
+for cmd in "${required_cmds[@]}"; do
+  if ! command -v "$cmd" >/dev/null 2>&1; then
+    print -u2 "dbt-find-source-code: '$cmd' not found in PATH"
+    return 1
+  fi
+done
+
+if [[ -z $EDITOR ]]; then
+  print -u2 "dbt-find-source-code: \$EDITOR is unset; set it to the editor you want to open files with"
+  return 1
+fi
+
+# ---------------------------------------------------------------------------
+# Find pyproject.toml by walking up from cwd (poetry must be run from there)
+# ---------------------------------------------------------------------------
+
+local project_root=""
+local dir="$PWD"
+while [[ $dir != / ]]; do
+  if [[ -f $dir/pyproject.toml ]]; then
+    project_root="$dir"
+    break
+  fi
+  dir="${dir:h}"
+done
+
+if [[ -z $project_root ]]; then
+  if [[ ${DBT_USE_FUSION:-0} == 1 ]]; then
+    : # project_root will be set to dbt_project_root once we find it below
+  else
+    print -u2 "dbt-find-source-code: 'pyproject.toml' not found in '$PWD' or any parent directory"
+    return 1
+  fi
+fi
+
+# ---------------------------------------------------------------------------
+# Find dbt_project.yml by walking up from cwd, skipping package dirs
+# ---------------------------------------------------------------------------
+
+local dbt_project_root=""
+dir="$PWD"
+while [[ $dir != / ]]; do
+  if [[ -f $dir/dbt_project.yml && $dir != *dbt_packages* && $dir != *dbt_internal_packages* ]]; then
+    dbt_project_root="$dir"
+    break
+  fi
+  dir="${dir:h}"
+done
+
+if [[ -z $dbt_project_root ]]; then
+  print -u2 "dbt-find-source-code: 'dbt_project.yml' not found in '$PWD' or any parent (outside package dirs)"
+  return 1
+fi
+
+[[ -z $project_root ]] && project_root="$dbt_project_root"
+
+local profiles_dir="$dbt_project_root/profile"
+
+if [[ ! -d $profiles_dir ]]; then
+  print -u2 "dbt-find-source-code: profiles directory '$profiles_dir' does not exist"
+  return 1
+fi
+
+# ---------------------------------------------------------------------------
+# Determine the profile name from the first top-level key in profiles.yml
+# ---------------------------------------------------------------------------
+
+local profiles_yml="$profiles_dir/profiles.yml"
+
+if [[ ! -f $profiles_yml ]]; then
+  print -u2 "dbt-find-source-code: 'profiles.yml' not found at '$profiles_yml'"
+  return 1
+fi
+
+local profile_name
+profile_name=$(grep -m1 '^[a-zA-Z]' "$profiles_yml" | sed 's/:.*//')
+
+if [[ -z $profile_name ]]; then
+  print -u2 "dbt-find-source-code: could not determine profile name from '$profiles_yml'"
+  return 1
+fi
+
+local dbt_target="$DBT_TARGET"
+if [[ -z $dbt_target ]]; then
+  dbt_target=$(awk -v profile="$profile_name" '
+    $0 ~ "^" profile ":" { in_profile = 1; next }
+    in_profile && /^[a-zA-Z]/ { in_profile = 0 }
+    in_profile && /^[[:space:]]+target:[[:space:]]*/ {
+      sub(/^[[:space:]]+target:[[:space:]]*/, "")
+      sub(/[[:space:]]*$/, "")
+      print; exit
+    }
+  ' "$profiles_yml")
+fi
+[[ -z $dbt_target ]] && dbt_target="dev"
+
+# ---------------------------------------------------------------------------
+# Ensure poetry env is synced and dbt resolves to the project venv
+# ---------------------------------------------------------------------------
+
+if [[ ${DBT_USE_FUSION:-0} != 1 ]]; then
+  autoload -Uz _rlm-python-ensure-version
+  _rlm-python-ensure-version "$dbt_project_root" dbt-find-source-code || return 1
+  autoload -Uz _rlm-poetry-ensure-venv
+  _rlm-poetry-ensure-venv "$project_root" dbt dbt-find-source-code || return 1
+fi
+
+# ---------------------------------------------------------------------------
+# Ensure dbt packages declared in packages.yml are installed
+# ---------------------------------------------------------------------------
+
+autoload -Uz _rlm-dbt-ensure-deps
+_rlm-dbt-ensure-deps "$project_root" "$dbt_project_root" dbt-find-source-code || return 1
+
+# ---------------------------------------------------------------------------
+# Shared cache wiring: pooled history + per-project nodes cache.
+# ---------------------------------------------------------------------------
+
+autoload -Uz _rlm-dbt-project-key _rlm-dbt-history _rlm-dbt-nodes-cache
+local project_key
+project_key=$(_rlm-dbt-project-key "$dbt_project_root") || return 1
+local nodes_cache_file
+nodes_cache_file=$(_rlm-dbt-nodes-cache path "$project_key")
+
+if [[ ! -s $nodes_cache_file ]]; then
+  _rlm-dbt-nodes-cache refresh \
+    "$project_key" \
+    "$project_root" \
+    "$dbt_project_root" \
+    "$profiles_dir" \
+    "$dbt_target" \
+    "$profile_name" || return 1
+fi
+
+# ---------------------------------------------------------------------------
+# Compute cache age for the REFRESH CACHE sentinel
+# ---------------------------------------------------------------------------
+
+local mtime now elapsed cache_age
+mtime=$(stat -f %m "$nodes_cache_file" 2>/dev/null || stat -c %Y "$nodes_cache_file" 2>/dev/null)
+if [[ -n $mtime ]]; then
+  now=$(date +%s)
+  elapsed=$(( now - mtime ))
+  if (( elapsed < 3600 )); then
+    cache_age="${elapsed}s ago"
+  elif (( elapsed < 86400 )); then
+    cache_age="$(( elapsed / 3600 ))h ago"
+  else
+    cache_age="$(( elapsed / 86400 ))d ago"
+  fi
+else
+  cache_age="unknown"
+fi
+
+local refresh_sentinel="--- REFRESH CACHE (cached ${cache_age}) ---"
+
+# ---------------------------------------------------------------------------
+# Build the picker entries
+#
+# Each line is two tab-separated fields:
+#   <display>\t<original_file_path>
+# Where display = "<resource_type>:<short_name>" and short_name is the
+# unique_id with the leading "<resource_type>.<package>." stripped — so
+# sources render as "source:storytel_order_service.state" (source_name +
+# table_name) while models / seeds / tests / snapshots / analyses /
+# exposures render as the bare name dbt uses elsewhere.
+# ---------------------------------------------------------------------------
+
+local entries_jq='. | "\(.resource_type):\(.unique_id | sub("^[^.]+\\.[^.]+\\."; ""))\t\(.original_file_path)"'
+local entries
+entries=$(jq -r "$entries_jq" "$nodes_cache_file" 2>/dev/null | sort -u)
+
+if [[ -z $entries ]]; then
+  print -u2 "dbt-find-source-code: no resources found in cache '$nodes_cache_file'"
+  print -u2 "dbt-find-source-code: try refreshing the cache:"
+  print -u2 "    rm '$nodes_cache_file'"
+  return 1
+fi
+
+# ---------------------------------------------------------------------------
+# Build pooled history for MRU sorting. History stores the full display
+# (e.g. "source:storytel_order_service.state") so a pick under any of the
+# four rlm-dbt-* / find-source-code commands surfaces in this picker only
+# when the recorded selector exactly matches one of our display lines.
+# ---------------------------------------------------------------------------
+
+# History is read into a temp file so awk can ingest it via -F'\t' without
+# bumping into -v's no-embedded-newline restriction. `_rlm-dbt-history read`
+# emits one entry per line newest-first, columns: <epoch>\t<command>\t<key>.
+# We filter to this command tag and keep just the key column; the line
+# number then becomes the MRU rank (1 = most recent).
+local _hist_tmp
+_hist_tmp=$(mktemp -t dbt-find-source-code-hist.XXXXXX)
+_rlm-dbt-history read "$project_key" \
+  | awk -F'\t' '$2 == "dbt-find-source-code" {print $3}' \
+  > "$_hist_tmp"
+
+local sorted_entries
+sorted_entries=$(
+  print -r -- "$entries" \
+    | awk -F'\t' '
+      # First file (history): record the order each key first appeared,
+      # so duplicates keep the most-recent rank (rank 1).
+      NR == FNR {
+        if ($0 != "" && !(rank[$0])) {
+          rank_counter++
+          rank[$0] = rank_counter
+        }
+        next
+      }
+      # Second file (entries): bucket by whether the display key is in history.
+      {
+        if ($1 in rank) {
+          hist_keys[rank[$1]] = $1
+          hist_line[$1] = $0
+        } else {
+          tail_count++
+          tail[tail_count] = $0
+        }
+      }
+      END {
+        # Emit history hits in MRU order (ascending rank).
+        n = 0
+        for (r in hist_keys) ranks[++n] = r + 0
+        for (i = 1; i <= n; i++)
+          for (j = i + 1; j <= n; j++)
+            if (ranks[i] > ranks[j]) { t = ranks[i]; ranks[i] = ranks[j]; ranks[j] = t }
+        for (i = 1; i <= n; i++) print hist_line[hist_keys[ranks[i]]]
+        # Then the rest, sorted alphabetically.
+        for (i = 1; i <= tail_count; i++)
+          for (j = i + 1; j <= tail_count; j++)
+            if (tail[i] > tail[j]) { t = tail[i]; tail[i] = tail[j]; tail[j] = t }
+        for (i = 1; i <= tail_count; i++) print tail[i]
+      }
+    ' "$_hist_tmp" -
+)
+rm -f "$_hist_tmp"
+
+# ---------------------------------------------------------------------------
+# Run the picker
+# ---------------------------------------------------------------------------
+
+local picker_input
+picker_input=$(
+  {
+    print -- "${refresh_sentinel}	"
+    print -r -- "$sorted_entries"
+  }
+)
+
+local selection
+selection=$(
+  print -r -- "$picker_input" \
+  | fzf \
+      --prompt="dbt resource> " \
+      --no-mouse \
+      --ansi \
+      --delimiter=$'\t' \
+      --with-nth=1 \
+      --height=80% \
+      --reverse \
+      --preview='[[ -n {2} && -f "'"$dbt_project_root"'/"{2} ]] && (command -v bat >/dev/null 2>&1 && bat --style=plain --color=always "'"$dbt_project_root"'/"{2} || cat "'"$dbt_project_root"'/"{2}) || print -- "(no file: {2})"' \
+      --preview-window=bottom:40%:wrap \
+      --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)' \
+      --bind='ctrl-g:abort' \
+      --header="Pick a dbt resource • Enter opens \$EDITOR and copies path to clipboard"
+) || return 130
+
+[[ -z $selection ]] && return 130
+
+local sel_display="${selection%%$'\t'*}"
+local sel_relpath="${selection##*$'\t'}"
+
+# ---------------------------------------------------------------------------
+# Handle REFRESH CACHE sentinel
+# ---------------------------------------------------------------------------
+
+if [[ $sel_display == "--- REFRESH CACHE"* ]]; then
+  rm -f "$nodes_cache_file"
+  _rlm-dbt-nodes-cache refresh \
+    "$project_key" \
+    "$project_root" \
+    "$dbt_project_root" \
+    "$profiles_dir" \
+    "$dbt_target" \
+    "$profile_name" || return 1
+  rlm-dbt-find-source-code
+  return $?
+fi
+
+if [[ -z $sel_relpath ]]; then
+  print -u2 "dbt-find-source-code: selection has no file path"
+  return 1
+fi
+
+local abs_path="$dbt_project_root/$sel_relpath"
+
+if [[ ! -f $abs_path ]]; then
+  print -u2 "dbt-find-source-code: file not found: $abs_path"
+  return 1
+fi
+
+# ---------------------------------------------------------------------------
+# Record the pick in the shared pooled history
+# ---------------------------------------------------------------------------
+
+_rlm-dbt-history append dbt-find-source-code "$project_key" "$sel_display"
+
+# ---------------------------------------------------------------------------
+# Copy path to the clipboard
+# ---------------------------------------------------------------------------
+
+local clip_cmd=""
+if command -v pbcopy >/dev/null 2>&1; then
+  clip_cmd="pbcopy"
+elif command -v xclip >/dev/null 2>&1; then
+  clip_cmd="xclip -selection clipboard"
+elif command -v xsel >/dev/null 2>&1; then
+  clip_cmd="xsel --clipboard --input"
+fi
+
+if [[ -n $clip_cmd ]]; then
+  print -rn -- "$abs_path" | eval "$clip_cmd"
+  print -u2 "dbt-find-source-code: path copied to clipboard"
+fi
+
+# ---------------------------------------------------------------------------
+# Print path and open $EDITOR
+# ---------------------------------------------------------------------------
+
+print -r -- "$abs_path"
+"${=EDITOR}" "$abs_path"

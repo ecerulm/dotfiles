@@ -18,11 +18,11 @@ emulate -L zsh
 #         or that need to hand the path to dbt-model-preview.
 #
 #   _rlm-dbt-nodes-cache refresh <project_key> <project_root> <dbt_project_root> <profiles_dir> <target> [<profile>]
-#       → runs `dbt ls --output json --resource-type model --resource-type seed
-#         --resource-type test --resource-type snapshot` (cd'd into
-#         <project_root>, --project-dir <dbt_project_root>), captures
-#         stderr to <cache_dir>/dbt-ls.err, atomically rewrites the
-#         nodes.json file. project_root is where poetry runs (the
+#       → runs `dbt ls --output json` covering every resource_type
+#         (model, seed, test, snapshot, source, analysis, exposure)
+#         cd'd into <project_root>, --project-dir <dbt_project_root>,
+#         captures stderr to <cache_dir>/dbt-ls.err, atomically
+#         rewrites the nodes.json file. project_root is where poetry runs (the
 #         pyproject.toml dir); dbt_project_root is the dbt_project.yml
 #         dir (often the same, sometimes a subdir). profile is optional
 #         and only needed when dbt cannot infer it from dbt_project.yml.
@@ -91,6 +91,9 @@ case $subcmd in
       --resource-type seed
       --resource-type test
       --resource-type snapshot
+      --resource-type source
+      --resource-type analysis
+      --resource-type exposure
       --output json
       --quiet)
     print -u2 "_rlm-dbt-nodes-cache: fetching nodes via dbt ls (project=${project_key:0:8}…) …"
