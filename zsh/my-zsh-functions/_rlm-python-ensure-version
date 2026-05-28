@@ -51,7 +51,10 @@ if [[ ! -d $cwd ]]; then
 fi
 
 local output rc
-output=$(cd "$cwd" && python -EsSc 'import sys; print(sys.executable)' 2>&1)
+# `cd "$cwd" 2>/dev/null` silences direnv's "loading/unloading" chpwd-hook
+# chatter inside this subshell. The python probe's own stderr still
+# merges into stdout via `2>&1` so failure diagnostics survive.
+output=$(cd "$cwd" 2>/dev/null && python -EsSc 'import sys; print(sys.executable)' 2>&1)
 rc=$?
 
 if (( rc == 0 )); then

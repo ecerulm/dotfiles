@@ -107,7 +107,13 @@ case $subcmd in
     # 1 (no matches) when dbt produced zero nodes; treat that as success
     # so the JSON-validation guard below — not pipefail — controls the
     # error path.
-    output=$(cd "$project_root" && "${dbt_cmd[@]}" 2>"$err_log" \
+    # `cd "$project_root" 2>/dev/null` silences direnv's "loading/unloading"
+    # chpwd-hook chatter inside this subshell when $project_root lies
+    # outside the interactive shell's current direnv scope (common in dbt
+    # layouts where pyproject.toml is one dir up from the dbt project's
+    # .envrc). The redirect is scoped to `cd`; the dbt command's own
+    # stderr still flows to $err_log so real failures are captured.
+    output=$(cd "$project_root" 2>/dev/null && "${dbt_cmd[@]}" 2>"$err_log" \
       | { grep '^{' || true; })
     rc=$?
     if (( rc != 0 )); then

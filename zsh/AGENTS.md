@@ -252,6 +252,71 @@ Both fail without a diagnostic. Reach for `mktemp` for everything that
 awk has to read, and add a `[[ -s $tmp ]]` gate when the file might
 legitimately be empty.
 
+## Silencing direnv chatter from `$(cd … && cmd)` subshells
+
+Functions that shell out via `$(cd "$dir" && cmd)` to run a tool from
+a different working directory (typical: `poetry run …` from the
+pyproject.toml parent, `dbt ls` from the project root) will leak
+`direnv: loading …` / `direnv: unloading` status messages whenever
+`$dir` is outside the interactive shell's current direnv scope. The
+chpwd hook (installed by `eval "$(direnv hook zsh)"` in `.zshrc`)
+fires inside the subshell on every `cd` — including subshells — and
+prints to stderr.
+
+Even though the subshell exits and the parent shell's cwd never
+moved, the user sees the message once per `cd` subshell. For an
+`rlm-dbt-*` invocation that does 4 cd-subshells (two poetry probes
+in `_rlm-poetry-ensure-venv`, the python-version probe in
+`_rlm-python-ensure-version`, and the dbt-ls fetch in
+`_rlm-dbt-nodes-cache`), that's four lines of "direnv: unloading"
+noise per call.
+
+### The fix: `cd "$dir" 2>/dev/null` (scoped to `cd`, not the whole command)
+
+The chpwd hook fires synchronously inside `cd`'s redirection scope,
+so a redirect on the bare `cd` eats the direnv message without
+affecting the inner command's stderr:
+
+```zsh
+# Wrong — direnv chatter leaks to the user's terminal:
+output=$(cd "$project_root" && poetry env info --path 2>/dev/null)
+
+# Right — only direnv's chpwd-hook output is suppressed; poetry's
+# stderr still flows through whatever the inner command specifies:
+output=$(cd "$project_root" 2>/dev/null && poetry env info --path 2>/dev/null)
+
+# Also right — when the inner command's stderr is captured anyway:
+output=$(cd "$project_root" 2>/dev/null && python -c '…' 2>&1)
+```
+
+Do **not** redirect the entire subshell (`$(cd … && cmd) 2>/dev/null`):
+that also drops legitimate error output from the inner command, which
+is the diagnostic the caller needs to surface when the inner command
+fails. Scope the redirect to `cd` only.
+
+### Why not an env var
+
+There is no `DIRENV_LOG_FORMAT` (or similar) environment variable.
+direnv's status logging is controlled exclusively by `direnv.toml`'s
+`log_format = "-"` global setting (direnv ≥ 2.36) — there is no
+per-invocation env-var override. Attempts like
+`DIRENV_LOG_FORMAT= cd …` or `(export DIRENV_LOG_FORMAT=; cd …)`
+have **no effect**; only the stderr redirect works per-call.
+
+### Where this applies in the repo
+
+The shared dbt helpers all run `(cd "$project_root" && …)` and
+already have `cd "$dir" 2>/dev/null` applied:
+
+- `_rlm-poetry-ensure-venv` — 5 cd subshells (venv-path probe,
+  bin-path probe, the install run, and the post-install re-probe).
+- `_rlm-dbt-nodes-cache` — the `dbt ls --output json` fetch.
+- `_rlm-python-ensure-version` — the `python -EsSc 'import sys; print(sys.executable)'` probe.
+- `_rlm-dbt-ensure-deps` — the `dbt deps` run.
+
+Apply the same pattern to any new helper that needs `(cd "$dir" && cmd)`
+when `$dir` could legitimately be outside the current direnv scope.
+
 ## fzf Conventions (apply to every picker)
 
 Every `fzf` invocation in this repo must include the following flags so

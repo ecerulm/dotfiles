@@ -34,10 +34,22 @@ if [[ -z $project_root || -z $expected_bin || -z $label ]]; then
   return 2
 fi
 
+# Redirect stderr on the bare `cd` (not the whole subshell) to silence
+# direnv's "loading/unloading" chatter that would otherwise leak from
+# every `cd` into or out of a watched directory. The chpwd hook fires
+# synchronously inside `cd`'s redirection scope, so `cd dir 2>/dev/null`
+# eats the direnv message without affecting the inner command's stderr.
+# direnv's actual load/unload still happens — only the status print is
+# suppressed. Scoping it to `cd` keeps real `poetry install` errors
+# visible (we still want those to bubble up).
+# DIRENV_LOG_FORMAT does NOT exist as an env var (direnv 2.36+ uses
+# `direnv.toml`'s `log_format = "-"` for global suppression, with no
+# per-invocation env-var override); stderr redirection on `cd` is the
+# only per-call escape hatch.
 _rlm_poetry_ensure_venv_check() {
   local venv_path bin_path
-  venv_path=$(cd "$project_root" && poetry env info --path 2>/dev/null)
-  bin_path=$(cd "$project_root" && poetry run which "$expected_bin" 2>/dev/null)
+  venv_path=$(cd "$project_root" 2>/dev/null && poetry env info --path 2>/dev/null)
+  bin_path=$(cd "$project_root" 2>/dev/null && poetry run which "$expected_bin" 2>/dev/null)
   [[ -n $venv_path && -n $bin_path && $bin_path == ${venv_path}/* ]]
 }
 
@@ -46,7 +58,7 @@ if _rlm_poetry_ensure_venv_check; then
 fi
 
 print -u2 "${label}: ${expected_bin} not resolved from project venv — running poetry install in $project_root …"
-(cd "$project_root" && poetry install) || {
+(cd "$project_root" 2>/dev/null && poetry install) || {
   print -u2 "${label}: poetry install failed"
   return 1
 }
@@ -56,8 +68,8 @@ if _rlm_poetry_ensure_venv_check; then
 fi
 
 local _venv _bin
-_venv=$(cd "$project_root" && poetry env info --path 2>/dev/null)
-_bin=$(cd "$project_root" && poetry run which "$expected_bin" 2>/dev/null)
+_venv=$(cd "$project_root" 2>/dev/null && poetry env info --path 2>/dev/null)
+_bin=$(cd "$project_root" 2>/dev/null && poetry run which "$expected_bin" 2>/dev/null)
 print -u2 "${label}: ${expected_bin} still not in venv after poetry install"
 print -u2 "         expected venv : ${_venv:-<unresolved>}"
 print -u2 "         resolved ${expected_bin}  : ${_bin:-<unresolved>}"
