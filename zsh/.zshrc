@@ -129,6 +129,7 @@ autoload -Uz rlm-gh-permalink
 autoload -Uz rlm-git-changed
 autoload -Uz rlm-git-diff-base
 autoload -Uz rlm-git-find-in-remotes
+autoload -Uz rlm-git-squash-branch
 autoload -Uz rlm-dbt
 autoload -Uz rlm-dbt-ls
 autoload -Uz rlm-dbt-run
@@ -155,6 +156,7 @@ alias gh-permalink='rlm-gh-permalink'
 alias git-changed='rlm-git-changed'
 alias git-diff-base='rlm-git-diff-base'
 alias git-find-in-remotes='rlm-git-find-in-remotes'
+alias git-squash-branch='rlm-git-squash-branch'
 alias bq-archive='rlm-bq-archive'
 alias bq-open='rlm-bq-open'
 alias sandbox-bq-open='rlm-sandbox-bq-open'

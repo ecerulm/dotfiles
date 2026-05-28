@@ -1,0 +1,65 @@
+emulate -L zsh
+set -o pipefail
+
+# ---------------------------------------------------------------------------
+# Precondition checks
+# ---------------------------------------------------------------------------
+
+if ! git rev-parse --git-dir >/dev/null 2>&1; then
+  print -u2 "git-squash-branch: not inside a git repository"
+  return 1
+fi
+
+if ! command -v git >/dev/null 2>&1; then
+  print -u2 "git-squash-branch: 'git' not found in PATH"
+  return 1
+fi
+
+# ---------------------------------------------------------------------------
+# Main logic
+# ---------------------------------------------------------------------------
+
+local default_branch
+default_branch=$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null)
+if [[ -z $default_branch ]]; then
+  print -u2 "git-squash-branch: could not determine default branch for origin"
+  print -u2 "git-squash-branch: try: git remote set-head origin --auto"
+  return 1
+fi
+
+local current_branch
+current_branch=$(git symbolic-ref --short HEAD 2>/dev/null)
+if [[ -z $current_branch ]]; then
+  print -u2 "git-squash-branch: HEAD is detached; refusing to squash"
+  return 1
+fi
+
+if [[ $current_branch == "${default_branch#origin/}" ]]; then
+  print -u2 "git-squash-branch: current branch is the default branch (${current_branch}); refusing to squash"
+  return 1
+fi
+
+local merge_base
+merge_base=$(git merge-base --fork-point "$default_branch" HEAD 2>/dev/null)
+if [[ -z $merge_base ]]; then
+  merge_base=$(git merge-base HEAD "$default_branch" 2>/dev/null)
+fi
+if [[ -z $merge_base ]]; then
+  print -u2 "git-squash-branch: could not find merge base with ${default_branch}"
+  return 1
+fi
+
+if [[ $merge_base == $(git rev-parse HEAD) ]]; then
+  print -u2 "git-squash-branch: HEAD is already at merge base with ${default_branch}; nothing to squash"
+  return 1
+fi
+
+print -r -- "git-squash-branch: branch=${current_branch} base=${default_branch} merge_base=${merge_base}"
+
+git reset --soft "$merge_base" || return 1
+git commit -s || return 1
+
+print -r -- ""
+print -r -- "git-squash-branch: done. To publish, run:"
+print -r -- ""
+print -r -- "    git push --force-with-lease"
