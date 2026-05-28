@@ -170,6 +170,88 @@ Rule: in any new zsh code, default to `print -r -- "..."` for emitting
 strings; only use `print -- "..."` when you explicitly want backslash
 interpretation (rare). `printf '%s\n' "$var"` is also safe.
 
+## awk on macOS: BWK gotchas (apply to any rlm-\* function using awk)
+
+macOS ships BWK awk (`/usr/bin/awk`, identifies as "awk version
+YYYYMMDD") rather than GNU awk, and several patterns that work fine
+under gawk silently misbehave under BWK. These have already cost real
+debugging time in this repo (see `rlm-dbt-find-source-code`'s "fix
+empty picker" commit). Apply them prophylactically.
+
+### Two-file passes: never use `-` for stdin alongside a real file
+
+The idiomatic gawk pattern `awk 'NR==FNR{a[$0]++;next} {...}' fileA -`
+to fold a file and a stdin stream into a single two-pass invocation
+**does not work under BWK when fileA is empty (zero bytes).** BWK
+silently skips the `-` and the stdin stream is never read. Worse, the
+pipeline succeeds with exit 0 — there's no error to diagnose, just an
+empty output that propagates downstream as "the picker has no entries
+even though the cache has thousands of rows."
+
+Wrong (silent miss when fileA is empty):
+
+```zsh
+print -r -- "$entries" | awk 'NR==FNR{...;next} {...}' "$_hist_tmp" -
+```
+
+Right — write both inputs to real files first:
+
+```zsh
+local _entries_tmp
+_entries_tmp=$(mktemp -t myfn-en.XXXXXX)
+print -r -- "$entries" > "$_entries_tmp"
+awk -F'\t' '
+  FNR == NR { ...; next }
+  { ... }
+' "$_hist_keys_tmp" "$_entries_tmp"
+rm -f "$_entries_tmp"
+```
+
+Also right — gate the whole awk pass on the first file being non-empty
+and fall through to a simpler shell-only path otherwise. This is what
+`rlm-dbt-find-source-code` does: when the history file is empty, skip
+awk entirely and use the entries straight (the sort/uniq has already
+happened upstream). Then there's no two-file dance to break.
+
+```zsh
+if [[ ! -s $_hist_keys_tmp ]]; then
+  sorted_entries="$entries"
+else
+  # write entries to a temp file, run the two-real-files awk pass …
+fi
+```
+
+`/dev/stdin` is not a fix — BWK treats it the same way as `-` in this
+position.
+
+### `awk -v var=value`: no embedded newlines allowed
+
+Passing a multi-line string into awk via `-v` fails under BWK with:
+
+```
+awk: newline in string foo:bar... at source line 1
+```
+
+This rules out the obvious workaround of stuffing the contents of the
+"first file" into a `-v` variable to dodge the two-file problem above.
+Always write the data to a real file (with `mktemp`), or build the
+data via a single-file `BEGIN`/awk-script that reads it from a path,
+or pipe a *single* file into awk as stdin (no second file). Don't try
+to wedge multi-line data through `-v`.
+
+### Symptom card
+
+If an `rlm-*` function's awk-using pipeline silently produces zero
+output despite the upstream stages all looking healthy in isolation,
+the first suspects are:
+
+1. `-` after a `mktemp` file that happens to be empty on this run.
+2. `-v var=$(command_that_emits_newlines)` upstream.
+
+Both fail without a diagnostic. Reach for `mktemp` for everything that
+awk has to read, and add a `[[ -s $tmp ]]` gate when the file might
+legitimately be empty.
+
 ## fzf Conventions (apply to every picker)
 
 Every `fzf` invocation in this repo must include the following flags so
