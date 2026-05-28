@@ -54,10 +54,48 @@ if [[ $merge_base == $(git rev-parse HEAD) ]]; then
   return 1
 fi
 
+# Working tree must be clean — squashing on top of uncommitted changes
+# would entangle them with the squash commit, and a failed pull --rebase
+# below would leave the user in a worse state than they started.
+if [[ -n $(git status --porcelain) ]]; then
+  print -u2 "git-squash-branch: working tree is dirty; commit or stash changes before squashing"
+  git status --short >&2
+  return 1
+fi
+
 print -r -- "git-squash-branch: branch=${current_branch} base=${default_branch} merge_base=${merge_base}"
 
+# Pull (rebase) and push the current branch state before rewriting history.
+# This catches the case where someone else pushed to the same branch, and
+# ensures the pre-squash commits are durably on the remote (so if the
+# squash or subsequent force-push goes wrong, the original commits are
+# recoverable from the remote reflog).
+print -r -- "git-squash-branch: git pull --rebase"
+git pull --rebase || return 1
+
+print -r -- "git-squash-branch: git push"
+git push || return 1
+
+# Collect the messages of the commits about to be squashed, oldest first,
+# in the shape `git merge --squash` produces — one block per commit with a
+# `* <subject>` header followed by the body. Fed to `git commit -F - -e`
+# (`-e` forces the editor to open even with `-F`) so the editor opens
+# prepopulated with the combined message; the user can edit, accept, or
+# abort by emptying the buffer.
+local squash_msg
+squash_msg="Squashed commit of ${current_branch}:"$'\n\n'
+squash_msg+=$(git log --reverse --no-merges --format='* %s%n%n%b' "${merge_base}..HEAD") || return 1
+
 git reset --soft "$merge_base" || return 1
-git commit -s || return 1
+print -r -- "$squash_msg" | git commit -s -e -F - || return 1
+
+# Rebase the freshly-squashed single commit on top of the latest default
+# branch tip. The `git pull --rebase` above only synced commits on the
+# current branch; the default branch on origin may have moved on
+# independently. Rebasing now means the force-push lands cleanly without
+# the reviewer having to remember to update the branch separately.
+print -r -- "git-squash-branch: git rebase ${default_branch}"
+git rebase "$default_branch" || return 1
 
 print -r -- ""
 print -r -- "git-squash-branch: done. To publish, run:"
