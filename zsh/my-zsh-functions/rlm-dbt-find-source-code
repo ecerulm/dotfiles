@@ -197,57 +197,46 @@ fi
 # when the recorded selector exactly matches one of our display lines.
 # ---------------------------------------------------------------------------
 
-# History is read into a temp file so awk can ingest it via -F'\t' without
-# bumping into -v's no-embedded-newline restriction. `_rlm-dbt-history read`
-# emits one entry per line newest-first, columns: <epoch>\t<command>\t<key>.
-# We filter to this command tag and keep just the key column; the line
-# number then becomes the MRU rank (1 = most recent).
-local _hist_tmp
-_hist_tmp=$(mktemp -t dbt-find-source-code-hist.XXXXXX)
+# History keys go into a temp file (one key per line, MRU order, deduped).
+# `_rlm-dbt-history read` emits <epoch>\t<command>\t<key> newest-first;
+# filter to this command and keep just the key column.
+local _hist_keys_tmp
+_hist_keys_tmp=$(mktemp -t dbt-find-source-code-hk.XXXXXX)
 _rlm-dbt-history read "$project_key" \
   | awk -F'\t' '$2 == "dbt-find-source-code" {print $3}' \
-  > "$_hist_tmp"
+  | awk '!seen[$0]++' \
+  > "$_hist_keys_tmp"
 
 local sorted_entries
-sorted_entries=$(
-  print -r -- "$entries" \
-    | awk -F'\t' '
-      # First file (history): record the order each key first appeared,
-      # so duplicates keep the most-recent rank (rank 1).
-      NR == FNR {
-        if ($0 != "" && !(rank[$0])) {
-          rank_counter++
-          rank[$0] = rank_counter
-        }
-        next
-      }
-      # Second file (entries): bucket by whether the display key is in history.
-      {
-        if ($1 in rank) {
-          hist_keys[rank[$1]] = $1
-          hist_line[$1] = $0
-        } else {
-          tail_count++
-          tail[tail_count] = $0
-        }
-      }
+if [[ ! -s $_hist_keys_tmp ]]; then
+  # No history — entries are already sort-uniq'd.
+  sorted_entries="$entries"
+else
+  # Build an awk script file that does a two-file pass: history first
+  # (NR == FNR), then entries from stdin. macOS awk does not pass `-`
+  # as the stdin filename when the preceding file is empty, so we
+  # gate this whole branch on the history file being non-empty.
+  local _entries_tmp
+  _entries_tmp=$(mktemp -t dbt-find-source-code-en.XXXXXX)
+  print -r -- "$entries" > "$_entries_tmp"
+  sorted_entries=$(
+    awk -F'\t' '
+      FNR == NR { if ($0 != "" && !(rank[$0])) { ++rc; rank[$0] = rc }; next }
+      { line[$1] = $0; if (!($1 in rank)) tail[++tc] = $0 }
       END {
-        # Emit history hits in MRU order (ascending rank).
-        n = 0
-        for (r in hist_keys) ranks[++n] = r + 0
-        for (i = 1; i <= n; i++)
-          for (j = i + 1; j <= n; j++)
-            if (ranks[i] > ranks[j]) { t = ranks[i]; ranks[i] = ranks[j]; ranks[j] = t }
-        for (i = 1; i <= n; i++) print hist_line[hist_keys[ranks[i]]]
-        # Then the rest, sorted alphabetically.
-        for (i = 1; i <= tail_count; i++)
-          for (j = i + 1; j <= tail_count; j++)
-            if (tail[i] > tail[j]) { t = tail[i]; tail[i] = tail[j]; tail[j] = t }
-        for (i = 1; i <= tail_count; i++) print tail[i]
+        # MRU first: walk ranks 1..rc and emit the catalog line for any
+        # history key that still exists in the cache.
+        for (i = 1; i <= rc; i++)
+          for (k in rank)
+            if (rank[k] == i && (k in line)) { print line[k]; break }
+        # Then the rest (already sorted/uniqued upstream).
+        for (i = 1; i <= tc; i++) print tail[i]
       }
-    ' "$_hist_tmp" -
-)
-rm -f "$_hist_tmp"
+    ' "$_hist_keys_tmp" "$_entries_tmp"
+  )
+  rm -f "$_entries_tmp"
+fi
+rm -f "$_hist_keys_tmp"
 
 # ---------------------------------------------------------------------------
 # Run the picker
