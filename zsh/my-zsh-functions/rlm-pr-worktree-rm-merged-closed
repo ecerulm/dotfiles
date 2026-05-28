@@ -1,0 +1,178 @@
+# pr-worktree-rm-merged-closed: automatically delete every git worktree in
+# the current repo whose branch has a GitHub PR that is already merged or
+# closed.
+#
+# Builds the same branch -> pr_state map that pr-worktree-rm uses
+# (`gh pr list --state all --limit 500 --json number,state,headRefName`),
+# walks `git worktree list --porcelain`, and selects every worktree whose
+# branch resolves to a PR in state `merged` or `closed`. The current
+# worktree and the main/primary worktree are always excluded — same gate
+# as pr-worktree-rm.
+#
+# Lists what it's about to delete and asks for a single y/N confirmation
+# before touching anything. Use --yes / -y to skip the prompt (intended
+# for cron / scripted use). Use --dry-run / -n to just print the list and
+# exit 0.
+#
+# Each worktree is removed with `git worktree remove`; on failure it
+# retries with `--force` (matches pr-worktree-rm semantics — uncommitted
+# changes in a worktree whose PR has already landed are nearly always
+# stale rebase/merge debris). `git worktree prune` runs once at the end.
+#
+# Worktrees with `pr-status = no-pr` (no PR ever opened for the branch)
+# or `pr-status = open` are LEFT ALONE — this function only acts on PRs
+# that have reached a terminal state. Use pr-worktree-rm for the
+# interactive picker that can also remove no-pr / open worktrees.
+#
+# Usage:
+#   pr-worktree-rm-merged-closed             # interactive (prompts y/N)
+#   pr-worktree-rm-merged-closed --yes       # skip confirmation
+#   pr-worktree-rm-merged-closed --dry-run   # list and exit, do not delete
+#
+# Requires: gh, git, jq
+
+emulate -L zsh
+set -o pipefail
+
+local yes=0 dry_run=0
+local arg
+for arg in "$@"; do
+  case $arg in
+    -y | --yes) yes=1 ;;
+    -n | --dry-run) dry_run=1 ;;
+    -h | --help)
+      print -- "usage: pr-worktree-rm-merged-closed [--yes|-y] [--dry-run|-n]"
+      return 0
+      ;;
+    *)
+      print -u2 "pr-worktree-rm-merged-closed: unknown arg: $arg"
+      return 1
+      ;;
+  esac
+done
+
+for cmd in gh git jq; do
+  if ! command -v "$cmd" >/dev/null 2>&1; then
+    print -u2 "pr-worktree-rm-merged-closed: '$cmd' not found in PATH"
+    return 1
+  fi
+done
+
+local repo_root
+repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || {
+  print -u2 "pr-worktree-rm-merged-closed: not inside a git repository"
+  return 1
+}
+
+# Identify the main/primary worktree (first entry of `git worktree list --porcelain`).
+local main_worktree
+main_worktree=$(git -C "$repo_root" worktree list --porcelain | awk '/^worktree /{print $2; exit}')
+
+local current_worktree
+current_worktree=$(git rev-parse --show-toplevel)
+
+# Build a map: branch -> "<state>#<number>" (state lower-cased), by
+# querying all PRs (any state) once. Same query as pr-worktree-rm.
+local -A pr_state
+local pr_json
+pr_json=$(gh pr list --state all --limit 500 --json number,state,headRefName 2>/dev/null) || pr_json='[]'
+while IFS=$'\t' read -r branch state number; do
+  [[ -z $branch ]] && continue
+  pr_state[$branch]="${(L)state}#${number}"
+done < <(print -r -- "$pr_json" | jq -r '.[] | [.headRefName, .state, .number] | @tsv')
+
+# Walk worktrees, collect the ones whose PR is merged or closed.
+local -a abs_paths display_lines
+local wt_path="" wt_branch=""
+
+_prwtrmc_consider() {
+  local path=$1 branch=$2
+  [[ -z $branch ]] && return 0                          # detached HEAD: leave alone
+  [[ $path == $main_worktree || $path == $current_worktree ]] && return 0
+
+  local entry=${pr_state[$branch]:-}
+  [[ -z $entry ]] && return 0                           # no PR ever opened
+  local pr_state_str=${entry%#*}                        # open | closed | merged
+  local pr_number=${entry#*#}
+
+  case $pr_state_str in
+    closed | merged) ;;                                 # fall through to add
+    *) return 0 ;;                                      # open / unknown -> skip
+  esac
+
+  local rel_path=${path#${repo_root:h}/}
+  [[ $rel_path == $path ]] && rel_path=$path
+
+  abs_paths+=("$path")
+  display_lines+=("$(printf '%s\t%s\t%s#%s' "$rel_path" "$branch" "$pr_state_str" "$pr_number")")
+}
+
+while IFS= read -r line; do
+  case $line in
+    worktree\ *)
+      wt_path=${line#worktree }
+      wt_branch=""
+      ;;
+    branch\ *)
+      wt_branch=${line#branch refs/heads/}
+      ;;
+    "")
+      [[ -n $wt_path ]] && _prwtrmc_consider "$wt_path" "$wt_branch"
+      wt_path=""
+      wt_branch=""
+      ;;
+  esac
+done < <(git -C "$repo_root" worktree list --porcelain)
+
+# Handle trailing block if porcelain output didn't end with a blank line.
+[[ -n $wt_path ]] && _prwtrmc_consider "$wt_path" "$wt_branch"
+
+if (( ${#abs_paths} == 0 )); then
+  print "pr-worktree-rm-merged-closed: no worktrees with merged/closed PRs (excluding main and current)."
+  return 0
+fi
+
+# Pretty-print the list (column-aligned) so the user can sanity-check.
+local pretty
+pretty=$(printf '%s\n' "${display_lines[@]}" | column -t -s $'\t')
+
+print "pr-worktree-rm-merged-closed: worktrees with merged/closed PRs:"
+print -- "$pretty"
+
+if (( dry_run )); then
+  print
+  print "(dry-run: nothing deleted)"
+  return 0
+fi
+
+if (( ! yes )); then
+  print
+  print -n "Delete the ${#abs_paths} worktree(s) listed above? [y/N] "
+  local reply
+  read -r reply
+  if [[ ${reply:l} != y && ${reply:l} != yes ]]; then
+    print "Aborted."
+    return 1
+  fi
+fi
+
+local failed=0 i
+for (( i = 1; i <= ${#abs_paths}; i++ )); do
+  local p=${abs_paths[$i]}
+  local d=${display_lines[$i]%%$'\t'*}                  # rel_path for display
+  local err
+  if git -C "$repo_root" worktree remove "$p" 2>/dev/null; then
+    print "removed: $d"
+  elif err=$(git -C "$repo_root" worktree remove --force "$p" 2>&1); then
+    print "removed (force): $d"
+  else
+    print -u2 "failed:  $d ($p)"
+    print -u2 "  hint: $(git -C "$repo_root" worktree remove "$p" 2>&1 || true)"
+    [[ -n $err ]] && print -u2 "  force: $err"
+    failed=$(( failed + 1 ))
+  fi
+done
+
+git -C "$repo_root" worktree prune
+
+return $failed
