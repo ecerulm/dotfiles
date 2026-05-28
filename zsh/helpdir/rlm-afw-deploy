@@ -2,14 +2,18 @@ afw-deploy
 
 Deploy a DAG to the dev Airflow sandbox via fzf picker.
 
-Must be run from the project root (the directory that contains
-airflow_manager/ and pyproject.toml).
+Can be invoked from anywhere inside the project — the function
+walks up from $PWD looking for the first directory that contains
+both airflow_manager/ and pyproject.toml (typically `.../airflow/`
+in the orchestration repo) and cds there before proceeding.
 
 USAGE
   afw-deploy
 
 WHAT IT DOES
-  1. Validates that airflow_manager/ and pyproject.toml exist.
+  1. Walks up from $PWD to find the project root (a directory
+     containing both airflow_manager/ and pyproject.toml) and
+     cds there. Aborts if no such ancestor exists.
   2. Verifies that "poetry run afw" resolves to a binary inside the
      project's poetry virtualenv (not a stray afw on $PATH). If the
      venv is missing afw, runs "poetry install" automatically once;

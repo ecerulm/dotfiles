@@ -2,17 +2,31 @@ emulate -L zsh
 set -o pipefail
 
 # ---------------------------------------------------------------------------
-# Precondition checks
+# Locate project root
+#
+# The project root is the directory that contains BOTH `airflow_manager/`
+# and `pyproject.toml` (typically `.../airflow/` in the orchestration repo).
+# Walk up from $PWD so the function works when invoked from any subdirectory
+# inside the project (e.g. `airflow/airflow_manager/dag_folder/`).
 # ---------------------------------------------------------------------------
 
-if [[ ! -d airflow_manager ]]; then
-  print -u2 "afw-deploy: 'airflow_manager/' directory not found (run from project root)"
+local project_root="" dir="$PWD"
+while [[ $dir != / && -n $dir ]]; do
+  if [[ -d "$dir/airflow_manager" && -f "$dir/pyproject.toml" ]]; then
+    project_root="$dir"
+    break
+  fi
+  dir=${dir:h}
+done
+
+if [[ -z $project_root ]]; then
+  print -u2 "afw-deploy: project root not found (walked up from \$PWD looking for a directory containing both 'airflow_manager/' and 'pyproject.toml')"
   return 1
 fi
 
-if [[ ! -f pyproject.toml ]]; then
-  print -u2 "afw-deploy: 'pyproject.toml' not found (run from project root)"
-  return 1
+if [[ $PWD != $project_root ]]; then
+  print "afw-deploy: cd $project_root" >&2
+  cd "$project_root" || return 1
 fi
 
 if ! command -v poetry >/dev/null 2>&1; then
