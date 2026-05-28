@@ -4,6 +4,12 @@ All notable changes to the zsh configuration are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2026-05-28]
+
+### Fixed
+
+- `rlm-pr-worktree`: when creating a worktree for a PR, run `gh pr checkout <N> -f` inside the new worktree after `git worktree add` to wire up upstream tracking. Previously the function did `git fetch origin pull/N/head:pr-N` + `git worktree add <path> <pr_branch>`, which created a local branch from the fetched ref but never set `branch.<name>.remote` / `branch.<name>.merge`, so the subsequent `git pull` failed with "There is no tracking information for the current branch." `gh pr checkout` handles same-repo PRs (`--track origin/<branch>`) and fork PRs (sets `branch.<name>.remote` to the fork URL and `branch.<name>.merge` to `refs/heads/<headRef>`) identically to what `gh pr checkout` does in a non-worktree checkout. The `-f` flag makes it idempotent when re-entering an existing worktree (resets the local branch to the PR head). A `gh pr checkout` failure prints a warning but does not abort — the worktree still exists and is usable, just without tracking.
+
 ## [2026-05-26]
 
 ### Changed

@@ -128,6 +128,13 @@ _prwt_make_pr_worktree() {
   fi
 
   cd -- "$worktree_path"
+  # Wire up tracking the way `gh pr checkout` would: for same-repo PRs it
+  # sets `--track origin/<branch>`; for fork PRs it sets
+  # `branch.<name>.remote` to the fork URL and `branch.<name>.merge` to
+  # `refs/heads/<headRef>` so `git pull` works without arguments. -f resets
+  # the local branch to the PR head if it already exists (idempotent when
+  # re-entering an existing worktree).
+  gh pr checkout "$pr_number" -f || print -u2 "pr-worktree: warning: gh pr checkout failed; tracking may not be set"
   git pull
 }
 
