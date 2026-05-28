@@ -9,12 +9,16 @@
 #      ~/.cache/rlm-jira/ cache (assigned -> reporter -> watching ->
 #      DATA-only, with previously-picked tickets floating to the top).
 #      The cache is populated on first call to either rlm-jira-pick or
-#      rlm-pr-worktree; to force a refresh, run rlm-jira-pick and pick
-#      the REFRESH sentinel. Skipped silently if acli is missing or
+#      rlm-pr-worktree; to force a refresh, pick the REFRESH sentinel
+#      at the top of the picker (or run rlm-jira-pick and pick its
+#      REFRESH sentinel). Skipped silently if acli is missing or
 #      unauthenticated.
 #   3. A CUSTOM sentinel row. Picking it prompts (vared) for a free-form
 #      suffix; the slugified suffix becomes BOTH the worktree dirname
 #      tail and the new branch name (off origin/<default-branch>).
+#   4. A REFRESH sentinel row (only when acli is available). Picking it
+#      re-runs `_rlm-jira-cache refresh` and re-opens the picker with
+#      the fresh JIRA rows.
 #
 # Selecting a PR     -> worktree at ../<repo>-pr-<N>      on the PR branch.
 # Selecting CUSTOM   -> worktree at ../<repo>-<slug>      branch <slug>.
@@ -305,7 +309,7 @@ fi
 #   JIRA   DATA-1234  [In Progress]  Summary [assignee]
 
 local -a rows
-local pr_rows jira_rows me cutoff_date
+local pr_rows jira_rows jira_available='' jira_cache_age='' me cutoff_date
 
 # Current GitHub login, used by the picker's awk filter to color rows
 # you authored. Empty string if `gh api` fails — coloring is then a no-op
@@ -339,10 +343,12 @@ pr_rows=$(
 )
 
 if command -v acli >/dev/null 2>&1 && acli jira auth status >/dev/null 2>&1; then
+  jira_available=1
   # Ensure the shared JIRA cache exists; refresh once on cold cache.
   if ! _rlm-jira-cache read >/dev/null 2>&1; then
     _rlm-jira-cache refresh >/dev/null 2>&1 || true
   fi
+  jira_cache_age=$(_rlm-jira-cache age 2>/dev/null)
   # Reshape the helper's 7-field rows
   #   <group>\t<KEY>\t<status>\t<summary>\t<assignee>\t<updated_epoch>\t<last_commented_epoch>
   # into pr-worktree's expected 5-field rows
@@ -388,9 +394,18 @@ local selection
 selection=$(
   setopt local_options no_pipefail
   {
-    # Sentinel (always first): pick this to be prompted for a free-form
-    # suffix that becomes both the worktree dirname tail and the branch
-    # name. Handled by the CUSTOM branch of the selection case below.
+    # Sentinel (always first, when JIRA is reachable): pick this to
+    # refresh the shared ~/.cache/rlm-jira/ cache and reopen the picker
+    # with fresh JIRA rows. Handled by the REFRESH branch of the
+    # selection case below. The "(cached <age>)" suffix mirrors the
+    # rlm-bq-* / rlm-jira-pick refresh sentinels.
+    if [[ -n $jira_available ]]; then
+      local age_label="${jira_cache_age:-unknown}"
+      print -- $'REFRESH\t--- REFRESH JIRA CACHE (cached '"${age_label}"$') ---'
+    fi
+    # Sentinel: pick this to be prompted for a free-form suffix that
+    # becomes both the worktree dirname tail and the branch name.
+    # Handled by the CUSTOM branch of the selection case below.
     print -- $'CUSTOM\t<type your own worktree name>'
     [[ -n $pr_rows   ]] && print -- "$pr_rows"
     [[ -n $jira_rows ]] && print -- "$jira_rows"
@@ -413,7 +428,8 @@ selection=$(
     ' \
   | fzf --ansi --prompt='PR/JIRA> ' --height=80% --reverse \
         --no-mouse \
-        --header='PRs updated in last 2 weeks (green = you), then your JIRA. Enter = create worktree. Ctrl-P: toggle preview' \
+        --expect=ctrl-r \
+        --header='PRs updated in last 2 weeks (green = you), then your JIRA. Enter = create worktree. Ctrl-R: refresh JIRA cache. Ctrl-P: toggle preview' \
         --preview='
           line={};
           kind=$(echo "$line" | awk "{print \$1}");
@@ -426,6 +442,12 @@ selection=$(
             echo "The suffix is normalized to a slug (e.g. \"fix bq cost\" -> \"fix-bq-cost\")";
             echo "and used as BOTH the worktree dirname tail AND the new branch name,";
             echo "branched off origin/<default-branch>.";
+          elif [ "$kind" = "REFRESH" ]; then
+            echo "Refresh the shared ~/.cache/rlm-jira/ cache and reopen this picker";
+            echo "with fresh JIRA rows.";
+            echo "";
+            echo "Shortcut: press Ctrl-R from any row to do the same thing without";
+            echo "having to navigate to this sentinel first.";
           else
             key=$(echo "$line" | awk "{print \$2}");
             acli jira workitem view "$key" 2>/dev/null || echo "(install/auth acli to preview $key)";
@@ -437,8 +459,40 @@ selection=$(
 ) || return 130
 [[ -z $selection ]] && return 130
 
+# --expect=ctrl-r prepends a key line ("ctrl-r" or empty for Enter) to
+# fzf's output. Split into key + the actual selected row.
+local fzf_key=${selection%%$'\n'*}
+local selection_line=${selection#*$'\n'}
+[[ -z $selection_line || $selection_line == "$fzf_key" ]] && selection_line=''
+
+if [[ $fzf_key == ctrl-r ]]; then
+  if [[ -z $jira_available ]]; then
+    print -u2 "pr-worktree: ctrl-r refresh requires acli (skipped — JIRA unavailable)"
+    return 1
+  fi
+  print "pr-worktree: refreshing JIRA cache..."
+  _rlm-jira-cache refresh >/dev/null 2>&1 || {
+    print -u2 "pr-worktree: failed to refresh JIRA cache"
+    return 1
+  }
+  rlm-pr-worktree
+  return $?
+fi
+
+[[ -z $selection_line ]] && return 130
+selection=$selection_line
+
 local kind=${selection%% *}
 case $kind in
+  REFRESH)
+    print "pr-worktree: refreshing JIRA cache..."
+    _rlm-jira-cache refresh >/dev/null 2>&1 || {
+      print -u2 "pr-worktree: failed to refresh JIRA cache"
+      return 1
+    }
+    rlm-pr-worktree
+    return $?
+    ;;
   PR)
     local pr_number
     pr_number=$(print -- "$selection" | sed -E 's/^PR[[:space:]]+#([0-9]+).*/\1/')

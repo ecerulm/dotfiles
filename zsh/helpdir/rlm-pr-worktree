@@ -12,8 +12,10 @@ in this order:
      to the top via the shared MRU history at
      ~/.cache/rlm-jira/history.txt). The cache is populated on the
      first call to either rlm-pr-worktree or rlm-jira-pick; to force
-     a refresh, run rlm-jira-pick and pick the REFRESH sentinel.
-     Skipped silently if acli is missing or unauthenticated.
+     a refresh, either pick the REFRESH sentinel at the top of the
+     picker, press Ctrl-R from any row, or run rlm-jira-pick and
+     pick its REFRESH sentinel. Skipped silently if acli is missing
+     or unauthenticated.
   3. Other open PRs in the repo that don't involve you, so you can
      pick up a teammate's PR for local review.
   4. A sentinel row "CUSTOM <type your own worktree name>". Picking
@@ -22,6 +24,11 @@ in this order:
      new branch name, branched off origin/<default-branch>. E.g.
      entering "fix bq cost" yields  ../<repo>-fix-bq-cost  on
      branch  fix-bq-cost. Empty input cancels.
+  5. A REFRESH sentinel row (only when acli is available, always at
+     the very top). Picking it re-runs `_rlm-jira-cache refresh`
+     and re-opens the picker with the fresh JIRA rows. The same
+     refresh can be triggered without navigating to the sentinel
+     by pressing Ctrl-R from any row.
 
 Selecting a PR creates a worktree at  ../<repo>-pr-<N>  on the PR
 branch. Selecting a JIRA issue first prompts (vared, editable) for
