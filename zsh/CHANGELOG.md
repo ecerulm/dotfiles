@@ -4,6 +4,12 @@ All notable changes to the zsh configuration are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2026-05-30]
+
+### Docs
+
+- `AGENTS.md` (`CLAUDE.md`/`GEMINI.md` symlinks): condensed for brevity (557 → ~120 lines). Replaced the multi-paragraph internal-helper catalog with a grouped one-line index (detail now lives in source headers + this changelog), trimmed the `print -r`/BWK-awk/direnv/fzf gotcha sections to the actionable rule + symptom, and merged the naming/autoload and private-function sections. No rules dropped. Also retitled the heading `# CLAUDE.md` → `# AGENTS.md` to match the real filename.
+
 ## [2026-05-28]
 
 ### Changed
