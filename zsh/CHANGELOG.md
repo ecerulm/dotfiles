@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [2026-05-30]
 
+### Added
+
+- `rlm-tsconv` (short alias `tsconv`): convert a numeric input to a date/time, auto-detecting both the base (decimal, `0x`/`0o`/`0b`, or bare hex when digits contain `a-f`, with optional `_` separators) and the magnitude (seconds / milliseconds / microseconds / nanoseconds since the Unix epoch). Prints decimal, hex, inferred unit, local time, UTC, and humanized delta. Reads `$1` or stdin. Requires `python3`. Standard autoload + alias in `.zshrc`, `helpdir/rlm-tsconv` + `tsconv` symlink, README entry.
+
 ### Docs
 
 - `AGENTS.md` (`CLAUDE.md`/`GEMINI.md` symlinks): condensed for brevity (557 → ~120 lines). Replaced the multi-paragraph internal-helper catalog with a grouped one-line index (detail now lives in source headers + this changelog), trimmed the `print -r`/BWK-awk/direnv/fzf gotcha sections to the actionable rule + symptom, and merged the naming/autoload and private-function sections. No rules dropped. Also retitled the heading `# CLAUDE.md` → `# AGENTS.md` to match the real filename.

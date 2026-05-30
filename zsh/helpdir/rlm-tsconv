@@ -1,0 +1,40 @@
+rlm-tsconv NUMBER
+
+Convert a numeric input to a date/time, auto-detecting both the base
+of the input and the magnitude (unit) of the timestamp. Useful when
+you have a raw Unix epoch number from a log line, a database row, or
+an HTTP header and want to see what date and time it represents
+without having to remember which unit the producer chose.
+
+Input parsing — the first form that matches wins:
+  * 0x...  / 0o... / 0b...   — hex / octal / binary literals
+  * bare hex                 — used when the digits contain any of a-f
+  * decimal                  — the default
+  * underscores `_` in the digits are stripped before parsing
+    (so `1_700_000_000` is the same as `1700000000`)
+
+Unit inference — chosen by the absolute magnitude of the integer:
+  * abs(n) < 10**11   →  seconds
+  * abs(n) < 10**14   →  milliseconds
+  * abs(n) < 10**17   →  microseconds
+  * else              →  nanoseconds
+
+The boundaries cleanly separate plausible epoch values in s / ms /
+µs / ns for any year from ~1973 onward. A negative integer is
+treated as a pre-epoch timestamp.
+
+Output (one field per line):
+  input    — the original argument as you passed it
+  decimal  — the parsed value in base 10
+  hex      — the parsed value in hex
+  inferred — which unit was picked
+  local    — date/time in the local timezone
+  utc      — date/time in UTC
+  relative — humanized delta (e.g. `3h 12m ago`, `45d 6h from now`)
+
+ARGUMENTS
+  NUMBER   The number to convert. May also be supplied on stdin
+           (e.g. `pbpaste | tsconv`).
+
+REQUIRES
+  python3

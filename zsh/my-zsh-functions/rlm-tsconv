@@ -1,0 +1,98 @@
+# tsconv — convert a numeric input to a date/time, auto-detecting the
+# base (decimal / 0x hex / bare hex / 0o octal / 0b binary, with optional
+# `_` digit separators) and the magnitude (seconds / milliseconds /
+# microseconds / nanoseconds since the Unix epoch).
+#
+# Usage:
+#   tsconv 1772940000
+#   tsconv 1772940000000
+#   tsconv 0x19e1328ab00
+#   tsconv 19e1328ab00       # bare hex (contains a-f)
+#   pbpaste | tsconv
+#
+# Requires: python3.
+
+emulate -L zsh
+
+(( $+commands[python3] )) || {
+  print -u2 -r -- "tsconv: 'python3' not found in PATH"
+  return 1
+}
+
+local input=$1
+if [[ -z $input ]]; then
+  input=$(cat) || return 1
+fi
+input="${input#"${input%%[![:space:]]*}"}"
+input="${input%"${input##*[![:space:]]}"}"
+
+if [[ -z $input ]]; then
+  print -u2 -r -- "tsconv: no input (pass a number as an argument or on stdin)"
+  return 1
+fi
+
+python3 - "$input" <<'PY'
+import sys
+from datetime import datetime, timezone
+
+raw = sys.argv[1].replace("_", "")
+
+def parse(s: str) -> int:
+    low = s.lower()
+    if low.startswith(("0x", "0o", "0b", "-0x", "-0o", "-0b")):
+        return int(s, 0)
+    if any(c in "abcdef" for c in low.lstrip("-")):
+        return int(s, 16)
+    return int(s, 10)
+
+try:
+    n = parse(raw)
+except ValueError:
+    print(f"tsconv: cannot parse {raw!r} as a number", file=sys.stderr)
+    sys.exit(1)
+
+# Magnitude → unit. Boundaries are 10**11 / 10**14 / 10**17, which split
+# cleanly between plausible epoch values in s / ms / µs / ns for any year
+# from ~1973 onward (a 10-digit second value tops out at year 5138).
+abs_n = abs(n)
+if abs_n < 10**11:
+    unit, divisor = "seconds", 1
+elif abs_n < 10**14:
+    unit, divisor = "milliseconds", 1_000
+elif abs_n < 10**17:
+    unit, divisor = "microseconds", 1_000_000
+else:
+    unit, divisor = "nanoseconds", 1_000_000_000
+
+secs = n / divisor
+try:
+    dt_utc = datetime.fromtimestamp(secs, tz=timezone.utc)
+    dt_local = datetime.fromtimestamp(secs).astimezone()
+except (OverflowError, OSError, ValueError):
+    print(f"tsconv: timestamp out of range: {n} {unit}", file=sys.stderr)
+    sys.exit(1)
+
+now = datetime.now(tz=timezone.utc)
+delta = (dt_utc - now).total_seconds()
+direction = "from now" if delta >= 0 else "ago"
+s = int(abs(delta))
+if s < 60:
+    human = f"{s}s"
+elif s < 3600:
+    human = f"{s // 60}m {s % 60}s"
+elif s < 86400:
+    human = f"{s // 3600}h {(s % 3600) // 60}m"
+elif s < 31_536_000:
+    human = f"{s // 86400}d {(s % 86400) // 3600}h"
+else:
+    y, rem = divmod(s, 31_536_000)
+    human = f"{y}y {rem // 86400}d"
+
+print(f"input:    {sys.argv[1]}")
+print(f"decimal:  {n}")
+print(f"hex:      {'-' if n < 0 else ''}0x{abs(n):x}")
+print(f"inferred: {unit}")
+print(f"local:    {dt_local.strftime('%Y-%m-%d %H:%M:%S %Z')}")
+print(f"utc:      {dt_utc.strftime('%Y-%m-%d %H:%M:%S UTC')}")
+print(f"relative: {human} {direction}")
+PY
