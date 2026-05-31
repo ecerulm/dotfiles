@@ -111,7 +111,14 @@ for spec in "upstream:${upstream_url}" "origin:${fork_url}"; do
   fi
 done
 
+# Point gh's default repo at upstream so `gh pr create` targets the open
+# source repo as the PR base (and pushes the head branch to origin = fork).
+# Without this, gh refuses to pick a default once two remotes exist.
+gh repo set-default "$upstream_slug" >/dev/null || {
+  print -u2 -r -- "gh-fork: warning: failed to set default repo to ${upstream_slug}"
+}
+
 print -r -- ""
 print -r -- "gh-fork: remotes configured"
-print -r -- "  upstream → ${upstream_slug} (${upstream_url})"
-print -r -- "  origin   → ${fork_slug} (${fork_url})"
+print -r -- "  upstream → ${upstream_slug} (${upstream_url})  [gh default — PR base]"
+print -r -- "  origin   → ${fork_slug} (${fork_url})  [push / PR head]"

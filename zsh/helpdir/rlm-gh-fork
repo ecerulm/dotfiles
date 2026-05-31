@@ -8,6 +8,11 @@ upstream. Checks via 'gh' whether a fork already exists under your
 account and creates one if not. On completion the 'upstream' remote
 points to the open source repo and 'origin' points to your fork.
 
+It also runs 'gh repo set-default <upstream>' so that 'gh pr create'
+targets the open source repo as the PR base while pushing your head
+branch to your fork (origin). Without a default repo, 'gh' refuses to
+pick one once two remotes exist.
+
 Idempotent: running it again when the fork already exists only re-wires
 the remotes. Refuses to act if a same-named repo exists under your
 account that is not a fork, or is a fork of a different parent.
