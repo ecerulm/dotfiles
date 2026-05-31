@@ -1,0 +1,22 @@
+rlm-gh-fork
+
+Ensure the current GitHub repository is forked under your account and
+wire up the conventional remotes. Resolves the upstream (open source)
+repo from the current checkout — if the checkout is already your fork,
+its parent is treated as upstream; otherwise the repo itself is the
+upstream. Checks via 'gh' whether a fork already exists under your
+account and creates one if not. On completion the 'upstream' remote
+points to the open source repo and 'origin' points to your fork.
+
+Idempotent: running it again when the fork already exists only re-wires
+the remotes. Refuses to act if a same-named repo exists under your
+account that is not a fork, or is a fork of a different parent.
+
+The clone protocol (ssh vs https) for the remote URLs follows your
+'gh config get git_protocol' setting (defaults to https).
+
+ENVIRONMENT
+  None.
+
+REQUIRES
+  gh (authenticated via 'gh auth login'), git.

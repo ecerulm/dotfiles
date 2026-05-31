@@ -1,0 +1,117 @@
+emulate -L zsh
+set -o pipefail
+
+# ---------------------------------------------------------------------------
+# Precondition checks
+# ---------------------------------------------------------------------------
+
+for _cmd in gh git; do
+  if ! command -v "$_cmd" >/dev/null 2>&1; then
+    print -u2 -r -- "gh-fork: '$_cmd' not found in PATH"
+    return 1
+  fi
+done
+unset _cmd
+
+if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  print -u2 -r -- "gh-fork: not inside a git repository"
+  return 1
+fi
+
+local me
+me=$(gh api user --jq .login) || {
+  print -u2 -r -- "gh-fork: failed to look up GitHub username (run 'gh auth login')"
+  return 1
+}
+
+# ---------------------------------------------------------------------------
+# Resolve the upstream (open source) repo
+# ---------------------------------------------------------------------------
+
+# If the repo gh resolves to is already my fork, the open-source repo is its
+# parent; otherwise the resolved repo itself is the upstream.
+local info cur_slug cur_owner is_fork parent_slug
+info=$(gh repo view --json nameWithOwner,owner,isFork,parent \
+  --jq '[.nameWithOwner, .owner.login, (.isFork|tostring), (if .parent then .parent.owner.login + "/" + .parent.name else "" end)] | @tsv') || {
+  print -u2 -r -- "gh-fork: could not resolve the current repo via 'gh repo view' (no GitHub remote?)"
+  return 1
+}
+IFS=$'\t' read -r cur_slug cur_owner is_fork parent_slug <<<"$info"
+
+local upstream_slug
+if [[ $is_fork == true && $cur_owner == "$me" && -n $parent_slug ]]; then
+  upstream_slug=$parent_slug
+else
+  upstream_slug=$cur_slug
+fi
+
+local upstream_owner=${upstream_slug%%/*}
+local upstream_name=${upstream_slug##*/}
+if [[ $upstream_owner == "$me" ]]; then
+  print -u2 -r -- "gh-fork: ${upstream_slug} is already owned by you — nothing to fork"
+  return 1
+fi
+
+local fork_slug="${me}/${upstream_name}"
+
+# ---------------------------------------------------------------------------
+# Find or create the fork
+# ---------------------------------------------------------------------------
+
+local fork_exists=0 fork_check f_isfork f_parent
+if fork_check=$(gh repo view "$fork_slug" --json isFork,parent \
+  --jq '[(.isFork|tostring), (if .parent then .parent.owner.login + "/" + .parent.name else "" end)] | @tsv' 2>/dev/null); then
+  IFS=$'\t' read -r f_isfork f_parent <<<"$fork_check"
+  if [[ $f_isfork == true && $f_parent == "$upstream_slug" ]]; then
+    fork_exists=1
+  elif [[ $f_isfork == true ]]; then
+    print -u2 -r -- "gh-fork: ${fork_slug} exists but is a fork of ${f_parent}, not ${upstream_slug}"
+    return 1
+  else
+    print -u2 -r -- "gh-fork: ${fork_slug} already exists and is not a fork — refusing to overwrite"
+    return 1
+  fi
+fi
+
+if (( fork_exists )); then
+  print -r -- "gh-fork: fork already exists: ${fork_slug}"
+else
+  print -r -- "gh-fork: creating fork ${fork_slug} from ${upstream_slug}…"
+  gh repo fork "$upstream_slug" --clone=false --remote=false || {
+    print -u2 -r -- "gh-fork: 'gh repo fork' failed"
+    return 1
+  }
+fi
+
+# ---------------------------------------------------------------------------
+# Wire remotes: upstream → open source repo, origin → my fork
+# ---------------------------------------------------------------------------
+
+local proto
+proto=$(gh config get git_protocol 2>/dev/null)
+[[ -n $proto ]] || proto=https
+
+local upstream_url fork_url
+if [[ $proto == ssh ]]; then
+  upstream_url=$(gh repo view "$upstream_slug" --json sshUrl --jq .sshUrl) || return 1
+  fork_url=$(gh repo view "$fork_slug" --json sshUrl --jq .sshUrl) || return 1
+else
+  upstream_url=$(gh repo view "$upstream_slug" --json url --jq .url) || return 1
+  fork_url=$(gh repo view "$fork_slug" --json url --jq .url) || return 1
+fi
+
+local spec rname rurl
+for spec in "upstream:${upstream_url}" "origin:${fork_url}"; do
+  rname=${spec%%:*}
+  rurl=${spec#*:}
+  if git remote get-url "$rname" >/dev/null 2>&1; then
+    git remote set-url "$rname" "$rurl"
+  else
+    git remote add "$rname" "$rurl"
+  fi
+done
+
+print -r -- ""
+print -r -- "gh-fork: remotes configured"
+print -r -- "  upstream → ${upstream_slug} (${upstream_url})"
+print -r -- "  origin   → ${fork_slug} (${fork_url})"

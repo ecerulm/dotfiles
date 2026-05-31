@@ -16,6 +16,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - `zsh/helpdir/rlm-pubsub-open`, `zsh/README.md`: document the new topics-+-subscriptions UX, the type-filtering trick, and the per-kind preview fields. Added a NOTE explaining why no creation date is shown: Pub/Sub does not expose one via `describe` (v1/beta/alpha) or via Cloud Asset Inventory (`createTime: null` for Pub/Sub resource types); the only recoverable source is audit logs (`CreateTopic`/`CreateSubscription`), which is too slow for a preview pane and bounded by audit-log retention.
 
+## [2026-05-31]
+
+### Added
+
+- `rlm-gh-fork` (short alias `gh-fork`): ensure the current GitHub repo is forked under your account and wire up the conventional remotes. Resolves the upstream (open source) repo from the checkout — if the checkout is already your fork, its parent is upstream; otherwise the repo itself — checks via `gh repo view` whether a fork exists under your account, and creates one with `gh repo fork --clone=false --remote=false` if not. Ends with the `upstream` remote pointing to the open source repo and `origin` pointing to your fork (set-url if the remote exists, add otherwise). Idempotent: re-running when the fork already exists only re-wires remotes. Refuses if a same-named repo exists under your account that is not a fork, or is a fork of a different parent. Remote-URL protocol (ssh/https) follows `gh config get git_protocol` (defaults to https). Standard autoload + alias in `.zshrc`, `helpdir/rlm-gh-fork` + `gh-fork` symlink, README entry. Requires `gh`, `git`. Note: `gh`'s `parent` JSON sub-object exposes `name` + `owner.login` but **not** `nameWithOwner`, so the parent slug is built as `.parent.owner.login + "/" + .parent.name` in the `--jq` filters.
+
 ## [2026-05-30]
 
 ### Added
