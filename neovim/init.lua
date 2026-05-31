@@ -651,24 +651,158 @@ vim.api.nvim_create_user_command("DiffThisRemote", function()
 	require("gitsigns").diffthis(upstream)
 end, { desc = "Gitsigns diffthis against upstream tracking branch" })
 
+-- Resolve the base branch the current branch was forked from.
+-- Prefers the PR base branch (via gh), falls back to origin/HEAD, then origin/main.
+local function resolve_base_ref()
+	local pr_base = vim.trim(vim.fn.system("gh pr view --json baseRefName --jq .baseRefName 2>/dev/null"))
+	if vim.v.shell_error == 0 and pr_base ~= "" then
+		return "origin/" .. pr_base
+	end
+	local default = vim.trim(vim.fn.system("git symbolic-ref refs/remotes/origin/HEAD --short 2>/dev/null"))
+	if vim.v.shell_error == 0 and default ~= "" then
+		return default
+	end
+	return "origin/main"
+end
+
+-- Resolve the point this branch diverged from `ref`. Prefers `--fork-point`
+-- (uses the reflog to pick the right commit even if `ref` moved on), falls
+-- back to the plain merge-base. Returns the commit sha, or nil on failure.
+local function resolve_merge_base(ref)
+	local sha = vim.trim(vim.fn.system("git merge-base --fork-point " .. ref .. " HEAD 2>/dev/null"))
+	if vim.v.shell_error == 0 and sha ~= "" then
+		return sha
+	end
+	sha = vim.trim(vim.fn.system("git merge-base " .. ref .. " HEAD 2>/dev/null"))
+	if vim.v.shell_error == 0 and sha ~= "" then
+		return sha
+	end
+	return nil
+end
+
 -- :DiffThisMain — diff buffer against the merge-base fork point of the default branch
 -- Prefers PR base branch (via gh), falls back to origin/HEAD, then origin/main.
 vim.api.nvim_create_user_command("DiffThisMain", function()
-	local pr_base = vim.trim(vim.fn.system("gh pr view --json baseRefName --jq .baseRefName 2>/dev/null"))
-	local ref
-	if vim.v.shell_error == 0 and pr_base ~= "" then
-		ref = "origin/" .. pr_base
-	else
-		local default = vim.trim(vim.fn.system("git symbolic-ref refs/remotes/origin/HEAD --short 2>/dev/null"))
-		ref = (vim.v.shell_error == 0 and default ~= "") and default or "origin/main"
-	end
-	local sha = vim.trim(vim.fn.system("git merge-base HEAD " .. ref .. " 2>/dev/null"))
-	if vim.v.shell_error ~= 0 or sha == "" then
+	local ref = resolve_base_ref()
+	local sha = resolve_merge_base(ref)
+	if not sha then
 		vim.notify("DiffThisMain: failed to resolve merge-base against " .. ref, vim.log.levels.ERROR)
 		return
 	end
 	require("gitsigns").diffthis(sha)
 end, { desc = "Gitsigns diffthis against merge-base of default branch" })
+
+-- One quickfix item per file changed on this branch vs `base` (working tree
+-- included), plus any untracked-but-not-ignored files.
+local function changed_files_items(toplevel, base)
+	-- Diff base against the working tree (not HEAD) so staged and unstaged
+	-- changes to tracked files are included alongside committed branch changes.
+	local files = vim.fn.systemlist({ "git", "-C", toplevel, "diff", "--name-only", base })
+	if vim.v.shell_error ~= 0 then
+		return nil
+	end
+	-- Add untracked-but-not-ignored files (new files never committed).
+	local untracked = vim.fn.systemlist({ "git", "-C", toplevel, "ls-files", "--others", "--exclude-standard" })
+	if vim.v.shell_error == 0 then
+		vim.list_extend(files, untracked)
+	end
+	local items, seen = {}, {}
+	for _, f in ipairs(files) do
+		if f ~= "" and not seen[f] then
+			seen[f] = true
+			items[#items + 1] = { filename = toplevel .. "/" .. f, lnum = 1, col = 1, text = f }
+		end
+	end
+	return items
+end
+
+-- One quickfix item per diff hunk (so a file with several edits appears
+-- several times), pointing at the first line of each hunk on the new side.
+local function changed_hunks_items(toplevel, base)
+	-- -U0 keeps the @@ headers tight to the actual changed line ranges.
+	-- Force a/ b/ prefixes so the +++/--- parsing below is not broken by a
+	-- user's diff.mnemonicPrefix / diff.noprefix config (which emits c/ w/ etc).
+	local diff = vim.fn.systemlist({
+		"git",
+		"-C",
+		toplevel,
+		"diff",
+		"--no-color",
+		"--src-prefix=a/",
+		"--dst-prefix=b/",
+		"-U0",
+		base,
+	})
+	if vim.v.shell_error ~= 0 then
+		return nil
+	end
+	-- Untracked files have no diff vs base; surface each at its first line.
+	local untracked = vim.fn.systemlist({ "git", "-C", toplevel, "ls-files", "--others", "--exclude-standard" })
+	local items = {}
+	local file, oldfile
+	for _, line in ipairs(diff) do
+		local newpath = line:match("^%+%+%+ b/(.*)")
+		if newpath then
+			file = newpath ~= "/dev/null" and newpath or oldfile
+		else
+			local oldpath = line:match("^%-%-%- a/(.*)")
+			if oldpath then
+				oldfile = oldpath
+			elseif file then
+				-- @@ -<old> +<start>[,<count>] @@ [section heading]
+				local start, _count, ctx = line:match("^@@ %-%S+ %+(%d+),?(%d*) @@ ?(.*)")
+				if start then
+					local lnum = math.max(tonumber(start), 1)
+					items[#items + 1] = {
+						filename = toplevel .. "/" .. file,
+						lnum = lnum,
+						col = 1,
+						text = ctx ~= "" and ctx or "(change)",
+					}
+				end
+			end
+		end
+	end
+	if vim.v.shell_error == 0 then
+		for _, f in ipairs(untracked) do
+			if f ~= "" then
+				items[#items + 1] = { filename = toplevel .. "/" .. f, lnum = 1, col = 1, text = "(untracked)" }
+			end
+		end
+	end
+	return items
+end
+
+-- :ChangedFiles — quickfix list of every file changed on this branch relative
+-- to its base branch (PR target / default), measured from the fork point so
+-- commits that landed on the base afterwards are excluded.
+-- :ChangedFiles! — same scope, but one entry per hunk (the actual change
+-- locations), so a file with multiple edits shows up multiple times.
+vim.api.nvim_create_user_command("ChangedFiles", function(opts)
+	local toplevel = vim.trim(vim.fn.system("git rev-parse --show-toplevel 2>/dev/null"))
+	if vim.v.shell_error ~= 0 or toplevel == "" then
+		vim.notify("ChangedFiles: not inside a git repository", vim.log.levels.ERROR)
+		return
+	end
+	local ref = resolve_base_ref()
+	local base = resolve_merge_base(ref)
+	if not base then
+		vim.notify("ChangedFiles: failed to resolve merge-base against " .. ref, vim.log.levels.ERROR)
+		return
+	end
+	local what = opts.bang and "hunks" or "files"
+	local items = opts.bang and changed_hunks_items(toplevel, base) or changed_files_items(toplevel, base)
+	if not items then
+		vim.notify("ChangedFiles: git diff failed against " .. ref, vim.log.levels.ERROR)
+		return
+	end
+	if #items == 0 then
+		vim.notify("ChangedFiles: no " .. what .. " changed vs " .. ref, vim.log.levels.INFO)
+		return
+	end
+	vim.fn.setqflist({}, " ", { title = "Changed " .. what .. " vs " .. ref, items = items })
+	vim.cmd("copen")
+end, { bang = true, desc = "Quickfix: files (or hunks with !) changed on this branch vs PR/default base" })
 
 -- :Mergetool — open a 3-way merge view for the current buffer.
 -- Layout (vimdiff3-style):

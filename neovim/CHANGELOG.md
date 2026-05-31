@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-05-31
+
+- Add `:ChangedFiles` user command — quickfix list of files changed on this branch vs its base (PR target via `gh`, else `origin/HEAD`, else `origin/main`), measured from the fork point; includes working-tree and untracked changes
+- Add `:ChangedFiles!` variant — one quickfix entry per diff hunk (forces `a/`/`b/` prefixes so it survives `diff.mnemonicPrefix`/`diff.noprefix`)
+
 ## 2026-05-25
 
 - Add `:Mergetool` user command — opens a 3-way merge view (LOCAL | MERGED | REMOTE, with BASE above) for the current buffer using its git index stages 1/2/3; requires the file to be in a conflicted state

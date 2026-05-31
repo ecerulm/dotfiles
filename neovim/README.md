@@ -49,6 +49,8 @@ https://github.com/nvim-mini/mini.nvim/blob/main/doc/mini-completion.txt
 :Format
 `:DiffThisRemote`: gitsigns diffthis against upstream tracking branch
 `:DiffThisMain`: gitsigns diffthis against merge-base of default branch (PR base → origin/HEAD → origin/main)
+`:ChangedFiles`: quickfix list of files changed on this branch vs its base (fork point of PR base → origin/HEAD → origin/main); includes working-tree + untracked changes
+`:ChangedFiles!`: same scope, but one quickfix entry per diff hunk (the actual change locations)
 `<leader>gg` : Open lazygit
 `gs`: sort mini.operators
 `gr`: replace with clipboard / mini.operators
