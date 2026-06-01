@@ -507,6 +507,29 @@ alias rlm-lhd='rlm-lhdir'
 alias lhdir='rlm-lhdir'
 alias lhd='rlm-lhd'
 
+rlm-cd-sub() {
+  emulate -L zsh
+  set -o pipefail
+  for _cmd in fd fzf; do
+    if ! command -v "$_cmd" >/dev/null 2>&1; then
+      print -u2 -r -- "cd-sub: '$_cmd' not found in PATH"
+      return 1
+    fi
+  done
+  local target
+  target=$(fd -t d --color=always "$@" \
+    | fzf --no-mouse --ansi \
+          --prompt="cd> " \
+          --height=80% --reverse \
+          --preview='eza -l --color=always {} 2>/dev/null || ls -la {}' \
+          --preview-window=bottom:40%:wrap \
+          --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)') || return 130
+  [[ -z $target ]] && return 130
+  cd -- "$target"
+}
+alias cd-sub='rlm-cd-sub'
+alias cds='rlm-cd-sub'
+
 # pyenv — PYENV_ROOT/bin is on $PATH from .zshenv; this hooks shims into the shell.
 export PYENV_ROOT="$HOME/.pyenv"
 (( $+commands[pyenv] )) && eval "$(pyenv init -)"

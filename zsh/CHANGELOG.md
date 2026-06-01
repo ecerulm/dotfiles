@@ -14,6 +14,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - `AGENTS.md` (`CLAUDE.md`/`GEMINI.md` symlinks): condensed for brevity (557 → ~120 lines). Replaced the multi-paragraph internal-helper catalog with a grouped one-line index (detail now lives in source headers + this changelog), trimmed the `print -r`/BWK-awk/direnv/fzf gotcha sections to the actionable rule + symptom, and merged the naming/autoload and private-function sections. No rules dropped. Also retitled the heading `# CLAUDE.md` → `# AGENTS.md` to match the real filename.
 
+## [2026-05-29]
+
+### Added
+
+- `rlm-cd-sub` (short aliases `cd-sub`, `cds`): inline `.zshrc` function (must be inline because it mutates the calling shell's cwd). Enumerates subdirectories under the current directory with `fd -t d`, picks one via fzf, and `cd`s into the selection. Complements zoxide's `zi`, which only searches directories already in zoxide's frecency database — `cd-sub` works on never-visited subtrees. Any extra positional args are passed straight through to `fd` so the user can scope with patterns (`cds models`) or flags (`cds -H` to include hidden, `cds -I` to ignore .gitignore). fzf flags follow the standard rlm- picker conventions: `--no-mouse --ansi`, `--height=80%`, `--reverse`, preview pane at `bottom:40%:wrap` showing `eza -l --color=always {}` (falls back to `ls -la`), and `ctrl-p` cycles preview height. No MRU history file because zoxide already covers that use case for visited directories; the value-add here is fast access to *unvisited* subdirs.
+
 ## [2026-05-28]
 
 ### Changed

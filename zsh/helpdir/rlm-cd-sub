@@ -1,0 +1,21 @@
+rlm-cd-sub [FD_ARGS...]
+
+Pick a subdirectory under the current directory via fzf and cd
+into it. Useful when zoxide's `zi` is no help because the target
+directory has never been visited and isn't in zoxide's database.
+
+Directories are enumerated with `fd -t d`, which honors
+`.gitignore` and skips hidden directories by default. Any extra
+arguments are passed straight through to `fd`, so you can scope
+the search with patterns or pass flags like `-H` (include
+hidden) or `-I` (ignore .gitignore).
+
+EXAMPLES
+  cds                # pick any subdirectory under cwd
+  cds -H             # include hidden directories
+  cds models         # filter to paths matching "models"
+
+REQUIRES
+  fd, fzf
+
+Aliases: cd-sub, cds

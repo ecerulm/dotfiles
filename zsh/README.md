@@ -158,6 +158,7 @@ ______________________________________________________________________
 | `rlm-pre-commit-pr [base]` | `pre-commit-pr`, `pcpr` | Run `pre-commit` on files changed in the current branch since its fork point from `base` (default: `main`). |
 | `rlm-lhdir [hook]` | `lhdir`, `lhd` | Run lefthook on every tracked/non-ignored file under the current directory. Defaults to the `pre-commit` hook. |
 | `rlm-awsprofile` | `awsprofile` | Pick an AWS profile via fzf and export it as `AWS_PROFILE`. |
+| `rlm-cd-sub [fd-args...]` | `cd-sub`, `cds` | Pick a subdirectory under the current directory via fzf and `cd` into it. Useful when zoxide's `zi` won't help because the target dir has never been visited. Enumerates with `fd -t d`; extra args are passed through to `fd`. Requires: `fd`, `fzf`. |
 | `rlm-sqlfluff-fix` | — | Run `sqlfluff-lint` via `pre-commit` on files changed between the current branch and `origin/main`. |
 | `rlm-reset-kkp` | — | Reset the Kitty Keyboard Protocol escape sequence after each command (runs as a `precmd` hook). Prevents `ctrl-c` showing as `9;5u` after killing certain apps. |
 
