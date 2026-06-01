@@ -138,7 +138,6 @@ selection=$(
       --reverse \
       --delimiter=$'\t' \
       --with-nth=2 \
-      --nth=2 \
       --preview="$preview_cmd" \
       --preview-window=bottom:40%:wrap \
       --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)' \

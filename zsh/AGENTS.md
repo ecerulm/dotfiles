@@ -116,7 +116,9 @@ selection=$(printf '%s\n' "${lines[@]}" | fzf --ansi --no-mouse \
 id=${selection##*$'\t'}   # field 4, no ANSI strip needed
 ```
 
-Use this whenever entries have color categories, hidden sort keys, a display≠id, or human-only annotations (`[stale]`, `(prod)`). Optional `--nth=<N>` restricts fuzzy matching to chosen fields. When the picker stores MRU history, store **only the id field**.
+Use this whenever entries have color categories, hidden sort keys, a display≠id, or human-only annotations (`[stale]`, `(prod)`). When the picker stores MRU history, store **only the id field**.
+
+**Don't combine `--with-nth=N` with `--nth=N`.** fzf applies `--nth` to the *post-`--with-nth`* text: after `--with-nth=2` the display is a single field, so `--nth=2` then matches against a non-existent second field and returns **0 matches for every query** (silent — no error). With `--with-nth=N` alone, fuzzy matching already operates on the displayed text, which is what you want. Reach for `--nth` only when you're *not* using `--with-nth` and need to restrict matching to specific fields of the raw line.
 
 ### Standard preview scripts
 
