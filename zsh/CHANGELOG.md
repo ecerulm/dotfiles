@@ -4,6 +4,18 @@ All notable changes to the zsh configuration are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2026-06-02]
+
+### Changed
+
+- `rlm-pubsub-open`: list both topics **and** subscriptions, not just topics. Each row carries a type tag (`topic`, `pull`, `push`, `bigquery`, `cloudstorage`) rendered alongside `project/name`, so typing `bigquery` in the fzf prompt narrows to BigQuery subs, `topic` filters to topics, etc. Cache reformatted from one-name-per-line `.txt` to `<type>\t<project>/<name>` TSV under a new filename (`.tsv`), so old caches are simply ignored on first run (no migration needed; orphans are safe to delete manually). URL routing branches on type: topics open the topic detail page, subscriptions open the subscription detail page.
+- `rlm-pubsub-open`: dedupe `$PUBSUB_OPEN_PROJECTS` after `:` splitting (`${(u)…:#}`) so an accidentally repeated project no longer produces duplicate rows in the picker. Empty colon segments are dropped too. Cache key is computed from the deduped list, so `proj:proj` and `proj` share one cache file.
+- `bin/pubsub-preview`: accept an optional leading `<kind>` arg (`topic|pull|push|bigquery|cloudstorage`). Single-arg form still works (assumed topic) for back-compat. Subscription previews show the detected delivery kind, the attached topic (OSC 8 hyperlink), state/ack_deadline/retention, plus kind-specific config: `bq_table` (OSC 8 link to the BigQuery console, accepting both `proj:dataset.table` and `proj.dataset.table`), `gcs_bucket` (OSC 8 link to Storage browser) + filename prefix/suffix/format, or `push_endpoint` + `oidc_audience`.
+
+### Docs
+
+- `zsh/helpdir/rlm-pubsub-open`, `zsh/README.md`: document the new topics-+-subscriptions UX, the type-filtering trick, and the per-kind preview fields. Added a NOTE explaining why no creation date is shown: Pub/Sub does not expose one via `describe` (v1/beta/alpha) or via Cloud Asset Inventory (`createTime: null` for Pub/Sub resource types); the only recoverable source is audit logs (`CreateTopic`/`CreateSubscription`), which is too slow for a preview pane and bounded by audit-log retention.
+
 ## [2026-05-30]
 
 ### Added

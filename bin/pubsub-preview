@@ -1,20 +1,36 @@
 #!/usr/bin/env zsh
-# Usage: pubsub-preview <project>/<topic>
-# Prints a standardized Pub/Sub topic summary for fzf preview panes.
-# Fields shown: project_id, name, topic schema (OSC 8 hyperlink to GCP
+# Usage:
+#   pubsub-preview <project>/<topic>                 (back-compat: assumes topic)
+#   pubsub-preview topic        <project>/<topic>
+#   pubsub-preview pull|push|bigquery|cloudstorage <project>/<subscription>
+#
+# Prints a standardized Pub/Sub summary for fzf preview panes.
+#
+# Topic fields: project_id, name, topic schema (OSC 8 hyperlink to GCP
 # console, or "NO TOPIC SCHEMA"), subscriptions (each as an OSC 8
 # hyperlink to its GCP console page).
+#
+# Subscription fields: project_id, name, type, topic (OSC 8 hyperlink),
+# plus type-specific config (push endpoint, BigQuery table, GCS bucket).
 emulate -L zsh
 set -o pipefail
 
-local ref="${1:-}"
+local kind ref
+if (( $# >= 2 )); then
+  kind="$1"
+  ref="$2"
+else
+  kind="topic"
+  ref="${1:-}"
+fi
+
 if [[ -z $ref || $ref != */* ]]; then
-  print "Usage: pubsub-preview <project>/<topic>" >&2
+  print "Usage: pubsub-preview [topic|pull|push|bigquery|cloudstorage] <project>/<name>" >&2
   exit 1
 fi
 
 local project="${ref%%/*}"
-local topic="${ref##*/}"
+local name="${ref##*/}"
 
 # OSC 8 hyperlink: ESC ] 8 ; ; URL ST text ESC ] 8 ; ; ST
 _hyperlink() {
@@ -22,51 +38,147 @@ _hyperlink() {
   printf '\e]8;;%s\e\\%s\e]8;;\e\\' "$url" "$text"
 }
 
+if [[ $kind == "topic" ]]; then
+  local describe_json
+  if ! describe_json=$(gcloud pubsub topics describe "projects/${project}/topics/${name}" \
+    --project="${project}" --format=json 2>&1); then
+    print "(gcloud pubsub topics describe failed for ${ref})"
+    print -r -- "$describe_json"
+    exit 0
+  fi
+
+  local schema_resource
+  schema_resource=$(print -r -- "$describe_json" | jq -r '.schemaSettings.schema // ""')
+
+  local schema_line
+  if [[ -z $schema_resource || $schema_resource == "_deleted-schema_" ]]; then
+    schema_line="NO TOPIC SCHEMA"
+  else
+    local schema_project="${${schema_resource#projects/}%%/*}"
+    local schema_id="${schema_resource##*/}"
+    local schema_url="https://console.cloud.google.com/cloudpubsub/schema/detail/${schema_id}?project=${schema_project}"
+    schema_line=$(_hyperlink "$schema_url" "$schema_resource")
+  fi
+
+  local subs_json
+  subs_json=$(gcloud pubsub topics list-subscriptions \
+    "projects/${project}/topics/${name}" \
+    --project="${project}" --format=json 2>/dev/null) || subs_json='[]'
+
+  print -r -- "kind          : topic"
+  print -r -- "project_id    : ${project}"
+  print -r -- "name          : ${name}"
+  print -r -- "topic_schema  : ${schema_line}"
+  print -r -- "subscriptions :"
+
+  local -a subs
+  subs=(${(f)"$(print -r -- "$subs_json" | jq -r '.[]? | if type == "object" then .name else . end')"})
+
+  if (( ${#subs} == 0 )); then
+    print -r -- "  (none)"
+  else
+    local sub sub_project sub_id sub_url sub_link
+    for sub in "${subs[@]}"; do
+      sub_project="${${sub#projects/}%%/*}"
+      sub_id="${sub##*/}"
+      sub_url="https://console.cloud.google.com/cloudpubsub/subscription/detail/${sub_id}?project=${sub_project}"
+      sub_link=$(_hyperlink "$sub_url" "${sub_project}/${sub_id}")
+      print -r -- "  - ${sub_link}"
+    done
+  fi
+  exit 0
+fi
+
+# Subscription preview
 local describe_json
-if ! describe_json=$(gcloud pubsub topics describe "projects/${project}/topics/${topic}" \
+if ! describe_json=$(gcloud pubsub subscriptions describe "projects/${project}/subscriptions/${name}" \
   --project="${project}" --format=json 2>&1); then
-  print "(gcloud pubsub topics describe failed for ${ref})"
+  print "(gcloud pubsub subscriptions describe failed for ${ref})"
   print -r -- "$describe_json"
   exit 0
 fi
 
-local schema_resource
-schema_resource=$(print -r -- "$describe_json" | jq -r '.schemaSettings.schema // ""')
+local topic_resource
+topic_resource=$(print -r -- "$describe_json" | jq -r '.topic // ""')
 
-local schema_line
-if [[ -z $schema_resource || $schema_resource == "_deleted-schema_" ]]; then
-  schema_line="NO TOPIC SCHEMA"
+local topic_line
+if [[ -z $topic_resource || $topic_resource == "_deleted-topic_" ]]; then
+  topic_line="${topic_resource:-(unknown)}"
 else
-  # schema_resource looks like: projects/<proj>/schemas/<schema_id>
-  local schema_project="${${schema_resource#projects/}%%/*}"
-  local schema_id="${schema_resource##*/}"
-  local schema_url="https://console.cloud.google.com/cloudpubsub/schema/detail/${schema_id}?project=${schema_project}"
-  schema_line=$(_hyperlink "$schema_url" "$schema_resource")
+  local topic_project="${${topic_resource#projects/}%%/*}"
+  local topic_id="${topic_resource##*/}"
+  local topic_url="https://console.cloud.google.com/cloudpubsub/topic/detail/${topic_id}?project=${topic_project}"
+  topic_line=$(_hyperlink "$topic_url" "${topic_project}/${topic_id}")
 fi
 
-local subs_json
-subs_json=$(gcloud pubsub topics list-subscriptions \
-  "projects/${project}/topics/${topic}" \
-  --project="${project}" --format=json 2>/dev/null) || subs_json='[]'
+local detected_kind
+detected_kind=$(print -r -- "$describe_json" | jq -r '
+  if .bigqueryConfig then "bigquery"
+  elif .cloudStorageConfig then "cloudstorage"
+  elif (.pushConfig.pushEndpoint // "") != "" then "push"
+  else "pull" end')
 
+local ack_deadline state retention
+ack_deadline=$(print -r -- "$describe_json" | jq -r '.ackDeadlineSeconds // ""')
+state=$(print -r -- "$describe_json" | jq -r '.state // ""')
+retention=$(print -r -- "$describe_json" | jq -r '.messageRetentionDuration // ""')
+
+print -r -- "kind          : subscription (${detected_kind})"
 print -r -- "project_id    : ${project}"
-print -r -- "name          : ${topic}"
-print -r -- "topic_schema  : ${schema_line}"
-print -r -- "subscriptions :"
+print -r -- "name          : ${name}"
+print -r -- "topic         : ${topic_line}"
+[[ -n $state ]]        && print -r -- "state         : ${state}"
+[[ -n $ack_deadline ]] && print -r -- "ack_deadline  : ${ack_deadline}s"
+[[ -n $retention ]]    && print -r -- "retention     : ${retention}"
 
-local -a subs
-subs=(${(f)"$(print -r -- "$subs_json" | jq -r '.[]? | if type == "object" then .name else . end')"})
-
-if (( ${#subs} == 0 )); then
-  print -r -- "  (none)"
-else
-  local sub sub_project sub_id sub_url sub_link
-  for sub in "${subs[@]}"; do
-    # sub looks like: projects/<proj>/subscriptions/<sub_id>
-    sub_project="${${sub#projects/}%%/*}"
-    sub_id="${sub##*/}"
-    sub_url="https://console.cloud.google.com/cloudpubsub/subscription/detail/${sub_id}?project=${sub_project}"
-    sub_link=$(_hyperlink "$sub_url" "${sub_project}/${sub_id}")
-    print -r -- "  - ${sub_link}"
-  done
-fi
+case $detected_kind in
+  bigquery)
+    local bq_table bq_use_topic_schema bq_write_metadata
+    bq_table=$(print -r -- "$describe_json" | jq -r '.bigqueryConfig.table // ""')
+    bq_use_topic_schema=$(print -r -- "$describe_json" | jq -r '.bigqueryConfig.useTopicSchema // false')
+    bq_write_metadata=$(print -r -- "$describe_json" | jq -r '.bigqueryConfig.writeMetadata // false')
+    local bq_line="${bq_table}"
+    # gcloud returns the table as "project:dataset.table"; also accept "project.dataset.table".
+    local bq_normalised="${bq_table/:/.}"
+    if [[ $bq_normalised == *.*.* ]]; then
+      local bq_project="${bq_normalised%%.*}"
+      local bq_rest="${bq_normalised#*.}"
+      local bq_dataset="${bq_rest%%.*}"
+      local bq_tbl="${bq_rest#*.}"
+      local bq_url="https://console.cloud.google.com/bigquery?project=${bq_project}&ws=!1m5!1m4!4m3!1s${bq_project}!2s${bq_dataset}!3s${bq_tbl}"
+      bq_line=$(_hyperlink "$bq_url" "$bq_table")
+    fi
+    print -r -- "bq_table      : ${bq_line}"
+    print -r -- "use_topic_sch : ${bq_use_topic_schema}"
+    print -r -- "write_metadata: ${bq_write_metadata}"
+    ;;
+  cloudstorage)
+    local gcs_bucket gcs_prefix gcs_suffix gcs_format
+    gcs_bucket=$(print -r -- "$describe_json" | jq -r '.cloudStorageConfig.bucket // ""')
+    gcs_prefix=$(print -r -- "$describe_json" | jq -r '.cloudStorageConfig.filenamePrefix // ""')
+    gcs_suffix=$(print -r -- "$describe_json" | jq -r '.cloudStorageConfig.filenameSuffix // ""')
+    gcs_format=$(print -r -- "$describe_json" | jq -r '
+      if .cloudStorageConfig.avroConfig then "avro"
+      elif .cloudStorageConfig.textConfig then "text"
+      else "unknown" end')
+    local gcs_line="${gcs_bucket}"
+    if [[ -n $gcs_bucket ]]; then
+      local gcs_url="https://console.cloud.google.com/storage/browser/${gcs_bucket}"
+      gcs_line=$(_hyperlink "$gcs_url" "$gcs_bucket")
+    fi
+    print -r -- "gcs_bucket    : ${gcs_line}"
+    [[ -n $gcs_prefix ]] && print -r -- "filename_pref : ${gcs_prefix}"
+    [[ -n $gcs_suffix ]] && print -r -- "filename_suff : ${gcs_suffix}"
+    print -r -- "format        : ${gcs_format}"
+    ;;
+  push)
+    local push_endpoint push_audience
+    push_endpoint=$(print -r -- "$describe_json" | jq -r '.pushConfig.pushEndpoint // ""')
+    push_audience=$(print -r -- "$describe_json" | jq -r '.pushConfig.oidcToken.audience // ""')
+    print -r -- "push_endpoint : ${push_endpoint}"
+    [[ -n $push_audience ]] && print -r -- "oidc_audience : ${push_audience}"
+    ;;
+  pull)
+    # nothing extra
+    ;;
+esac

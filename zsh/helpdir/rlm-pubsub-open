@@ -1,7 +1,7 @@
 rlm-pubsub-open
 
-Browse Pub/Sub topics across one or more GCP projects via fzf and
-open the selected topic in the GCP console.
+Browse Pub/Sub topics AND subscriptions across one or more GCP
+projects via fzf and open the selected resource in the GCP console.
 
 Projects are read from the environment variable PUBSUB_OPEN_PROJECTS,
 which must be set before calling this function:
@@ -9,43 +9,77 @@ which must be set before calling this function:
   export PUBSUB_OPEN_PROJECTS=my-project-prod:my-project-dev
 
 PUBSUB_OPEN_PROJECTS is a colon-separated list of GCP project IDs.
-Each entry is shown as "project/topic-name".
+
+PICKER LAYOUT
+  Each entry is rendered as:
+
+    <type>        <project>/<name>
+
+  where <type> is one of:
+
+    topic         a Pub/Sub topic
+    pull          a pull subscription
+    push          a push subscription (HTTP endpoint)
+    bigquery      a BigQuery subscription
+    cloudstorage  a Cloud Storage subscription
+
+  Because the type is part of the display line, fuzzy-matching across
+  it works as expected — type "bigquery" to filter to BigQuery subs,
+  "topic" to filter to topics only, or any substring of the resource
+  name to narrow further.
 
 CACHING
-  The topic list is cached in ~/.cache/pubsub-open/ keyed by the
-  sorted project list. On the first run the list is fetched from
-  GCP; subsequent runs load instantly from the cache.
+  The combined topic + subscription list is cached in
+  ~/.cache/pubsub-open/ keyed by the sorted project list. On the first
+  run the list is fetched from GCP; subsequent runs load instantly
+  from the cache.
 
-  The fzf header shows how old the cache is. To refresh it, select
-  the "--- REFRESH CACHE ---" entry at the top of the list; this
-  deletes the cache file and re-fetches all topics before re-opening
-  the picker.
+  The fzf entry "--- REFRESH CACHE (cached <age>) ---" deletes the
+  cache file and re-fetches before re-opening the picker.
 
-On selection the function:
-  1. Prints the GCP console URL to stdout.
+ON SELECTION
+  1. Prints the GCP console URL to stdout (topic detail page for
+     topics, subscription detail page for subscriptions).
   2. Copies the URL to the clipboard (pbcopy on macOS,
      xclip/xsel on Linux).
   3. Opens the URL in the system browser (open on macOS,
      xdg-open on Linux).
 
-The fzf preview pane shows a standardized topic summary via the
-pubsub-preview script (~/bin/pubsub-preview):
+PREVIEW PANE
+  Powered by ~/bin/pubsub-preview. For topics, shows:
 
-  - project_id
-  - name
-  - topic_schema  (OSC 8 hyperlink to the schema in the GCP console,
-                   or "NO TOPIC SCHEMA" if the topic has no schema)
-  - subscriptions (each rendered as an OSC 8 hyperlink to the
-                   subscription detail page in the GCP console)
+    kind, project_id, name, topic_schema, subscriptions
 
-Hyperlinks rely on OSC 8 terminal support (Ghostty, Kitty, WezTerm,
-iTerm2, etc.) and on fzf >= 0.55 (which passes OSC 8 sequences from
-the preview command through to the terminal when --ansi is enabled —
-this function passes --ansi). In terminals without OSC 8 the text
-is still readable but not clickable.
+  For subscriptions, shows:
 
-When running inside tmux, hyperlinks pass-through must be enabled:
+    kind (with detected delivery type), project_id, name, topic,
+    state, ack_deadline, retention, plus type-specific config:
+      bigquery     → bq_table, use_topic_schema, write_metadata
+      cloudstorage → gcs_bucket, filename_prefix/suffix, format
+      push         → push_endpoint, oidc_audience
+      pull         → (no extra fields)
 
-  set -ga terminal-features "*:hyperlinks"
+  Where relevant the values are OSC 8 hyperlinks to the GCP console
+  (topic, subscription, schema, BigQuery table, GCS bucket).
+
+  Hyperlinks rely on OSC 8 terminal support (Ghostty, Kitty, WezTerm,
+  iTerm2, etc.) and on fzf >= 0.55 (which passes OSC 8 sequences from
+  the preview command through when --ansi is enabled — this function
+  passes --ansi). In terminals without OSC 8 the text is still
+  readable but not clickable.
+
+  When running inside tmux, hyperlinks pass-through must be enabled:
+
+    set -ga terminal-features "*:hyperlinks"
+
+NOTE ON CREATION DATE
+  The preview does NOT show a creation timestamp. Pub/Sub does not
+  expose one anywhere in its API: not via `gcloud pubsub topics/
+  subscriptions describe` (in any of v1, beta, or alpha), and not via
+  Cloud Asset Inventory (which returns `createTime: null` for these
+  resource types). The only recoverable source is audit logs
+  (`google.pubsub.v1.Publisher.CreateTopic` / `Subscriber.
+  CreateSubscription`) — too slow for a preview pane and bounded by
+  audit-log retention.
 
 Requires: gcloud (Google Cloud SDK), fzf, jq.
