@@ -152,17 +152,17 @@ fi
 if [[ ${DBT_USE_FUSION:-0} != 1 ]]; then
   autoload -Uz _rlm-python-ensure-version
   _rlm-python-ensure-version "$dbt_root" "$label" || return 1
-  autoload -Uz _rlm-poetry-ensure-venv
-  _rlm-poetry-ensure-venv "$dbt_root" dbt "$label" || return 1
+  autoload -Uz _rlm-dbt-ensure-venv
+  _rlm-dbt-ensure-venv "$dbt_root" dbt "$label" || return 1
 fi
 
 # Resolve the dbt command-prefix tokens once. Under DBT_USE_FUSION=1 this
-# is the single token `dbtf`; otherwise it's `poetry run dbt`. Every
-# invocation of dbt below uses "${dbt_bin[@]}" instead of hard-coding
-# `poetry run dbt`.
+# is the single token `dbtf`; otherwise it's `uv run dbt` or `poetry run dbt`
+# depending on the detected package manager. Every invocation of dbt below
+# uses "${dbt_bin[@]}" instead of hard-coding `poetry run dbt`.
 autoload -Uz _rlm-dbt-bin
 local -a dbt_bin
-dbt_bin=(${(f)"$(_rlm-dbt-bin)"}) || return 1
+dbt_bin=(${(f)"$(_rlm-dbt-bin "$dbt_root")"}) || return 1
 
 # Ensure dbt packages declared in packages.yml are installed (a fresh
 # checkout or a newly added package would otherwise cause `dbt ls` to

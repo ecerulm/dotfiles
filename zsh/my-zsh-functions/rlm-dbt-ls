@@ -8,7 +8,10 @@ set -o pipefail
 local -a required_cmds=(fzf)
 if [[ ${DBT_USE_FUSION:-0} == 1 ]]; then
   required_cmds+=(dbtf)
+elif [[ ${DBT_USE_UV:-0} == 1 ]]; then
+  required_cmds+=(uv)
 else
+  # uv.lock detection happens later once project_root is known; default to poetry for now
   required_cmds+=(poetry)
 fi
 for cmd in "${required_cmds[@]}"; do
@@ -113,16 +116,18 @@ print "dbt-ls: using profiles-dir='${profiles_dir}' profile='${profile_name}' ta
 # ---------------------------------------------------------------------------
 
 if [[ ${DBT_USE_FUSION:-0} != 1 ]]; then
-  # Probe pyenv's `python` shim from $dbt_project_root *before* poetry,
-  # so a missing/misconfigured .python-version surfaces with a clear
-  # diagnostic instead of bubbling up as "poetry install failed".
-  # Probe runs from $dbt_project_root (where .python-version typically
-  # lives) rather than $project_root (the pyproject.toml parent) —
-  # pyenv only walks up from cwd to find .python-version.
-  autoload -Uz _rlm-python-ensure-version
-  _rlm-python-ensure-version "$dbt_project_root" dbt-ls || return 1
-  autoload -Uz _rlm-poetry-ensure-venv
-  _rlm-poetry-ensure-venv "$project_root" dbt dbt-ls || return 1
+  # Probe pyenv's `python` shim from $dbt_project_root *before* the
+  # package-manager venv check, so a missing/misconfigured .python-version
+  # surfaces with a clear diagnostic instead of bubbling up as an install
+  # failure. Probe runs from $dbt_project_root (where .python-version
+  # typically lives) rather than $project_root.
+  # Skipped for uv: uv manages its own Python and does not rely on pyenv.
+  if [[ ${DBT_USE_UV:-0} != 1 && ! -f "${project_root}/uv.lock" ]]; then
+    autoload -Uz _rlm-python-ensure-version
+    _rlm-python-ensure-version "$dbt_project_root" dbt-ls || return 1
+  fi
+  autoload -Uz _rlm-dbt-ensure-venv
+  _rlm-dbt-ensure-venv "$project_root" dbt dbt-ls || return 1
 fi
 
 # ---------------------------------------------------------------------------
@@ -254,7 +259,7 @@ local -a dbt_cmd
 # The fzf preview pane reads names back out of this file.
 autoload -Uz _rlm-dbt-bin
 local -a dbt_bin
-dbt_bin=(${(f)"$(_rlm-dbt-bin)"}) || return 1
+dbt_bin=(${(f)"$(_rlm-dbt-bin "$project_root")"}) || return 1
 dbt_cmd=("${dbt_bin[@]}" ls --project-dir "$dbt_project_root" --profiles-dir "$profiles_dir" --profile "$profile_name" --target "$dbt_target" --resource-type model --output json --quiet -s "$selector")
 
 print -u2 "$ ${dbt_cmd[*]}"

@@ -58,7 +58,7 @@ fi
 print -u2 "${label}: dbt packages out of date (${installed}/${declared} installed) — running dbt deps in $dbt_project_root …"
 autoload -Uz _rlm-dbt-bin
 local -a dbt_bin
-dbt_bin=(${(f)"$(_rlm-dbt-bin)"}) || return 1
+dbt_bin=(${(f)"$(_rlm-dbt-bin "$project_root")"}) || return 1
 # `cd "$project_root" 2>/dev/null` silences direnv's "loading/unloading"
 # chpwd-hook chatter inside this subshell; `dbt deps` itself still
 # prints normally so the user sees the install progress.

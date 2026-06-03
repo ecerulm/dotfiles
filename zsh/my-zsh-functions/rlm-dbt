@@ -53,7 +53,7 @@ fi
 # Plain-dbt path: resolve the dbt invocation.
 autoload -Uz _rlm-dbt-bin
 local -a dbt_bin
-dbt_bin=(${(f)"$(_rlm-dbt-bin)"}) || return 1
+dbt_bin=(${(f)"$(_rlm-dbt-bin "${_proj_dir:-}")"}) || return 1
 
 # Auto-inject --project-dir by walking up from $PWD for dbt_project.yml,
 # unless the user already supplied one. The resolved dir is also reused
@@ -108,9 +108,11 @@ fi
 # poetry-run-dbt, so a missing/misconfigured .python-version surfaces
 # with a clear diagnostic instead of bubbling up as a downstream poetry
 # error. Skipped under DBT_USE_FUSION=1 (dbtf is a standalone binary
-# that does not touch pyenv) and skipped when no project dir is
-# resolvable (let dbt itself emit its own "no dbt_project.yml" error).
-if [[ ${DBT_USE_FUSION:-0} != 1 && -n $_proj_dir ]]; then
+# that does not touch pyenv), when no project dir is resolvable, and
+# when the project is uv-managed (uv manages its own Python).
+local _is_uv=0
+[[ ${DBT_USE_UV:-0} == 1 || ( -n $_proj_dir && -f "${_proj_dir}/uv.lock" ) ]] && _is_uv=1
+if [[ ${DBT_USE_FUSION:-0} != 1 && -n $_proj_dir && $_is_uv != 1 ]]; then
   autoload -Uz _rlm-python-ensure-version
   _rlm-python-ensure-version "$_proj_dir" "rlm-dbt $subcmd" || return 1
 fi

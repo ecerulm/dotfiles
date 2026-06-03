@@ -8,7 +8,7 @@ emulate -L zsh
 #   dbt_bin=(${(f)"$(_rlm-dbt-bin)"}) || return 1
 #   "${dbt_bin[@]}" ls --select tag:finance
 #
-# Two modes:
+# Three modes, checked in order:
 #
 #   DBT_USE_FUSION=1  → emits a single line: the absolute path the
 #                       `dbtf` alias resolves to (typically
@@ -30,19 +30,28 @@ emulate -L zsh
 #                       shell-global so subsequent calls skip both
 #                       the alias lookup and the version probe.
 #
+#   uv project        → emits two lines: `uv`, `run`, `dbt`
+#   (auto-detected)     Detected when the caller passes a project_root
+#                       and that directory contains uv.lock, OR when
+#                       DBT_USE_UV=1 is set explicitly.
+#
 #   otherwise         → emits three lines: `poetry`, `run`, `dbt`
 #                       (the project-pinned dbt-core invocation that
 #                       every rlm-dbt-* command has used historically).
 #                       No validation here; _rlm-poetry-ensure-venv is
 #                       the caller's job for that path.
 #
-# Centralizes the fusion/poetry switch so a future rename of the alias
+# Centralizes the fusion/poetry/uv switch so a future rename of the alias
 # (e.g. `dbtf` → `dbt-fusion`) or a change to the validation rule
 # (e.g. require a minimum Fusion version) has exactly one site to edit
 # instead of one per rlm-dbt-* command.
 #
 # Usage:
-#   _rlm-dbt-bin
+#   _rlm-dbt-bin [project_root]
+#
+#   project_root   optional; absolute path to pyproject.toml dir, used
+#                  for uv auto-detection (uv.lock presence check).
+#                  When omitted, uv is only used if DBT_USE_UV=1.
 #
 # Stdout (on success): one token per line.
 #
@@ -53,7 +62,22 @@ emulate -L zsh
 #       Fusion. Diagnostic on stderr. Subsequent calls in the same
 #       shell will re-probe (the cache only stores positive results).
 
+local project_root="${1:-}"
+
 if [[ ${DBT_USE_FUSION:-0} != 1 ]]; then
+  # uv path: explicit override or auto-detected via uv.lock in project_root.
+  local _use_uv=0
+  if [[ ${DBT_USE_UV:-0} == 1 ]]; then
+    _use_uv=1
+  elif [[ -n $project_root && -f "${project_root}/uv.lock" ]]; then
+    _use_uv=1
+  fi
+  if (( _use_uv )); then
+    print -r -- uv
+    print -r -- run
+    print -r -- dbt
+    return 0
+  fi
   print -r -- poetry
   print -r -- run
   print -r -- dbt

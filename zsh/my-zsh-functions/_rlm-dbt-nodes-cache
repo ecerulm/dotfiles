@@ -80,7 +80,7 @@ case $subcmd in
     [[ -n $profile ]] && profile_args=(--profile "$profile")
     autoload -Uz _rlm-dbt-bin
     local -a dbt_bin
-    dbt_bin=(${(f)"$(_rlm-dbt-bin)"}) || return 1
+    dbt_bin=(${(f)"$(_rlm-dbt-bin "$project_root")"}) || return 1
     local -a dbt_cmd
     dbt_cmd=("${dbt_bin[@]}" ls
       --project-dir "$dbt_project_root"

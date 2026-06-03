@@ -1,0 +1,27 @@
+emulate -L zsh
+
+# Dispatcher: call the right ensure-venv helper based on the package manager
+# detected for the given project root. Detects uv (uv.lock present or
+# DBT_USE_UV=1) and falls back to poetry.
+#
+# Usage:
+#   _rlm-dbt-ensure-venv <project_root> <expected_bin> <label>
+#
+# Returns: same as _rlm-poetry-ensure-venv / _rlm-uv-ensure-venv.
+
+local project_root="$1"
+local expected_bin="$2"
+local label="$3"
+
+if [[ -z $project_root || -z $expected_bin || -z $label ]]; then
+  print -u2 "_rlm-dbt-ensure-venv: usage: <project_root> <expected_bin> <label>"
+  return 2
+fi
+
+if [[ ${DBT_USE_UV:-0} == 1 || ( -n $project_root && -f "${project_root}/uv.lock" ) ]]; then
+  autoload -Uz _rlm-uv-ensure-venv
+  _rlm-uv-ensure-venv "$project_root" "$expected_bin" "$label"
+else
+  autoload -Uz _rlm-poetry-ensure-venv
+  _rlm-poetry-ensure-venv "$project_root" "$expected_bin" "$label"
+fi
