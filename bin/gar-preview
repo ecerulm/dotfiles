@@ -1,0 +1,142 @@
+#!/usr/bin/env zsh
+# Usage: gar-preview LOCATION-docker.pkg.dev/PROJECT/REPO/IMAGE[/subpath]
+#
+# Prints an Artifact Registry image summary for fzf preview panes:
+#   image path, project, repository, GCP console OSC 8 hyperlink,
+#   and a table of the 10 most-recent tags with size and upload time.
+emulate -L zsh
+set -o pipefail
+
+_gar_preview_main() {
+  local image=$1
+  if [[ -z $image ]]; then
+    print -u2 "gar-preview: usage: gar-preview IMAGE_PATH"
+    return 1
+  fi
+
+  # Parse: LOCATION-docker.pkg.dev/PROJECT/REPO/PKG[/subpath]
+  local loc_host proj repo pkg_path location_slug pkg_encoded console_url
+  loc_host=${image%%/*}
+  proj=$(printf '%s' "$image" | cut -d/ -f2)
+  repo=$(printf '%s' "$image" | cut -d/ -f3)
+  pkg_path=$(printf '%s' "$image" | cut -d/ -f4-)
+  location_slug=${loc_host%-docker.pkg.dev}
+  pkg_encoded=${pkg_path//\//%2F}
+  console_url="https://console.cloud.google.com/artifacts/docker/${proj}/${location_slug}/${repo}/${pkg_encoded}?project=${proj}"
+
+  printf 'Image:      %s\n' "$image"
+  printf 'Project:    %s\n' "$proj"
+  printf 'Repository: %s/%s\n' "$location_slug" "$repo"
+  printf 'Console:    '
+  printf '\e]8;;%s\e\\Open in GCP console\e]8;;\e\\' "$console_url"; printf '\n'
+  printf '\n'
+
+  local token
+  token=$(gcloud auth print-access-token 2>/dev/null)
+
+  local json
+  json=$(gcloud artifacts docker images list "$image" \
+           --include-tags \
+           --sort-by='~UPDATE_TIME' \
+           --limit=10 \
+           --format=json \
+           --project="$proj" 2>/dev/null)
+
+  if [[ -z $json || $json == '[]' ]]; then
+    printf '(no versions found)\n'
+    return 0
+  fi
+
+  printf '%-40s  %12s  %s\n' 'TAGS' 'SIZE' 'UPLOADED'
+  printf '%-40s  %12s  %s\n' '----' '----' '--------'
+
+  local GAR_PREVIEW_IMAGE=$image GAR_PREVIEW_TOKEN=$token
+  export GAR_PREVIEW_IMAGE GAR_PREVIEW_TOKEN
+  printf '%s' "$json" | python3 -c '
+import sys, json, os, urllib.request
+from datetime import datetime, timezone
+
+image  = os.environ["GAR_PREVIEW_IMAGE"]
+token  = os.environ["GAR_PREVIEW_TOKEN"]
+# Registry host is the first path component up to the first /
+reg_host = image.split("/")[0]
+# repo path for the registry API: everything after host/project/
+# e.g. europe-docker.pkg.dev/proj/repo/pkg -> /v2/proj/repo/pkg/manifests/<digest>
+image_path_parts = image.split("/")
+reg_path_prefix = "/v2/" + "/".join(image_path_parts[1:])
+
+def fetch_manifest_children(digest):
+    """Return set of child digests referenced by a manifest index."""
+    url = f"https://{reg_host}{reg_path_prefix}/manifests/{digest}"
+    req = urllib.request.Request(url, headers={
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.list.v2+json",
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=5) as r:
+            body = json.load(r)
+        return {m["digest"] for m in body.get("manifests", [])}
+    except Exception:
+        return set()
+
+def human_size(b):
+    if b is None:
+        return "?"
+    b = int(b)
+    for unit in ("B","KB","MB","GB"):
+        if b < 1024:
+            return f"{b:.0f} {unit}"
+        b /= 1024
+    return f"{b:.1f} TB"
+
+def human_time(ts):
+    if not ts:
+        return "?"
+    try:
+        dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+        now = datetime.now(timezone.utc)
+        diff = int((now - dt).total_seconds())
+        if diff < 3600:
+            return f"{diff // 60}m ago"
+        if diff < 86400:
+            return f"{diff // 3600}h ago"
+        if diff < 86400 * 30:
+            return f"{diff // 86400}d ago"
+        return dt.strftime("%Y-%m-%d")
+    except Exception:
+        return ts[:10]
+
+data = json.load(sys.stdin)
+
+# Build a digest→size_bytes map for all entries
+size_by_digest = {}
+for entry in data:
+    digest = entry.get("version", "")
+    meta = entry.get("metadata") or {}
+    sb = meta.get("imageSizeBytes") or entry.get("imageSizeBytes")
+    if digest and sb:
+        size_by_digest[digest] = int(sb)
+
+for entry in data:
+    tags = entry.get("tags") or []
+    meta = entry.get("metadata") or {}
+    size_bytes = meta.get("imageSizeBytes") or entry.get("imageSizeBytes")
+    media_type = meta.get("mediaType", "")
+    # Skip untagged entries — only show tagged versions and their summary
+    if not tags:
+        continue
+    tag_str = ", ".join(tags)
+    if "index" in media_type:
+        children = fetch_manifest_children(entry.get("version", ""))
+        total = sum(size_by_digest[d] for d in children if d in size_by_digest)
+        size = human_size(total) if total else "?"
+    else:
+        size = human_size(size_bytes)
+    uploaded = human_time(entry.get("updateTime") or entry.get("uploadTime"))
+    if len(tag_str) > 38:
+        tag_str = tag_str[:35] + "..."
+    print(f"{tag_str:<40}  {size:>12}  {uploaded}")
+'
+}
+
+_gar_preview_main "$@"

@@ -1,0 +1,32 @@
+rlm-gar-open
+
+Browse all container images across one or more GCP projects via an
+fzf picker and open the selected image in the Artifact Registry
+console. Projects come from $GAR_SEARCH_PROJECTS (colon-separated).
+
+Images are fetched from all DOCKER repositories in each project via
+the Artifact Registry packages.list REST endpoint (one API call per
+repo). Results are cached in ~/.cache/gar-open/; selecting
+--- REFRESH CACHE --- opens a secondary fzf picker (TAB to
+multi-select) where you choose which projects to re-fetch — entries
+for un-picked projects are preserved in the cache.
+
+The picker is sorted by most-recently-used (history kept in
+~/.cache/gar-open/history.txt). On confirmation, prints the fully
+qualified image path and the GCP console URL, copies the URL to the
+clipboard, and opens it in the browser.
+
+GCR layer-cache pseudo-packages (<image>/cache) are filtered out.
+
+ENVIRONMENT
+  GAR_SEARCH_PROJECTS
+              Colon-separated list of GCP project IDs to browse.
+              Required; the function errors out if not set.
+
+REQUIRES
+  gcloud, fzf, jq, curl, python3 (for URL-decoding package names).
+
+NOTE
+  OSC 8 hyperlinks in the preview pane require a terminal emulator
+  that supports them (Kitty, Ghostty, iTerm2, WezTerm). Inside tmux
+  also set: set -ga terminal-features "*:hyperlinks"

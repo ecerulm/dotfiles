@@ -86,6 +86,38 @@ Symptom card: an awk pipeline producing zero output despite healthy upstream →
 
 `$(cd "$dir" && cmd)` leaks `direnv: loading/unloading` when `$dir` is outside the current direnv scope (the chpwd hook fires in the subshell). Fix: scope the redirect to `cd` only — `$(cd "$dir" 2>/dev/null && cmd)`. Do **not** redirect the whole subshell (`$(…) 2>/dev/null`) — that also swallows the inner command's diagnostics. No env-var override exists (`DIRENV_LOG_FORMAT` is not a thing; only `direnv.toml`'s `log_format = "-"` globally, or the per-call redirect). Already applied in the shared dbt helpers.
 
+### Always use OSC 8 hyperlinks for URLs — never print a bare URL
+
+Bare URLs in fzf preview panes (and in terminal output generally) wrap at
+the terminal width. A click on a wrapped line navigates to a truncated URL,
+silently opening the wrong page with no error. Use OSC 8 hyperlinks instead:
+the visible label is short and never wraps, while the full URL is carried
+invisibly in the escape sequence.
+
+```sh
+# In a preview command (sh subshell — use printf, not print):
+printf '\e]8;;%s\e\\Open in GCP console\e]8;;\e\\' "$url"; printf '\n'
+
+# In zsh function body (capture then re-emit with print -r --):
+link=$(printf '\e]8;;%s\e\\Open in GCP console\e]8;;\e\\' "$url")
+print -r -- "$link"
+```
+
+Rules:
+
+- **Always** use OSC 8 for any URL that will appear in a preview pane or
+  terminal output, no matter how short it looks — URLs grow over time
+  (query params, long project IDs) and wrapping breaks them silently.
+- Keep the visible label short and human-readable (`Open in GCP console`,
+  `Artifact Registry`, `BigQuery table`, etc.).
+- In preview commands (plain `sh` subshell): use `printf` directly —
+  `print` is not available and `echo` interprets escapes inconsistently.
+- In zsh function bodies: capture with `$(printf …)` and re-emit with
+  `print -r --` to preserve the `ESC \` ST terminator bytes (see the
+  `print -r --` gotcha above).
+- `--ansi` on the `fzf` call is required for OSC 8 pass-through (already
+  mandatory for all pickers — see fzf Conventions below).
+
 ## fzf Conventions
 
 Every `fzf` invocation includes:

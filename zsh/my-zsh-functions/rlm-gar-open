@@ -1,0 +1,288 @@
+emulate -L zsh
+set -o pipefail
+setopt local_options no_monitor no_notify
+
+if [[ -z $GAR_SEARCH_PROJECTS ]]; then
+  print -u2 "gar-open: GAR_SEARCH_PROJECTS is not set"
+  print -u2 "Add the following to ~/.zshrc.thismachine:"
+  print -u2 ""
+  print -u2 "  export GAR_SEARCH_PROJECTS=my-project-prod:my-project-dev"
+  return 1
+fi
+
+local -a projects
+projects=(${(u)${(s[:])GAR_SEARCH_PROJECTS}:#})
+
+for _cmd in gcloud fzf jq curl python3; do
+  if ! command -v "$_cmd" >/dev/null 2>&1; then
+    print -u2 "gar-open: '$_cmd' not found in PATH"
+    return 1
+  fi
+done
+unset _cmd
+
+local cache_dir="$HOME/.cache/gar-open"
+mkdir -p "$cache_dir"
+local cache_key cache_file history_file
+cache_key=$(print -l -- "${(o)projects[@]}" | md5)
+cache_file="${cache_dir}/${cache_key}.txt"
+history_file="${cache_dir}/history.txt"
+
+# ---------------------------------------------------------------------------
+# Fetch helpers
+# ---------------------------------------------------------------------------
+
+_gar_open_status() {
+  # Overwrite a single status line; caller passes the message.
+  printf '\r\e[2K  %s' "$1" >&2
+}
+
+_gar_open_fetch_one() {
+  local proj=$1
+  local token=$2
+
+  _gar_open_status "fetching repositories from ${proj} …"
+  local repos_json
+  repos_json=$(gcloud artifacts repositories list --project="$proj" \
+                 --filter="format=DOCKER" --format=json 2>/dev/null)
+  if [[ -z $repos_json || $repos_json == "[]" ]]; then
+    printf '\r\e[2K' >&2
+    print -u2 "gar-open: no DOCKER repositories in $proj"
+    return 0
+  fi
+
+  local -a repo_paths
+  repo_paths=(${(f)"$(print -r -- "$repos_json" | jq -r '.[].name')"})
+
+  local repo_path loc repo_name parent body err_msg packages pkg
+  for repo_path in $repo_paths; do
+    loc=${${(s./.)repo_path}[4]}
+    repo_name=${${(s./.)repo_path}[6]}
+    parent="projects/${proj}/locations/${loc}/repositories/${repo_name}"
+
+    _gar_open_status "${proj}/${loc}/${repo_name} …"
+    body=$(curl -sS -G \
+            -H "Authorization: Bearer ${token}" \
+            "https://artifactregistry.googleapis.com/v1/${parent}/packages" \
+            --data-urlencode "pageSize=1000" 2>/dev/null)
+
+    [[ -z $body ]] && continue
+
+    if print -r -- "$body" | jq -e '.error' >/dev/null 2>&1; then
+      local err_msg
+      err_msg=$(print -r -- "$body" | jq -r '.error.message')
+      printf '\r\e[2K' >&2
+      print -u2 "gar-open: ${proj}/${loc}/${repo_name}: ${err_msg}"
+      continue
+    fi
+
+    packages=$(print -r -- "$body" \
+      | jq -r --arg prefix "${parent}/packages/" \
+          '.packages // [] | .[].name | sub($prefix; "")' \
+      | python3 -c 'import sys, urllib.parse
+for l in sys.stdin:
+    print(urllib.parse.unquote(l.rstrip()))' 2>/dev/null)
+
+    [[ -z $packages ]] && continue
+
+    while IFS= read -r pkg; do
+      [[ -z $pkg ]] && continue
+      [[ $pkg == */cache ]] && continue
+      print -r -- "${loc}-docker.pkg.dev/${proj}/${repo_name}/${pkg}"
+    done <<< "$packages"
+  done
+}
+
+_gar_open_fetch() {
+  local -a refresh_projects
+  if (( $# > 0 )); then
+    refresh_projects=("$@")
+  else
+    refresh_projects=("${projects[@]}")
+  fi
+
+  local token
+  token=$(gcloud auth print-access-token 2>/dev/null)
+  if [[ -z $token ]]; then
+    print -u2 "gar-open: failed to obtain gcloud access token"
+    return 1
+  fi
+
+  local -a fresh_lines
+  local proj lines
+  for proj in "${refresh_projects[@]}"; do
+    lines=$(_gar_open_fetch_one "$proj" "$token") || true
+    [[ -n $lines ]] && fresh_lines+=(${(f)lines})
+  done
+  printf '\r\e[2K' >&2
+
+  # Build merged cache: preserve entries from projects we did NOT refresh.
+  local -a kept
+  if [[ -f $cache_file ]]; then
+    local line entry_proj
+    local -A refreshed_set
+    for proj in "${refresh_projects[@]}"; do
+      refreshed_set[$proj]=1
+    done
+    while IFS= read -r line; do
+      [[ -z $line ]] && continue
+      # line: LOCATION-docker.pkg.dev/PROJECT/REPO/IMAGE
+      # Extract the project from the second path component after .pkg.dev/
+      entry_proj=${${line#*pkg.dev/}%%/*}
+      if [[ -z ${refreshed_set[$entry_proj]} ]]; then
+        kept+=("$line")
+      fi
+    done < "$cache_file"
+  fi
+
+  if (( ${#fresh_lines} == 0 && ${#kept} == 0 )); then
+    print -u2 "gar-open: no images found in any project"
+    return 1
+  fi
+
+  { (( ${#kept} ))        && print -l -- "${kept[@]}";
+    (( ${#fresh_lines} )) && print -l -- "${fresh_lines[@]}";
+  } >| "$cache_file"
+}
+
+# ---------------------------------------------------------------------------
+# Secondary project picker for partial refresh
+# ---------------------------------------------------------------------------
+
+_gar_open_pick_projects() {
+  local sentinel='*** ALL PROJECTS ***'
+  local selection
+  selection=$(
+    { print -r -- "$sentinel"; print -l -- "${projects[@]}"; } \
+    | fzf --prompt="Refresh projects (TAB to multi-select)> " \
+          --multi \
+          --height=80% --reverse \
+          --no-mouse --ansi \
+          --header="TAB: toggle  Enter: confirm  Ctrl-G: abort" \
+          --preview-window=hidden \
+          --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)' \
+          --bind='ctrl-g:abort'
+  ) || return 1
+  [[ -z $selection ]] && return 1
+
+  if print -r -- "$selection" | grep -Fxq -- "$sentinel"; then
+    print -l -- "${projects[@]}"
+  else
+    print -r -- "$selection"
+  fi
+}
+
+# ---------------------------------------------------------------------------
+# Initial fetch if no cache
+# ---------------------------------------------------------------------------
+
+if [[ ! -f $cache_file ]]; then
+  _gar_open_fetch || return 1
+fi
+
+# ---------------------------------------------------------------------------
+# Cache age label
+# ---------------------------------------------------------------------------
+
+local mtime now elapsed cache_age
+mtime=$(stat -f %m "$cache_file" 2>/dev/null || stat -c %Y "$cache_file" 2>/dev/null)
+now=$(date +%s)
+elapsed=$(( now - mtime ))
+if (( elapsed < 3600 )); then
+  cache_age="${elapsed}s ago"
+elif (( elapsed < 86400 )); then
+  cache_age="$(( elapsed / 3600 ))h ago"
+else
+  cache_age="$(( elapsed / 86400 ))d ago"
+fi
+
+local refresh_sentinel="--- REFRESH CACHE (cached ${cache_age}) ---"
+
+# ---------------------------------------------------------------------------
+# MRU-sorted list
+# ---------------------------------------------------------------------------
+
+_gar_open_sorted_list() {
+  if [[ -f $history_file ]]; then
+    while IFS= read -r entry; do
+      [[ -n $entry ]] && grep -m1 -Fx -- "$entry" "$cache_file" 2>/dev/null
+    done < <(tac "$history_file" | awk '!seen[$0]++')
+    grep -vFxf "$history_file" "$cache_file" 2>/dev/null || true
+  else
+    cat "$cache_file"
+  fi
+}
+
+# ---------------------------------------------------------------------------
+# fzf picker
+# ---------------------------------------------------------------------------
+
+local selection
+selection=$(
+  { print -- "$refresh_sentinel"; _gar_open_sorted_list; } \
+  | fzf --prompt="GAR image> " --height=80% --reverse \
+        --no-mouse --ansi \
+        --preview="
+          line={}
+          if printf '%s' \"\$line\" | grep -q '^--- REFRESH CACHE'; then
+            echo 'Select to choose which projects to refresh and reopen the picker.'
+          else
+            \"\$HOME/bin/gar-preview\" \"\$line\"
+          fi
+        " \
+        --preview-window=bottom:40%:wrap \
+        --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)' \
+        --bind='ctrl-g:abort'
+) || return 130
+
+[[ -z $selection ]] && return 130
+
+if [[ $selection == "--- REFRESH CACHE"* ]]; then
+  local -a to_refresh
+  to_refresh=("${(@f)$(_gar_open_pick_projects)}")
+  to_refresh=("${(@)to_refresh:#}")
+  if (( ${#to_refresh} == 0 )); then
+    return 130
+  fi
+  _gar_open_fetch "${to_refresh[@]}" || return 1
+  rlm-gar-open
+  return $?
+fi
+
+# Append selection to history
+print -r -- "$selection" >> "$history_file"
+local tmp_history
+tmp_history=$(tail -1000 "$history_file") && print -r -- "$tmp_history" >| "$history_file"
+
+# Build console URL
+# line: LOCATION-docker.pkg.dev/PROJECT/REPO/IMAGE[/sub/path]
+local loc_host proj repo_name pkg_path location_slug pkg_encoded console_url
+loc_host=${selection%%/*}
+proj=${${selection#*/}%%/*}
+repo_name=${${selection#*/}%%/*}
+# Extract the repo (field 3) and package path (field 4+)
+repo_name=$(printf '%s' "$selection" | cut -d/ -f3)
+pkg_path=$(printf '%s' "$selection" | cut -d/ -f4-)
+location_slug=${loc_host%-docker.pkg.dev}
+pkg_encoded=${pkg_path//\//%2F}
+console_url="https://console.cloud.google.com/artifacts/docker/${proj}/${location_slug}/${repo_name}/${pkg_encoded}?project=${proj}"
+
+print -r -- "$selection"
+print -r -- "$console_url"
+
+if command -v pbcopy >/dev/null 2>&1; then
+  print -n -- "$console_url" | pbcopy
+  print "gar-open: URL copied to clipboard" >&2
+elif command -v xclip >/dev/null 2>&1; then
+  print -n -- "$console_url" | xclip -selection clipboard
+  print "gar-open: URL copied to clipboard" >&2
+elif command -v xsel >/dev/null 2>&1; then
+  print -n -- "$console_url" | xsel --clipboard --input
+  print "gar-open: URL copied to clipboard" >&2
+fi
+
+if command -v open >/dev/null 2>&1; then
+  open "$console_url"
+elif command -v xdg-open >/dev/null 2>&1; then
+  xdg-open "$console_url"
+fi
