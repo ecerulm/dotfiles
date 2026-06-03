@@ -135,10 +135,22 @@ case $subcmd in
     # Hide issues resolved more than ~2 months ago. Unresolved issues
     # (resolved is EMPTY) always pass.
     local stale='(resolved is EMPTY OR resolved >= -60d)'
+    # `jql_reporter` matches everything you reported, regardless of who is
+    # assigned — overlap with `jql_assigned` (you reported and are assigned)
+    # is resolved by the Python dedupe below, which keeps the lower-numbered
+    # group, so assigned-by-you wins.
+    #
+    # For `jql_watching` and `jql_data` the negations exclude rows already
+    # covered by groups 1/2. JIRA's three-valued logic means `field != X`
+    # evaluates to UNKNOWN (not TRUE) when `field IS EMPTY`, silently
+    # dropping NULL rows — always pair the inequality with an explicit
+    # `IS EMPTY` branch so unassigned/reporterless tickets still surface.
+    local not_me_assignee='(assignee IS EMPTY OR assignee != currentUser())'
+    local not_me_reporter='(reporter IS EMPTY OR reporter != currentUser())'
     local jql_assigned="assignee = currentUser() AND ${stale} ORDER BY updated DESC"
-    local jql_reporter="reporter = currentUser() AND assignee != currentUser() AND ${stale} ORDER BY updated DESC"
-    local jql_watching="watcher = currentUser() AND assignee != currentUser() AND (reporter is EMPTY OR reporter != currentUser()) AND ${stale} ORDER BY updated DESC"
-    local jql_data="project = DATA AND assignee != currentUser() AND (reporter is EMPTY OR reporter != currentUser()) AND (watcher != currentUser() OR watcher is EMPTY) AND ${stale} ORDER BY updated DESC"
+    local jql_reporter="reporter = currentUser() AND ${stale} ORDER BY updated DESC"
+    local jql_watching="watcher = currentUser() AND ${not_me_assignee} AND ${not_me_reporter} AND ${stale} ORDER BY updated DESC"
+    local jql_data="project = DATA AND ${not_me_assignee} AND ${not_me_reporter} AND (watcher != currentUser() OR watcher is EMPTY) AND ${stale} ORDER BY updated DESC"
 
     # `comment` and `updated` are rejected by acli's bulk-search
     # `--fields` flag ("Error: fields 'updated, comment' are not
@@ -156,22 +168,50 @@ case $subcmd in
     #     to risk the SIGPIPE-into-pipefail silent-exit class of bugs.
     local limit=20
 
-    local tmp_a tmp_r tmp_w tmp_d tmp_phase_a tmp_views_dir tmp_out
+    local tmp_a tmp_r tmp_w tmp_d tmp_phase_a tmp_views_dir tmp_out tmp_errs
     tmp_a=$(mktemp) tmp_r=$(mktemp) tmp_w=$(mktemp) tmp_d=$(mktemp) tmp_phase_a=$(mktemp) tmp_out=$(mktemp)
     tmp_views_dir=$(mktemp -d)
+    tmp_errs=$(mktemp -d)
     # shellcheck disable=SC2064
-    trap "rm -rf '$tmp_a' '$tmp_r' '$tmp_w' '$tmp_d' '$tmp_phase_a' '$tmp_views_dir' '$tmp_out'" EXIT
+    trap "rm -rf '$tmp_a' '$tmp_r' '$tmp_w' '$tmp_d' '$tmp_phase_a' '$tmp_views_dir' '$tmp_out' '$tmp_errs'" EXIT
 
-    acli jira workitem search --jql "$jql_assigned" --fields "$fields" --limit "$limit" --json >"$tmp_a" 2>/dev/null &
+    # acli bulk-search has been observed to occasionally return an empty
+    # JSON array (`[]`) under parallel load — same JQL run sequentially a
+    # moment later returns the expected rows. Silent failure here means the
+    # cache loses entire groups (e.g. all tickets you reported), with no
+    # error to investigate. Workaround: capture stderr per call, run a
+    # short helper that retries once with a small jitter when the response
+    # parses as an empty list, and surface the stderr if both attempts come
+    # back empty.
+    _rlm_jira_acli_search() {
+      local jql=$1 out=$2 err=$3 label=$4 attempt
+      for attempt in 1 2; do
+        acli jira workitem search --jql "$jql" --fields "$fields" --limit "$limit" --json >"$out" 2>"$err"
+        # Empty `[]` (size 2-3 bytes) → most likely the flake. Any other
+        # well-formed response — even one full of `null` placeholders from
+        # missing --fields — is treated as success and left to the Python
+        # loader to deal with.
+        if [[ -s $out ]] && (( $(wc -c <"$out") > 3 )); then
+          return 0
+        fi
+        (( attempt == 1 )) && sleep 0.5
+      done
+      print -u2 -r -- "jira-cache: warning: ${label} returned empty after 2 attempts"
+      [[ -s $err ]] && print -u2 -r -- "jira-cache:   stderr: $(head -1 "$err")"
+      return 0
+    }
+
+    _rlm_jira_acli_search "$jql_assigned" "$tmp_a" "$tmp_errs/a" "assigned"  &
     local pid_a=$!
-    acli jira workitem search --jql "$jql_reporter" --fields "$fields" --limit "$limit" --json >"$tmp_r" 2>/dev/null &
+    _rlm_jira_acli_search "$jql_reporter" "$tmp_r" "$tmp_errs/r" "reporter"  &
     local pid_r=$!
-    acli jira workitem search --jql "$jql_watching" --fields "$fields" --limit "$limit" --json >"$tmp_w" 2>/dev/null &
+    _rlm_jira_acli_search "$jql_watching" "$tmp_w" "$tmp_errs/w" "watching"  &
     local pid_w=$!
-    acli jira workitem search --jql "$jql_data" --fields "$fields" --limit "$limit" --json >"$tmp_d" 2>/dev/null &
+    _rlm_jira_acli_search "$jql_data"     "$tmp_d" "$tmp_errs/d" "DATA-only" &
     local pid_d=$!
 
     wait $pid_a $pid_r $pid_w $pid_d
+    unfunction _rlm_jira_acli_search 2>/dev/null
 
     # Phase A → 5-field TSV in $tmp_phase_a. Phase B reads the KEY
     # list via `cut -f2 "$tmp_phase_a"`, so phase A's stdout is
@@ -214,7 +254,7 @@ PY
 
     if (( py_rc != 0 )) || [[ ! -s $tmp_phase_a ]]; then
       trap - EXIT
-      rm -rf "$tmp_a" "$tmp_r" "$tmp_w" "$tmp_d" "$tmp_phase_a" "$tmp_views_dir" "$tmp_out"
+      rm -rf "$tmp_a" "$tmp_r" "$tmp_w" "$tmp_d" "$tmp_phase_a" "$tmp_views_dir" "$tmp_out" "$tmp_errs"
       print -u2 -r -- "jira-cache: refresh produced no rows"
       return 1
     fi
@@ -305,7 +345,7 @@ PY
 
     if (( merge_rc != 0 )) || [[ ! -s $tmp_out ]]; then
       trap - EXIT
-      rm -rf "$tmp_a" "$tmp_r" "$tmp_w" "$tmp_d" "$tmp_phase_a" "$tmp_views_dir" "$tmp_out"
+      rm -rf "$tmp_a" "$tmp_r" "$tmp_w" "$tmp_d" "$tmp_phase_a" "$tmp_views_dir" "$tmp_out" "$tmp_errs"
       print -u2 -r -- "jira-cache: phase-B merge produced no rows"
       return 1
     fi
@@ -319,7 +359,7 @@ PY
     print -u2 -r -- "jira-cache: refreshed ${n_keys} issues in ${elapsed}s"
 
     trap - EXIT
-    rm -rf "$tmp_a" "$tmp_r" "$tmp_w" "$tmp_d" "$tmp_phase_a" "$tmp_views_dir"
+    rm -rf "$tmp_a" "$tmp_r" "$tmp_w" "$tmp_d" "$tmp_phase_a" "$tmp_views_dir" "$tmp_errs"
     return 0
     ;;
 

@@ -4,6 +4,13 @@ All notable changes to the zsh configuration are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2026-06-03]
+
+### Fixed
+
+- `_rlm-jira-cache`: tickets you reported but that are unassigned (or assigned to someone else) are now included in the refresh cache. Two bugs: (1) `jql_reporter` had an extra `assignee != currentUser()` clause that excluded tickets you reported and were also assigned to (now redundant with the Python dedupe across groups, which already keeps the lower-numbered group, so assigned-by-you wins). (2) `jql_watching` and `jql_data` used bare `assignee != currentUser()` / `reporter != currentUser()` which silently dropped NULL rows — JIRA JQL uses three-valued logic, so `field != X` evaluates to UNKNOWN (not TRUE) when `field IS EMPTY`. Both negations now pair the inequality with `field IS EMPTY OR …` so unassigned/reporterless tickets surface. Symptom: `rlm-pr-worktree`'s Ctrl-R refresh would never pick up tickets you reported but hadn't assigned to yourself (e.g. DATA-2644).
+- `_rlm-jira-cache`: each of the 4 parallel `acli jira workitem search` calls is now wrapped in a retry helper that re-runs once (with a 0.5s pause) when the response parses as an empty JSON array (`[]`). Observed in the wild: phase A occasionally returns `[]` for one query under parallel load, silently dropping an entire group from the cache (e.g. all 4 reporter rows missing, leaving DATA-2644 absent even though the underlying JQL would return it). If both attempts come back empty, the helper now logs `jira-cache: warning: <group> returned empty after 2 attempts` to stderr plus the first stderr line from `acli`, so a flake is visible instead of silently corrupting the cache. Per-call stderr is captured to a per-attempt temp dir; cleanup paths extended accordingly.
+
 ## [2026-06-02]
 
 ### Changed
