@@ -55,10 +55,10 @@ dbt:
 bq (`rlm-bq-*` / `rlm-sandbox-bq-*`):
 
 - `_rlm-bq-cache-key` — md5 of `BQ_SEARCH_PATH + SANDBOX_BQ_PROJECT + SANDBOX_BQ_DATASETS`. Pipe `print -l` directly into `md5` (don't round-trip through `$(...)`).
-- `_rlm-bq-cache` — cache pair `~/.cache/bq-open/<md5>{,-sandbox}.txt`. `paths`/`refresh [--main-only|--sandbox-only]`/`read [--main|--sandbox|--both]`.
+- `_rlm-bq-cache` — cache pair `~/.cache/bq-open/<md5>{,-sandbox}.txt`. `paths`/`refresh [--main-only|--sandbox-only] [--projects p1:p2:…] [--datasets d1:d2:…]`/`read [--main|--sandbox|--both]`. `--projects` (subset of `BQ_SEARCH_PATH`) / `--datasets` (subset of `SANDBOX_BQ_DATASETS`) do a **partial-refresh merge** — only listed projects/datasets are re-fetched, the rest are preserved from the existing cache file; unknown values are dropped with a warning.
 - `_rlm-bq-history` — pooled history `~/.cache/bq-open/history.tsv` (`epoch\tcommand\tbq_ref\tflags`, deduped on ref, cap 500). `append`/`read`.
 - `_rlm-bq-dead-refs-gc` — sweep refs `bq-preview` marked dead (`dead-refs.txt`) from all caches + history. Idempotent; call unconditionally at caller top.
-- `_rlm-bq-refresh-sentinels` — shared `--- REFRESH CACHE ---` sentinel logic for the bq pickers. `emit-main`/`emit-sandbox`/`is-main`/`is-sandbox`/`apply-main`/`apply-sandbox`; includes the cache-age formatter.
+- `_rlm-bq-refresh-sentinels` — shared `--- REFRESH CACHE ---` sentinel logic for the bq pickers. `emit-main`/`emit-sandbox`/`is-main`/`is-sandbox`/`apply-main`/`apply-sandbox`; includes the cache-age formatter. `apply-main`/`apply-sandbox` open a multi-select fzf picker (projects from `BQ_SEARCH_PATH` / datasets from `SANDBOX_BQ_DATASETS`, plus an ALL sentinel) and pass the chosen subset to `_rlm-bq-cache refresh --projects`/`--datasets`; ≤1 configured item skips the picker and refreshes the lot; picker-abort returns 130.
 
 jira / git:
 

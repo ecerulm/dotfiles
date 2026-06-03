@@ -68,17 +68,28 @@ emulate -L zsh
 #       layout (tab-prefixed vs bare) the caller used.
 #
 #   _rlm-bq-refresh-sentinels apply-main
-#       Delete both cache files (main *and* sandbox — matches what
-#       the inline rlm-bq-open path did, on the theory that a user
-#       who asks for a full refresh wants both halves rebuilt),
-#       then `_rlm-bq-cache refresh` (no flag = both). Returns the
-#       refresh exit code; on success, the caller is expected to
-#       recursively re-invoke itself to reopen the picker.
+#       Open a multi-select fzf picker over the projects in
+#       BQ_SEARCH_PATH (plus an "*** ALL PROJECTS ***" sentinel), then
+#       refresh only the chosen projects via
+#       `_rlm-bq-cache refresh --main-only --projects p1:p2:…`,
+#       merging with the existing cache (entries for un-chosen projects
+#       are preserved). Picking the ALL sentinel (or aborting the picker
+#       with no selection) refreshes every project. TAB toggles,
+#       Enter confirms, Ctrl-G aborts the whole refresh (return 130 —
+#       the caller treats that as "user backed out", same as an empty
+#       top-level selection). Returns the refresh exit code on success;
+#       on success the caller recursively re-invokes itself to reopen
+#       the picker. The sandbox half is left untouched (a project-scoped
+#       refresh has nothing to do with the single-project sandbox).
 #
 #   _rlm-bq-refresh-sentinels apply-sandbox
-#       Delete only the sandbox cache file, then
-#       `_rlm-bq-cache refresh --sandbox-only`. Returns the refresh
-#       exit code.
+#       Open a multi-select fzf picker over the datasets in
+#       SANDBOX_BQ_DATASETS (plus an "*** ALL DATASETS ***" sentinel),
+#       then refresh only the chosen datasets via
+#       `_rlm-bq-cache refresh --sandbox-only --datasets d1:d2:…`,
+#       merging with the existing sandbox cache. Picking ALL (or
+#       aborting) refreshes every dataset. Returns the refresh exit
+#       code; 130 if the user backed out of the picker.
 #
 # ----------------------------------------------------------------------
 # Return codes
@@ -86,6 +97,8 @@ emulate -L zsh
 #   0 — success (emit-* always; is-* on match; apply-* on refresh OK).
 #   1 — is-* no match; apply-* refresh failed; usage error.
 #   2 — unknown subcommand.
+#   130 — apply-* user aborted the project/dataset picker (Ctrl-G /
+#         empty selection). Caller treats this as "backed out".
 
 autoload -Uz _rlm-bq-cache
 
@@ -121,6 +134,36 @@ _rlm_bq_cache_age() {
 
 local PURPLE=$'\033[35m'
 local RESET=$'\033[0m'
+
+# Multi-select picker over a list of items (projects or datasets) with a
+# leading "ALL" sentinel. Args: <all-sentinel> <item...>. Prints the
+# chosen items, one per line (the full list when ALL is picked); empty
+# output + return 1 when the user aborted with Ctrl-G or made no
+# selection. Mirrors _pubsub_open_pick_projects in rlm-pubsub-open.
+_rlm_bq_pick_subset() {
+  local all_sentinel="$1"; shift
+  local -a items=("$@")
+  local selection
+  selection=$(
+    { print -r -- "$all_sentinel"; print -l -- "${items[@]}"; } \
+      | fzf --prompt="Refresh which? (TAB to multi-select)> " \
+            --multi \
+            --height=80% --reverse \
+            --no-mouse --ansi \
+            --header="TAB: toggle  Enter: confirm  Ctrl-G: abort" \
+            --preview-window=hidden \
+            --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)' \
+            --bind='ctrl-g:abort'
+  ) || return 1
+  [[ -z $selection ]] && return 1
+
+  # ALL sentinel anywhere in the selection ⇒ refresh everything.
+  if print -r -- "$selection" | grep -Fxq -- "$all_sentinel"; then
+    print -l -- "${items[@]}"
+  else
+    print -r -- "$selection"
+  fi
+}
 
 local subcmd="$1"
 shift 2>/dev/null
@@ -161,13 +204,31 @@ case "$subcmd" in
     return $?
     ;;
   apply-main)
-    rm -f "$cache" "$sandbox"
-    _rlm-bq-cache refresh
+    local -a all_projects chosen
+    all_projects=(${(s[:])BQ_SEARCH_PATH})
+    # With 0 or 1 configured project there's nothing to choose — refresh
+    # the lot without bothering the user with a one-item picker.
+    if (( ${#all_projects} <= 1 )); then
+      _rlm-bq-cache refresh --main-only
+      return $?
+    fi
+    chosen=("${(@f)$(_rlm_bq_pick_subset '*** ALL PROJECTS ***' "${all_projects[@]}")}")
+    chosen=("${(@)chosen:#}")   # drop the empty element zsh leaves on no output
+    (( ${#chosen} == 0 )) && return 130
+    _rlm-bq-cache refresh --main-only --projects "${(j[:])chosen}"
     return $?
     ;;
   apply-sandbox)
-    rm -f "$sandbox"
-    _rlm-bq-cache refresh --sandbox-only
+    local -a all_datasets chosen
+    all_datasets=(${(s[:])SANDBOX_BQ_DATASETS})
+    if (( ${#all_datasets} <= 1 )); then
+      _rlm-bq-cache refresh --sandbox-only
+      return $?
+    fi
+    chosen=("${(@f)$(_rlm_bq_pick_subset '*** ALL DATASETS ***' "${all_datasets[@]}")}")
+    chosen=("${(@)chosen:#}")
+    (( ${#chosen} == 0 )) && return 130
+    _rlm-bq-cache refresh --sandbox-only --datasets "${(j[:])chosen}"
     return $?
     ;;
   "")
