@@ -6,12 +6,15 @@
 #
 # Prints a standardized Pub/Sub summary for fzf preview panes.
 #
-# Topic fields: project_id, name, topic schema (OSC 8 hyperlink to GCP
-# console, or "NO TOPIC SCHEMA"), subscriptions (each as an OSC 8
-# hyperlink to its GCP console page).
+# Topic fields: project_id, name (OSC 8 hyperlink to the topic's own GCP
+# console page), topic schema (OSC 8 hyperlink to GCP console, or
+# "NO TOPIC SCHEMA"), subscriptions (each as an OSC 8 hyperlink to its
+# GCP console page).
 #
-# Subscription fields: project_id, name, type, topic (OSC 8 hyperlink),
-# plus type-specific config (push endpoint, BigQuery table, GCS bucket).
+# Subscription fields: project_id, name (OSC 8 hyperlink to the
+# subscription's own GCP console page), type, topic (OSC 8 hyperlink),
+# plus type-specific config (push endpoint as an OSC 8 hyperlink,
+# BigQuery table, GCS bucket).
 emulate -L zsh
 set -o pipefail
 
@@ -65,9 +68,13 @@ if [[ $kind == "topic" ]]; then
     "projects/${project}/topics/${name}" \
     --project="${project}" --format=json 2>/dev/null) || subs_json='[]'
 
+  local topic_self_url topic_self_link
+  topic_self_url="https://console.cloud.google.com/cloudpubsub/topic/detail/${name}?project=${project}"
+  topic_self_link=$(_hyperlink "$topic_self_url" "${project}/${name}")
+
   print -r -- "kind          : topic"
   print -r -- "project_id    : ${project}"
-  print -r -- "name          : ${name}"
+  print -r -- "name          : ${topic_self_link}"
   print -r -- "topic_schema  : ${schema_line}"
   print -r -- "subscriptions :"
 
@@ -123,9 +130,13 @@ ack_deadline=$(print -r -- "$describe_json" | jq -r '.ackDeadlineSeconds // ""')
 state=$(print -r -- "$describe_json" | jq -r '.state // ""')
 retention=$(print -r -- "$describe_json" | jq -r '.messageRetentionDuration // ""')
 
+local sub_self_url sub_self_link
+sub_self_url="https://console.cloud.google.com/cloudpubsub/subscription/detail/${name}?project=${project}"
+sub_self_link=$(_hyperlink "$sub_self_url" "${project}/${name}")
+
 print -r -- "kind          : subscription (${detected_kind})"
 print -r -- "project_id    : ${project}"
-print -r -- "name          : ${name}"
+print -r -- "name          : ${sub_self_link}"
 print -r -- "topic         : ${topic_line}"
 [[ -n $state ]]        && print -r -- "state         : ${state}"
 [[ -n $ack_deadline ]] && print -r -- "ack_deadline  : ${ack_deadline}s"
@@ -175,7 +186,10 @@ case $detected_kind in
     local push_endpoint push_audience
     push_endpoint=$(print -r -- "$describe_json" | jq -r '.pushConfig.pushEndpoint // ""')
     push_audience=$(print -r -- "$describe_json" | jq -r '.pushConfig.oidcToken.audience // ""')
-    print -r -- "push_endpoint : ${push_endpoint}"
+    local push_line="${push_endpoint}"
+    # The endpoint is itself an http(s) URL — make it clickable.
+    [[ $push_endpoint == http*://* ]] && push_line=$(_hyperlink "$push_endpoint" "$push_endpoint")
+    print -r -- "push_endpoint : ${push_line}"
     [[ -n $push_audience ]] && print -r -- "oidc_audience : ${push_audience}"
     ;;
   pull)
