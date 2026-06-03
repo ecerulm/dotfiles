@@ -140,20 +140,32 @@ if [[ ! -d $profiles_dir ]]; then
   return 1
 fi
 
+# Locate the Python project root (pyproject.toml dir) by walking up from
+# dbt_root. In some layouts dbt_project.yml lives in a subdir of the repo
+# while pyproject.toml (and uv.lock / poetry.lock) live at the repo root.
+# This is the directory where `uv sync` / `poetry install` must be run and
+# where uv.lock is checked for package-manager detection.
+local project_root=""
+local _pr_dir="$dbt_root"
+while [[ $_pr_dir != / ]]; do
+  if [[ -f $_pr_dir/pyproject.toml ]]; then
+    project_root="$_pr_dir"
+    break
+  fi
+  _pr_dir="${_pr_dir:h}"
+done
+[[ -z $project_root ]] && project_root="$dbt_root"
+
 # Verify pyenv's `python` shim resolves an interpreter from $dbt_root
-# *before* invoking poetry. Without this, a missing/misconfigured
-# .python-version surfaces several layers down as a misleading
-# "poetry install failed". Skipped under DBT_USE_FUSION=1 — the fusion
-# path runs `dbtf` (a standalone binary) and does not touch pyenv.
-#
-# Then verify `poetry run dbt` resolves to the project venv (not a
-# stray $PATH dbt) and auto-install if not. Shared helper handles the
-# three-line diagnostic on hard failure. Also skipped under Fusion.
+# *before* invoking the package manager. Skipped under DBT_USE_FUSION=1
+# and for uv projects (uv manages its own Python, no pyenv needed).
 if [[ ${DBT_USE_FUSION:-0} != 1 ]]; then
-  autoload -Uz _rlm-python-ensure-version
-  _rlm-python-ensure-version "$dbt_root" "$label" || return 1
+  if [[ ${DBT_USE_UV:-0} != 1 && ! -f "${project_root}/uv.lock" ]]; then
+    autoload -Uz _rlm-python-ensure-version
+    _rlm-python-ensure-version "$dbt_root" "$label" || return 1
+  fi
   autoload -Uz _rlm-dbt-ensure-venv
-  _rlm-dbt-ensure-venv "$dbt_root" dbt "$label" || return 1
+  _rlm-dbt-ensure-venv "$project_root" dbt "$label" || return 1
 fi
 
 # Resolve the dbt command-prefix tokens once. Under DBT_USE_FUSION=1 this
@@ -162,14 +174,14 @@ fi
 # uses "${dbt_bin[@]}" instead of hard-coding `poetry run dbt`.
 autoload -Uz _rlm-dbt-bin
 local -a dbt_bin
-dbt_bin=(${(f)"$(_rlm-dbt-bin "$dbt_root")"}) || return 1
+dbt_bin=(${(f)"$(_rlm-dbt-bin "$project_root")"}) || return 1
 
 # Ensure dbt packages declared in packages.yml are installed (a fresh
 # checkout or a newly added package would otherwise cause `dbt ls` to
 # emit the "X package(s) specified … but only N installed" warning and
 # produce no node list).
 autoload -Uz _rlm-dbt-ensure-deps
-_rlm-dbt-ensure-deps "$dbt_root" "$dbt_root" "$label" || return 1
+_rlm-dbt-ensure-deps "$project_root" "$dbt_root" "$label" || return 1
 
 local dbt_target="$DBT_TARGET"
 
@@ -202,7 +214,7 @@ local nodes_jq_filter="select(${_jq_rt_filter}) | .name"
 _dbt_cmd_fetch_nodes() {
   _rlm-dbt-nodes-cache refresh \
     "$project_key" \
-    "$dbt_root" \
+    "$project_root" \
     "$dbt_root" \
     "$profiles_dir" \
     "$dbt_target" \

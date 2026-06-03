@@ -4,16 +4,25 @@ emulate -L zsh
 # their shared history (~/.cache/rlm-dbt/history.tsv) and shared nodes
 # cache (~/.cache/rlm-dbt/<project_key>/nodes.json) to one dbt project.
 #
-# The key is md5(<absolute dbt_project_root>), matching the algorithm
-# rlm-dbt-ls has used since its introduction. Centralized here so the
-# formula has a single source of truth.
+# The key is md5("<remote_url>:<rel_subdir>") where:
+#   remote_url  git remote "origin" URL for the repo containing dbt_project_root
+#   rel_subdir  path of dbt_project_root relative to the git repo root
+#
+# Using the remote URL (rather than the absolute local path) makes the key
+# stable across git worktrees — all worktrees of the same repo share one
+# history and one nodes cache, so selectors picked in worktree A appear as
+# recent picks in worktree B.
+#
+# rel_subdir is included so a monorepo with multiple dbt projects gets a
+# distinct key per project.
+#
+# Fallback: if no git remote "origin" exists (local-only repo), falls back
+# to md5(absolute path) — same as the original behaviour.
 #
 # Usage:
 #   _rlm-dbt-project-key <dbt_project_root>
 #
-#   dbt_project_root  directory containing dbt_project.yml (absolute path
-#                     recommended; not normalized here so callers can keep
-#                     their own canonicalization rules).
+#   dbt_project_root  directory containing dbt_project.yml (absolute path).
 #
 # Stdout (on success):
 #   The 32-char hex md5 digest, followed by a newline.
@@ -29,13 +38,36 @@ if [[ -z $dbt_project_root ]]; then
   return 2
 fi
 
-# `md5` on macOS prints just the digest; `md5sum` on Linux prints
-# "<digest>  -". Normalize to the digest by taking the first field.
-if command -v md5 >/dev/null 2>&1; then
-  print -n -- "$dbt_project_root" | md5
-elif command -v md5sum >/dev/null 2>&1; then
-  print -n -- "$dbt_project_root" | md5sum | awk '{print $1}'
+_rlm_dbt_project_key_md5() {
+  if command -v md5 >/dev/null 2>&1; then
+    print -n -- "$1" | md5
+  elif command -v md5sum >/dev/null 2>&1; then
+    print -n -- "$1" | md5sum | awk '{print $1}'
+  else
+    print -u2 "_rlm-dbt-project-key: neither md5 nor md5sum found in PATH"
+    return 1
+  fi
+}
+
+# Derive a worktree-stable identity: "<remote_url>:<rel_subdir>".
+# Both git calls are scoped to dbt_project_root via -C; stderr is
+# suppressed so non-git dirs fall through silently to the path fallback.
+local remote_url git_root rel_subdir key_input
+remote_url=$(git -C "$dbt_project_root" remote get-url origin 2>/dev/null)
+if [[ -n $remote_url ]]; then
+  git_root=$(git -C "$dbt_project_root" rev-parse --show-toplevel 2>/dev/null)
+  if [[ -n $git_root ]]; then
+    # Strip trailing slash from git_root, then compute relative path.
+    # e.g. git_root=/a/b  dbt_root=/a/b/storytel-dbt  → rel=storytel-dbt
+    rel_subdir="${dbt_project_root#${git_root}/}"
+    [[ $rel_subdir == $dbt_project_root ]] && rel_subdir=""
+    key_input="${remote_url}:${rel_subdir}"
+  else
+    key_input="$remote_url"
+  fi
 else
-  print -u2 "_rlm-dbt-project-key: neither md5 nor md5sum found in PATH"
-  return 1
+  # No remote — fall back to absolute path (original behaviour).
+  key_input="$dbt_project_root"
 fi
+
+_rlm_dbt_project_key_md5 "$key_input"

@@ -50,7 +50,7 @@ dbt:
 - `_rlm-python-ensure-version` — verify pyenv's `python` shim resolves from a given cwd via `python -EsSc ...`. `(cwd, label)`. Run *before* `_rlm-poetry-ensure-venv`. Gated off when `DBT_USE_FUSION=1` or project is uv-managed. cwd must be the dir holding `.python-version`.
 - `_rlm-dbt-ensure-deps` — `dbt deps` once if `packages.yml` declares more than `dbt_packages/` holds. `(project_root, dbt_project_root, label)`.
 - `_rlm-dbt-state-info` — locate `$DBT_STATE_DIR/manifest.json`, optional freshness gate, emit `key=value` lines for `eval`. Flags `--require`, `--max-age-days N`, `--label`.
-- `_rlm-dbt-project-key` — md5 of absolute `dbt_project_root` (per-project cache key). `md5` / `md5sum` fallback.
+- `_rlm-dbt-project-key` — worktree-stable project cache key: `md5("<remote_url>:<rel_subdir>")`. Falls back to `md5(abs_path)` when no git remote exists. All worktrees of the same repo share one history + nodes cache.
 - `_rlm-dbt-history` — pooled history TSV `~/.cache/rlm-dbt/history.tsv` (`epoch\tcommand\tproject_key\tselector`, deduped, cap 500). `append`/`read`. Folds in legacy paths once.
 - `_rlm-dbt-nodes-cache` — per-project nodes cache `~/.cache/rlm-dbt/<key>/nodes.json` (one JSON/line, all resource types). `path`/`refresh`/`read <jq_filter>`. `refresh` validates first line is JSON before overwriting (dbt errors to stdout would otherwise poison the cache).
 
