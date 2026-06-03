@@ -1,7 +1,8 @@
 rlm-git-squash-branch
 
-Squash every commit on the current branch since the merge base with the
-target branch into a single signed-off commit.
+Interactively squash every commit on the current branch since the merge
+base with the target branch into a single signed-off commit, prompting
+for confirmation before each destructive step.
 
 The target branch is the base branch of the current PR (resolved via
 `gh pr view --json baseRefName`) if one exists, otherwise origin's
@@ -9,18 +10,30 @@ default branch (`git symbolic-ref --short refs/remotes/origin/HEAD`,
 with `git remote show origin` as fallback). The target is always
 referenced as `origin/<branch>`.
 
-Steps:
+Before any work, the current HEAD sha is recorded and a backup ref is
+created at:
+
+    refs/rlm-git-squash-branch/<branch>/<YYYYmmdd-HHMMSS>
+
+This ref, together with the saved sha, is printed up front along with
+the exact one-liner to revert the squash if anything goes wrong. The
+backup ref is created only after the initial confirmation, but before
+the fetch — so even a Ctrl-C mid-workflow leaves a trail back. (Note:
+the working tree is also protected by the standard git reflog for
+`<branch>`, which the recovery command falls back on naturally.)
+
+Interactive steps (each prompts y/N — anything other than y|yes
+aborts, leaving the branch in its current state):
 
   1. `git fetch --all` so the target reflects what's on the remote now.
-  2. Save the messages of all commits in `merge_base..HEAD`, oldest
-     first, in `git merge --squash` shape (one `* <subject>` + body
-     block per commit).
-  3. `git reset <target>` (mixed) — moves HEAD to the target branch tip
-     and leaves the diff in the working tree.
-  4. `git add -A` to stage everything.
-  5. `git commit -s -e -F -` with the saved messages piped in as the
-     initial editor buffer, so the user can edit or accept the combined
-     message (or abort by emptying the buffer).
+  2. `git reset <target>` (mixed) — moves HEAD to the target branch tip
+     and leaves the diff in the working tree. Before prompting, prints
+     the merge base, target sha, commit count, and the list of commits
+     that will be collapsed.
+  3. `git add -A` to stage everything.
+  4. `git commit -s -e -F -` with the saved squash message piped in as
+     the initial editor buffer. Close the editor with an empty buffer
+     to abort the commit (recovery instructions print regardless).
 
 Refuses to run when:
   - HEAD is detached,
@@ -29,7 +42,11 @@ Refuses to run when:
   - HEAD is already at the target tip (nothing to squash),
   - reset leaves no staged changes (nothing to squash).
 
-After the commit succeeds, prints the publish commands:
+If any step is declined or fails, prints the recovery one-liner:
+
+    git reset --hard <original_sha> && git update-ref -d <backup_ref>
+
+After a successful commit, also prints the publish commands:
 
     git push --force-with-lease
 

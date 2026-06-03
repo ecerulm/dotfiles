@@ -2,6 +2,23 @@ emulate -L zsh
 set -o pipefail
 
 # ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+# Ask y/N before each destructive step. Returns 0 on yes, 1 on no.
+# Ctrl-C / EOF / empty / anything other than y|yes ⇒ no.
+_rlm_gsb_confirm() {
+  local prompt=$1 reply
+  # Prompt on stderr so it isn't swallowed if stdout is being read.
+  print -nr -- "$prompt [y/N] " >&2
+  if ! read -r reply; then
+    print -r -- "" >&2
+    return 1
+  fi
+  [[ $reply == (y|Y|yes|YES|Yes) ]]
+}
+
+# ---------------------------------------------------------------------------
 # Precondition checks
 # ---------------------------------------------------------------------------
 
@@ -34,13 +51,14 @@ fi
 # Resolve target branch: PR base if there is a PR, else origin's default.
 # ---------------------------------------------------------------------------
 
-local target_branch pr_base default_branch
+local target_branch pr_base default_branch target_source
 if command -v gh >/dev/null 2>&1; then
   pr_base=$(gh pr view --json baseRefName --jq '.baseRefName' 2>/dev/null)
 fi
 
 if [[ -n $pr_base ]]; then
   target_branch="origin/${pr_base}"
+  target_source="PR base branch (gh pr view)"
 else
   default_branch=$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null)
   if [[ -z $default_branch ]]; then
@@ -53,6 +71,7 @@ else
     return 1
   fi
   target_branch="$default_branch"
+  target_source="origin default branch"
 fi
 
 if [[ $current_branch == "${target_branch#origin/}" ]]; then
@@ -61,62 +80,183 @@ if [[ $current_branch == "${target_branch#origin/}" ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# Fetch latest refs from all remotes so target_branch reflects what's on
-# origin right now (the reset below will land on the freshly-fetched tip).
+# Record current state for recovery, BEFORE anything destructive happens.
 # ---------------------------------------------------------------------------
 
-print -r -- "git-squash-branch: git fetch --all"
-git fetch --all || return 1
+local original_sha original_short backup_ref
+original_sha=$(git rev-parse HEAD)
+original_short=$(git rev-parse --short HEAD)
+backup_ref="refs/rlm-git-squash-branch/${current_branch}/$(date +%Y%m%d-%H%M%S)"
+
+print -r -- ""
+print -r -- "git-squash-branch: about to squash branch '${current_branch}'"
+print -r -- "  target branch:    ${target_branch}  (${target_source})"
+print -r -- "  current HEAD:     ${original_short}  ($(git log -1 --format=%s HEAD))"
+print -r -- ""
+print -r -- "  Recovery (if you need to abort later):"
+print -r -- "    git update-ref -d ${backup_ref}    # remove the backup ref"
+print -r -- "    git reset --hard ${original_sha}   # restore branch to current HEAD"
+print -r -- "  A backup ref will be created at:"
+print -r -- "    ${backup_ref} -> ${original_short}"
+print -r -- ""
+
+if ! _rlm_gsb_confirm "Proceed with the squash workflow?"; then
+  print -u2 "git-squash-branch: aborted before any changes"
+  return 1
+fi
+
+# Plant the backup ref now, so even a Ctrl-C mid-workflow leaves a trail back.
+if ! git update-ref "$backup_ref" "$original_sha"; then
+  print -u2 "git-squash-branch: failed to create backup ref ${backup_ref}; aborting"
+  return 1
+fi
+print -r -- "git-squash-branch: backup ref created: ${backup_ref} -> ${original_short}"
+print -r -- ""
+
+# Convenience: also print a single one-liner the user can copy to restore.
+local recovery_cmd="git reset --hard ${original_sha} && git update-ref -d ${backup_ref}"
+
+# ---------------------------------------------------------------------------
+# Step 1: fetch
+# ---------------------------------------------------------------------------
+
+print -r -- "Step 1/4: fetch the latest refs so '${target_branch}' is current."
+print -r -- "  command: git fetch --all"
+if ! _rlm_gsb_confirm "Run 'git fetch --all'?"; then
+  print -u2 "git-squash-branch: aborted before fetch"
+  print -u2 "  recover with: ${recovery_cmd}"
+  return 1
+fi
+git fetch --all || {
+  print -u2 "git-squash-branch: fetch failed"
+  print -u2 "  recover with: ${recovery_cmd}"
+  return 1
+}
+print -r -- ""
 
 # Find merge base with the (now up-to-date) target branch to collect commit
 # messages that will be squashed.
-local merge_base
+local merge_base target_sha target_short merge_base_short
 merge_base=$(git merge-base "$target_branch" HEAD 2>/dev/null)
 if [[ -z $merge_base ]]; then
   print -u2 "git-squash-branch: could not find merge base with ${target_branch}"
+  print -u2 "  recover with: ${recovery_cmd}"
   return 1
 fi
+target_sha=$(git rev-parse "$target_branch")
+target_short=$(git rev-parse --short "$target_branch")
+merge_base_short=$(git rev-parse --short "$merge_base")
 
-if [[ $merge_base == $(git rev-parse HEAD) && $(git rev-parse "$target_branch") == $(git rev-parse HEAD) ]]; then
+if [[ $merge_base == $original_sha && $target_sha == $original_sha ]]; then
   print -u2 "git-squash-branch: HEAD is already at ${target_branch}; nothing to squash"
+  print -u2 "  removing backup ref ${backup_ref} (no work done)"
+  git update-ref -d "$backup_ref" 2>/dev/null
   return 1
 fi
 
-print -r -- "git-squash-branch: branch=${current_branch} target=${target_branch} merge_base=${merge_base}"
-
 # ---------------------------------------------------------------------------
-# Save commit messages for everything on this branch since the merge base,
-# oldest first, in `git merge --squash` shape (one `* <subject>` + body block
-# per commit). Fed to `git commit -F - -e` so the editor opens prepopulated.
+# Step 2: show the plan, confirm reset
 # ---------------------------------------------------------------------------
 
+local commit_count
+commit_count=$(git rev-list --count --no-merges "${merge_base}..HEAD")
+
+print -r -- "Step 2/4: reset '${current_branch}' to '${target_branch}' tip (mixed)."
+print -r -- "  current_branch:   ${current_branch}"
+print -r -- "  target:           ${target_branch}  (${target_short})"
+print -r -- "  merge base:       ${merge_base_short}"
+print -r -- "  commits to squash: ${commit_count}"
+print -r -- ""
+print -r -- "  commits being collapsed (oldest first):"
+git log --reverse --no-merges --format='    %h  %s' "${merge_base}..HEAD"
+print -r -- ""
+print -r -- "  command: git reset ${target_branch}    # mixed reset, keeps changes in working tree"
+print -r -- ""
+
+if ! _rlm_gsb_confirm "Run 'git reset ${target_branch}' on '${current_branch}'?"; then
+  print -u2 "git-squash-branch: aborted before reset"
+  print -u2 "  recover with: ${recovery_cmd}"
+  return 1
+fi
+
+# Save commit messages for the squash commit BEFORE the reset, since after
+# the reset HEAD no longer reaches them by name.
 local squash_msg
 squash_msg="Squashed commit of ${current_branch}:"$'\n\n'
-squash_msg+=$(git log --reverse --no-merges --format='* %s%n%n%b' "${merge_base}..HEAD") || return 1
+squash_msg+=$(git log --reverse --no-merges --format='* %s%n%n%b' "${merge_base}..HEAD") || {
+  print -u2 "git-squash-branch: failed to collect commit messages"
+  print -u2 "  recover with: ${recovery_cmd}"
+  return 1
+}
+
+git reset "$target_branch" || {
+  print -u2 "git-squash-branch: reset failed"
+  print -u2 "  recover with: ${recovery_cmd}"
+  return 1
+}
+print -r -- ""
 
 # ---------------------------------------------------------------------------
-# Reset (mixed) to target branch tip, stage everything, commit with the
-# saved messages prepopulated in the editor.
+# Step 3: stage everything
 # ---------------------------------------------------------------------------
 
-print -r -- "git-squash-branch: git reset ${target_branch}"
-git reset "$target_branch" || return 1
-
-print -r -- "git-squash-branch: git add -A"
-git add -A || return 1
+print -r -- "Step 3/4: stage all working-tree changes."
+print -r -- "  command: git add -A"
+if ! _rlm_gsb_confirm "Run 'git add -A'?"; then
+  print -u2 "git-squash-branch: aborted before staging"
+  print -u2 "  recover with: ${recovery_cmd}"
+  return 1
+fi
+git add -A || {
+  print -u2 "git-squash-branch: 'git add -A' failed"
+  print -u2 "  recover with: ${recovery_cmd}"
+  return 1
+}
 
 if [[ -z $(git diff --cached --name-only) ]]; then
   print -u2 "git-squash-branch: no staged changes after reset; nothing to squash"
+  print -u2 "  recover with: ${recovery_cmd}"
+  return 1
+fi
+print -r -- ""
+
+# ---------------------------------------------------------------------------
+# Step 4: create the squash commit
+# ---------------------------------------------------------------------------
+
+print -r -- "Step 4/4: create the squash commit (editor opens with prepopulated message)."
+print -r -- "  command: git commit -s -e -F -    # close editor with empty message to abort"
+if ! _rlm_gsb_confirm "Open the editor for the squash commit?"; then
+  print -u2 "git-squash-branch: aborted before commit"
+  print -u2 "  recover with: ${recovery_cmd}"
   return 1
 fi
 
-print -r -- "$squash_msg" | git commit -s -e -F - || return 1
+print -r -- "$squash_msg" | git commit -s -e -F - || {
+  print -u2 "git-squash-branch: commit failed or aborted"
+  print -u2 "  recover with: ${recovery_cmd}"
+  return 1
+}
+
+# ---------------------------------------------------------------------------
+# Done — print publish + recovery commands
+# ---------------------------------------------------------------------------
+
+local new_short
+new_short=$(git rev-parse --short HEAD)
 
 print -r -- ""
-print -r -- "git-squash-branch: done. To publish, run:"
+print -r -- "git-squash-branch: done."
+print -r -- "  ${original_short} -> ${new_short}  (branch: ${current_branch})"
 print -r -- ""
+print -r -- "  To publish:"
 print -r -- "    git push --force-with-lease"
 print -r -- ""
 print -r -- "  (or, if the remote branch does not yet exist:)"
-print -r -- ""
 print -r -- "    git push -u origin ${current_branch}"
+print -r -- ""
+print -r -- "  To revert the squash and restore the branch to its prior state:"
+print -r -- "    ${recovery_cmd}"
+print -r -- ""
+print -r -- "  Backup ref (also reachable via 'git reflog ${current_branch}'):"
+print -r -- "    ${backup_ref} -> ${original_short}"
