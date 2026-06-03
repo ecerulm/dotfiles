@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- `rlm-git-squash-branch`: rewrite to target the PR base branch (resolved via `gh pr view --json baseRefName`) when an open PR exists, else origin's default — always as `origin/<branch>`. New flow: precondition checks → `git fetch --all` → save `merge_base..HEAD` commit messages in `git merge --squash` shape → `git reset <target>` (mixed) → `git add -A` → `git commit -s -e -F -` with the saved messages piped in as the editor's initial buffer. Drops the previous `git pull --rebase` + `git push` + `git reset --soft` + `git rebase` dance. Prints both `git push --force-with-lease` and `git push -u origin <branch>` instructions afterwards. The previous implementation is preserved as `rlm-git-squash-branch-old` (short alias `git-squash-branch-old`) for fallback.
 - `rlm-pubsub-open`: REFRESH CACHE now opens a second fzf picker (with TAB multi-select and an `*** ALL PROJECTS ***` sentinel) so you can refresh only the projects you care about. Picked projects' entries are replaced in the cache, un-picked projects' entries are preserved (no more full re-fetch when one project changes). Picking the ALL sentinel — alone or alongside others — still refreshes everything.
 
 ### Fixed

@@ -15,18 +15,6 @@ if ! command -v git >/dev/null 2>&1; then
   return 1
 fi
 
-# ---------------------------------------------------------------------------
-# Main logic
-# ---------------------------------------------------------------------------
-
-local default_branch
-default_branch=$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null)
-if [[ -z $default_branch ]]; then
-  print -u2 "git-squash-branch: could not determine default branch for origin"
-  print -u2 "git-squash-branch: try: git remote set-head origin --auto"
-  return 1
-fi
-
 local current_branch
 current_branch=$(git symbolic-ref --short HEAD 2>/dev/null)
 if [[ -z $current_branch ]]; then
@@ -34,70 +22,101 @@ if [[ -z $current_branch ]]; then
   return 1
 fi
 
-if [[ $current_branch == "${default_branch#origin/}" ]]; then
-  print -u2 "git-squash-branch: current branch is the default branch (${current_branch}); refusing to squash"
-  return 1
-fi
-
-local merge_base
-merge_base=$(git merge-base --fork-point "$default_branch" HEAD 2>/dev/null)
-if [[ -z $merge_base ]]; then
-  merge_base=$(git merge-base HEAD "$default_branch" 2>/dev/null)
-fi
-if [[ -z $merge_base ]]; then
-  print -u2 "git-squash-branch: could not find merge base with ${default_branch}"
-  return 1
-fi
-
-if [[ $merge_base == $(git rev-parse HEAD) ]]; then
-  print -u2 "git-squash-branch: HEAD is already at merge base with ${default_branch}; nothing to squash"
-  return 1
-fi
-
 # Working tree must be clean — squashing on top of uncommitted changes
-# would entangle them with the squash commit, and a failed pull --rebase
-# below would leave the user in a worse state than they started.
+# would entangle them with the squash commit.
 if [[ -n $(git status --porcelain) ]]; then
   print -u2 "git-squash-branch: working tree is dirty; commit or stash changes before squashing"
   git status --short >&2
   return 1
 fi
 
-print -r -- "git-squash-branch: branch=${current_branch} base=${default_branch} merge_base=${merge_base}"
+# ---------------------------------------------------------------------------
+# Resolve target branch: PR base if there is a PR, else origin's default.
+# ---------------------------------------------------------------------------
 
-# Pull (rebase) and push the current branch state before rewriting history.
-# This catches the case where someone else pushed to the same branch, and
-# ensures the pre-squash commits are durably on the remote (so if the
-# squash or subsequent force-push goes wrong, the original commits are
-# recoverable from the remote reflog).
-print -r -- "git-squash-branch: git pull --rebase"
-git pull --rebase || return 1
+local target_branch pr_base default_branch
+if command -v gh >/dev/null 2>&1; then
+  pr_base=$(gh pr view --json baseRefName --jq '.baseRefName' 2>/dev/null)
+fi
 
-print -r -- "git-squash-branch: git push"
-git push || return 1
+if [[ -n $pr_base ]]; then
+  target_branch="origin/${pr_base}"
+else
+  default_branch=$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null)
+  if [[ -z $default_branch ]]; then
+    default_branch=$(git remote show origin 2>/dev/null | awk '/HEAD branch/ {print $NF}')
+    [[ -n $default_branch ]] && default_branch="origin/${default_branch}"
+  fi
+  if [[ -z $default_branch ]]; then
+    print -u2 "git-squash-branch: could not determine default branch for origin"
+    print -u2 "git-squash-branch: try: git remote set-head origin --auto"
+    return 1
+  fi
+  target_branch="$default_branch"
+fi
 
-# Collect the messages of the commits about to be squashed, oldest first,
-# in the shape `git merge --squash` produces — one block per commit with a
-# `* <subject>` header followed by the body. Fed to `git commit -F - -e`
-# (`-e` forces the editor to open even with `-F`) so the editor opens
-# prepopulated with the combined message; the user can edit, accept, or
-# abort by emptying the buffer.
+if [[ $current_branch == "${target_branch#origin/}" ]]; then
+  print -u2 "git-squash-branch: current branch is the target branch (${current_branch}); refusing to squash"
+  return 1
+fi
+
+# ---------------------------------------------------------------------------
+# Fetch latest refs from all remotes so target_branch reflects what's on
+# origin right now (the reset below will land on the freshly-fetched tip).
+# ---------------------------------------------------------------------------
+
+print -r -- "git-squash-branch: git fetch --all"
+git fetch --all || return 1
+
+# Find merge base with the (now up-to-date) target branch to collect commit
+# messages that will be squashed.
+local merge_base
+merge_base=$(git merge-base "$target_branch" HEAD 2>/dev/null)
+if [[ -z $merge_base ]]; then
+  print -u2 "git-squash-branch: could not find merge base with ${target_branch}"
+  return 1
+fi
+
+if [[ $merge_base == $(git rev-parse HEAD) && $(git rev-parse "$target_branch") == $(git rev-parse HEAD) ]]; then
+  print -u2 "git-squash-branch: HEAD is already at ${target_branch}; nothing to squash"
+  return 1
+fi
+
+print -r -- "git-squash-branch: branch=${current_branch} target=${target_branch} merge_base=${merge_base}"
+
+# ---------------------------------------------------------------------------
+# Save commit messages for everything on this branch since the merge base,
+# oldest first, in `git merge --squash` shape (one `* <subject>` + body block
+# per commit). Fed to `git commit -F - -e` so the editor opens prepopulated.
+# ---------------------------------------------------------------------------
+
 local squash_msg
 squash_msg="Squashed commit of ${current_branch}:"$'\n\n'
 squash_msg+=$(git log --reverse --no-merges --format='* %s%n%n%b' "${merge_base}..HEAD") || return 1
 
-git reset --soft "$merge_base" || return 1
-print -r -- "$squash_msg" | git commit -s -e -F - || return 1
+# ---------------------------------------------------------------------------
+# Reset (mixed) to target branch tip, stage everything, commit with the
+# saved messages prepopulated in the editor.
+# ---------------------------------------------------------------------------
 
-# Rebase the freshly-squashed single commit on top of the latest default
-# branch tip. The `git pull --rebase` above only synced commits on the
-# current branch; the default branch on origin may have moved on
-# independently. Rebasing now means the force-push lands cleanly without
-# the reviewer having to remember to update the branch separately.
-print -r -- "git-squash-branch: git rebase ${default_branch}"
-git rebase "$default_branch" || return 1
+print -r -- "git-squash-branch: git reset ${target_branch}"
+git reset "$target_branch" || return 1
+
+print -r -- "git-squash-branch: git add -A"
+git add -A || return 1
+
+if [[ -z $(git diff --cached --name-only) ]]; then
+  print -u2 "git-squash-branch: no staged changes after reset; nothing to squash"
+  return 1
+fi
+
+print -r -- "$squash_msg" | git commit -s -e -F - || return 1
 
 print -r -- ""
 print -r -- "git-squash-branch: done. To publish, run:"
 print -r -- ""
 print -r -- "    git push --force-with-lease"
+print -r -- ""
+print -r -- "  (or, if the remote branch does not yet exist:)"
+print -r -- ""
+print -r -- "    git push -u origin ${current_branch}"

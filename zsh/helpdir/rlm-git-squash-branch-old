@@ -1,0 +1,37 @@
+rlm-git-squash-branch
+
+Squash every commit on the current branch since it diverged from
+origin's default branch into a single signed-off commit.
+
+Determines the default branch from
+`git symbolic-ref --short refs/remotes/origin/HEAD` (e.g. `origin/main`),
+finds the merge base with `git merge-base --fork-point` (falling back to
+plain `git merge-base` when fork-point cannot be determined — common on
+shallow clones or after a forced upstream rebase), then runs
+`git pull --rebase` and `git push` to sync the pre-squash state with the
+remote (so the original commits are durably recoverable from the remote
+reflog if the squash needs to be undone), then
+`git reset --soft <merge-base>` followed by `git commit -s -e -F -` with
+the messages of all squashed commits piped in as the initial editor
+buffer (one `* <subject>` + body block per commit, oldest first, in the
+shape `git merge --squash` produces), so the user can edit or accept the
+combined message, and finally
+`git rebase <default-branch>` so the squashed commit sits on the
+current default-branch tip.
+
+Refuses to run when:
+  - the current HEAD is detached,
+  - the current branch is the default branch itself,
+  - HEAD is already at the merge base (nothing to squash),
+  - the working tree is dirty (uncommitted or untracked changes).
+
+After the squash succeeds, prints the command needed to publish the
+rewritten branch:
+
+    git push --force-with-lease
+
+`--force-with-lease` is used rather than `--force` so the push aborts
+if someone else pushed to the same branch in the meantime.
+
+REQUIRES
+  git

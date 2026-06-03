@@ -1,0 +1,103 @@
+emulate -L zsh
+set -o pipefail
+
+# ---------------------------------------------------------------------------
+# Precondition checks
+# ---------------------------------------------------------------------------
+
+if ! git rev-parse --git-dir >/dev/null 2>&1; then
+  print -u2 "git-squash-branch: not inside a git repository"
+  return 1
+fi
+
+if ! command -v git >/dev/null 2>&1; then
+  print -u2 "git-squash-branch: 'git' not found in PATH"
+  return 1
+fi
+
+# ---------------------------------------------------------------------------
+# Main logic
+# ---------------------------------------------------------------------------
+
+local default_branch
+default_branch=$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null)
+if [[ -z $default_branch ]]; then
+  print -u2 "git-squash-branch: could not determine default branch for origin"
+  print -u2 "git-squash-branch: try: git remote set-head origin --auto"
+  return 1
+fi
+
+local current_branch
+current_branch=$(git symbolic-ref --short HEAD 2>/dev/null)
+if [[ -z $current_branch ]]; then
+  print -u2 "git-squash-branch: HEAD is detached; refusing to squash"
+  return 1
+fi
+
+if [[ $current_branch == "${default_branch#origin/}" ]]; then
+  print -u2 "git-squash-branch: current branch is the default branch (${current_branch}); refusing to squash"
+  return 1
+fi
+
+local merge_base
+merge_base=$(git merge-base --fork-point "$default_branch" HEAD 2>/dev/null)
+if [[ -z $merge_base ]]; then
+  merge_base=$(git merge-base HEAD "$default_branch" 2>/dev/null)
+fi
+if [[ -z $merge_base ]]; then
+  print -u2 "git-squash-branch: could not find merge base with ${default_branch}"
+  return 1
+fi
+
+if [[ $merge_base == $(git rev-parse HEAD) ]]; then
+  print -u2 "git-squash-branch: HEAD is already at merge base with ${default_branch}; nothing to squash"
+  return 1
+fi
+
+# Working tree must be clean — squashing on top of uncommitted changes
+# would entangle them with the squash commit, and a failed pull --rebase
+# below would leave the user in a worse state than they started.
+if [[ -n $(git status --porcelain) ]]; then
+  print -u2 "git-squash-branch: working tree is dirty; commit or stash changes before squashing"
+  git status --short >&2
+  return 1
+fi
+
+print -r -- "git-squash-branch: branch=${current_branch} base=${default_branch} merge_base=${merge_base}"
+
+# Pull (rebase) and push the current branch state before rewriting history.
+# This catches the case where someone else pushed to the same branch, and
+# ensures the pre-squash commits are durably on the remote (so if the
+# squash or subsequent force-push goes wrong, the original commits are
+# recoverable from the remote reflog).
+print -r -- "git-squash-branch: git pull --rebase"
+git pull --rebase || return 1
+
+print -r -- "git-squash-branch: git push"
+git push || return 1
+
+# Collect the messages of the commits about to be squashed, oldest first,
+# in the shape `git merge --squash` produces — one block per commit with a
+# `* <subject>` header followed by the body. Fed to `git commit -F - -e`
+# (`-e` forces the editor to open even with `-F`) so the editor opens
+# prepopulated with the combined message; the user can edit, accept, or
+# abort by emptying the buffer.
+local squash_msg
+squash_msg="Squashed commit of ${current_branch}:"$'\n\n'
+squash_msg+=$(git log --reverse --no-merges --format='* %s%n%n%b' "${merge_base}..HEAD") || return 1
+
+git reset --soft "$merge_base" || return 1
+print -r -- "$squash_msg" | git commit -s -e -F - || return 1
+
+# Rebase the freshly-squashed single commit on top of the latest default
+# branch tip. The `git pull --rebase` above only synced commits on the
+# current branch; the default branch on origin may have moved on
+# independently. Rebasing now means the force-push lands cleanly without
+# the reviewer having to remember to update the branch separately.
+print -r -- "git-squash-branch: git rebase ${default_branch}"
+git rebase "$default_branch" || return 1
+
+print -r -- ""
+print -r -- "git-squash-branch: done. To publish, run:"
+print -r -- ""
+print -r -- "    git push --force-with-lease"
