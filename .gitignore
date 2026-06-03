@@ -37,6 +37,7 @@ node_modules/
 .env
 zsh/.zsh_sessions
 zsh/.zcompdump-*
+zsh/.zcompcache/
 zsh/.zshrc.old
 *.pem
 .vault_pass
