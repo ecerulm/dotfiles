@@ -25,6 +25,7 @@ _gar_preview_main() {
   console_url="https://console.cloud.google.com/artifacts/docker/${proj}/${location_slug}/${repo}/${pkg_encoded}?project=${proj}"
 
   printf 'Image:      %s\n' "$image"
+  printf 'Name:       %s\n' "$pkg_path"
   printf 'Project:    %s\n' "$proj"
   printf 'Repository: %s/%s\n' "$location_slug" "$repo"
   printf 'Console:    '

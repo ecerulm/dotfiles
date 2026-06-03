@@ -230,8 +230,8 @@ selection=$(
             \"\$HOME/bin/gar-preview\" \"\$line\"
           fi
         " \
-        --preview-window=bottom:40%:wrap \
-        --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)' \
+        --preview-window=bottom:60%:wrap \
+        --bind='ctrl-p:change-preview-window(bottom:80%:wrap|bottom:60%:wrap|hidden)' \
         --bind='ctrl-g:abort'
 ) || return 130
 
