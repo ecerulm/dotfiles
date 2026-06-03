@@ -34,8 +34,12 @@ CACHING
   run the list is fetched from GCP; subsequent runs load instantly
   from the cache.
 
-  The fzf entry "--- REFRESH CACHE (cached <age>) ---" deletes the
-  cache file and re-fetches before re-opening the picker.
+  The fzf entry "--- REFRESH CACHE (cached <age>) ---" opens a second
+  picker that lists the configured projects plus an "*** ALL PROJECTS
+  ***" sentinel. TAB toggles selection; Enter confirms. Only the
+  chosen projects are re-fetched and their entries are replaced in the
+  cache — other projects' entries are preserved. Picking the ALL
+  sentinel (alone or alongside others) refreshes everything.
 
 ON SELECTION
   1. Prints the GCP console URL to stdout (topic detail page for

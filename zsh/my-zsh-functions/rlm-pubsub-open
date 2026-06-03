@@ -31,9 +31,19 @@ cache_file="${cache_dir}/${cache_key}.tsv"
 history_file="${cache_dir}/history.txt"
 
 _pubsub_open_fetch() {
+  # Refresh only the projects passed as args (defaults to all configured
+  # projects). Entries for non-refreshed projects are preserved from the
+  # existing cache file, so a partial refresh doesn't blow away the rest.
+  local -a refresh_projects
+  if (( $# > 0 )); then
+    refresh_projects=("$@")
+  else
+    refresh_projects=("${projects[@]}")
+  fi
+
   local project name
   local -a entries
-  for project in "${projects[@]}"; do
+  for project in "${refresh_projects[@]}"; do
     print "pubsub-open: fetching topics from $project …" >&2
     while IFS= read -r name; do
       [[ -n $name ]] && entries+=("topic"$'\t'"${project}/${name}")
@@ -57,12 +67,61 @@ _pubsub_open_fetch() {
     )
   done
 
-  if (( ${#entries} == 0 )); then
+  # Build the merged cache: keep entries from projects we did NOT refresh,
+  # then append freshly-fetched entries. For a full refresh the "keep" set
+  # is empty.
+  local -a kept
+  if [[ -f $cache_file ]]; then
+    local line entry_project
+    local -A refreshed_set
+    for project in "${refresh_projects[@]}"; do
+      refreshed_set[$project]=1
+    done
+    while IFS= read -r line; do
+      [[ -z $line ]] && continue
+      # line: <type>\t<project>/<name>
+      entry_project=${${line#*$'\t'}%%/*}
+      if [[ -z ${refreshed_set[$entry_project]} ]]; then
+        kept+=("$line")
+      fi
+    done < "$cache_file"
+  fi
+
+  if (( ${#entries} == 0 && ${#kept} == 0 )); then
     print -u2 "pubsub-open: no topics or subscriptions found in any project"
     return 1
   fi
 
-  print -l -- "${entries[@]}" >| "$cache_file"
+  { (( ${#kept} ))    && print -l -- "${kept[@]}";
+    (( ${#entries} )) && print -l -- "${entries[@]}";
+  } >| "$cache_file"
+}
+
+# Multi-select picker over the configured projects, plus an "ALL PROJECTS"
+# sentinel. TAB toggles selection; Enter confirms. Prints the chosen project
+# names (one per line); empty output = aborted.
+_pubsub_open_pick_projects() {
+  local sentinel='*** ALL PROJECTS ***'
+  local selection
+  selection=$(
+    { print -r -- "$sentinel"; print -l -- "${projects[@]}"; } \
+    | fzf --prompt="Refresh projects (TAB to multi-select)> " \
+          --multi \
+          --height=80% --reverse \
+          --no-mouse --ansi \
+          --header="TAB: toggle  Enter: confirm  Ctrl-G: abort" \
+          --preview-window=hidden \
+          --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)' \
+          --bind='ctrl-g:abort'
+  ) || return 1
+  [[ -z $selection ]] && return 1
+
+  # If the user picked the ALL sentinel (even alongside others), refresh all.
+  if print -r -- "$selection" | grep -Fxq -- "$sentinel"; then
+    print -l -- "${projects[@]}"
+  else
+    print -r -- "$selection"
+  fi
 }
 
 if [[ ! -f $cache_file ]]; then
@@ -130,8 +189,14 @@ sel_type=${selection%% *}
 sel_ref=${selection##* }
 
 if [[ $sel_type == "refresh" ]]; then
-  rm -f "$cache_file"
-  _pubsub_open_fetch || return 1
+  local -a to_refresh
+  to_refresh=("${(@f)$(_pubsub_open_pick_projects)}")
+  # Filter out the empty element zsh leaves when the command produced no output
+  to_refresh=("${(@)to_refresh:#}")
+  if (( ${#to_refresh} == 0 )); then
+    return 130
+  fi
+  _pubsub_open_fetch "${to_refresh[@]}" || return 1
   rlm-pubsub-open
   return $?
 fi

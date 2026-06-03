@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [2026-06-03]
 
+### Changed
+
+- `rlm-pubsub-open`: REFRESH CACHE now opens a second fzf picker (with TAB multi-select and an `*** ALL PROJECTS ***` sentinel) so you can refresh only the projects you care about. Picked projects' entries are replaced in the cache, un-picked projects' entries are preserved (no more full re-fetch when one project changes). Picking the ALL sentinel — alone or alongside others — still refreshes everything.
+
 ### Fixed
 
 - `_rlm-jira-cache`: tickets you reported but that are unassigned (or assigned to someone else) are now included in the refresh cache. Two bugs: (1) `jql_reporter` had an extra `assignee != currentUser()` clause that excluded tickets you reported and were also assigned to (now redundant with the Python dedupe across groups, which already keeps the lower-numbered group, so assigned-by-you wins). (2) `jql_watching` and `jql_data` used bare `assignee != currentUser()` / `reporter != currentUser()` which silently dropped NULL rows — JIRA JQL uses three-valued logic, so `field != X` evaluates to UNKNOWN (not TRUE) when `field IS EMPTY`. Both negations now pair the inequality with `field IS EMPTY OR …` so unassigned/reporterless tickets surface. Symptom: `rlm-pr-worktree`'s Ctrl-R refresh would never pick up tickets you reported but hadn't assigned to yourself (e.g. DATA-2644).
