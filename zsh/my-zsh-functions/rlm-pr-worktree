@@ -99,7 +99,9 @@ _prwt_make_pr_worktree() {
   # `_prwt_prompt_dirname` still lets the user edit the full basename
   # before the worktree is actually created.
   _prwt_prompt_suffix "PR #$pr_number"
-  local default_dirname=${repo_name}-pr-${pr_number}
+  local today
+  today=$(date +%Y%m%d)
+  local default_dirname=${repo_name}-${today}-pr-${pr_number}
   [[ -n $_prwt_suffix_out ]] && default_dirname=${default_dirname}-${_prwt_suffix_out}
   _prwt_prompt_dirname "$default_dirname" || {
     print -u2 "pr-worktree: cancelled (empty worktree name)"
@@ -144,7 +146,9 @@ _prwt_make_pr_worktree() {
 
 _prwt_make_suffix_worktree() {
   local suffix=$1
-  local default_dirname=${repo_name}-${suffix}
+  local today
+  today=$(date +%Y%m%d)
+  local default_dirname=${repo_name}-${today}-${suffix}
   _prwt_prompt_dirname "$default_dirname" || {
     print -u2 "pr-worktree: cancelled (empty worktree name)"
     return 1
@@ -237,11 +241,13 @@ _prwt_make_jira_worktree() {
   # Always use <KEY>/feat/<slug> branch structure for JIRA picks.
   # When no suffix is provided, default the slug to the lowercased key
   # (with '-' -> '_'), e.g. DATA-1234 -> DATA-1234/feat/data_1234.
+  local today
+  today=$(date +%Y%m%d)
   if [[ -n $path_slug ]]; then
-    default_dirname=${repo_name}-${key}-${path_slug}
+    default_dirname=${repo_name}-${today}-${key}-${path_slug}
     branch=${key}/feat/${branch_slug}
   else
-    default_dirname=${repo_name}-${key}
+    default_dirname=${repo_name}-${today}-${key}
     branch=${key}/feat/$(_prwt_slug "$key" '_')
   fi
 
