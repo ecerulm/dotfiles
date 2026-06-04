@@ -19,8 +19,14 @@ emulate -L zsh
 #   1 — neither md5 nor md5sum found in PATH.
 
 local -a projects sandbox_datasets
-projects=(${(s[:])BQ_SEARCH_PATH})
-sandbox_datasets=(${(s[:])SANDBOX_BQ_DATASETS})
+projects=(${(u)${(s[:])BQ_SEARCH_PATH}:#})
+if (( ${#projects} < ${#${(s[:])BQ_SEARCH_PATH}:#} )); then
+  print -u2 "_rlm-bq-cache-key: WARNING: BQ_SEARCH_PATH contains duplicate entries — please remove them from your config"
+fi
+sandbox_datasets=(${(u)${(s[:])SANDBOX_BQ_DATASETS}:#})
+if (( ${#sandbox_datasets} < ${#${(s[:])SANDBOX_BQ_DATASETS}:#} )); then
+  print -u2 "_rlm-bq-cache-key: WARNING: SANDBOX_BQ_DATASETS contains duplicate entries — please remove them from your config"
+fi
 
 # Same input order as the original formula in rlm-bq-open:
 # sorted projects, then SANDBOX_BQ_PROJECT, then sorted sandbox datasets.

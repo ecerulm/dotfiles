@@ -49,7 +49,10 @@ local -a projects repo_paths
 if [[ -n $project ]]; then
   projects=("$project")
 elif [[ -n $GAR_SEARCH_PROJECTS ]]; then
-  projects=(${(s.:.)GAR_SEARCH_PROJECTS})
+  projects=(${(u)${(s.:.)GAR_SEARCH_PROJECTS}:#})
+  if (( ${#projects} < ${#${(s.:.)GAR_SEARCH_PROJECTS}:#} )); then
+    print -u2 "gar-search: WARNING: GAR_SEARCH_PROJECTS contains duplicate entries — please remove them from your config"
+  fi
 else
   print -u2 "gar-search: no project specified — pass -p PROJECT or set GAR_SEARCH_PROJECTS"
   return 2

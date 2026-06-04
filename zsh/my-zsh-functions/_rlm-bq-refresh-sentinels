@@ -205,7 +205,10 @@ case "$subcmd" in
     ;;
   apply-main)
     local -a all_projects chosen
-    all_projects=(${(s[:])BQ_SEARCH_PATH})
+    all_projects=(${(u)${(s[:])BQ_SEARCH_PATH}:#})
+    if (( ${#all_projects} < ${#${(s[:])BQ_SEARCH_PATH}:#} )); then
+      print -u2 "_rlm-bq-refresh-sentinels: WARNING: BQ_SEARCH_PATH contains duplicate entries — please remove them from your config"
+    fi
     # With 0 or 1 configured project there's nothing to choose — refresh
     # the lot without bothering the user with a one-item picker.
     if (( ${#all_projects} <= 1 )); then
@@ -220,7 +223,10 @@ case "$subcmd" in
     ;;
   apply-sandbox)
     local -a all_datasets chosen
-    all_datasets=(${(s[:])SANDBOX_BQ_DATASETS})
+    all_datasets=(${(u)${(s[:])SANDBOX_BQ_DATASETS}:#})
+    if (( ${#all_datasets} < ${#${(s[:])SANDBOX_BQ_DATASETS}:#} )); then
+      print -u2 "_rlm-bq-refresh-sentinels: WARNING: SANDBOX_BQ_DATASETS contains duplicate entries — please remove them from your config"
+    fi
     if (( ${#all_datasets} <= 1 )); then
       _rlm-bq-cache refresh --sandbox-only
       return $?

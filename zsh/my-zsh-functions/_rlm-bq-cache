@@ -79,7 +79,10 @@ _rlm_bq_cache_refresh_main() {
     return 1
   fi
   local -a all_projects refresh_projects
-  all_projects=(${(s[:])BQ_SEARCH_PATH})
+  all_projects=(${(u)${(s[:])BQ_SEARCH_PATH}:#})
+  if (( ${#all_projects} < ${#${(s[:])BQ_SEARCH_PATH}:#} )); then
+    print -u2 "_rlm-bq-cache: WARNING: BQ_SEARCH_PATH contains duplicate entries — please remove them from your config"
+  fi
   if (( $# > 0 )); then
     # Validate the requested subset against BQ_SEARCH_PATH; drop unknowns
     # so a typo can't poison the cache with a project outside the scope
@@ -157,7 +160,10 @@ _rlm_bq_cache_refresh_sandbox() {
     return 0
   fi
   local -a all_datasets sandbox_datasets
-  all_datasets=(${(s[:])SANDBOX_BQ_DATASETS})
+  all_datasets=(${(u)${(s[:])SANDBOX_BQ_DATASETS}:#})
+  if (( ${#all_datasets} < ${#${(s[:])SANDBOX_BQ_DATASETS}:#} )); then
+    print -u2 "_rlm-bq-cache: WARNING: SANDBOX_BQ_DATASETS contains duplicate entries — please remove them from your config"
+  fi
   if (( ${#all_datasets} == 0 )); then
     print -u2 "_rlm-bq-cache: SANDBOX_BQ_DATASETS is empty, skipping sandbox fetch"
     return 0
