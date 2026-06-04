@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `_rlm-bq-cache-key`, `_rlm-bq-cache`, `_rlm-bq-refresh-sentinels`: deduplicate `BQ_SEARCH_PATH` and `SANDBOX_BQ_DATASETS` on parse (`${(u)...}`) and print a stderr warning when duplicates are detected, instructing the user to remove them from their config.
 - `rlm-gar-search`: deduplicate `GAR_SEARCH_PROJECTS` on parse and warn on duplicates (matches existing behaviour in `rlm-gar-open`).
 - `rlm-pr-worktree-rm-merged-closed`: also auto-delete worktrees with no PR and no commits ahead of `origin/main` (`no-pr/no-diff`) — worktrees that were created but never actually worked on.
+- `rlm-pr-worktree-rm`, `rlm-pr-worktree-rm-merged-closed`: fix `local path=` collision with zsh's special `$path`/`$PATH` array; rename to `wt_abs`. Also use `gh pr list --head <branch>` per-worktree fallback for PRs beyond the bulk `--limit 500` cap.
 
 ## [2026-06-03]
 

@@ -65,7 +65,7 @@ local -a rows
 local wt_path="" wt_branch=""
 
 _prwtrm_add_row() {
-  local path=$1 branch=${2:-<detached>}
+  local wt_abs=$1 branch=${2:-<detached>}
   local merge_status="unmerged"
   if [[ -n $2 ]] && git -C "$repo_root" merge-base --is-ancestor "$2" origin/main 2>/dev/null; then
     merge_status="merged"
@@ -78,15 +78,15 @@ _prwtrm_add_row() {
   local pr_number=""
   [[ $pr_status != "no-pr" ]] && pr_number=${pr_status#*#}
 
-  local rel_path=${path#${repo_root:h}/}
-  [[ $rel_path == $path ]] && rel_path=$path
+  local rel_path=${wt_abs#${repo_root:h}/}
+  [[ $rel_path == $wt_abs ]] && rel_path=$wt_abs
 
   # Row format (tab-separated):
   #   col1=rel_path  col2=branch  col3=merge_status  col4=pr_status
   #   col5=abs_path  col6=pr_number
   # fzf shows col1 only (--with-nth=1); preview uses col2/col5/col6; deletion uses col5.
   # abs_path is at col5 (never empty) so IFS-tab read never skips it via whitespace collapse.
-  rows+=("$(printf '%s\t%s\t%s\t%s\t%s\t%s' "$rel_path" "$branch" "$merge_status" "$pr_status" "$path" "$pr_number")")
+  rows+=("$(printf '%s\t%s\t%s\t%s\t%s\t%s' "$rel_path" "$branch" "$merge_status" "$pr_status" "$wt_abs" "$pr_number")")
 }
 
 while IFS= read -r line; do

@@ -89,22 +89,36 @@ local -a abs_paths display_lines
 local wt_path="" wt_branch=""
 
 _prwtrmc_consider() {
-  local path=$1 branch=$2
+  local wt_abs=$1 branch=$2
   [[ -z $branch ]] && return 0                          # detached HEAD: leave alone
-  [[ $path == $main_worktree || $path == $current_worktree ]] && return 0
+  [[ $wt_abs == $main_worktree || $wt_abs == $current_worktree ]] && return 0
 
-  local rel_path=${path#${repo_root:h}/}
-  [[ $rel_path == $path ]] && rel_path=$path
+  local rel_path=${wt_abs#${repo_root:h}/}
+  [[ $rel_path == $wt_abs ]] && rel_path=$wt_abs
 
   local entry=${pr_state[$branch]:-}
   if [[ -z $entry ]]; then
-    # No PR — only auto-delete if the branch has no commits ahead of origin/main.
-    local ahead
-    ahead=$(git -C "$repo_root" rev-list --count "origin/main..${branch}" 2>/dev/null) || return 0
-    (( ahead > 0 )) && return 0                         # has unmerged work: leave alone
-    abs_paths+=("$path")
-    display_lines+=("$(printf '%s\t%s\tno-pr/no-diff' "$rel_path" "$branch")")
-    return 0
+    # Not in the bulk map (no PR, or PR beyond the --limit 500 cap).
+    # Ask gh directly so we don't miss PRs that fell off the --limit 500 cap.
+    local pr_check
+    pr_check=$(gh pr list --head "$branch" --state all --json number,state 2>/dev/null) || pr_check='[]'
+    if [[ $pr_check != '[]' && $pr_check != '' ]]; then
+      # A PR exists — take the first (most recent) one.
+      local pr_st pr_num
+      pr_st=$(print -r -- "$pr_check" | jq -r '.[0].state // empty' 2>/dev/null)
+      pr_num=$(print -r -- "$pr_check" | jq -r '.[0].number // empty' 2>/dev/null)
+      [[ -z $pr_st ]] && return 0
+      entry="${(L)pr_st}#${pr_num}"
+      # fall through to the merged/closed check below
+    else
+      # Truly no PR — only auto-delete if the branch has no commits ahead of origin/main.
+      local ahead
+      ahead=$(git -C "$repo_root" rev-list --count "origin/main..${branch}" 2>/dev/null) || return 0
+      (( ahead > 0 )) && return 0                       # has unmerged work: leave alone
+      abs_paths+=("$wt_abs")
+      display_lines+=("$(printf '%s\t%s\tno-pr/no-diff' "$rel_path" "$branch")")
+      return 0
+    fi
   fi
 
   local pr_state_str=${entry%#*}                        # open | closed | merged
@@ -115,7 +129,7 @@ _prwtrmc_consider() {
     *) return 0 ;;                                      # open / unknown -> skip
   esac
 
-  abs_paths+=("$path")
+  abs_paths+=("$wt_abs")
   display_lines+=("$(printf '%s\t%s\t%s#%s' "$rel_path" "$branch" "$pr_state_str" "$pr_number")")
 }
 
