@@ -1,13 +1,17 @@
 # pr-worktree-rm-merged-closed: automatically delete every git worktree in
-# the current repo whose branch has a GitHub PR that is already merged or
-# closed.
+# the current repo that is safe to discard without losing work. Two cases:
+#
+#   1. merged/closed PR — the branch has a GitHub PR in state `merged` or
+#      `closed`; any leftover changes are stale rebase/merge debris.
+#   2. no-pr + no-diff — the branch has no PR and no commits ahead of
+#      origin/main (`git log --oneline origin/main..<branch>` is empty);
+#      the worktree was created but never actually worked on.
 #
 # Builds the same branch -> pr_state map that pr-worktree-rm uses
 # (`gh pr list --state all --limit 500 --json number,state,headRefName`),
-# walks `git worktree list --porcelain`, and selects every worktree whose
-# branch resolves to a PR in state `merged` or `closed`. The current
-# worktree and the main/primary worktree are always excluded — same gate
-# as pr-worktree-rm.
+# walks `git worktree list --porcelain`, and selects every worktree in
+# either category above. The current worktree and the main/primary worktree
+# are always excluded — same gate as pr-worktree-rm.
 #
 # Lists what it's about to delete and asks for a single y/N confirmation
 # before touching anything. Use --yes / -y to skip the prompt (intended
@@ -15,14 +19,12 @@
 # exit 0.
 #
 # Each worktree is removed with `git worktree remove`; on failure it
-# retries with `--force` (matches pr-worktree-rm semantics — uncommitted
-# changes in a worktree whose PR has already landed are nearly always
-# stale rebase/merge debris). `git worktree prune` runs once at the end.
+# retries with `--force` (matches pr-worktree-rm semantics). `git worktree
+# prune` runs once at the end.
 #
-# Worktrees with `pr-status = no-pr` (no PR ever opened for the branch)
-# or `pr-status = open` are LEFT ALONE — this function only acts on PRs
-# that have reached a terminal state. Use pr-worktree-rm for the
-# interactive picker that can also remove no-pr / open worktrees.
+# Worktrees with `pr-status = open` are LEFT ALONE. Worktrees with no PR
+# that have commits ahead of origin/main are also left alone — use
+# pr-worktree-rm for the interactive picker in those cases.
 #
 # Usage:
 #   pr-worktree-rm-merged-closed             # interactive (prompts y/N)
@@ -81,7 +83,8 @@ while IFS=$'\t' read -r branch state number; do
   pr_state[$branch]="${(L)state}#${number}"
 done < <(print -r -- "$pr_json" | jq -r '.[] | [.headRefName, .state, .number] | @tsv')
 
-# Walk worktrees, collect the ones whose PR is merged or closed.
+# Walk worktrees, collect the ones whose PR is merged/closed OR that have
+# no PR and no commits ahead of origin/main (never actually worked on).
 local -a abs_paths display_lines
 local wt_path="" wt_branch=""
 
@@ -90,8 +93,20 @@ _prwtrmc_consider() {
   [[ -z $branch ]] && return 0                          # detached HEAD: leave alone
   [[ $path == $main_worktree || $path == $current_worktree ]] && return 0
 
+  local rel_path=${path#${repo_root:h}/}
+  [[ $rel_path == $path ]] && rel_path=$path
+
   local entry=${pr_state[$branch]:-}
-  [[ -z $entry ]] && return 0                           # no PR ever opened
+  if [[ -z $entry ]]; then
+    # No PR — only auto-delete if the branch has no commits ahead of origin/main.
+    local ahead
+    ahead=$(git -C "$repo_root" rev-list --count "origin/main..${branch}" 2>/dev/null) || return 0
+    (( ahead > 0 )) && return 0                         # has unmerged work: leave alone
+    abs_paths+=("$path")
+    display_lines+=("$(printf '%s\t%s\tno-pr/no-diff' "$rel_path" "$branch")")
+    return 0
+  fi
+
   local pr_state_str=${entry%#*}                        # open | closed | merged
   local pr_number=${entry#*#}
 
@@ -99,9 +114,6 @@ _prwtrmc_consider() {
     closed | merged) ;;                                 # fall through to add
     *) return 0 ;;                                      # open / unknown -> skip
   esac
-
-  local rel_path=${path#${repo_root:h}/}
-  [[ $rel_path == $path ]] && rel_path=$path
 
   abs_paths+=("$path")
   display_lines+=("$(printf '%s\t%s\t%s#%s' "$rel_path" "$branch" "$pr_state_str" "$pr_number")")
@@ -128,7 +140,7 @@ done < <(git -C "$repo_root" worktree list --porcelain)
 [[ -n $wt_path ]] && _prwtrmc_consider "$wt_path" "$wt_branch"
 
 if (( ${#abs_paths} == 0 )); then
-  print "pr-worktree-rm-merged-closed: no worktrees with merged/closed PRs (excluding main and current)."
+  print "pr-worktree-rm-merged-closed: no deletable worktrees found (excluding main and current)."
   return 0
 fi
 
@@ -136,7 +148,7 @@ fi
 local pretty
 pretty=$(printf '%s\n' "${display_lines[@]}" | column -t -s $'\t')
 
-print "pr-worktree-rm-merged-closed: worktrees with merged/closed PRs:"
+print "pr-worktree-rm-merged-closed: worktrees to delete (merged/closed PR or no-pr/no-diff):"
 print -- "$pretty"
 
 if (( dry_run )); then
