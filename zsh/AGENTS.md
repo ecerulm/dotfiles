@@ -88,6 +88,18 @@ Symptom card: an awk pipeline producing zero output despite healthy upstream →
 
 `$(cd "$dir" && cmd)` leaks `direnv: loading/unloading` when `$dir` is outside the current direnv scope (the chpwd hook fires in the subshell). Fix: scope the redirect to `cd` only — `$(cd "$dir" 2>/dev/null && cmd)`. Do **not** redirect the whole subshell (`$(…) 2>/dev/null`) — that also swallows the inner command's diagnostics. No env-var override exists (`DIRENV_LOG_FORMAT` is not a thing; only `direnv.toml`'s `log_format = "-"` globally, or the per-call redirect). Already applied in the shared dbt helpers.
 
+### Never use `path` as a local variable name
+
+`path` is a zsh tied array — the lowercase synonym for `$PATH`. Under
+`emulate -L zsh`, `local path=$1` fails silently with "inconsistent type
+for assignment": the assignment is dropped and `$path` remains the PATH
+array. All subsequent uses see PATH entries instead of the intended value,
+with no error message.
+
+Use a descriptive name instead: `wt_abs`, `abs_path`, `dir_path`, etc.
+The same applies to other zsh tied scalars/arrays: `cdpath`, `fpath`,
+`manpath`, `mailpath`.
+
 ### Always use OSC 8 hyperlinks for URLs — never print a bare URL
 
 Bare URLs in fzf preview panes (and in terminal output generally) wrap at
