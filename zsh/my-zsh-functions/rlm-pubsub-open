@@ -159,13 +159,15 @@ _pubsub_open_sorted_list() {
 # Picker line layout (tab-separated): <type>\t<project/name>
 # fzf sees both fields (searchable), --nth selects ranges; we keep matching
 # across both so the user can type "bigquery" or "topic" or part of the ref.
+# --multi: TAB toggles several topics/subscriptions; Enter opens all of them.
 local selection
 selection=$(
   { print -r -- "$refresh_sentinel"; _pubsub_open_sorted_list; } \
   | awk -F'\t' '{ printf "%-12s  %s\n", $1, $2 }' \
   | fzf --prompt="Pub/Sub> " --height=80% --reverse \
         --no-mouse --ansi \
-        --header="Type 'topic', 'pull', 'push', 'bigquery', 'cloudstorage' to filter by type" \
+        --multi \
+        --header="TAB: multi-select  Enter: open all  |  Type 'topic', 'pull', 'push', 'bigquery', 'cloudstorage' to filter by type" \
         --preview="
           line={}
           type=\$(printf '%s' \"\$line\" | awk '{print \$1}')
@@ -183,55 +185,74 @@ selection=$(
 
 [[ -z $selection ]] && return 130
 
-# Parse the padded display back into <type><TAB><ref>
-local sel_type sel_ref
-sel_type=${selection%% *}
-sel_ref=${selection##* }
+# Split the (possibly multi-line) selection into individual rows.
+local -a sel_lines
+sel_lines=("${(@f)selection}")
+sel_lines=("${(@)sel_lines:#}")
+(( ${#sel_lines} == 0 )) && return 130
 
-if [[ $sel_type == "refresh" ]]; then
-  local -a to_refresh
-  to_refresh=("${(@f)$(_pubsub_open_pick_projects)}")
-  # Filter out the empty element zsh leaves when the command produced no output
-  to_refresh=("${(@)to_refresh:#}")
-  if (( ${#to_refresh} == 0 )); then
-    return 130
+# If the refresh sentinel is among the selections, it takes over: refresh the
+# cache (ignoring any other co-selected rows) and re-run the picker.
+local line
+for line in "${sel_lines[@]}"; do
+  if [[ ${line%% *} == "refresh" ]]; then
+    local -a to_refresh
+    to_refresh=("${(@f)$(_pubsub_open_pick_projects)}")
+    # Filter out the empty element zsh leaves when the command produced no output
+    to_refresh=("${(@)to_refresh:#}")
+    if (( ${#to_refresh} == 0 )); then
+      return 130
+    fi
+    _pubsub_open_fetch "${to_refresh[@]}" || return 1
+    rlm-pubsub-open
+    return $?
   fi
-  _pubsub_open_fetch "${to_refresh[@]}" || return 1
-  rlm-pubsub-open
-  return $?
-fi
+done
 
-local sel_project sel_name
-sel_project=${sel_ref%%/*}
-sel_name=${sel_ref##*/}
+# Build a URL per selected row, appending each to history.
+local -a urls
+local sel_type sel_ref sel_project sel_name url
+for line in "${sel_lines[@]}"; do
+  # Parse the padded display back into <type> and <ref>
+  sel_type=${line%% *}
+  sel_ref=${line##* }
+  sel_project=${sel_ref%%/*}
+  sel_name=${sel_ref##*/}
 
-# Append the raw TSV line to history (so dedup distinguishes topic vs subscription)
-print -r -- "${sel_type}"$'\t'"${sel_ref}" >> "$history_file"
+  # Append the raw TSV line to history (so dedup distinguishes topic vs subscription)
+  print -r -- "${sel_type}"$'\t'"${sel_ref}" >> "$history_file"
+
+  if [[ $sel_type == "topic" ]]; then
+    url="https://console.cloud.google.com/cloudpubsub/topic/detail/${sel_name}?project=${sel_project}"
+  else
+    url="https://console.cloud.google.com/cloudpubsub/subscription/detail/${sel_name}?project=${sel_project}"
+  fi
+  urls+=("$url")
+  print -r -- "$url"
+done
+
+# Trim history once, after appending every selected row.
 local tmp_history
 tmp_history=$(tail -1000 "$history_file") && print -r -- "$tmp_history" >| "$history_file"
 
-local url
-if [[ $sel_type == "topic" ]]; then
-  url="https://console.cloud.google.com/cloudpubsub/topic/detail/${sel_name}?project=${sel_project}"
-else
-  url="https://console.cloud.google.com/cloudpubsub/subscription/detail/${sel_name}?project=${sel_project}"
-fi
-
-print -r -- "$url"
-
+# Copy all selected URLs (newline-separated) to the clipboard in one shot.
+local clip
+clip=${(F)urls}
 if command -v pbcopy >/dev/null 2>&1; then
-  print -n -- "$url" | pbcopy
-  print "pubsub-open: URL copied to clipboard" >&2
+  print -rn -- "$clip" | pbcopy
+  print "pubsub-open: ${#urls} URL(s) copied to clipboard" >&2
 elif command -v xclip >/dev/null 2>&1; then
-  print -n -- "$url" | xclip -selection clipboard
-  print "pubsub-open: URL copied to clipboard" >&2
+  print -rn -- "$clip" | xclip -selection clipboard
+  print "pubsub-open: ${#urls} URL(s) copied to clipboard" >&2
 elif command -v xsel >/dev/null 2>&1; then
-  print -n -- "$url" | xsel --clipboard --input
-  print "pubsub-open: URL copied to clipboard" >&2
+  print -rn -- "$clip" | xsel --clipboard --input
+  print "pubsub-open: ${#urls} URL(s) copied to clipboard" >&2
 fi
 
 if command -v open >/dev/null 2>&1; then
-  open "$url"
+  open "${urls[@]}"
 elif command -v xdg-open >/dev/null 2>&1; then
-  xdg-open "$url"
+  for url in "${urls[@]}"; do
+    xdg-open "$url"
+  done
 fi

@@ -4,6 +4,12 @@ All notable changes to the zsh configuration are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2026-06-05]
+
+### Changed
+
+- `rlm-pubsub-open`: the main picker now supports multi-select (`--multi`). TAB toggles topics/subscriptions and Enter opens every selected entry at once: each URL is printed to stdout, all of them are copied to the clipboard newline-separated (one `pbcopy`/`xclip`/`xsel` call), and every URL is opened in the browser (a single `open` call on macOS, one `xdg-open` per URL on Linux). Each selected row is appended to history before the history file is trimmed once. If the `--- REFRESH CACHE ---` sentinel is among the selections it still takes priority (refresh the cache, ignore co-selected resources, re-run the picker). With nothing toggled, Enter opens just the highlighted entry as before.
+
 ## [2026-06-04]
 
 ### Changed

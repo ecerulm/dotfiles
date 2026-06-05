@@ -1,7 +1,9 @@
 rlm-pubsub-open
 
 Browse Pub/Sub topics AND subscriptions across one or more GCP
-projects via fzf and open the selected resource in the GCP console.
+projects via fzf and open the selected resource(s) in the GCP
+console. The picker is multi-select: TAB toggles entries and Enter
+opens every selected topic/subscription at once.
 
 Projects are read from the environment variable PUBSUB_OPEN_PROJECTS,
 which must be set before calling this function:
@@ -28,6 +30,10 @@ PICKER LAYOUT
   "topic" to filter to topics only, or any substring of the resource
   name to narrow further.
 
+  TAB toggles an entry into the selection; Enter opens all selected
+  entries. With nothing toggled, Enter opens just the highlighted
+  entry.
+
 CACHING
   The combined topic + subscription list is cached in
   ~/.cache/pubsub-open/ keyed by the sorted project list. On the first
@@ -42,12 +48,18 @@ CACHING
   sentinel (alone or alongside others) refreshes everything.
 
 ON SELECTION
+  For each selected entry:
   1. Prints the GCP console URL to stdout (topic detail page for
      topics, subscription detail page for subscriptions).
-  2. Copies the URL to the clipboard (pbcopy on macOS,
-     xclip/xsel on Linux).
-  3. Opens the URL in the system browser (open on macOS,
-     xdg-open on Linux).
+  Then, for the whole selection:
+  2. Copies all URLs (newline-separated) to the clipboard in one
+     shot (pbcopy on macOS, xclip/xsel on Linux).
+  3. Opens every URL in the system browser (a single `open` call on
+     macOS, one `xdg-open` per URL on Linux).
+
+  If the "--- REFRESH CACHE ---" entry is among the selections it
+  takes priority: the cache is refreshed and any co-selected
+  resources are ignored.
 
 PREVIEW PANE
   Powered by ~/bin/pubsub-preview. For topics, shows:
