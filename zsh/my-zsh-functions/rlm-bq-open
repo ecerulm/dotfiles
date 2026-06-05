@@ -21,6 +21,53 @@ done
 # via these helpers. See zsh/AGENTS.md "Current internal helpers".
 autoload -Uz _rlm-bq-cache _rlm-bq-history _rlm-bq-dead-refs-gc _rlm-bq-refresh-sentinels
 
+# macOS-only: place a multi-flavor payload on the system clipboard via a small
+# inline Swift NSPasteboard program (pbcopy can only set a single plain-text
+# flavor, and AppleScript's RTF handling stores the markup as plain text). The
+# destination app then chooses the richest flavor it understands.
+#   $1 = HTML fragment (<a href=…>label</a>) → RTF + HTML flavors
+#   $2 = Markdown link                        → plain-text + public.markdown
+# Returns swift's exit status (non-zero if HTML parsing/RTF generation failed),
+# so the caller can fall back to a plain `pbcopy`. Mirrors the helper of the
+# same shape in rlm-pubsub-open.
+_bq_open_clip_rich() {
+  HTML_CLIP=$1 PLAIN_CLIP=$2 swift - <<'SWIFT'
+import AppKit
+import Foundation
+
+let env = ProcessInfo.processInfo.environment
+let html = env["HTML_CLIP"] ?? ""
+let plain = env["PLAIN_CLIP"] ?? ""   // Markdown link
+
+let pb = NSPasteboard.general
+pb.clearContents()
+
+let htmlData = Data(html.utf8)
+guard let attr = NSAttributedString(
+        html: htmlData,
+        options: [.documentType: NSAttributedString.DocumentType.html,
+                  .characterEncoding: String.Encoding.utf8.rawValue],
+        documentAttributes: nil) else {
+  FileHandle.standardError.write("bq-open: failed to parse HTML for clipboard\n".data(using: .utf8)!)
+  exit(1)
+}
+guard let rtfData = try? attr.data(
+        from: NSRange(location: 0, length: attr.length),
+        documentAttributes: [.documentType: NSAttributedString.DocumentType.rtf]) else {
+  FileHandle.standardError.write("bq-open: failed to build RTF for clipboard\n".data(using: .utf8)!)
+  exit(1)
+}
+
+let markdownType = NSPasteboard.PasteboardType("public.markdown")
+let item = NSPasteboardItem()
+item.setData(rtfData, forType: .rtf)
+item.setData(htmlData, forType: .html)
+item.setString(plain, forType: .string)        // Markdown is the plain-text flavor
+item.setString(plain, forType: markdownType)    // and a dedicated markdown flavor
+pb.writeObjects([item])
+SWIFT
+}
+
 # Garbage-collect any refs that bq-preview marked as dead on a previous
 # run. No-op when ~/.cache/bq-open/dead-refs.txt is missing/empty.
 _rlm-bq-dead-refs-gc
@@ -189,16 +236,34 @@ esac
 print "${kind}: ${fqn}"
 print "$url"
 
-# Copy to clipboard (macOS pbcopy, Linux xclip/xsel fallback)
-if command -v pbcopy >/dev/null 2>&1; then
-  print -n "$url" | pbcopy
-  print "bq-open: URL copied to clipboard" >&2
+# Copy a multi-format payload to the clipboard. On macOS a small Swift
+# NSPasteboard helper places several flavors at once so the destination app
+# chooses: RTF + HTML carry a hyperlinked "kind: fqn" label (rich editors,
+# mail, chat), while the plain-text flavor holds a Markdown link (and a
+# dedicated public.markdown flavor mirrors it). Falls back to plain `pbcopy`
+# (Markdown) when `swift` is unavailable, and to xclip/xsel (Markdown) on
+# Linux. Mirrors the clipboard handling in rlm-pubsub-open.
+local clip_label html_payload md_payload
+clip_label="${kind}: ${fqn}"
+html_payload="<a href=\"${url}\">${clip_label}</a>"
+md_payload="[${clip_label}](${url})"
+
+if [[ $OSTYPE == darwin* ]] && command -v swift >/dev/null 2>&1; then
+  if _bq_open_clip_rich "$html_payload" "$md_payload"; then
+    print "bq-open: URL copied to clipboard (rich + markdown)" >&2
+  elif command -v pbcopy >/dev/null 2>&1; then
+    print -rn -- "$md_payload" | pbcopy
+    print "bq-open: URL copied to clipboard (markdown; rich copy failed)" >&2
+  fi
+elif command -v pbcopy >/dev/null 2>&1; then
+  print -rn -- "$md_payload" | pbcopy
+  print "bq-open: URL copied to clipboard (markdown)" >&2
 elif command -v xclip >/dev/null 2>&1; then
-  print -n "$url" | xclip -selection clipboard
-  print "bq-open: URL copied to clipboard" >&2
+  print -rn -- "$md_payload" | xclip -selection clipboard
+  print "bq-open: URL copied to clipboard (markdown)" >&2
 elif command -v xsel >/dev/null 2>&1; then
-  print -n "$url" | xsel --clipboard --input
-  print "bq-open: URL copied to clipboard" >&2
+  print -rn -- "$md_payload" | xsel --clipboard --input
+  print "bq-open: URL copied to clipboard (markdown)" >&2
 fi
 
 # Open in system browser
