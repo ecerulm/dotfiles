@@ -52,14 +52,37 @@ ON SELECTION
   1. Prints the GCP console URL to stdout (topic detail page for
      topics, subscription detail page for subscriptions).
   Then, for the whole selection:
-  2. Copies all URLs (newline-separated) to the clipboard in one
-     shot (pbcopy on macOS, xclip/xsel on Linux).
+  2. Copies a multi-format payload to the clipboard (see CLIPBOARD
+     FORMATS below).
   3. Opens every URL in the system browser (a single `open` call on
      macOS, one `xdg-open` per URL on Linux).
 
   If the "--- REFRESH CACHE ---" entry is among the selections it
   takes priority: the cache is refreshed and any co-selected
   resources are ignored.
+
+CLIPBOARD FORMATS
+  On macOS the selection is copied as several pasteboard flavors at
+  once (via a small inline Swift NSPasteboard helper) so the
+  destination app chooses the richest form it understands:
+
+    RTF, HTML       the project/name labels hyperlinked to their GCP
+                    console URLs — paste into a rich editor, mail, or
+                    chat to get clickable links.
+    plain text      Markdown links, one per line:
+                      [project/name](https://console.cloud.google…)
+    public.markdown the same Markdown, under a dedicated UTI for apps
+                    that look for it specifically.
+
+  Because Markdown is the plain-text flavor, pasting into a terminal
+  or a plain-text editor yields the Markdown link syntax rather than
+  a bare URL.
+
+  pbcopy can only set plain text, and AppleScript mangles RTF (it
+  stores the markup as plain text) — hence the Swift helper. When
+  `swift` is unavailable the copy falls back to plain `pbcopy` with
+  the Markdown links. On Linux the Markdown links are copied via
+  xclip or xsel.
 
 PREVIEW PANE
   Powered by ~/bin/pubsub-preview. For topics, shows:
@@ -98,4 +121,6 @@ NOTE ON CREATION DATE
   CreateSubscription`) — too slow for a preview pane and bounded by
   audit-log retention.
 
-Requires: gcloud (Google Cloud SDK), fzf, jq.
+Requires: gcloud (Google Cloud SDK), fzf, jq. Optional: swift (for
+the rich/multi-format clipboard copy on macOS; falls back to plain
+Markdown via pbcopy without it).

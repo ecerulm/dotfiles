@@ -124,6 +124,52 @@ _pubsub_open_pick_projects() {
   fi
 }
 
+# macOS-only: place a multi-flavor payload on the system clipboard via a small
+# inline Swift NSPasteboard program (pbcopy can only set a single plain-text
+# flavor, and AppleScript's RTF handling stores the markup as plain text). The
+# destination app then chooses the richest flavor it understands.
+#   $1 = HTML fragment (<a href=…>label</a> joined by <br>) → RTF + HTML flavors
+#   $2 = Markdown links (one per line)                       → plain-text + public.markdown
+# Returns swift's exit status (non-zero if HTML parsing/RTF generation failed),
+# so the caller can fall back to a plain `pbcopy`.
+_pubsub_open_clip_rich() {
+  HTML_CLIP=$1 PLAIN_CLIP=$2 swift - <<'SWIFT'
+import AppKit
+import Foundation
+
+let env = ProcessInfo.processInfo.environment
+let html = env["HTML_CLIP"] ?? ""
+let plain = env["PLAIN_CLIP"] ?? ""   // Markdown links
+
+let pb = NSPasteboard.general
+pb.clearContents()
+
+let htmlData = Data(html.utf8)
+guard let attr = NSAttributedString(
+        html: htmlData,
+        options: [.documentType: NSAttributedString.DocumentType.html,
+                  .characterEncoding: String.Encoding.utf8.rawValue],
+        documentAttributes: nil) else {
+  FileHandle.standardError.write("pubsub-open: failed to parse HTML for clipboard\n".data(using: .utf8)!)
+  exit(1)
+}
+guard let rtfData = try? attr.data(
+        from: NSRange(location: 0, length: attr.length),
+        documentAttributes: [.documentType: NSAttributedString.DocumentType.rtf]) else {
+  FileHandle.standardError.write("pubsub-open: failed to build RTF for clipboard\n".data(using: .utf8)!)
+  exit(1)
+}
+
+let markdownType = NSPasteboard.PasteboardType("public.markdown")
+let item = NSPasteboardItem()
+item.setData(rtfData, forType: .rtf)
+item.setData(htmlData, forType: .html)
+item.setString(plain, forType: .string)        // Markdown is the plain-text flavor
+item.setString(plain, forType: markdownType)    // and a dedicated markdown flavor
+pb.writeObjects([item])
+SWIFT
+}
+
 if [[ ! -f $cache_file ]]; then
   _pubsub_open_fetch || return 1
 fi
@@ -209,8 +255,10 @@ for line in "${sel_lines[@]}"; do
   fi
 done
 
-# Build a URL per selected row, appending each to history.
-local -a urls
+# Build a URL per selected row, appending each to history. Alongside the raw
+# URLs we collect the display label (project/name) and pre-rendered HTML and
+# Markdown link forms so we can put a multi-format payload on the clipboard.
+local -a urls labels html_links md_links
 local sel_type sel_ref sel_project sel_name url
 for line in "${sel_lines[@]}"; do
   # Parse the padded display back into <type> and <ref>
@@ -228,6 +276,9 @@ for line in "${sel_lines[@]}"; do
     url="https://console.cloud.google.com/cloudpubsub/subscription/detail/${sel_name}?project=${sel_project}"
   fi
   urls+=("$url")
+  labels+=("$sel_ref")
+  html_links+=("<a href=\"${url}\">${sel_ref}</a>")
+  md_links+=("[${sel_ref}](${url})")
   print -r -- "$url"
 done
 
@@ -235,18 +286,32 @@ done
 local tmp_history
 tmp_history=$(tail -1000 "$history_file") && print -r -- "$tmp_history" >| "$history_file"
 
-# Copy all selected URLs (newline-separated) to the clipboard in one shot.
-local clip
-clip=${(F)urls}
-if command -v pbcopy >/dev/null 2>&1; then
-  print -rn -- "$clip" | pbcopy
-  print "pubsub-open: ${#urls} URL(s) copied to clipboard" >&2
+# Copy a multi-format payload to the clipboard. On macOS we use a small Swift
+# NSPasteboard helper to place several flavors at once so the destination app
+# chooses: RTF + HTML carry the hyperlinked project/name labels (rich editors,
+# mail, chat), while the plain-text flavor holds Markdown links (and a dedicated
+# public.markdown flavor mirrors it). Falls back to plain `pbcopy` (Markdown)
+# when `swift` is unavailable, and to xclip/xsel (Markdown) on Linux.
+local md_payload html_payload
+md_payload=${(F)md_links}                       # one Markdown link per line
+html_payload=${(j:<br>:)html_links}             # <a> links joined by <br>
+
+if [[ $OSTYPE == darwin* ]] && command -v swift >/dev/null 2>&1; then
+  if _pubsub_open_clip_rich "$html_payload" "$md_payload"; then
+    print "pubsub-open: ${#urls} URL(s) copied to clipboard (rich + markdown)" >&2
+  elif command -v pbcopy >/dev/null 2>&1; then
+    print -rn -- "$md_payload" | pbcopy
+    print "pubsub-open: ${#urls} URL(s) copied to clipboard (markdown; rich copy failed)" >&2
+  fi
+elif command -v pbcopy >/dev/null 2>&1; then
+  print -rn -- "$md_payload" | pbcopy
+  print "pubsub-open: ${#urls} URL(s) copied to clipboard (markdown)" >&2
 elif command -v xclip >/dev/null 2>&1; then
-  print -rn -- "$clip" | xclip -selection clipboard
-  print "pubsub-open: ${#urls} URL(s) copied to clipboard" >&2
+  print -rn -- "$md_payload" | xclip -selection clipboard
+  print "pubsub-open: ${#urls} URL(s) copied to clipboard (markdown)" >&2
 elif command -v xsel >/dev/null 2>&1; then
-  print -rn -- "$clip" | xsel --clipboard --input
-  print "pubsub-open: ${#urls} URL(s) copied to clipboard" >&2
+  print -rn -- "$md_payload" | xsel --clipboard --input
+  print "pubsub-open: ${#urls} URL(s) copied to clipboard (markdown)" >&2
 fi
 
 if command -v open >/dev/null 2>&1; then
