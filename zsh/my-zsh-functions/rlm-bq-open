@@ -25,8 +25,8 @@ autoload -Uz _rlm-bq-cache _rlm-bq-history _rlm-bq-dead-refs-gc _rlm-bq-refresh-
 # inline Swift NSPasteboard program (pbcopy can only set a single plain-text
 # flavor, and AppleScript's RTF handling stores the markup as plain text). The
 # destination app then chooses the richest flavor it understands.
-#   $1 = HTML fragment (<a href=…>label</a>) → RTF + HTML flavors
-#   $2 = Markdown link                        → plain-text + public.markdown
+#   $1 = HTML fragment (<a href=…>label</a> joined by <br>) → RTF + HTML flavors
+#   $2 = Markdown links (one per line)                       → plain-text + public.markdown
 # Returns swift's exit status (non-zero if HTML parsing/RTF generation failed),
 # so the caller can fall back to a plain `pbcopy`. Mirrors the helper of the
 # same shape in rlm-pubsub-open.
@@ -158,6 +158,8 @@ selection=$(
     { key = $2; gsub(/\033\[[0-9;]*m/, "", key); if (!seen[key]++) print }' \
   | fzf --ansi --prompt="BigQuery table> " --height=80% --reverse \
         --no-mouse \
+        --multi \
+        --header="TAB: multi-select  Enter: open all" \
         --delimiter=$'\t' \
         --with-nth=1,2 \
         --nth=2 \
@@ -169,106 +171,128 @@ selection=$(
 
 [[ -z $selection ]] && return 130
 
-# selection is TAB-delimited: "COLOUR_OPENER<TAB>BQ_REF+RESET"
-# Extract the BQ ref (second field, strip any trailing ANSI) and whether it's sandbox
-local sel_tag sel_bq_ref
-sel_tag="${selection%%$'\t'*}"
-sel_bq_ref=$(printf '%s' "${selection#*$'\t'}" | sed 's/\x1b\[[0-9;]*m//g')
+# Split the (possibly multi-line) selection into individual rows. Each row is
+# TAB-delimited: "COLOUR_OPENER<TAB>BQ_REF+RESET".
+local -a sel_lines
+sel_lines=("${(@f)selection}")
+sel_lines=("${(@)sel_lines:#}")
+(( ${#sel_lines} == 0 )) && return 130
 
-if _rlm-bq-refresh-sentinels is-main "$sel_bq_ref"; then
-  _rlm-bq-refresh-sentinels apply-main || return 1
-  rlm-bq-open
-  return $?
-fi
-if _rlm-bq-refresh-sentinels is-sandbox "$sel_bq_ref"; then
-  _rlm-bq-refresh-sentinels apply-sandbox
-  rlm-bq-open
-  return $?
-fi
+# If a refresh sentinel is among the selections, it takes over: refresh the
+# corresponding cache (ignoring any other co-selected rows) and re-run the
+# picker. The sentinels are mutually exclusive in practice, but checking each
+# selected row keeps the behaviour predictable regardless of selection order.
+local line _tag _ref
+for line in "${sel_lines[@]}"; do
+  _ref=$(printf '%s' "${line#*$'\t'}" | sed 's/\x1b\[[0-9;]*m//g')
+  if _rlm-bq-refresh-sentinels is-main "$_ref"; then
+    _rlm-bq-refresh-sentinels apply-main || return 1
+    rlm-bq-open
+    return $?
+  fi
+  if _rlm-bq-refresh-sentinels is-sandbox "$_ref"; then
+    _rlm-bq-refresh-sentinels apply-sandbox
+    rlm-bq-open
+    return $?
+  fi
+done
 
-# raw_selection is the plain BQ ref: project:dataset.table
-local raw_selection="$sel_bq_ref"
+# Build a console URL per selected table. Alongside the raw URLs we collect the
+# pre-rendered HTML and Markdown link forms so we can put a single multi-format
+# payload on the clipboard covering every selected table.
+local -a urls html_links md_links
+local sel_tag sel_bq_ref sel_project dataset_table sel_dataset sel_table
+local is_sandbox plain_tag url fqn kind type_raw clip_label
+for line in "${sel_lines[@]}"; do
+  sel_tag="${line%%$'\t'*}"
+  sel_bq_ref=$(printf '%s' "${line#*$'\t'}" | sed 's/\x1b\[[0-9;]*m//g')
 
-local sel_project dataset_table sel_dataset sel_table
-sel_project=${raw_selection%%:*}
-dataset_table=${raw_selection##*:}
-sel_dataset=${dataset_table%%.*}
-sel_table=${dataset_table##*.}
+  # Parse the plain BQ ref: project:dataset.table
+  sel_project=${sel_bq_ref%%:*}
+  dataset_table=${sel_bq_ref##*:}
+  sel_dataset=${dataset_table%%.*}
+  sel_table=${dataset_table##*.}
 
-# Determine if this is a sandbox entry (tag field non-empty after stripping ANSI)
-local is_sandbox=0
-local plain_tag
-plain_tag=$(printf '%s' "$sel_tag" | sed 's/\x1b\[[0-9;]*m//g')
-[[ -n $plain_tag ]] && is_sandbox=1
+  # Determine if this row came from a sandbox-coloured entry (tag field
+  # non-empty after stripping ANSI).
+  is_sandbox=0
+  plain_tag=$(printf '%s' "$sel_tag" | sed 's/\x1b\[[0-9;]*m//g')
+  [[ -n $plain_tag ]] && is_sandbox=1
 
-# Append to the shared pooled history. The "sandbox" flag is recorded
-# whenever the pick came from a sandbox-coloured row, so every other
-# rlm-bq-* picker can render it in purple too.
-if (( is_sandbox )); then
-  _rlm-bq-history append bq-open "$raw_selection" sandbox
-else
-  _rlm-bq-history append bq-open "$raw_selection"
-fi
+  # Append to the shared pooled history. The "sandbox" flag is recorded
+  # whenever the pick came from a sandbox-coloured row, so every other
+  # rlm-bq-* picker can render it in purple too.
+  if (( is_sandbox )); then
+    _rlm-bq-history append bq-open "$sel_bq_ref" sandbox
+  else
+    _rlm-bq-history append bq-open "$sel_bq_ref"
+  fi
 
-# GCP console deep-link for a specific table in the BigQuery UI. URL
-# construction is delegated to the shared `~/bin/bq-console-url` helper,
-# which is the single source of truth for the deep-link format (also used
-# by rlm-sandbox-bq-open, rlm-dbt-bq-link, and the OSC 8 hyperlink in
-# dbt-model-preview).
-local url fqn kind type_raw
-url=$("$HOME/bin/bq-console-url" "${sel_project}:${sel_dataset}.${sel_table}")
-fqn="${sel_project}.${sel_dataset}.${sel_table}"
+  # GCP console deep-link for a specific table in the BigQuery UI. URL
+  # construction is delegated to the shared `~/bin/bq-console-url` helper,
+  # which is the single source of truth for the deep-link format (also used
+  # by rlm-sandbox-bq-open, rlm-dbt-bq-link, and the OSC 8 hyperlink in
+  # dbt-model-preview).
+  url=$("$HOME/bin/bq-console-url" "${sel_project}:${sel_dataset}.${sel_table}")
+  fqn="${sel_project}.${sel_dataset}.${sel_table}"
 
-# Determine TABLE vs VIEW (or MATERIALIZED_VIEW/EXTERNAL/SNAPSHOT) for the
-# label prefix. `bq show --format=json` is one round-trip; if it fails we
-# fall back to a bare "TABLE" prefix rather than blocking the open.
-type_raw=$(bq show --format=json "${sel_project}:${sel_dataset}.${sel_table}" 2>/dev/null \
-  | jq -r '.type // "TABLE"' 2>/dev/null)
-case "$type_raw" in
-  VIEW)               kind="VIEW" ;;
-  MATERIALIZED_VIEW)  kind="MATERIALIZED_VIEW" ;;
-  EXTERNAL)           kind="EXTERNAL" ;;
-  SNAPSHOT)           kind="SNAPSHOT" ;;
-  "" )                kind="TABLE" ;;
-  *)                  kind="$type_raw" ;;
-esac
+  # Determine TABLE vs VIEW (or MATERIALIZED_VIEW/EXTERNAL/SNAPSHOT) for the
+  # label prefix. `bq show --format=json` is one round-trip; if it fails we
+  # fall back to a bare "TABLE" prefix rather than blocking the open.
+  type_raw=$(bq show --format=json "${sel_project}:${sel_dataset}.${sel_table}" 2>/dev/null \
+    | jq -r '.type // "TABLE"' 2>/dev/null)
+  case "$type_raw" in
+    VIEW)               kind="VIEW" ;;
+    MATERIALIZED_VIEW)  kind="MATERIALIZED_VIEW" ;;
+    EXTERNAL)           kind="EXTERNAL" ;;
+    SNAPSHOT)           kind="SNAPSHOT" ;;
+    "" )                kind="TABLE" ;;
+    *)                  kind="$type_raw" ;;
+  esac
 
-print "${kind}: ${fqn}"
-print "$url"
+  clip_label="${kind}: ${fqn}"
+  urls+=("$url")
+  html_links+=("<a href=\"${url}\">${clip_label}</a>")
+  md_links+=("[${clip_label}](${url})")
+
+  print "$clip_label"
+  print "$url"
+done
 
 # Copy a multi-format payload to the clipboard. On macOS a small Swift
 # NSPasteboard helper places several flavors at once so the destination app
-# chooses: RTF + HTML carry a hyperlinked "kind: fqn" label (rich editors,
-# mail, chat), while the plain-text flavor holds a Markdown link (and a
+# chooses: RTF + HTML carry the hyperlinked "kind: fqn" labels (rich editors,
+# mail, chat), while the plain-text flavor holds Markdown links (and a
 # dedicated public.markdown flavor mirrors it). Falls back to plain `pbcopy`
 # (Markdown) when `swift` is unavailable, and to xclip/xsel (Markdown) on
 # Linux. Mirrors the clipboard handling in rlm-pubsub-open.
-local clip_label html_payload md_payload
-clip_label="${kind}: ${fqn}"
-html_payload="<a href=\"${url}\">${clip_label}</a>"
-md_payload="[${clip_label}](${url})"
+local md_payload html_payload
+md_payload=${(F)md_links}                       # one Markdown link per line
+html_payload=${(j:<br>:)html_links}             # <a> links joined by <br>
 
 if [[ $OSTYPE == darwin* ]] && command -v swift >/dev/null 2>&1; then
   if _bq_open_clip_rich "$html_payload" "$md_payload"; then
-    print "bq-open: URL copied to clipboard (rich + markdown)" >&2
+    print "bq-open: ${#urls} URL(s) copied to clipboard (rich + markdown)" >&2
   elif command -v pbcopy >/dev/null 2>&1; then
     print -rn -- "$md_payload" | pbcopy
-    print "bq-open: URL copied to clipboard (markdown; rich copy failed)" >&2
+    print "bq-open: ${#urls} URL(s) copied to clipboard (markdown; rich copy failed)" >&2
   fi
 elif command -v pbcopy >/dev/null 2>&1; then
   print -rn -- "$md_payload" | pbcopy
-  print "bq-open: URL copied to clipboard (markdown)" >&2
+  print "bq-open: ${#urls} URL(s) copied to clipboard (markdown)" >&2
 elif command -v xclip >/dev/null 2>&1; then
   print -rn -- "$md_payload" | xclip -selection clipboard
-  print "bq-open: URL copied to clipboard (markdown)" >&2
+  print "bq-open: ${#urls} URL(s) copied to clipboard (markdown)" >&2
 elif command -v xsel >/dev/null 2>&1; then
   print -rn -- "$md_payload" | xsel --clipboard --input
-  print "bq-open: URL copied to clipboard (markdown)" >&2
+  print "bq-open: ${#urls} URL(s) copied to clipboard (markdown)" >&2
 fi
 
-# Open in system browser
+# Open every selected table in the system browser.
 if command -v open >/dev/null 2>&1; then
-  open "$url"
+  open "${urls[@]}"
 elif command -v xdg-open >/dev/null 2>&1; then
-  xdg-open "$url"
+  for url in "${urls[@]}"; do
+    xdg-open "$url"
+  done
 fi

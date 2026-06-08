@@ -4,6 +4,12 @@ All notable changes to the zsh configuration are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2026-06-08]
+
+### Changed
+
+- `rlm-bq-open`: the main picker now supports multi-select (`--multi`, header `TAB: multi-select  Enter: open all`). TAB toggles tables and Enter opens every selected table at once: each kind-tagged fqn and URL is printed to stdout, every selected table is appended to the pooled history, all of them are copied to the clipboard in a single multi-format payload (RTF/HTML hyperlinks joined by `<br>`, Markdown links one per line), and each URL is opened in the browser (a single `open` call on macOS, one `xdg-open` per URL on Linux). If a `--- REFRESH CACHE ---` sentinel (main or sandbox) is among the selections it still takes priority — refresh the matching cache, ignore co-selected tables, re-run the picker. With nothing toggled, Enter opens just the highlighted table as before. Mirrors the multi-select behaviour added to `rlm-pubsub-open`.
+
 ## [2026-06-05]
 
 ### Changed
