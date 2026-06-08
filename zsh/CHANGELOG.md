@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [2026-06-08]
 
+### Fixed
+
+- `rlm-pr-worktree`: PR selections now reliably set the branch upstream. The PR path used to pre-create the branch with `git worktree add <pr_branch>` (falling back to a synthetic `pr-<N>` branch) and then run `gh pr checkout -f` only to fix up tracking; when the fallback hit, the worktree landed on a `pr-<N>` branch with no upstream and `gh pr checkout` could not reconfigure it (failures were merely warned about). Now the worktree is created empty and detached (`git worktree add --detach --no-checkout <path> HEAD`) so it claims no branch name, then `gh pr checkout <N>` creates and configures the real branch inside it — setting `branch.<name>.remote`/`.merge` correctly for both same-repo and fork PRs so `git pull` works with no args. If `gh pr checkout` fails, the empty worktree is removed and the function returns 1 instead of leaving a half-worktree.
+
 ### Changed
 
 - `rlm-bq-open`: the main picker now supports multi-select (`--multi`, header `TAB: multi-select  Enter: open all`). TAB toggles tables and Enter opens every selected table at once: each kind-tagged fqn and URL is printed to stdout, every selected table is appended to the pooled history, all of them are copied to the clipboard in a single multi-format payload (RTF/HTML hyperlinks joined by `<br>`, Markdown links one per line), and each URL is opened in the browser (a single `open` call on macOS, one `xdg-open` per URL on Linux). If a `--- REFRESH CACHE ---` sentinel (main or sandbox) is among the selections it still takes priority — refresh the matching cache, ignore co-selected tables, re-run the picker. With nothing toggled, Enter opens just the highlighted table as before. Mirrors the multi-select behaviour added to `rlm-pubsub-open`.
