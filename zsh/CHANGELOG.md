@@ -4,6 +4,12 @@ All notable changes to the zsh configuration are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2026-06-09]
+
+### Fixed
+
+- `rlm-gh-fork`: fork the *current* repo (`gh repo fork --clone=false --remote=false`) instead of passing the upstream slug as an argument (`gh repo fork "$upstream_slug" --clone=false --remote=false`). As of gh 2.93.0 the `--clone`/`--remote` flags are rejected when a `<repository>` argument is given ("the `--remote` flag is unsupported when a repository argument is provided"), and — worse — `gh repo fork <repo>` forks *and clones* into a new subdirectory. Forking the current repo with no argument keeps the flags valid so gh only creates the fork remotely, leaving the existing local clone in place; the function then rewires its `upstream`/`origin` remotes as before. (The current repo always resolves to the intended upstream in the creation path: if it were already the user's fork, the fork-exists check would short-circuit first.)
+
 ## [2026-06-08]
 
 ### Fixed

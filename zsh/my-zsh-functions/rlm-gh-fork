@@ -77,7 +77,14 @@ if (( fork_exists )); then
   print -r -- "gh-fork: fork already exists: ${fork_slug}"
 else
   print -r -- "gh-fork: creating fork ${fork_slug} from ${upstream_slug}…"
-  gh repo fork "$upstream_slug" --clone=false --remote=false || {
+  # Fork the *current* repo (no argument). gh ≥2.93 rejects --clone/--remote
+  # when a <repository> argument is given, and with an argument gh forks AND
+  # clones into a new subdirectory — not what we want. Forking the current
+  # repo lets us pass --clone=false --remote=false so gh only creates the
+  # fork remotely; we wire upstream/origin remotes on the current clone
+  # below. (The current repo always resolves to $upstream_slug here: if it
+  # were already my fork, fork_exists would be set and we'd skip this path.)
+  gh repo fork --clone=false --remote=false || {
     print -u2 -r -- "gh-fork: 'gh repo fork' failed"
     return 1
   }
