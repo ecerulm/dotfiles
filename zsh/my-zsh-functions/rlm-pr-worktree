@@ -178,10 +178,12 @@ _prwt_make_suffix_worktree() {
     git -C "$repo_root" worktree add "$worktree_path" "$suffix" || return 1
   else
     git -C "$repo_root" worktree add -b "$suffix" "$worktree_path" "origin/$default_branch" || return 1
+    git -C "$worktree_path" config "branch.${suffix}.remote" origin
+    git -C "$worktree_path" config "branch.${suffix}.merge" "refs/heads/${suffix}"
   fi
 
   cd -- "$worktree_path"
-  git pull
+  git pull --no-rebase 2>/dev/null || true
 }
 
 # Normalize a free-form suffix into a token using the given separator.
@@ -280,10 +282,12 @@ _prwt_make_jira_worktree() {
     git -C "$repo_root" worktree add "$worktree_path" "$branch" || return 1
   else
     git -C "$repo_root" worktree add -b "$branch" "$worktree_path" "origin/$default_branch" || return 1
+    git -C "$worktree_path" config "branch.${branch}.remote" origin
+    git -C "$worktree_path" config "branch.${branch}.merge" "refs/heads/${branch}"
   fi
 
   cd -- "$worktree_path"
-  git pull
+  git pull --no-rebase 2>/dev/null || true
 }
 
 # --- direct-arg fast path --------------------------------------------------

@@ -4,6 +4,12 @@ All notable changes to the zsh configuration are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2026-06-12]
+
+### Fixed
+
+- `rlm-pr-worktree`: after creating a new branch (suffix or JIRA flow), set `branch.<name>.remote=origin` and `branch.<name>.merge=refs/heads/<name>` so `git push` tracks the same-named remote branch instead of pushing to `origin/main`.
+
 ## [2026-06-09]
 
 ### Fixed
