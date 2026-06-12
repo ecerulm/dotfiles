@@ -71,16 +71,23 @@ if [[ -f $cache_file ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# Determine the set of DAG files changed in this branch vs the merge-base
-# with the repository's default branch (origin/HEAD). Failure here is
-# non-fatal: the picker still works, just without the green-changed
-# highlighting / sort-changed-first behavior.
+# Determine, for the picker, two sets of DAG files:
+#
+#   local_set   — files with uncommitted edits in the working tree (staged
+#                 or unstaged vs HEAD). Shown yellow, sorted first.
+#   changed_set — files committed in this branch vs the merge-base with the
+#                 repository's default branch (origin/HEAD), EXCLUDING the
+#                 locally-edited ones. Shown green, sorted second.
+#
+# Everything else is unhighlighted (default color), sorted last. Failure
+# here is non-fatal: the picker still works, just without the highlighting /
+# sort-changed-first behavior.
 # ---------------------------------------------------------------------------
 
-typeset -A changed_set
+typeset -A changed_set local_set
 local changed_ok=0
 if git rev-parse --git-dir >/dev/null 2>&1; then
-  local default_branch fork_point git_root
+  local default_branch fork_point git_root cwd_rel changed_file
   default_branch=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||')
   if [[ -z $default_branch ]]; then
     default_branch=$(git remote show origin 2>/dev/null | awk '/HEAD branch/ {print $NF}')
@@ -93,22 +100,40 @@ if git rev-parse --git-dir >/dev/null 2>&1; then
   fi
   if [[ -n $fork_point ]]; then
     git_root=$(git rev-parse --show-toplevel)
-    local cwd_rel
     cwd_rel=${PWD#"${git_root}/"}
     [[ $PWD == $git_root ]] && cwd_rel=""
-    local changed_file
-    while IFS= read -r changed_file; do
-      [[ -z $changed_file ]] && continue
-      # Convert repo-root-relative path to cwd-relative path (matches
-      # what `fd` emits below).
+
+    # Helper: convert a repo-root-relative path to cwd-relative (matching
+    # what `fd` emits below). Sets reply; returns 1 if outside cwd.
+    _afw_to_cwd_rel() {
+      local p=$1
       if [[ -n $cwd_rel ]]; then
-        case $changed_file in
-          "${cwd_rel}/"*) changed_file=${changed_file#${cwd_rel}/} ;;
-          *) continue ;;
+        case $p in
+          "${cwd_rel}/"*) p=${p#${cwd_rel}/} ;;
+          *) return 1 ;;
         esac
       fi
-      changed_set[$changed_file]=1
+      reply=$p
+      return 0
+    }
+
+    # Locally-edited files: working tree (and index) differing from HEAD.
+    while IFS= read -r changed_file; do
+      [[ -z $changed_file ]] && continue
+      _afw_to_cwd_rel "$changed_file" || continue
+      local_set[$reply]=1
+    done < <(git diff --name-only HEAD 2>/dev/null)
+
+    # Branch-touched files vs the fork point; drop any already in local_set
+    # so each file lands in exactly one group.
+    while IFS= read -r changed_file; do
+      [[ -z $changed_file ]] && continue
+      _afw_to_cwd_rel "$changed_file" || continue
+      [[ -n ${local_set[$reply]} ]] && continue
+      changed_set[$reply]=1
     done < <(git diff --name-only "$fork_point" 2>/dev/null)
+
+    unfunction _afw_to_cwd_rel
     changed_ok=1
   fi
 fi
@@ -138,20 +163,24 @@ else
 fi
 
 # Each picker line: "<group>\t<-mtime>\t<display>\t<raw-path>"
-#   group:   0 = changed-in-branch (sorts first), 1 = unchanged
+#   group:   0 = locally edited (yellow), 1 = branch-touched (green),
+#            2 = unchanged (default). Lower group sorts first.
 #   -mtime:  negative epoch so plain numeric sort yields newer-first
-#   display: path with green ANSI for changed entries (shown by fzf)
+#   display: path with ANSI color per group (shown by fzf)
 #   raw:     unstyled path (read back from fzf via --delimiter / cut)
 local -a picker_lines
 local f mtime group display
-local green=$'\e[32m' reset=$'\e[0m'
+local yellow=$'\e[33m' green=$'\e[32m' reset=$'\e[0m'
 for f in $dag_files; do
   mtime=$(stat $stat_fmt "$f" 2>/dev/null) || mtime=0
-  if (( changed_ok )) && [[ -n ${changed_set[$f]} ]]; then
+  if (( changed_ok )) && [[ -n ${local_set[$f]} ]]; then
     group=0
+    display="${yellow}${f}${reset}"
+  elif (( changed_ok )) && [[ -n ${changed_set[$f]} ]]; then
+    group=1
     display="${green}${f}${reset}"
   else
-    group=1
+    group=2
     display="$f"
   fi
   picker_lines+=("${group}	-${mtime}	${display}	${f}")

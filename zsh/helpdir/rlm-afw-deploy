@@ -20,9 +20,12 @@ WHAT IT DOES
      if afw is still not in the venv after that, aborts with a
      three-line diagnostic (expected venv, resolved afw, project dir).
   3. Opens an fzf picker over *.py files in airflow_manager/dag_folder/.
-     Entries are sorted with files changed on the current branch
-     first (vs the merge-base / fork-point with origin/HEAD), then by
-     mtime (newest first). Changed files are displayed in green.
+     Entries are grouped, newest first within each group:
+       - locally edited (uncommitted vs HEAD)      — yellow, on top
+       - touched in this branch (vs the merge-base
+         / fork-point with origin/HEAD)            — green, below
+       - everything else                           — default color
+     Within each group, files are sorted by mtime (newest first).
   4. Deploys the selected DAG:
 
        poetry run afw sandbox deploy \
@@ -36,10 +39,11 @@ PICKER LAYOUT
   columns (group, -mtime) and a display column plus a raw-path
   column. fzf's --delimiter=$'\t' --with-nth=3 shows only the
   colored display column; the raw path is read back from the 4th
-  field, so no ANSI strip-on-readback is needed. If the working
+  field, so no ANSI strip-on-readback is needed. The group column is
+  0 = locally edited, 1 = branch-touched, 2 = unchanged. If the working
   directory is not a git repo, or the default branch / merge-base
-  can't be determined, the branch-changed-first / green-highlight
-  pass is skipped and the picker still works (sorted by mtime only).
+  can't be determined, the grouping / color-highlight pass is skipped
+  and the picker still works (sorted by mtime only).
 
 LAST SELECTION
   The last DAG chosen for each project root is cached in

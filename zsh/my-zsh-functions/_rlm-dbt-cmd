@@ -133,7 +133,24 @@ repo_root=$(git root 2>/dev/null) || {
   return 1
 }
 
-local dbt_root="$repo_root/$DBT_PROJECT_SUBDIR"
+# Resolve the dbt project root. Prefer the nearest dbt_project.yml found by
+# walking up from $PWD (still inside this repo) — this is robust against a
+# stale $DBT_PROJECT_SUBDIR left over from a different repo/worktree, which
+# would otherwise produce a cross-repo --profiles-dir (see the rlm-dbt
+# dispatcher's auto-derivation). Fall back to $repo_root/$DBT_PROJECT_SUBDIR
+# only when no dbt_project.yml is found above $PWD.
+local dbt_root=""
+local _dr_dir=$PWD
+while [[ $_dr_dir == "$repo_root"/* || $_dr_dir == "$repo_root" ]]; do
+  if [[ -f "$_dr_dir/dbt_project.yml" ]]; then
+    dbt_root="$_dr_dir"
+    break
+  fi
+  [[ $_dr_dir == "$repo_root" ]] && break
+  _dr_dir="${_dr_dir:h}"
+done
+[[ -z $dbt_root ]] && dbt_root="$repo_root/$DBT_PROJECT_SUBDIR"
+
 local profiles_dir="$dbt_root/profile"
 if [[ ! -d $profiles_dir ]]; then
   print -u2 "${label}: profiles dir not found: $profiles_dir"

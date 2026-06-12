@@ -77,10 +77,18 @@ else
   done
 fi
 
-# Auto-inject --profiles-dir from $DBT_PROFILES_DIR if set, unless the
-# user already supplied one.
-if [[ -n ${DBT_PROFILES_DIR:-} ]] && ! (( ${@[(I)--profiles-dir]} )); then
-  injected+=(--profiles-dir "$DBT_PROFILES_DIR")
+# Auto-inject --profiles-dir, unless the user already supplied one. Prefer a
+# `profile/` dir colocated with the resolved dbt project (i.e. the
+# dbt_project.yml found by walking up from $PWD) — this keeps the profiles
+# dir in lock-step with the project even when $DBT_PROFILES_DIR is stale
+# (e.g. left over from a different repo/worktree). Fall back to
+# $DBT_PROFILES_DIR only when no colocated profile/ dir exists.
+if ! (( ${@[(I)--profiles-dir]} )); then
+  if [[ -n $_proj_dir && -d "$_proj_dir/profile" ]]; then
+    injected+=(--profiles-dir "$_proj_dir/profile")
+  elif [[ -n ${DBT_PROFILES_DIR:-} ]]; then
+    injected+=(--profiles-dir "$DBT_PROFILES_DIR")
+  fi
 fi
 
 # Auto-inject --defer + --state for the subcommands that accept them. The
