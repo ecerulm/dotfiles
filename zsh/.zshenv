@@ -9,6 +9,15 @@
 # so accidental double-adds in .zshrc / installer snippets are absorbed.
 typeset -U path PATH fpath
 
+# Repair an inherited stale $FPATH after a Homebrew zsh upgrade. A long-lived
+# login session exports $FPATH pointing at Cellar/zsh/<version>/.../functions;
+# once `brew upgrade zsh` bumps the version that dir disappears and core
+# functions (compinit, add-zsh-hook, VCS_INFO_*) fail with "function definition
+# file not found". Drop any nonexistent fpath entries — the `(N-/)` qualifier
+# keeps only dirs that exist — and add the version-independent Homebrew dir
+# (its files are symlinks Homebrew re-points on every upgrade).
+fpath=(${^fpath}(N-/) /opt/homebrew/share/zsh/functions /opt/homebrew/share/zsh/site-functions)
+
 # fpath is the search path for function definitions
 fpath+=~/dotfiles/zsh/my-zsh-functions
 # Private functions (machine/company-specific, not committed to git)
