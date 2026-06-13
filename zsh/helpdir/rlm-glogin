@@ -1,0 +1,16 @@
+rlm-glogin [-f|--force]
+
+Ensure valid gcloud Application Default Credentials (ADC) are in place.
+Checks whether the stored ADC can still mint an access token; if they
+are missing, expired, or revoked, it runs an interactive
+`gcloud auth login --enable-gdrive-access --update-adc` so the new
+credentials also carry the Google Drive scope (needed for federated
+BigQuery external tables backed by Drive). When ADC are still valid the
+function prints a notice and exits without prompting.
+
+ARGUMENTS
+  -f, --force   Skip the validity check and re-authenticate unconditionally.
+  -h, --help    Show this help.
+
+REQUIRES
+  gcloud

@@ -54,6 +54,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [2026-06-13]
 
+### Added
+
+- `rlm-glogin` (alias `glogin`): ensure valid gcloud Application Default Credentials. Probes ADC validity with `gcloud auth application-default print-access-token` (mints a token from the stored refresh token, fails when ADC is missing/expired/revoked); when invalid runs interactive `gcloud auth login --enable-gdrive-access --update-adc` so the refreshed credentials also carry the Google Drive scope. Prints `🟢` when still valid (exits without prompting) and `🔴` when re-authenticating. `-f`/`--force` re-authenticates unconditionally.
+
 ### Fixed
 
 - `.zshenv`: self-heal a stale `$FPATH` left behind by a Homebrew zsh upgrade. zsh seeds `fpath` from an inherited, exported `$FPATH` rather than recomputing its compiled-in default, so a login session started before `brew upgrade zsh` keeps exporting `FPATH=…/Cellar/zsh/<old-version>/share/zsh/functions` to every descendant shell. After the upgrade bumps the Cellar version that directory no longer exists, and core autoloaded functions fail with `function definition file not found` — surfacing as `VCS_INFO_formats:32: VCS_INFO_reposub: function definition file not found` in the prompt, plus matching `compinit`/`bashcompinit`/`add-zsh-hook` failures. Fix: right after `typeset -U path PATH fpath`, prune nonexistent entries with the `(N-/)` glob qualifier (`fpath=(${^fpath}(N-/) …)` — `N` nullglob so missing dirs vanish instead of erroring, `-/` keeps only existing directories, following symlinks) and append the version-independent `/opt/homebrew/share/zsh/{functions,site-functions}` dirs, whose files are symlinks Homebrew re-points on every upgrade. This drops the dead versioned entry and restores the function search path across all future zsh upgrades; existing broken shells recover with `exec zsh`.

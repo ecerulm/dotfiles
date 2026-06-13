@@ -1,0 +1,34 @@
+emulate -L zsh
+set -o pipefail
+
+for _cmd in gcloud; do
+  if ! command -v "$_cmd" >/dev/null 2>&1; then
+    print -u2 -r -- "glogin: '$_cmd' not found in PATH"
+    return 1
+  fi
+done
+unset _cmd
+
+local force=0
+case $1 in
+  -f | --force) force=1 ;;
+  -h | --help)
+    run-help rlm-glogin
+    return 0
+    ;;
+  '') ;;
+  *)
+    print -u2 -r -- "glogin: unknown argument '$1'"
+    return 1
+    ;;
+esac
+
+# print-access-token mints a token from the stored ADC refresh token; it
+# fails when ADC is absent or the refresh token has been revoked/expired.
+if (( ! force )) && gcloud auth application-default print-access-token >/dev/null 2>&1; then
+  print -r -- "🟢 glogin: gcloud ADC credentials are still valid"
+  return 0
+fi
+
+print -r -- "🔴 glogin: gcloud ADC credentials missing or expired — re-authenticating"
+gcloud auth login --enable-gdrive-access --update-adc
