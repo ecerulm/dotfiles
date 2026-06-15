@@ -482,7 +482,14 @@ local selection_line=${selection#*$'\n'}
 
 if [[ $fzf_key == ctrl-r ]]; then
   if [[ -z $jira_available ]]; then
-    print -u2 "pr-worktree: ctrl-r refresh requires acli (skipped — JIRA unavailable)"
+    # jira_available is set only when both `command -v acli` AND
+    # `acli jira auth status` succeed. Distinguish the two failure modes
+    # so the user knows whether to install acli or just authenticate.
+    if ! command -v acli >/dev/null 2>&1; then
+      print -u2 "pr-worktree: ctrl-r refresh requires acli (not found in PATH)"
+    else
+      print -u2 "pr-worktree: ctrl-r refresh requires JIRA auth — run 'acli jira auth login'"
+    fi
     return 1
   fi
   print "pr-worktree: refreshing JIRA cache..."

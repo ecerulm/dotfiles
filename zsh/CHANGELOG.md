@@ -4,6 +4,12 @@ All notable changes to the zsh configuration are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2026-06-15]
+
+### Fixed
+
+- `rlm-pr-worktree`: the Ctrl-R refresh now reports the real reason it's unavailable. Previously it always printed "requires acli (skipped — JIRA unavailable)", which was misleading when `acli` *was* on `$PATH` but just unauthenticated. Now it distinguishes the two failure modes: "requires acli (not found in PATH)" when the binary is missing, vs "requires JIRA auth — run 'acli jira auth login'" when `acli` exists but `acli jira auth status` fails.
+
 ## [2026-06-13]
 
 ### Fixed
