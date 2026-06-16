@@ -4,6 +4,12 @@ All notable changes to the zsh configuration are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2026-06-16]
+
+### Fixed
+
+- `rlm-bq-open`: warn when the `bq show` type lookup fails instead of silently mislabelling views as `TABLE`. Previously the type round-trip ran with `2>/dev/null` and `jq -r '.type // "TABLE"'`, so a failed `bq show` (expired auth tokens, network, missing permissions) produced empty stdout that defaulted to `TABLE` — indistinguishable from a genuine table. A view like `…:sdp_ingress_system_storytelhomepage.subscription_terminated` would render as `TABLE:` whenever auth was stale. Now `bq show`'s exit status and stdout are checked: on failure the function prints `bq-open: type lookup failed for <fqn>; labelling as TABLE (re-auth?)` followed by the indented `bq` error (so the reauth/permission reason surfaces), then falls back to `TABLE` rather than blocking the open. The happy path is unchanged.
+
 ## [2026-06-15]
 
 ### Fixed

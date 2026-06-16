@@ -237,18 +237,31 @@ for line in "${sel_lines[@]}"; do
   fqn="${sel_project}.${sel_dataset}.${sel_table}"
 
   # Determine TABLE vs VIEW (or MATERIALIZED_VIEW/EXTERNAL/SNAPSHOT) for the
-  # label prefix. `bq show --format=json` is one round-trip; if it fails we
-  # fall back to a bare "TABLE" prefix rather than blocking the open.
-  type_raw=$(bq show --format=json "${sel_project}:${sel_dataset}.${sel_table}" 2>/dev/null \
-    | jq -r '.type // "TABLE"' 2>/dev/null)
-  case "$type_raw" in
-    VIEW)               kind="VIEW" ;;
-    MATERIALIZED_VIEW)  kind="MATERIALIZED_VIEW" ;;
-    EXTERNAL)           kind="EXTERNAL" ;;
-    SNAPSHOT)           kind="SNAPSHOT" ;;
-    "" )                kind="TABLE" ;;
-    *)                  kind="$type_raw" ;;
-  esac
+  # label prefix. `bq show --format=json` is one round-trip. We keep stderr so
+  # the auth/permission reason surfaces, and capture bq's exit status: a failed
+  # lookup (expired tokens, network, missing perms) yields no JSON, which would
+  # otherwise be indistinguishable from a genuine TABLE. On failure we warn
+  # (with the bq error) and fall back to a bare "TABLE" prefix — labelling a
+  # view as a table without explanation is exactly the silent-mislabel trap.
+  local type_json type_err
+  type_err=$(mktemp)
+  type_json=$(bq show --format=json "${sel_project}:${sel_dataset}.${sel_table}" 2>"$type_err")
+  if (( $? != 0 )) || [[ -z $type_json ]]; then
+    print -u2 "bq-open: type lookup failed for ${fqn}; labelling as TABLE (re-auth?)"
+    [[ -s $type_err ]] && sed 's/^/bq-open:   /' "$type_err" >&2
+    kind="TABLE"
+  else
+    type_raw=$(print -r -- "$type_json" | jq -r '.type // "TABLE"' 2>/dev/null)
+    case "$type_raw" in
+      VIEW)               kind="VIEW" ;;
+      MATERIALIZED_VIEW)  kind="MATERIALIZED_VIEW" ;;
+      EXTERNAL)           kind="EXTERNAL" ;;
+      SNAPSHOT)           kind="SNAPSHOT" ;;
+      "" )                kind="TABLE" ;;
+      *)                  kind="$type_raw" ;;
+    esac
+  fi
+  rm -f "$type_err"
 
   clip_label="${kind}: ${fqn}"
   urls+=("$url")
