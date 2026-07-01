@@ -12,6 +12,15 @@ WORKFLOW
   1. If a selector was not supplied as an argument, or after the fzf
      picker exits without a selection, you are prompted to enter or
      edit the dbt node-selector expression.
+
+     The model list shown in the picker is read from a per-project
+     nodes cache (~/.cache/rlm-dbt/<key>/nodes.json), which is built
+     once and never expires on its own. To force a re-read of the
+     models after adding/renaming/removing one, pick the
+     "--- REFRESH NODES CACHE (cached X ago) ---" entry at the top of
+     the picker: it rebuilds the cache via `dbt ls` and reopens the
+     picker with the fresh list. (Same cache and refresh entry used by
+     rlm-dbt-run / rlm-dbt-build / rlm-dbt-test.)
   2. "dbt ls -s <selector> --profiles-dir <dir> --profile local_dev"
      is run via "poetry run dbt ls …".
   3. The resulting model names are shown in an fzf multi-select picker.

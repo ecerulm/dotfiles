@@ -145,11 +145,28 @@ _rlm-dbt-ensure-deps "$project_root" "$dbt_project_root" dbt-ls || return 1
 # history,nodes-cache} helpers.
 # ---------------------------------------------------------------------------
 
-autoload -Uz _rlm-dbt-project-key _rlm-dbt-history _rlm-dbt-nodes-cache
+autoload -Uz _rlm-dbt-project-key _rlm-dbt-history _rlm-dbt-nodes-cache _rlm-dbt-refresh-sentinel
 local project_key
 project_key=$(_rlm-dbt-project-key "$dbt_project_root") || return 1
 local nodes_cache_file
 nodes_cache_file=$(_rlm-dbt-nodes-cache path "$project_key")
+
+# Refresh the shared nodes cache, then re-invoke rlm-dbt-ls so the fresh
+# node list is picked up. Shared by the missing-cache bootstrap below and
+# the in-picker "--- REFRESH NODES CACHE ---" sentinel. Deletes the cache
+# first so a failed refresh can't leave a half-written file that the
+# `[[ -s ]]` guard would then treat as valid.
+_dbt_ls_refresh_and_reloop() {
+  rm -f "$nodes_cache_file"
+  _rlm-dbt-nodes-cache refresh \
+    "$project_key" \
+    "$project_root" \
+    "$dbt_project_root" \
+    "$profiles_dir" \
+    "$dbt_target" \
+    "$profile_name" || return 1
+  rlm-dbt-ls "$@"
+}
 
 # ---------------------------------------------------------------------------
 # Phase 1: pick a selector from all models + history
@@ -195,15 +212,18 @@ all_models=$(_rlm-dbt-nodes-cache read "$project_key" 'select(.resource_type == 
 local history_selectors
 history_selectors=$(_rlm-dbt-history read "$project_key" | awk -F'\t' '{print $3}')
 
-local initial_list
-initial_list=$(
+# Note: the empty-project check below is deliberately gated on
+# $all_models (the actual node list), not on $initial_list — the latter
+# always carries the refresh sentinel and so is never empty.
+local models_and_history
+models_and_history=$(
   {
     [[ -n $history_selectors ]] && print -- "$history_selectors"
     print -- "$all_models"
   } | awk 'NF && !seen[$0]++'
 )
 
-if [[ -z $initial_list ]]; then
+if [[ -z $models_and_history ]]; then
   print -u2 "dbt-ls: no models found in project"
   print -u2 "dbt-ls: cache file: $nodes_cache_file"
   if [[ -s $nodes_cache_file ]]; then
@@ -220,15 +240,26 @@ if [[ -z $initial_list ]]; then
   return 1
 fi
 
+# The refresh sentinel sits at the top of the picker (before history and
+# model names) so it's always one keystroke away. Selecting it rebuilds
+# the nodes cache and reopens the picker — the only way to force a
+# re-read of the models short of deleting the cache file by hand.
+local refresh_sentinel
+refresh_sentinel=$(_rlm-dbt-refresh-sentinel emit "$nodes_cache_file")
+
 local picked
 picked=$(
-  print -- "$initial_list" \
+  {
+    print -r -- "$refresh_sentinel"
+    print -- "$models_and_history"
+  } \
   | fzf \
       --prompt="dbt selector> " \
       --no-mouse \
       --ansi \
       --height=80% \
       --reverse \
+      --no-sort \
       --preview="\$HOME/bin/dbt-model-preview '$nodes_cache_file' '$dbt_project_root' {}${prod_manifest_arg}" \
       --preview-window=bottom:40%:wrap \
       --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)' \
@@ -237,6 +268,12 @@ picked=$(
 ) || return 130
 
 [[ -z $picked ]] && return 130
+
+# Refresh sentinel picked → rebuild the cache and reopen the picker.
+if _rlm-dbt-refresh-sentinel is "$picked"; then
+  _dbt_ls_refresh_and_reloop
+  return $?
+fi
 
 # ---------------------------------------------------------------------------
 # Phase 2: edit the picked value before using it as a selector

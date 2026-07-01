@@ -207,7 +207,7 @@ local dbt_target="$DBT_TARGET"
 # scoped per project) and one nodes cache (~/.cache/rlm-dbt/<key>/nodes.json,
 # covering every resource type the four commands care about). See the
 # three _rlm-dbt-{project-key,history,nodes-cache} helpers.
-autoload -Uz _rlm-dbt-project-key _rlm-dbt-history _rlm-dbt-nodes-cache
+autoload -Uz _rlm-dbt-project-key _rlm-dbt-history _rlm-dbt-nodes-cache _rlm-dbt-refresh-sentinel
 local project_key
 project_key=$(_rlm-dbt-project-key "$dbt_root") || return 1
 local nodes_cache
@@ -286,24 +286,11 @@ if [[ -z $selector ]]; then
     history_seen[$_h_sel]=1
   done < <(_rlm-dbt-history read "$project_key")
 
-  local cache_age_label=""
-  if [[ -f $nodes_cache ]]; then
-    local cmtime cnow celapsed
-    cmtime=$(stat -f %m "$nodes_cache" 2>/dev/null || stat -c %Y "$nodes_cache" 2>/dev/null)
-    cnow=$(date +%s)
-    celapsed=$(( cnow - cmtime ))
-    if (( celapsed < 60 )); then
-      cache_age_label="${celapsed}s ago"
-    elif (( celapsed < 3600 )); then
-      cache_age_label="$(( celapsed / 60 ))m ago"
-    elif (( celapsed < 86400 )); then
-      cache_age_label="$(( celapsed / 3600 ))h ago"
-    else
-      cache_age_label="$(( celapsed / 86400 ))d ago"
-    fi
-  fi
-
-  local refresh_sentinel="--- REFRESH NODES CACHE${cache_age_label:+ (cached ${cache_age_label})} ---"
+  # Sentinel string + cache-age suffix come from the shared helper so the
+  # wording stays in lockstep with the `is` detection below (and with
+  # rlm-dbt-ls, which uses the same helper).
+  local refresh_sentinel
+  refresh_sentinel=$(_rlm-dbt-refresh-sentinel emit "$nodes_cache")
 
   # fzf input: sentinel, history with labels, then remaining nodes
   local raw_selection
@@ -340,7 +327,7 @@ if [[ -z $selector ]]; then
 
   [[ -z $raw_selection ]] && return 130
 
-  if [[ $raw_selection == "--- REFRESH "* ]]; then
+  if _rlm-dbt-refresh-sentinel is "$raw_selection"; then
     rm -f "$nodes_cache"
     _dbt_cmd_fetch_nodes || return 1
     "$cmd_name" "${extra_args[@]}"

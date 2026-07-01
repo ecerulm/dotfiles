@@ -1,0 +1,114 @@
+emulate -L zsh
+
+# Shared "--- REFRESH NODES CACHE ---" sentinel logic for the rlm-dbt-*
+# fzf pickers (rlm-dbt-ls and the run/build/test picker in _rlm-dbt-cmd).
+#
+# Every rlm-dbt-* picker lists nodes read from the per-project nodes
+# cache (~/.cache/rlm-dbt/<key>/nodes.json, written by
+# _rlm-dbt-nodes-cache). That cache never expires on its own, so each
+# picker offers a sentinel row at the top; selecting it deletes and
+# rebuilds the cache, then reopens the picker. Two things were being
+# duplicated across the callers:
+#
+#   1. The mtime → "23s ago" / "4m ago" / "4h ago" / "3d ago" age
+#      formatter (two byte-identical copies already lived in
+#      _rlm-dbt-cmd — one for history labels, one for the sentinel).
+#   2. The sentinel string itself:
+#        "--- REFRESH NODES CACHE (cached <age>) ---"
+#      and the detection branch that matches "--- REFRESH NODES CACHE"*
+#      in the selection-parsing loop.
+#
+# Centralizing both means the sentinel wording and the age formatter
+# each live in exactly one place. The wording is load-bearing: the
+# `is` subcommand's prefix match must stay in sync with what `emit`
+# prints, and both callers rely on `is` rather than open-coding the
+# comparison.
+#
+# ----------------------------------------------------------------------
+# Usage
+# ----------------------------------------------------------------------
+#
+#   _rlm-dbt-refresh-sentinel emit <cache_file>
+#       Print the sentinel line. The "(cached <age>)" suffix is
+#       computed from <cache_file>'s mtime; when the file does not
+#       exist yet the suffix is omitted entirely (first-run behavior).
+#       Exit 0 always.
+#
+#   _rlm-dbt-refresh-sentinel is <line>
+#       Test whether <line> is the refresh sentinel (prefix match, so
+#       it works regardless of the "(cached <age>)" suffix). Exit 0 on
+#       match, 1 otherwise.
+#
+#   _rlm-dbt-refresh-sentinel age-label <cache_file>
+#       Print just the human-readable age ("4m ago") of <cache_file>,
+#       or nothing when the file does not exist. Exposed for callers
+#       that want the same formatter for other labels (e.g. history).
+#
+# ----------------------------------------------------------------------
+# Return codes
+# ----------------------------------------------------------------------
+#   0 — success (emit / age-label always; is on match).
+#   1 — is: no match; usage error.
+#   2 — unknown subcommand.
+
+# Format a cache file's age as "Xs/Xm/Xh/Xd ago". Empty output when the
+# file is missing (mtime unreadable) so callers can gate the suffix.
+_rlm_dbt_refresh_age_label() {
+  local file="$1"
+  [[ -f $file ]] || return 0
+  local mtime now elapsed
+  mtime=$(stat -f %m "$file" 2>/dev/null || stat -c %Y "$file" 2>/dev/null)
+  [[ -z $mtime ]] && return 0
+  now=$(date +%s)
+  elapsed=$(( now - mtime ))
+  if (( elapsed < 60 )); then
+    print -- "${elapsed}s ago"
+  elif (( elapsed < 3600 )); then
+    print -- "$(( elapsed / 60 ))m ago"
+  elif (( elapsed < 86400 )); then
+    print -- "$(( elapsed / 3600 ))h ago"
+  else
+    print -- "$(( elapsed / 86400 ))d ago"
+  fi
+}
+
+local subcmd="$1"
+shift 2>/dev/null
+
+case "$subcmd" in
+  emit)
+    local cache_file="$1"
+    if [[ -z $cache_file ]]; then
+      print -u2 "_rlm-dbt-refresh-sentinel emit: usage: emit <cache_file>"
+      return 1
+    fi
+    local age
+    age=$(_rlm_dbt_refresh_age_label "$cache_file")
+    print -r -- "--- REFRESH NODES CACHE${age:+ (cached ${age})} ---"
+    return 0
+    ;;
+  is)
+    [[ "$1" == "--- REFRESH NODES CACHE"* ]]
+    return $?
+    ;;
+  age-label)
+    local cache_file="$1"
+    if [[ -z $cache_file ]]; then
+      print -u2 "_rlm-dbt-refresh-sentinel age-label: usage: age-label <cache_file>"
+      return 1
+    fi
+    _rlm_dbt_refresh_age_label "$cache_file"
+    return 0
+    ;;
+  "")
+    print -u2 "_rlm-dbt-refresh-sentinel: missing subcommand"
+    print -u2 "usage: _rlm-dbt-refresh-sentinel emit      <cache_file>"
+    print -u2 "       _rlm-dbt-refresh-sentinel is        <line>"
+    print -u2 "       _rlm-dbt-refresh-sentinel age-label <cache_file>"
+    return 1
+    ;;
+  *)
+    print -u2 "_rlm-dbt-refresh-sentinel: unknown subcommand: $subcmd"
+    return 2
+    ;;
+esac

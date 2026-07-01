@@ -53,6 +53,7 @@ dbt:
 - `_rlm-dbt-project-key` — worktree-stable project cache key: `md5("<remote_url>:<rel_subdir>")`. Falls back to `md5(abs_path)` when no git remote exists. All worktrees of the same repo share one history + nodes cache.
 - `_rlm-dbt-history` — pooled history TSV `~/.cache/rlm-dbt/history.tsv` (`epoch\tcommand\tproject_key\tselector`, deduped, cap 500). `append`/`read`. Folds in legacy paths once.
 - `_rlm-dbt-nodes-cache` — per-project nodes cache `~/.cache/rlm-dbt/<key>/nodes.json` (one JSON/line, all resource types). `path`/`refresh`/`read <jq_filter>`. `refresh` validates first line is JSON before overwriting (dbt errors to stdout would otherwise poison the cache).
+- `_rlm-dbt-refresh-sentinel` — shared `--- REFRESH NODES CACHE (cached <age>) ---` sentinel for the rlm-dbt-\* pickers (`rlm-dbt-ls` + `_rlm-dbt-cmd`). `emit <cache_file>` (age suffix omitted when the file is absent), `is <line>` (prefix-match detection), `age-label <cache_file>` (bare mtime→"4m ago" string). Selecting the sentinel row rebuilds the nodes cache and reopens the picker.
 
 bq (`rlm-bq-*` / `rlm-sandbox-bq-*`):
 
