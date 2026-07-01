@@ -137,6 +137,7 @@ are available in any interactive shell. Each function is also aliased to a short
 | Function | Short alias | Description |
 |---|---|---|
 | `rlm-fcmd [query]` | `fcmd` | Fuzzy-pick any zsh alias, function, builtin, reserved word, or `$PATH` command. Preview pane shows the full alias expansion or function body. On selection, pushes the name onto the command line for editing. Requires `fzf`. |
+| `rlm-fe` | `fe` | Fuzzy-pick one or more files reachable from the current directory (recursive; includes hidden and gitignored files, excludes `.git/`) via fzf and open them in `$EDITOR`. Tab marks files for multi-select; preview shows file contents. Entries are sorted by recently-selected first, then by file mtime descending. The MRU cache stores full absolute paths (`~/.cache/rlm-fe/`), so a file keeps its rank regardless of which directory `fe` is run from. Requires: `fd`, `fzf`, `python3`. |
 | `rlm-urldecode [url]` | `urldecode` | Break a URL into its components and percent-decode its query string, printing one `key = value` line per query parameter. Reads from `$1` or stdin. Requires `python3`. |
 | `rlm-tsconv NUMBER` | `tsconv` | Convert a numeric input to a date/time, auto-detecting both the base (decimal, `0x`/`0o`/`0b`, or bare hex when digits contain `a-f`) and the magnitude (seconds / milliseconds / microseconds / nanoseconds since the Unix epoch). Prints decimal, hex, inferred unit, local time, UTC, and humanized delta. Reads from `$1` or stdin. Requires `python3`. |
 

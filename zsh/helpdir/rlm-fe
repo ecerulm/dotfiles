@@ -1,0 +1,26 @@
+rlm-fe
+
+Fuzzy-edit. Pick one or more files reachable from the current
+directory (recursive) using fzf, then open them in $EDITOR. The file
+contents are shown in the fzf preview pane. Press Tab to mark files
+for multi-select, Enter to open, Ctrl-P to cycle the preview pane
+height.
+
+Files are listed with fd, including hidden and gitignored files (the
+.git directory is excluded). The display column is relative to the
+current directory; the full absolute path is what the picker acts on.
+
+Entries are sorted by recently-selected first, then by file mtime
+descending for entries that have never been picked. Within
+previously-picked entries, the most-recent pick wins.
+
+MRU history is recorded by the shared helper _rlm-fe-history in
+~/.cache/rlm-fe/history.tsv, keyed on each file's full absolute path.
+Because the cache stores full paths, a file keeps its MRU rank no
+matter which directory rlm-fe is run from.
+
+ENVIRONMENT
+  EDITOR   Editor to open the selected files (falls back to vi).
+
+REQUIRES
+  fd, fzf, python3

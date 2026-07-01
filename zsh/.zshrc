@@ -123,6 +123,7 @@ autoload -Uz rlm-jira-open
 autoload -Uz rlm-jira-pick
 autoload -Uz rlm-brew-unlock
 autoload -Uz rlm-fcmd
+autoload -Uz rlm-fe
 autoload -Uz rlm-urldecode
 autoload -Uz rlm-generatectags
 autoload -Uz rlm-pr-for-commit
@@ -177,6 +178,7 @@ alias jira-open='rlm-jira-open'
 alias jira-pick='rlm-jira-pick'
 alias brew-unlock='rlm-brew-unlock'
 alias fcmd='rlm-fcmd'
+alias fe='rlm-fe'
 alias urldecode='rlm-urldecode'
 alias generatectags='rlm-generatectags'
 alias pr-for-commit='rlm-pr-for-commit'

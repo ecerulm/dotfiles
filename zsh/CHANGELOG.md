@@ -4,6 +4,13 @@ All notable changes to the zsh configuration are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2026-07-01]
+
+### Added
+
+- `rlm-fe` (`fe`): fuzzy-edit file picker. Lists files reachable from the current directory (recursive) via `fd --hidden --no-ignore --type f --exclude .git`, sorts them recently-selected-first then by mtime descending, opens the fzf multi-selection in `$EDITOR`. The display column is relative to the current directory but the picker acts on full absolute paths, resolved via `${PWD:A}` so it shares fd's canonicalized prefix (otherwise `os.path.relpath` emits `../..` noise under symlinked dirs like `/tmp`).
+- `_rlm-fe-history`: internal MRU helper for `rlm-fe`. Pooled history at `~/.cache/rlm-fe/history.tsv` (`epoch\tcommand\tabs_path`, newest first, deduped on `abs_path`, capped at 500). Keyed on each file's **full absolute path** (no per-directory scoping), so a file keeps its MRU rank regardless of which directory `fe` is invoked from. Subcommands: `append <command> <abs_path>`, `read`.
+
 ## [2026-06-16]
 
 ### Fixed

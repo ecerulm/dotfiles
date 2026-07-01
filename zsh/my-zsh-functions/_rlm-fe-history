@@ -1,0 +1,77 @@
+emulate -L zsh
+
+# Shared MRU history for rlm-fe (fuzzy-edit file picker). One file
+# (~/.cache/rlm-fe/history.tsv) records every pick across all
+# directories. Unlike _rlm-git-changed-history there is no per-repo
+# scoping: rlm-fe can be run anywhere on the filesystem, so the cache
+# keys on the file's full absolute path. The picker only ever shows
+# files reachable from the current directory, but it matches them
+# against this history by absolute path — so a file's MRU rank is
+# preserved regardless of which directory you invoke rlm-fe from.
+#
+# File format: one line per pick, newest first, capped at 500 lines.
+#
+#   <epoch>\t<command>\t<abs_path>
+#
+#   epoch     date +%s integer.
+#   command   "fe" (only caller today; reserved for future rlm-*
+#             commands that want to share this MRU).
+#   abs_path  absolute path of the picked file (the full path — NOT a
+#             directory-relative one). Tab is not a legal POSIX
+#             filename byte, so the field round-trips fine.
+#
+# Deduplication rule: entries are deduped by abs_path. Re-picking the
+# same file overwrites its prior entry, so the newest pick wins.
+#
+# Usage:
+#   _rlm-fe-history append <command> <abs_path>
+#   _rlm-fe-history read
+#       → "<epoch>\t<command>\t<abs_path>" lines, newest first, deduped
+#         on abs_path, capped at 500 lines. Empty stdout if no history
+#         exists yet.
+#
+# Return codes:
+#   0 — success.
+#   2 — usage error.
+
+local history_file="$HOME/.cache/rlm-fe/history.tsv"
+local history_dir="${history_file:h}"
+local history_cap=500
+
+local subcmd="$1"
+shift 2>/dev/null
+
+case $subcmd in
+  append)
+    local cmd_name="$1"
+    local abs_path="$2"
+    if [[ -z $cmd_name || -z $abs_path ]]; then
+      print -u2 "_rlm-fe-history: usage: append <command> <abs_path>"
+      return 2
+    fi
+    mkdir -p "$history_dir"
+    local now
+    now=$(date +%s)
+    # Prepend new entry, drop any prior entry with the same abs_path,
+    # truncate to cap. Atomic via tmp+mv.
+    {
+      printf '%s\t%s\t%s\n' "$now" "$cmd_name" "$abs_path"
+      if [[ -f $history_file ]]; then
+        awk -F'\t' -v p="$abs_path" '$3 != p' "$history_file"
+      fi
+    } | head -n "$history_cap" >|"${history_file}.tmp" \
+      && mv "${history_file}.tmp" "$history_file"
+    ;;
+  read)
+    [[ -f $history_file ]] || return 0
+    # File is already newest-first; dedupe on abs_path (awk keeps the
+    # first/newest occurrence per path).
+    awk -F'\t' '!seen[$3]++' "$history_file"
+    ;;
+  *)
+    print -u2 "_rlm-fe-history: unknown subcommand: ${subcmd:-(empty)}"
+    print -u2 "_rlm-fe-history: usage: append <command> <abs_path>"
+    print -u2 "                        read"
+    return 2
+    ;;
+esac
