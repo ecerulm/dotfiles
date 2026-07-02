@@ -129,4 +129,6 @@ for p in "${picked[@]}"; do
   [[ -n $p ]] && _rlm-fe-history append fe "$p"
 done
 
+printf '%s\n' "${picked[@]}"
+
 ${EDITOR:-vi} "${picked[@]}"
