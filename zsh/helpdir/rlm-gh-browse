@@ -1,0 +1,11 @@
+rlm-gh-browse
+
+Open the current GitHub repository in the browser at the branch
+currently checked out. Resolves the branch with
+`git branch --show-current` and hands it to `gh repo view -w -b
+<branch>`, which opens the repo's web page for that branch. Refuses
+when not inside a git repository or when HEAD is detached (no current
+branch to open).
+
+REQUIRES
+  gh, git

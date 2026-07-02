@@ -108,6 +108,7 @@ autoload -Uz rlm-mkpw
 autoload -Uz rlm-pr-worktree
 autoload -Uz rlm-pr-worktree-rm
 autoload -Uz rlm-pr-worktree-rm-merged-closed
+autoload -Uz rlm-gh-browse
 autoload -Uz rlm-gh-fork
 autoload -Uz rlm-gh-repo-init
 autoload -Uz rlm-bq-archive
@@ -156,6 +157,7 @@ alias mkpw='rlm-mkpw'
 alias pr-worktree='rlm-pr-worktree'
 alias pr-worktree-rm='rlm-pr-worktree-rm'
 alias pr-worktree-rm-merged-closed='rlm-pr-worktree-rm-merged-closed'
+alias gh-browse='rlm-gh-browse'
 alias gh-fork='rlm-gh-fork'
 alias gh-repo-init='rlm-gh-repo-init'
 alias create-gh-repo='rlm-gh-repo-init'

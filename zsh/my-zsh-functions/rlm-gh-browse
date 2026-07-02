@@ -1,0 +1,25 @@
+emulate -L zsh
+set -o pipefail
+
+if ! command -v gh >/dev/null 2>&1; then
+  print -u2 -r -- "rlm-gh-browse: 'gh' not found in PATH"
+  return 1
+fi
+if ! command -v git >/dev/null 2>&1; then
+  print -u2 -r -- "rlm-gh-browse: 'git' not found in PATH"
+  return 1
+fi
+
+if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  print -u2 -r -- "rlm-gh-browse: not inside a git repository"
+  return 1
+fi
+
+local branch
+branch=$(git branch --show-current)
+if [[ -z "$branch" ]]; then
+  print -u2 -r -- "rlm-gh-browse: detached HEAD — no current branch to browse"
+  return 1
+fi
+
+gh repo view -w -b "$branch"

@@ -4,6 +4,12 @@ All notable changes to the zsh configuration are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2026-07-02]
+
+### Added
+
+- `rlm-gh-browse` (`gh-browse`): open the current GitHub repo in the browser at the currently checked-out branch. Resolves the branch with `git branch --show-current` and hands it to `gh repo view -w -b <branch>`. Refuses when `gh`/`git` are missing, outside a git repository, or on a detached HEAD.
+
 ## [2026-07-01]
 
 ### Added
