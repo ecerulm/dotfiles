@@ -149,6 +149,33 @@ _prwt_make_pr_worktree() {
   git pull
 }
 
+# Verify that a freshly-created local branch's upstream is configured as a
+# same-name branch on origin, NOT the default branch. Defense-in-depth
+# against `branch.autoSetupMerge` (or any other mechanism) silently wiring
+# the new branch up to track origin/<default> instead of the explicit
+# `branch.<name>.{remote,merge}` config set right after creation.
+#
+# Checks the *configured* tracking (`branch.<name>.remote` /
+# `branch.<name>.merge`) rather than resolving `<name>@{upstream}` via
+# `git rev-parse`: at this point the branch has just been created locally
+# and has NOT been pushed yet, so the remote-tracking ref
+# `refs/remotes/origin/<name>` doesn't exist. `@{upstream}` resolution
+# requires that ref to exist and fails with "unknown revision" on an
+# unpushed branch even when the tracking config is entirely correct.
+_prwt_verify_upstream() {
+  local worktree_path=$1 branch=$2 cfg_remote cfg_merge
+  cfg_remote=$(git -C "$worktree_path" config --get "branch.${branch}.remote" 2>/dev/null)
+  cfg_merge=$(git -C "$worktree_path" config --get "branch.${branch}.merge" 2>/dev/null)
+  if [[ -z $cfg_remote || -z $cfg_merge ]]; then
+    print -u2 "pr-worktree: BUG: branch '$branch' has no upstream configured"
+    return 1
+  fi
+  if [[ $cfg_remote != origin || $cfg_merge != "refs/heads/${branch}" ]]; then
+    print -u2 "pr-worktree: BUG: branch '$branch' upstream is '${cfg_remote}/${cfg_merge#refs/heads/}' (expected origin/$branch)"
+    return 1
+  fi
+}
+
 _prwt_make_suffix_worktree() {
   local suffix=$1
   local today
@@ -180,6 +207,7 @@ _prwt_make_suffix_worktree() {
     git -C "$repo_root" worktree add -b "$suffix" "$worktree_path" "origin/$default_branch" || return 1
     git -C "$worktree_path" config "branch.${suffix}.remote" origin
     git -C "$worktree_path" config "branch.${suffix}.merge" "refs/heads/${suffix}"
+    _prwt_verify_upstream "$worktree_path" "$suffix" || return 1
   fi
 
   cd -- "$worktree_path"
@@ -284,6 +312,7 @@ _prwt_make_jira_worktree() {
     git -C "$repo_root" worktree add -b "$branch" "$worktree_path" "origin/$default_branch" || return 1
     git -C "$worktree_path" config "branch.${branch}.remote" origin
     git -C "$worktree_path" config "branch.${branch}.merge" "refs/heads/${branch}"
+    _prwt_verify_upstream "$worktree_path" "$branch" || return 1
   fi
 
   cd -- "$worktree_path"

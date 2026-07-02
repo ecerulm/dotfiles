@@ -194,6 +194,7 @@
 	ui = auto
 [branch]
 	sort = -committerdate
+	autoSetupMerge = false
 [include]
 	; need to be git 1.9.2 for includes to work
 	; path = .gitconfig_platform_specific

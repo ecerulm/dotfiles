@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [2026-07-02]
 
+### Fixed
+
+- `rlm-pr-worktree`: `_prwt_verify_upstream` now checks the *configured* tracking (`branch.<name>.remote` / `branch.<name>.merge`) instead of resolving `<name>@{upstream}` via `git rev-parse`. The `@{upstream}` form requires the remote-tracking ref `refs/remotes/origin/<name>` to already exist locally, which it does not until the branch is pushed — but the check runs immediately after local branch creation, before any push. As shipped it therefore reported `BUG: branch '<name>' has no upstream set` for *every* legitimately-created new branch. The config-based check works at the correct pre-push timing while still catching a mis-wired upstream (e.g. `branch.autoSetupMerge` silently pointing the branch at `origin/<default>`).
+
 ### Added
 
 - `rlm-gh-browse` (`gh-browse`): open the current GitHub repo in the browser at the currently checked-out branch. Resolves the branch with `git branch --show-current` and hands it to `gh repo view -w -b <branch>`. Refuses when `gh`/`git` are missing, outside a git repository, or on a detached HEAD.
