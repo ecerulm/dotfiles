@@ -1,24 +1,46 @@
-pr-worktree-rm-merged-closed [--yes|-y] [--dry-run|-n]
+pr-worktree-rm-merged-closed [--dry-run|-n] [--yes|-y]
 
-Automatically delete every git worktree in the current repo that is safe
-to discard without losing work. Two categories are removed:
+Clean up stale git worktrees via an fzf picker, for the current repo or
+for every repo under the current directory. The mode is auto-detected:
 
-  1. merged/closed PR — the branch has a GitHub PR in state `merged` or
-     `closed`; leftover changes are treated as stale rebase/merge debris.
-  2. no-pr + no-diff — the branch has no PR and no commits ahead of
-     origin/main (git log --oneline origin/main..<branch> is empty); the
-     worktree was created but never actually worked on.
+  * Inside a git repo -> single-repo mode: operates on that repo only.
+  * Otherwise, if the cwd holds primary git repos (child dirs with a
+    `.git` directory, i.e. not worktree checkouts) -> multi-repo mode:
+    gathers worktrees across all of them.
 
-Worktrees with an open PR, or with no PR but commits ahead of origin/main,
-are LEFT ALONE. Use pr-worktree-rm for the interactive picker in those
-cases.
+ONE fzf multi-select picker lists worktrees across every repo in scope
+(except each repo's main worktree and, in single-repo mode, the current
+one). The dir-name prefix identifies which repo each row belongs to.
+Every row is flagged with its deletion category:
 
-Each worktree is removed with `git worktree remove`; on failure it retries
-with `--force`. `git worktree prune` runs once at the end. The current
-worktree and the main/primary worktree are always excluded.
+  [merged#N] / [closed#N]   branch has a GitHub PR in that state; any
+                            leftover changes are stale merge/rebase debris.
+  [no-pr/no-diff]           no PR and no commits ahead of the default
+                            branch; created but never worked on.
+  [open#N]                  open PR -- has active work; deletable but flagged.
+  [has-work]                no PR but commits ahead of the default branch.
+
+Deletable rows ([merged]/[closed]/[no-pr/no-diff]) sort to the top. TAB
+multi-selects, ENTER deletes the selection (after a y/N confirm), Ctrl-G
+aborts (deletes nothing). The preview pane is the shared ~/bin/wt-preview.
+
+After the picker (or in --dry-run), a combined table of the REMAINING
+worktrees across all repos is printed showing how stale each is:
+
+  REPO  WORKTREE  BRANCH  BEHIND  AHEAD  AGE  CREATED
+
+BEHIND/AHEAD are commits vs the repo's default branch (origin/HEAD,
+fallback main; origin is fetched first). AGE is the last-commit date on
+the branch; CREATED is the worktree directory birthtime. The main
+worktree appears as a reference row labeled (main).
+
+Each worktree is removed with `git worktree remove`, retrying with
+`--force` on failure; `git worktree prune` runs once per affected repo.
 
 Flags:
-  --yes, -y       Skip the confirmation prompt (for cron / scripts).
-  --dry-run, -n   List the worktrees that would be deleted and exit 0.
+  --dry-run, -n   Skip the picker; print the deletable set and the
+                  combined remaining-worktrees table. Deletes nothing.
+  --yes, -y       Accepted for backwards compatibility but ignored (the
+                  picker is inherently interactive).
 
-Requires: gh, git, jq.
+Requires: gh, git, fzf, jq.

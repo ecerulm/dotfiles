@@ -4,6 +4,12 @@ All notable changes to the zsh configuration are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2026-07-06]
+
+### Changed
+
+- `rlm-pr-worktree-rm-merged-closed`: replace the auto-delete + single y/N prompt with a fzf multi-select picker, and add multi-repo mode. When run inside a git repo it operates on that repo; when run from a parent dir holding several primary repos (child dirs with a `.git` directory), it gathers worktrees across all of them into ONE picker. Rows are flagged by category (`[merged#N]`/`[closed#N]`/`[no-pr/no-diff]` deletable and sorted first, `[open#N]`, `[has-work]`) and the dir-name prefix identifies the repo. After deletion (or in `--dry-run`) it prints a combined table of the remaining worktrees with staleness columns `REPO WORKTREE BRANCH BEHIND AHEAD AGE CREATED` (behind/ahead vs the default branch, AGE = last-commit date, CREATED = dir birthtime; main shown as `(main)`). `--yes/-y` is now accepted but ignored (the picker is interactive).
+
 ## [2026-07-02]
 
 ### Fixed

@@ -1,37 +1,52 @@
-# pr-worktree-rm-merged-closed: automatically delete every git worktree in
-# the current repo that is safe to discard without losing work. Two cases:
+# pr-worktree-rm-merged-closed: clean up stale git worktrees, either for the
+# current repo (single-repo mode) or for every repo sitting side-by-side under
+# the current directory (multi-repo mode). Mode is auto-detected:
 #
-#   1. merged/closed PR — the branch has a GitHub PR in state `merged` or
-#      `closed`; any leftover changes are stale rebase/merge debris.
-#   2. no-pr + no-diff — the branch has no PR and no commits ahead of
-#      origin/main (`git log --oneline origin/main..<branch>` is empty);
-#      the worktree was created but never actually worked on.
+#   * inside a git repo  -> single-repo mode (operates on that repo only).
+#   * otherwise, if the cwd holds one or more primary git repos (child dirs
+#     with a `.git` DIRECTORY, i.e. not worktree checkouts) -> multi-repo
+#     mode, gathering worktrees across all of them.
 #
-# Builds the same branch -> pr_state map that pr-worktree-rm uses
-# (`gh pr list --state all --limit 500 --json number,state,headRefName`),
-# walks `git worktree list --porcelain`, and selects every worktree in
-# either category above. The current worktree and the main/primary worktree
-# are always excluded — same gate as pr-worktree-rm.
+# It opens ONE fzf multi-select picker listing worktrees across every repo in
+# scope (except each repo's main/primary worktree and, in single-repo mode,
+# the current one). Each row is flagged with its deletion category so you can
+# eyeball what's safe to drop:
 #
-# Lists what it's about to delete and asks for a single y/N confirmation
-# before touching anything. Use --yes / -y to skip the prompt (intended
-# for cron / scripted use). Use --dry-run / -n to just print the list and
-# exit 0.
+#   [merged#N] / [closed#N]  the branch has a GitHub PR in that state; any
+#                            leftover changes are stale rebase/merge debris.
+#   [no-pr/no-diff]          no PR and no commits ahead of the default branch;
+#                            the worktree was created but never worked on.
+#   [open#N]                 open PR -- has active work; deletable but flagged.
+#   [has-work]               no PR but commits ahead of the default branch.
 #
-# Each worktree is removed with `git worktree remove`; on failure it
-# retries with `--force` (matches pr-worktree-rm semantics). `git worktree
-# prune` runs once at the end.
+# Deletable rows ([merged]/[closed]/[no-pr/no-diff]) are sorted to the top.
+# TAB multi-selects, ENTER deletes the selection, Ctrl-G aborts (deletes
+# nothing). Preview pane is the shared ~/bin/wt-preview.
 #
-# Worktrees with `pr-status = open` are LEFT ALONE. Worktrees with no PR
-# that have commits ahead of origin/main are also left alone — use
-# pr-worktree-rm for the interactive picker in those cases.
+# After the picker (or in --dry-run), it prints a table of the REMAINING
+# worktrees showing how stale each is:
+#
+#   REPO  WORKTREE  BRANCH  BEHIND  AHEAD  AGE  CREATED
+#
+# where BEHIND/AHEAD are commits vs the repo's default branch (origin/HEAD,
+# fallback main), AGE is the last-commit date on the branch, and CREATED is
+# the worktree directory birthtime. Each repo's main worktree is shown as a
+# reference row labeled (main).
+#
+# Each worktree is removed with `git worktree remove`; on failure it retries
+# with `--force`. `git worktree prune` runs once per affected repo.
+#
+# Flags:
+#   --dry-run, -n   Skip the picker; just print the deletable set and the
+#                   remaining-worktrees table. Deletes nothing.
+#   --yes, -y       Accepted for backwards compatibility but ignored: the
+#                   picker is inherently interactive.
 #
 # Usage:
-#   pr-worktree-rm-merged-closed             # interactive (prompts y/N)
-#   pr-worktree-rm-merged-closed --yes       # skip confirmation
-#   pr-worktree-rm-merged-closed --dry-run   # list and exit, do not delete
+#   pr-worktree-rm-merged-closed             # single picker (single or multi repo)
+#   pr-worktree-rm-merged-closed --dry-run   # tables only, no deletion
 #
-# Requires: gh, git, jq
+# Requires: gh, git, fzf, jq
 
 emulate -L zsh
 set -o pipefail
@@ -43,7 +58,7 @@ for arg in "$@"; do
     -y | --yes) yes=1 ;;
     -n | --dry-run) dry_run=1 ;;
     -h | --help)
-      print -- "usage: pr-worktree-rm-merged-closed [--yes|-y] [--dry-run|-n]"
+      print -- "usage: pr-worktree-rm-merged-closed [--dry-run|-n] [--yes|-y]"
       return 0
       ;;
     *)
@@ -52,153 +67,363 @@ for arg in "$@"; do
       ;;
   esac
 done
+: "$yes"                                                 # accepted but ignored (picker is interactive)
 
-for cmd in gh git jq; do
+for cmd in gh git fzf jq; do
   if ! command -v "$cmd" >/dev/null 2>&1; then
     print -u2 "pr-worktree-rm-merged-closed: '$cmd' not found in PATH"
     return 1
   fi
 done
 
-local repo_root
-repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || {
-  print -u2 "pr-worktree-rm-merged-closed: not inside a git repository"
-  return 1
+# ----- humanize seconds ("<N><unit> ago") --------------------------------
+# Same ladder as ~/bin/wt-preview's _wt_human_ago, compact units.
+_prwtrmc_human_ago() {
+  local secs=$1
+  [[ -z $secs ]] && { print -r -- ""; return 0; }
+  (( secs < 0 )) && secs=0
+  if   (( secs < 60       )); then print -r -- "${secs}s ago"
+  elif (( secs < 3600     )); then print -r -- "$(( secs / 60 ))m ago"
+  elif (( secs < 86400    )); then print -r -- "$(( secs / 3600 ))h ago"
+  elif (( secs < 2592000  )); then print -r -- "$(( secs / 86400 ))d ago"
+  elif (( secs < 31536000 )); then print -r -- "$(( secs / 2592000 ))mo ago"
+  else                             print -r -- "$(( secs / 31536000 ))y ago"
+  fi
 }
 
-# Identify the main/primary worktree (first entry of `git worktree list --porcelain`).
-local main_worktree
-main_worktree=$(git -C "$repo_root" worktree list --porcelain | awk '/^worktree /{print $2; exit}')
-
-local current_worktree
-current_worktree=$(git rev-parse --show-toplevel)
-
-# Build a map: branch -> "<state>#<number>" (state lower-cased), by
-# querying all PRs (any state) once. Same query as pr-worktree-rm.
-local -A pr_state
-local pr_json
-pr_json=$(gh pr list --state all --limit 500 --json number,state,headRefName 2>/dev/null) || pr_json='[]'
-while IFS=$'\t' read -r branch state number; do
-  [[ -z $branch ]] && continue
-  pr_state[$branch]="${(L)state}#${number}"
-done < <(print -r -- "$pr_json" | jq -r '.[] | [.headRefName, .state, .number] | @tsv')
-
-# Walk worktrees, collect the ones whose PR is merged/closed OR that have
-# no PR and no commits ahead of origin/main (never actually worked on).
-local -a abs_paths display_lines
-local wt_path="" wt_branch=""
-
-_prwtrmc_consider() {
-  local wt_abs=$1 branch=$2
-  [[ -z $branch ]] && return 0                          # detached HEAD: leave alone
-  [[ $wt_abs == $main_worktree || $wt_abs == $current_worktree ]] && return 0
-
-  local rel_path=${wt_abs#${repo_root:h}/}
-  [[ $rel_path == $wt_abs ]] && rel_path=$wt_abs
-
-  local entry=${pr_state[$branch]:-}
-  if [[ -z $entry ]]; then
-    # Not in the bulk map (no PR, or PR beyond the --limit 500 cap).
-    # Ask gh directly so we don't miss PRs that fell off the --limit 500 cap.
-    local pr_check
-    pr_check=$(gh pr list --head "$branch" --state all --json number,state 2>/dev/null) || pr_check='[]'
-    if [[ $pr_check != '[]' && $pr_check != '' ]]; then
-      # A PR exists — take the first (most recent) one.
-      local pr_st pr_num
-      pr_st=$(print -r -- "$pr_check" | jq -r '.[0].state // empty' 2>/dev/null)
-      pr_num=$(print -r -- "$pr_check" | jq -r '.[0].number // empty' 2>/dev/null)
-      [[ -z $pr_st ]] && return 0
-      entry="${(L)pr_st}#${pr_num}"
-      # fall through to the merged/closed check below
-    else
-      # Truly no PR — only auto-delete if the branch has no commits ahead of origin/main.
-      local ahead
-      ahead=$(git -C "$repo_root" rev-list --count "origin/main..${branch}" 2>/dev/null) || return 0
-      (( ahead > 0 )) && return 0                       # has unmerged work: leave alone
-      abs_paths+=("$wt_abs")
-      display_lines+=("$(printf '%s\t%s\tno-pr/no-diff' "$rel_path" "$branch")")
-      return 0
+# ----- directory birthtime (created) epoch -------------------------------
+# macOS: stat -f %B; GNU: stat -c %W, falling back to ctime (%Z). Empty on
+# failure or a zero birthtime. Mirrors wt-preview's fallback chain.
+_prwtrmc_created_epoch() {
+  local dir=$1 epoch=""
+  if stat -f '%B' "$dir" >/dev/null 2>&1; then
+    epoch=$(stat -f '%B' "$dir" 2>/dev/null)
+  else
+    epoch=$(stat -c '%W' "$dir" 2>/dev/null)
+    if [[ -z $epoch || $epoch == 0 || $epoch == "-" ]]; then
+      epoch=$(stat -c '%Z' "$dir" 2>/dev/null)
     fi
   fi
-
-  local pr_state_str=${entry%#*}                        # open | closed | merged
-  local pr_number=${entry#*#}
-
-  case $pr_state_str in
-    closed | merged) ;;                                 # fall through to add
-    *) return 0 ;;                                      # open / unknown -> skip
-  esac
-
-  abs_paths+=("$wt_abs")
-  display_lines+=("$(printf '%s\t%s\t%s#%s' "$rel_path" "$branch" "$pr_state_str" "$pr_number")")
+  [[ $epoch == 0 ]] && epoch=""
+  print -r -- "$epoch"
 }
 
-while IFS= read -r line; do
-  case $line in
-    worktree\ *)
-      wt_path=${line#worktree }
-      wt_branch=""
-      ;;
-    branch\ *)
-      wt_branch=${line#branch refs/heads/}
-      ;;
-    "")
-      [[ -n $wt_path ]] && _prwtrmc_consider "$wt_path" "$wt_branch"
-      wt_path=""
-      wt_branch=""
-      ;;
-  esac
-done < <(git -C "$repo_root" worktree list --porcelain)
+# ----- collect picker rows for one repo -----------------------------------
+# _prwtrmc_collect_repo <repo_root>
+#   Fetches origin/<default>, builds the branch->pr_state map, walks the repo's
+#   worktrees and appends a picker row per worktree to the outer `rows` array.
+#   Row (tab-separated):
+#     col1=display  col2=branch  col3=rel_path  col4=abs_path
+#     col5=deletable(0/1)  col6=repo_root
+#   fzf shows col1 (--with-nth=1); preview uses col4; deletion uses col4/col6.
+_prwtrmc_collect_repo() {
+  local repo_root=$1
 
-# Handle trailing block if porcelain output didn't end with a blank line.
-[[ -n $wt_path ]] && _prwtrmc_consider "$wt_path" "$wt_branch"
+  # Identify the main/primary worktree (first porcelain entry).
+  local main_worktree
+  main_worktree=$(git -C "$repo_root" worktree list --porcelain \
+    | awk '/^worktree /{print $2; exit}')
 
-if (( ${#abs_paths} == 0 )); then
-  print "pr-worktree-rm-merged-closed: no deletable worktrees found (excluding main and current)."
-  return 0
-fi
+  # The current worktree only matters in single-repo mode; in multi-repo mode
+  # the cwd is the parent dir and won't match any worktree, so this is a no-op.
+  local current_worktree
+  current_worktree=$(git rev-parse --show-toplevel 2>/dev/null) || current_worktree=""
 
-# Pretty-print the list (column-aligned) so the user can sanity-check.
-local pretty
-pretty=$(printf '%s\n' "${display_lines[@]}" | column -t -s $'\t')
+  # Default branch (origin/HEAD, fallback main).
+  local def_branch
+  def_branch=$(git -C "$repo_root" symbolic-ref refs/remotes/origin/HEAD 2>/dev/null \
+    | sed 's|refs/remotes/origin/||')
+  [[ -z $def_branch ]] && def_branch=main
 
-print "pr-worktree-rm-merged-closed: worktrees to delete (merged/closed PR or no-pr/no-diff):"
-print -- "$pretty"
+  # Refresh origin/<def> so the ahead check + later behind/ahead are current.
+  git -C "$repo_root" fetch --quiet origin "$def_branch" 2>/dev/null
 
-if (( dry_run )); then
-  print
-  print "(dry-run: nothing deleted)"
-  return 0
-fi
+  # Build branch -> "<state>#<number>" map (state lower-cased). gh resolves the
+  # repo from the cwd, so run it inside the repo (subshell keeps our cwd).
+  local -A pr_state
+  local pr_json
+  pr_json=$(cd -- "$repo_root" 2>/dev/null \
+    && gh pr list --state all --limit 500 --json number,state,headRefName 2>/dev/null) \
+    || pr_json='[]'
+  local map_branch map_state map_number
+  while IFS=$'\t' read -r map_branch map_state map_number; do
+    [[ -z $map_branch ]] && continue
+    pr_state[$map_branch]="${(L)map_state}#${map_number}"
+  done < <(print -r -- "$pr_json" | jq -r '.[] | [.headRefName, .state, .number] | @tsv')
 
-if (( ! yes )); then
-  print
-  print -n "Delete the ${#abs_paths} worktree(s) listed above? [y/N] "
-  local reply
-  read -r reply
-  if [[ ${reply:l} != y && ${reply:l} != yes ]]; then
-    print "Aborted."
+  local wt_path="" wt_branch=""
+
+  _prwtrmc_row() {
+    local wt_abs=$1 branch=$2
+    [[ $wt_abs == "$main_worktree" ]] && return 0
+    [[ -n $current_worktree && $wt_abs == "$current_worktree" ]] && return 0
+
+    local rel_path=${wt_abs#${repo_root:h}/}
+    [[ $rel_path == "$wt_abs" ]] && rel_path=$wt_abs
+
+    local flag="[has-work]" deletable=0
+
+    if [[ -z $branch ]]; then
+      flag="[detached]"                                  # detached HEAD: not deletable here
+    else
+      local entry=${pr_state[$branch]:-}
+      if [[ -z $entry ]]; then
+        # Not in the bulk map: query gh directly (PR may be past --limit 500).
+        local pr_check
+        pr_check=$(cd -- "$repo_root" 2>/dev/null \
+          && gh pr list --head "$branch" --state all --json number,state 2>/dev/null) \
+          || pr_check='[]'
+        if [[ $pr_check != '[]' && -n $pr_check ]]; then
+          local pr_st pr_num
+          pr_st=$(print -r -- "$pr_check" | jq -r '.[0].state // empty' 2>/dev/null)
+          pr_num=$(print -r -- "$pr_check" | jq -r '.[0].number // empty' 2>/dev/null)
+          [[ -n $pr_st ]] && entry="${(L)pr_st}#${pr_num}"
+        fi
+      fi
+
+      if [[ -n $entry ]]; then
+        local st=${entry%#*} num=${entry#*#}
+        flag="[${st}#${num}]"
+        [[ $st == merged || $st == closed ]] && deletable=1
+      else
+        # Truly no PR: deletable only if no commits ahead of the default branch.
+        local ahead
+        ahead=$(git -C "$repo_root" rev-list --count "origin/${def_branch}..${branch}" 2>/dev/null) \
+          || ahead=""
+        if [[ -n $ahead ]] && (( ahead == 0 )); then
+          flag="[no-pr/no-diff]"
+          deletable=1
+        fi
+      fi
+    fi
+
+    # Display column bundles the flag with the path so it shows in the picker
+    # (fzf renders only col1 via --with-nth=1). rel_path already carries the
+    # repo dir prefix, so the row is self-identifying across repos.
+    local display
+    display=$(printf '%-16s %s' "$flag" "$rel_path")
+    rows+=("$(printf '%s\t%s\t%s\t%s\t%d\t%s' "$display" "${branch:-<detached>}" "$rel_path" "$wt_abs" "$deletable" "$repo_root")")
+  }
+
+  while IFS= read -r line; do
+    case $line in
+      worktree\ *)
+        wt_path=${line#worktree }
+        wt_branch=""
+        ;;
+      branch\ *)
+        wt_branch=${line#branch refs/heads/}
+        ;;
+      "")
+        [[ -n $wt_path ]] && _prwtrmc_row "$wt_path" "$wt_branch"
+        wt_path=""
+        wt_branch=""
+        ;;
+    esac
+  done < <(git -C "$repo_root" worktree list --porcelain)
+  [[ -n $wt_path ]] && _prwtrmc_row "$wt_path" "$wt_branch"
+}
+
+# ----- print the remaining-worktrees table for one repo -------------------
+# _prwtrmc_table_repo <repo_root>
+#   Appends one table row per worktree (including main, labeled) to the outer
+#   `table_rows` array. Recomputes behind/ahead/age/created from live state.
+_prwtrmc_table_repo() {
+  local repo_root=$1
+  local repo_name=${repo_root:t}
+
+  local main_worktree
+  main_worktree=$(git -C "$repo_root" worktree list --porcelain \
+    | awk '/^worktree /{print $2; exit}')
+
+  local def_branch
+  def_branch=$(git -C "$repo_root" symbolic-ref refs/remotes/origin/HEAD 2>/dev/null \
+    | sed 's|refs/remotes/origin/||')
+  [[ -z $def_branch ]] && def_branch=main
+
+  local wt_path="" wt_branch=""
+
+  _prwtrmc_table_row() {
+    local wt_abs=$1 branch=$2
+    local rel_path=${wt_abs#${repo_root:h}/}
+    [[ $rel_path == "$wt_abs" ]] && rel_path=$wt_abs
+
+    local is_main=0
+    [[ $wt_abs == "$main_worktree" ]] && is_main=1
+
+    local behind="-" ahead="-" age="-" created="-"
+
+    if [[ -n $branch ]]; then
+      local ba
+      ba=$(git -C "$repo_root" rev-list --left-right --count \
+        "origin/${def_branch}...${branch}" 2>/dev/null) || ba=""
+      if [[ -n $ba ]]; then
+        behind=${ba%%$'\t'*}
+        ahead=${ba##*$'\t'}
+      fi
+      local commit_epoch
+      commit_epoch=$(git -C "$repo_root" log -1 --format=%ct "$branch" 2>/dev/null) || commit_epoch=""
+      if [[ -n $commit_epoch ]]; then
+        local now; now=$(date +%s)
+        age=$(_prwtrmc_human_ago $(( now - commit_epoch )))
+      fi
+    fi
+
+    local created_epoch
+    created_epoch=$(_prwtrmc_created_epoch "$wt_abs")
+    if [[ -n $created_epoch ]]; then
+      local now2; now2=$(date +%s)
+      created=$(_prwtrmc_human_ago $(( now2 - created_epoch )))
+    fi
+
+    local label_branch=${branch:-<detached>}
+    (( is_main )) && label_branch="${label_branch} (main)"
+
+    table_rows+=("$(printf '%s\t%s\t%s\t%s\t%s\t%s\t%s' \
+      "$repo_name" "$rel_path" "$label_branch" "$behind" "$ahead" "$age" "$created")")
+  }
+
+  while IFS= read -r line; do
+    case $line in
+      worktree\ *) wt_path=${line#worktree }; wt_branch="" ;;
+      branch\ *)   wt_branch=${line#branch refs/heads/} ;;
+      "")          [[ -n $wt_path ]] && _prwtrmc_table_row "$wt_path" "$wt_branch"
+                   wt_path=""; wt_branch="" ;;
+    esac
+  done < <(git -C "$repo_root" worktree list --porcelain)
+  [[ -n $wt_path ]] && _prwtrmc_table_row "$wt_path" "$wt_branch"
+}
+
+# ----- determine repos in scope -------------------------------------------
+local -a repos
+local cwd_repo
+cwd_repo=$(git rev-parse --show-toplevel 2>/dev/null)
+
+if [[ -n $cwd_repo ]]; then
+  # Single-repo mode.
+  repos=("$cwd_repo")
+else
+  # Multi-repo mode: scan cwd for primary git repos (child dir with a .git DIR).
+  local d
+  for d in *(/N); do
+    [[ -d $d/.git ]] && repos+=("${d:A}")
+  done
+  repos=("${(@o)repos}")                                 # sort
+
+  if (( ${#repos} == 0 )); then
+    print -u2 "pr-worktree-rm-merged-closed: not inside a git repo, and no primary git repos found under $PWD"
     return 1
   fi
 fi
 
-local failed=0 i
-for (( i = 1; i <= ${#abs_paths}; i++ )); do
-  local p=${abs_paths[$i]}
-  local d=${display_lines[$i]%%$'\t'*}                  # rel_path for display
-  local err
-  if git -C "$repo_root" worktree remove "$p" 2>/dev/null; then
-    print "removed: $d"
-  elif err=$(git -C "$repo_root" worktree remove --force "$p" 2>&1); then
-    print "removed (force): $d"
-  else
-    print -u2 "failed:  $d ($p)"
-    print -u2 "  hint: $(git -C "$repo_root" worktree remove "$p" 2>&1 || true)"
-    [[ -n $err ]] && print -u2 "  force: $err"
-    failed=$(( failed + 1 ))
-  fi
+# ----- collect all picker rows across every repo in scope -----------------
+local -a rows
+local repo
+for repo in "${repos[@]}"; do
+  _prwtrmc_collect_repo "$repo"
 done
 
-git -C "$repo_root" worktree prune
+# Sort deletable rows (col5=1) first, then by display. Prefix an inverted
+# deletable flag (1-col5) so deletable rows (key 0) sort ahead of others.
+local -a sorted
+if (( ${#rows} )); then
+  sorted=("${(@f)$(
+    printf '%s\n' "${rows[@]}" \
+      | awk -F'\t' '{ printf "%d\t%s\n", 1-$5, $0 }' \
+      | sort -t$'\t' -k1,1n -k2,2 \
+      | cut -f2-
+  )}")
+fi
+
+# ----- single picker (or dry-run listing) ---------------------------------
+local -a del_paths del_display del_repos
+if (( ${#sorted} == 0 )); then
+  print "No removable worktrees found (excluding each repo's main/current)."
+elif (( dry_run )); then
+  local r
+  local -a would
+  for r in "${sorted[@]}"; do
+    [[ ${${r%$'\t'*}##*$'\t'} == 1 ]] && would+=("${r%%$'\t'*}")
+  done
+  if (( ${#would} )); then
+    print "would delete (dry-run):"
+    printf '  %s\n' "${would[@]}"
+  else
+    print "(dry-run: nothing deletable)"
+  fi
+else
+  local selection
+  selection=$(
+    printf '%s\n' "${sorted[@]}" \
+      | fzf --multi --ansi --no-mouse --height=80% --reverse \
+            --delimiter=$'\t' --with-nth=1 \
+            --prompt='delete> ' \
+            --header='TAB multi-select | ENTER delete | Ctrl-G abort' \
+            --preview='"$HOME/bin/wt-preview" {4}' \
+            --preview-window=bottom:40%:wrap \
+            --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)' \
+            --bind='ctrl-g:abort'
+  )
+  if [[ -n $selection ]]; then
+    local sel_display sel_branch sel_rel sel_abs sel_del sel_repo
+    while IFS=$'\t' read -r sel_display sel_branch sel_rel sel_abs sel_del sel_repo; do
+      [[ -z $sel_abs ]] && continue
+      del_paths+=("$sel_abs")
+      del_display+=("$sel_rel")
+      del_repos+=("$sel_repo")
+    done <<< "$selection"
+  fi
+fi
+
+# ----- perform deletions (grouped implicitly by carrying repo per row) -----
+local failed=0 i
+local -A pruned
+if (( ${#del_paths} )); then
+  print
+  print "About to delete ${#del_paths} worktree(s):"
+  for (( i = 1; i <= ${#del_display}; i++ )); do print "  ${del_display[$i]}"; done
+  print -n "Proceed? [y/N] "
+  local reply
+  read -r reply
+  if [[ ${reply:l} == y || ${reply:l} == yes ]]; then
+    for (( i = 1; i <= ${#del_paths}; i++ )); do
+      local p=${del_paths[$i]}
+      local d=${del_display[$i]}
+      local rr=${del_repos[$i]}
+      local err
+      if git -C "$rr" worktree remove "$p" 2>/dev/null; then
+        print "removed: $d"
+      elif err=$(git -C "$rr" worktree remove --force "$p" 2>&1); then
+        print "removed (force): $d"
+      else
+        print -u2 "failed:  $d ($p)"
+        [[ -n $err ]] && print -u2 "  force: $err"
+        failed=$(( failed + 1 ))
+      fi
+      pruned[$rr]=1
+    done
+    local pr
+    for pr in "${(@k)pruned}"; do
+      git -C "$pr" worktree prune
+    done
+  else
+    print "Aborted (nothing deleted)."
+  fi
+fi
+
+# ----- remaining-worktrees table (combined, across all repos) -------------
+local -a table_rows
+for repo in "${repos[@]}"; do
+  _prwtrmc_table_repo "$repo"
+done
+
+if (( ${#table_rows} )); then
+  print
+  print "Remaining worktrees:"
+  {
+    print -- $'REPO\tWORKTREE\tBRANCH\tBEHIND\tAHEAD\tAGE\tCREATED'
+    printf '%s\n' "${table_rows[@]}"
+  } | column -t -s $'\t'
+fi
 
 return $failed
