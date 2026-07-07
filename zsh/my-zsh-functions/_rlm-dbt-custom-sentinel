@@ -1,0 +1,59 @@
+emulate -L zsh
+
+# Shared "--- CUSTOM SELECT ---" sentinel logic for the rlm-dbt-* fzf
+# pickers (rlm-dbt-ls and the run/build/test picker in _rlm-dbt-cmd).
+#
+# The pickers list nodes from the per-project nodes cache; once a node is
+# picked they drop into a `vared` prompt so the selector can be tweaked
+# before running. To type a *fully custom* selector from scratch (e.g.
+# `tag:finance,config.materialized:incremental` or `state:modified+`) you
+# would otherwise have to pick an arbitrary node just to reach that prompt
+# and then clear it. This sentinel gives each picker a dedicated row that
+# jumps straight to an empty `vared` prompt.
+#
+# The literal string lives here (not open-coded in the callers) so the
+# `emit` wording and the `is` prefix match can never drift apart — the same
+# rationale as the sibling _rlm-dbt-refresh-sentinel helper, of which this
+# is a simpler cousin (no cache-age formatting).
+#
+# ----------------------------------------------------------------------
+# Usage
+# ----------------------------------------------------------------------
+#
+#   _rlm-dbt-custom-sentinel emit
+#       Print the sentinel line. Exit 0 always.
+#
+#   _rlm-dbt-custom-sentinel is <line>
+#       Test whether <line> is the custom-select sentinel (prefix match).
+#       Exit 0 on match, 1 otherwise.
+#
+# ----------------------------------------------------------------------
+# Return codes
+# ----------------------------------------------------------------------
+#   0 — success (emit always; is on match).
+#   1 — is: no match; usage error (missing subcommand).
+#   2 — unknown subcommand.
+
+local subcmd="$1"
+shift 2>/dev/null
+
+case "$subcmd" in
+  emit)
+    print -r -- "--- CUSTOM SELECT (type your own selector) ---"
+    return 0
+    ;;
+  is)
+    [[ "$1" == "--- CUSTOM SELECT"* ]]
+    return $?
+    ;;
+  "")
+    print -u2 "_rlm-dbt-custom-sentinel: missing subcommand"
+    print -u2 "usage: _rlm-dbt-custom-sentinel emit"
+    print -u2 "       _rlm-dbt-custom-sentinel is   <line>"
+    return 1
+    ;;
+  *)
+    print -u2 "_rlm-dbt-custom-sentinel: unknown subcommand: $subcmd"
+    return 2
+    ;;
+esac

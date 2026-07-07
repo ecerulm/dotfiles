@@ -8,6 +8,11 @@ appear at the top with a "last run X ago" label. The model list is cached in
 ~/.cache/dbt-run/models.txt; select the REFRESH entry in the picker to
 re-run dbt ls and refresh the cache.
 
+The picker also offers a "--- CUSTOM SELECT (type your own selector) ---"
+entry at the top: pick it to open an empty editor and type a free-form
+selector from scratch (e.g. tag:finance,config.materialized:incremental or
+state:modified+) without first picking a model.
+
 After picking, the selector opens in a one-line editor (zsh `vared`) so you
 can tack on graph operators (`my_model+`, `+my_model`, `my_model+1`) or
 switch to a tag/path selector before dbt runs. Press Enter to accept the

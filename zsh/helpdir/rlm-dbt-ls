@@ -21,6 +21,12 @@ WORKFLOW
      the picker: it rebuilds the cache via `dbt ls` and reopens the
      picker with the fresh list. (Same cache and refresh entry used by
      rlm-dbt-run / rlm-dbt-build / rlm-dbt-test.)
+
+     The picker also offers a
+     "--- CUSTOM SELECT (type your own selector) ---" entry: pick it to
+     start the selector editor (step 2) empty and type a free-form
+     selector from scratch (e.g. tag:nightly,config.materialized:view)
+     without first picking a model.
   2. "dbt ls -s <selector> --profiles-dir <dir> --profile local_dev"
      is run via "poetry run dbt ls …".
   3. The resulting model names are shown in an fzf multi-select picker.

@@ -145,7 +145,7 @@ _rlm-dbt-ensure-deps "$project_root" "$dbt_project_root" dbt-ls || return 1
 # history,nodes-cache} helpers.
 # ---------------------------------------------------------------------------
 
-autoload -Uz _rlm-dbt-project-key _rlm-dbt-history _rlm-dbt-nodes-cache _rlm-dbt-refresh-sentinel
+autoload -Uz _rlm-dbt-project-key _rlm-dbt-history _rlm-dbt-nodes-cache _rlm-dbt-refresh-sentinel _rlm-dbt-custom-sentinel
 local project_key
 project_key=$(_rlm-dbt-project-key "$dbt_project_root") || return 1
 local nodes_cache_file
@@ -247,10 +247,16 @@ fi
 local refresh_sentinel
 refresh_sentinel=$(_rlm-dbt-refresh-sentinel emit "$nodes_cache_file")
 
+# CUSTOM SELECT sentinel: picking it starts Phase 2's vared prompt empty so
+# the user can type a free-form selector without first picking a model.
+local custom_sentinel
+custom_sentinel=$(_rlm-dbt-custom-sentinel emit)
+
 local picked
 picked=$(
   {
     print -r -- "$refresh_sentinel"
+    print -r -- "$custom_sentinel"
     print -- "$models_and_history"
   } \
   | fzf \
@@ -273,6 +279,12 @@ picked=$(
 if _rlm-dbt-refresh-sentinel is "$picked"; then
   _dbt_ls_refresh_and_reloop
   return $?
+fi
+
+# Custom-select sentinel picked → blank the value so Phase 2's vared prompt
+# opens empty and the user types their own selector from scratch.
+if _rlm-dbt-custom-sentinel is "$picked"; then
+  picked=""
 fi
 
 # ---------------------------------------------------------------------------

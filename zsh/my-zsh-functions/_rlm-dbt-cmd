@@ -207,7 +207,7 @@ local dbt_target="$DBT_TARGET"
 # scoped per project) and one nodes cache (~/.cache/rlm-dbt/<key>/nodes.json,
 # covering every resource type the four commands care about). See the
 # three _rlm-dbt-{project-key,history,nodes-cache} helpers.
-autoload -Uz _rlm-dbt-project-key _rlm-dbt-history _rlm-dbt-nodes-cache _rlm-dbt-refresh-sentinel
+autoload -Uz _rlm-dbt-project-key _rlm-dbt-history _rlm-dbt-nodes-cache _rlm-dbt-refresh-sentinel _rlm-dbt-custom-sentinel
 local project_key
 project_key=$(_rlm-dbt-project-key "$dbt_root") || return 1
 local nodes_cache
@@ -292,11 +292,17 @@ if [[ -z $selector ]]; then
   local refresh_sentinel
   refresh_sentinel=$(_rlm-dbt-refresh-sentinel emit "$nodes_cache")
 
-  # fzf input: sentinel, history with labels, then remaining nodes
+  # CUSTOM SELECT sentinel: picking it opens an empty vared prompt so the
+  # user can type a free-form selector without first picking a node.
+  local custom_sentinel
+  custom_sentinel=$(_rlm-dbt-custom-sentinel emit)
+
+  # fzf input: sentinels, history with labels, then remaining nodes
   local raw_selection
   raw_selection=$(
     {
       print -- "$refresh_sentinel"
+      print -r -- "$custom_sentinel"
       # History entries (pooled across all rlm-dbt-* commands, project-scoped)
       local entry
       for entry in "${history_lines[@]}"; do
@@ -334,19 +340,32 @@ if [[ -z $selector ]]; then
     return $?
   fi
 
-  # Extract just the selector (first tab-delimited field)
-  selector="${raw_selection%%$'\t'*}"
+  if _rlm-dbt-custom-sentinel is "$raw_selection"; then
+    # CUSTOM SELECT: open an empty vared prompt so the user types the whole
+    # selector from scratch (no node pre-picked). Same Ctrl-C abort (130)
+    # and empty-selector guard as the edit-before-run path below.
+    selector=""
+    print -u2 "${label}: enter selector (Enter to run, Ctrl-C to abort)"
+    vared -p "${label} -s " selector || return 130
+    if [[ -z $selector ]]; then
+      print -u2 "${label}: empty selector"
+      return 1
+    fi
+  else
+    # Extract just the selector (first tab-delimited field)
+    selector="${raw_selection%%$'\t'*}"
 
-  # Give the user a chance to edit the selector before running dbt — handy
-  # for tacking on graph operators (`my_model+`, `+my_model`, `my_model+1`)
-  # or switching to a tag/path selector based on the picked model name.
-  # `vared` opens zsh's line editor pre-populated with the value; Enter
-  # accepts, Ctrl-C aborts (return 130, matching the fzf abort convention).
-  print -u2 "${label}: edit selector (Enter to accept, Ctrl-C to abort)"
-  vared -p "${label} -s " selector || return 130
-  if [[ -z $selector ]]; then
-    print -u2 "${label}: empty selector"
-    return 1
+    # Give the user a chance to edit the selector before running dbt — handy
+    # for tacking on graph operators (`my_model+`, `+my_model`, `my_model+1`)
+    # or switching to a tag/path selector based on the picked model name.
+    # `vared` opens zsh's line editor pre-populated with the value; Enter
+    # accepts, Ctrl-C aborts (return 130, matching the fzf abort convention).
+    print -u2 "${label}: edit selector (Enter to accept, Ctrl-C to abort)"
+    vared -p "${label} -s " selector || return 130
+    if [[ -z $selector ]]; then
+      print -u2 "${label}: empty selector"
+      return 1
+    fi
   fi
 fi
 
