@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-07-14
+
+- Fix Python indent reset: drop `:` and `<:>` from `indentkeys` (set by `$VIMRUNTIME/indent/python.vim`) so typing a colon inside a string no longer triggers the treesitter `indentexpr` and clobbers the line indent to 0
+
 ## 2026-05-31
 
 - Add `:ChangedFiles` user command — quickfix list of files changed on this branch vs its base (PR target via `gh`, else `origin/HEAD`, else `origin/main`), measured from the fork point; includes working-tree and untracked changes
