@@ -4,6 +4,12 @@ All notable changes to the zsh configuration are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2026-07-14]
+
+### Changed
+
+- `rlm-pr-worktree-rm`: on a failed removal, if the error is a `locked working tree`, print diagnostics to help recover — the lock reason (parsed from `git worktree list --porcelain`), a liveness check of any `pid N` recorded in the reason (`STILL RUNNING` vs `not running (safe to unlock)` via `kill -0`), and the exact `git worktree unlock` / force-remove (`worktree remove -f -f`) commands (paths quoted with `${(q)...}`). Non-locked failures are unchanged.
+
 ## [2026-07-06]
 
 ### Added

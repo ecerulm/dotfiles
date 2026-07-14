@@ -177,6 +177,33 @@ for (( i = 1; i <= ${#paths_to_delete}; i++ )); do
     print -u2 "failed:  $d ($p)"
     print -u2 "  hint: $(git -C "$repo_root" worktree remove "$p" 2>&1 || true)"
     [[ -n $err ]] && print -u2 "  force: $err"
+
+    # If the worktree is locked, help the user unlock it. Show whether the
+    # PID recorded in the lock reason is still alive, then print the full
+    # unlock command (git resolves the worktree by its abs path).
+    if [[ $err == *"locked working tree"* ]]; then
+      local lock_reason lock_pid
+      lock_reason=$(git -C "$repo_root" worktree list --porcelain \
+        | awk -v w="$p" '
+            $1=="worktree"{cur=$2}
+            $1=="locked" && cur==w {sub(/^locked ?/,""); print; exit}')
+      [[ -n $lock_reason ]] && print -u2 "  lock reason: $lock_reason"
+
+      lock_pid=$(print -r -- "$lock_reason" | sed -n 's/.*pid \([0-9][0-9]*\).*/\1/p')
+      if [[ -n $lock_pid ]]; then
+        if kill -0 "$lock_pid" 2>/dev/null; then
+          print -u2 "  pid $lock_pid: STILL RUNNING — do not unlock unless you're sure it's safe"
+        else
+          print -u2 "  pid $lock_pid: not running (safe to unlock)"
+        fi
+      fi
+
+      print -u2 "  to unlock, run:"
+      print -u2 "    git -C ${(q)repo_root} worktree unlock ${(q)p}"
+      print -u2 "  then re-run pr-worktree-rm (or force-remove a locked tree with:"
+      print -u2 "    git -C ${(q)repo_root} worktree remove -f -f ${(q)p})"
+    fi
+
     failed=$(( failed + 1 ))
   fi
 done
