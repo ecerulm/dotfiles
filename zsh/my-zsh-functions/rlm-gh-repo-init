@@ -24,7 +24,30 @@ if git remote | grep -q .; then
   return 1
 fi
 
-local repo_slug=$1
+# Parse args: an optional --public/--private flag (in any position) plus the
+# positional OWNER/REPO slug. Visibility stays unset unless the caller passes
+# a flag, so we know whether to prompt interactively below.
+local visibility=""
+local repo_slug=""
+local arg
+for arg in "$@"; do
+  case $arg in
+    --public) visibility="public" ;;
+    --private) visibility="private" ;;
+    --*)
+      print -u2 "gh-repo-init: unknown option: ${arg}"
+      return 1
+      ;;
+    *)
+      if [[ -n $repo_slug ]]; then
+        print -u2 "gh-repo-init: unexpected extra argument: ${arg}"
+        return 1
+      fi
+      repo_slug=$arg
+      ;;
+  esac
+done
+
 if [[ -z $repo_slug ]]; then
   local gh_user
   gh_user=$(gh api user --jq .login) || {
@@ -43,4 +66,20 @@ if [[ -z $repo_slug ]]; then
   fi
 fi
 
-gh repo create "$repo_slug" --private --source . --push && gh repo view -w
+# No --public/--private given: ask. Default (bare Enter) is private, the safer
+# choice for a repo being created from an existing local directory.
+if [[ -z $visibility ]]; then
+  print -u2 -n "Visibility? [private/public] (default: private) "
+  local vis_reply
+  read -r vis_reply
+  case ${vis_reply:l} in
+    "" | private | priv | p) visibility="private" ;;
+    public | pub) visibility="public" ;;
+    *)
+      print -u2 "gh-repo-init: invalid visibility: ${vis_reply}"
+      return 1
+      ;;
+  esac
+fi
+
+gh repo create "$repo_slug" "--${visibility}" --source . --push && gh repo view -w

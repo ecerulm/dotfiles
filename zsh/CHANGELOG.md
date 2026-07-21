@@ -4,6 +4,12 @@ All notable changes to the zsh configuration are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2026-07-21]
+
+### Changed
+
+- `rlm-gh-repo-init` (`gh-repo-init` / `create-gh-repo`): repo visibility is no longer hardcoded to `--private`. Accepts `--public`/`--private` (in any position, alongside the optional `OWNER/REPO` slug). When neither flag is given it prompts `Visibility? [private/public] (default: private)` and reads the answer (`""`/`private`/`priv`/`p` → private, `public`/`pub` → public, anything else → error), keeping private as the safe default for a repo created from an existing local directory. Unknown `--flags` and a second positional argument are now rejected with a message. `helpdir/rlm-gh-repo-init` updated.
+
 ## [2026-07-14]
 
 ### Changed

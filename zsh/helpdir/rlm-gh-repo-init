@@ -1,12 +1,16 @@
-rlm-gh-repo-init [OWNER/REPO]
+rlm-gh-repo-init [--public|--private] [OWNER/REPO]
 
-Create a private GitHub repository from the current directory and push,
+Create a GitHub repository from the current directory and push,
 provided no remote is configured yet.
 
 The argument must be in OWNER/REPO form (e.g. ecerulm/my-project).
 
-If no argument is provided, defaults to <github-username>/<current-dir>
-(username looked up via 'gh api user') and prompts for confirmation
-before continuing.
+If no OWNER/REPO argument is provided, defaults to
+<github-username>/<current-dir> (username looked up via 'gh api user')
+and prompts for confirmation before continuing.
+
+Visibility is set by --public or --private. If neither flag is given,
+prompts for visibility (private/public), defaulting to private on a
+bare Enter.
 
 Requires: gh, git.
