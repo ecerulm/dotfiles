@@ -45,7 +45,11 @@ tags
 .terraform/
 terraform.tfstate
 terraform.tfstate.backup
-.terraform.lock.hcl
+# HashiCorp recommends COMMITTING the dependency lock file (not ignoring it),
+# so it is deliberately left out of this global ignore. It pins provider
+# versions/hashes for reproducible installs across the team and CI.
+# https://developer.hashicorp.com/terraform/language/files/dependency-lock
+# .terraform.lock.hcl
 latest.tfplan
 .luarc.json
 
