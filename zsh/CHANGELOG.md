@@ -4,6 +4,12 @@ All notable changes to the zsh configuration are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2026-07-22]
+
+### Fixed
+
+- `rlm-pr-worktree` (`pr-worktree`): selecting a PR whose head branch is already checked out in another worktree no longer fails. Previously `gh pr checkout` would abort with `fatal: '<branch>' is already used by worktree at '<path>'` (git forbids one branch in two worktrees) and the script tore down the just-created empty worktree, leaving the user with nothing. `_prwt_make_pr_worktree` now resolves the PR head ref *before* creating the empty worktree and, via the new `_prwt_worktree_for_branch` helper (pairs `worktree`/`branch` lines from `git worktree list --porcelain`), detects an existing checkout and `cd`s into it (with a `git pull`) instead.
+
 ## [2026-07-21]
 
 ### Changed

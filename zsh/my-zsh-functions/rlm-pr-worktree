@@ -91,8 +91,42 @@ _prwt_default_branch() {
   ( cd -- "$repo_root" && gh repo view --json defaultBranchRef -q .defaultBranchRef.name 2>/dev/null )
 }
 
+# Print the absolute path of the worktree that currently has $1 checked
+# out, or nothing if no worktree holds that branch. `git worktree list
+# --porcelain` emits, per worktree, a `worktree <abs-path>` line followed
+# (for attached HEADs) by a `branch refs/heads/<name>` line; we pair them
+# up and match on the fully-qualified ref.
+_prwt_worktree_for_branch() {
+  local branch=$1
+  git -C "$repo_root" worktree list --porcelain 2>/dev/null \
+    | awk -v want="refs/heads/${branch}" '
+        /^worktree / { wt = substr($0, 10); next }
+        $0 == "branch " want { print wt; exit }
+      '
+}
+
 _prwt_make_pr_worktree() {
   local pr_number=$1
+
+  # Resolve the PR's head branch up front. `gh pr checkout` will create a
+  # local branch of this name inside the new worktree; git forbids the
+  # same branch being checked out in two worktrees at once, so if it is
+  # already live elsewhere the checkout would fail with
+  #   fatal: '<branch>' is already used by worktree at '<path>'
+  # and we'd tear down the just-created empty worktree. Detect that here
+  # and enter the existing worktree instead of failing.
+  local pr_branch existing_wt
+  pr_branch=$(cd -- "$repo_root" && gh pr view "$pr_number" --json headRefName -q .headRefName) || return 1
+  existing_wt=$(_prwt_worktree_for_branch "$pr_branch")
+  if [[ -n $existing_wt ]]; then
+    print "pr-worktree: PR #$pr_number branch '$pr_branch' is already checked out at"
+    print "pr-worktree:   $existing_wt"
+    print "pr-worktree: entering it instead of creating a duplicate worktree."
+    cd -- "$existing_wt"
+    git pull --no-rebase 2>/dev/null || true
+    return 0
+  fi
+
   # Optional free-form suffix (slug-normalized). Symmetrical with the
   # JIRA flow's _prwt_prompt_suffix: empty -> legacy <repo>-pr-<N>;
   # non-empty -> <repo>-pr-<N>-<slug>. The follow-up
@@ -115,9 +149,6 @@ _prwt_make_pr_worktree() {
     git pull
     return 0
   fi
-
-  local pr_branch
-  pr_branch=$(cd -- "$repo_root" && gh pr view "$pr_number" --json headRefName -q .headRefName) || return 1
 
   print "pr-worktree: creating worktree at $worktree_path for PR #$pr_number ($pr_branch)"
 
