@@ -64,10 +64,12 @@ project_root=$(pwd)
 cache_key=$(print -n "$project_root" | md5)
 cache_file="${cache_dir}/${cache_key}.txt"
 
-# Read previous selection (if any) to use as the fzf default
+# Read previous selection (if any) to use as the fzf default. The cache may
+# hold several DAGs (one per line, since the picker is multi-select); the
+# query pre-fill only needs the first entry.
 local default_dag=""
 if [[ -f $cache_file ]]; then
-  default_dag=$(<"$cache_file")
+  default_dag=$(head -n 1 "$cache_file")
 fi
 
 # ---------------------------------------------------------------------------
@@ -189,43 +191,67 @@ done
 picker_lines=(${(f)"$(printf '%s\n' "${picker_lines[@]}" | sort -t$'\t' -k1,1n -k2,2n)"})
 
 # ---------------------------------------------------------------------------
-# fzf picker over DAG files
+# fzf picker over DAG files (multi-select)
+#
+# --multi lets the user tag several DAGs (tab / shift-tab to toggle, or the
+# ctrl-a / ctrl-d binds below to select/deselect all). Each selected line is
+# returned on its own line; we read the raw-path column (4th tab-separated
+# field) back from every one.
 # ---------------------------------------------------------------------------
 
-local picker_out dag_file
+local picker_out
 picker_out=$(
   printf '%s\n' "${picker_lines[@]}" \
   | fzf \
+      --multi \
       --no-mouse \
       --ansi \
       --delimiter=$'\t' \
       --with-nth=3 \
-      --prompt="Select DAG> " \
+      --prompt="Select DAG(s)> " \
+      --header="tab: toggle · ctrl-a: all · ctrl-d: none · enter: deploy" \
       --height=80% \
       --reverse \
       ${default_dag:+--query="$(basename "$default_dag")"} \
       --preview='cat {4}' \
       --preview-window=bottom:40%:wrap \
       --bind="ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)" \
+      --bind='ctrl-a:select-all' \
+      --bind='ctrl-d:deselect-all' \
       --bind='ctrl-g:abort'
 )
 
-# Extract the raw-path column (4th tab-separated field) from the selection.
-dag_file=${picker_out##*$'\t'}
+# Extract the raw-path column (4th tab-separated field) from each selected
+# line. With --multi, picker_out holds one selection per line.
+local -a dag_files_selected dag_names
+local sel
+for sel in ${(f)picker_out}; do
+  [[ -z $sel ]] && continue
+  dag_files_selected+=("${sel##*$'\t'}")
+done
 
-if [[ -z $dag_file ]]; then
+if (( ${#dag_files_selected} == 0 )); then
   print -u2 "afw-deploy: no DAG selected, aborting"
   return 1
 fi
 
-local dag_name
-dag_name=$(basename "$dag_file")
+# afw's -d/--dags option takes a DAG *filename* (foo_dag.py) and is
+# `multiple=True`, so pass one -d per selected DAG in a single invocation.
+local dag_file
+local -a dag_args
+for dag_file in $dag_files_selected; do
+  local dag_name
+  dag_name=$(basename "$dag_file")
+  dag_names+=("$dag_name")
+  dag_args+=(-d "$dag_name")
+done
 
-# Persist selection for next time
-print -n "$dag_file" >| "$cache_file"
+# Persist the full selection for next time (newline-separated; the query
+# pre-fill below uses only the first entry).
+print -l -- "${dag_files_selected[@]}" >| "$cache_file"
 
 # ---------------------------------------------------------------------------
-# Deploy
+# Deploy (single invocation; afw stops on the first DAG that fails)
 # ---------------------------------------------------------------------------
 
 local env bucket subnetwork
@@ -233,9 +259,9 @@ env="dev"
 bucket="europe-west1-sdp-composer-91ff48c9-bucket"
 subnetwork="ecerulm"
 
-print "afw-deploy: deploying ${dag_name} to env=${env} …" >&2
+print "afw-deploy: deploying ${(j:, :)dag_names} to env=${env} …" >&2
 poetry run afw sandbox deploy \
   -e "$env" \
   -b "$bucket" \
   -s "$subnetwork" \
-  -d "$dag_name"
+  "${dag_args[@]}"

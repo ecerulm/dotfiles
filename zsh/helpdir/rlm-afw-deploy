@@ -1,6 +1,6 @@
 afw-deploy
 
-Deploy a DAG to the dev Airflow sandbox via fzf picker.
+Deploy one or more DAGs to the dev Airflow sandbox via fzf picker.
 
 Can be invoked from anywhere inside the project — the function
 walks up from $PWD looking for the first directory that contains
@@ -19,20 +19,25 @@ WHAT IT DOES
      venv is missing afw, runs "poetry install" automatically once;
      if afw is still not in the venv after that, aborts with a
      three-line diagnostic (expected venv, resolved afw, project dir).
-  3. Opens an fzf picker over *.py files in airflow_manager/dag_folder/.
+  3. Opens a multi-select fzf picker over *.py files in
+     airflow_manager/dag_folder/. Tag DAGs with tab / shift-tab
+     (ctrl-a selects all, ctrl-d deselects all); enter deploys the
+     tagged set (or the highlighted row if none are tagged).
      Entries are grouped, newest first within each group:
        - locally edited (uncommitted vs HEAD)      — yellow, on top
        - touched in this branch (vs the merge-base
          / fork-point with origin/HEAD)            — green, below
        - everything else                           — default color
      Within each group, files are sorted by mtime (newest first).
-  4. Deploys the selected DAG:
+  4. Deploys the selected DAG(s) in a single afw invocation (afw's
+     -d/--dags option is multiple=True, so one -d is passed per DAG;
+     afw stops on the first DAG that fails):
 
        poetry run afw sandbox deploy \
          -e dev \
          -b europe-west1-sdp-composer-91ff48c9-bucket \
          -s ecerulm \
-         -d <selected-dag.py>
+         -d <dag-a.py> -d <dag-b.py> …
 
 PICKER LAYOUT
   Each fzf line is a tab-separated record with hidden sort-key
@@ -46,8 +51,8 @@ PICKER LAYOUT
   and the picker still works (sorted by mtime only).
 
 LAST SELECTION
-  The last DAG chosen for each project root is cached in
-  ~/.cache/afw-deploy/. On subsequent runs fzf's query is pre-filled
-  with the previous selection, so pressing Enter redeploys it instantly.
+  The last DAG(s) chosen for each project root are cached in
+  ~/.cache/afw-deploy/ (one filename per line). On subsequent runs
+  fzf's query is pre-filled with the first previously-selected DAG.
 
 Requires: poetry, fd, fzf, git.
