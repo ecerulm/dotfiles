@@ -1,6 +1,24 @@
 # pr-worktree: pick a PR or JIRA issue via fzf and create a sibling git
 # worktree.
 #
+# Two modes, chosen automatically from the cwd:
+#
+#   * Single-repo (cwd is inside a git repo) — the behavior documented
+#     below: pick a PR / JIRA issue / CUSTOM suffix and create ONE sibling
+#     worktree of the current repo.
+#
+#   * Multi-repo (cwd is NOT a git repo but contains git repos, e.g.
+#     ~/git/work/StorytelDataPlatform which holds data-platform-dbt,
+#     data-platform-infra, …) — the picker shows JIRA + CUSTOM + REFRESH
+#     only (no PR rows, since a PR belongs to a single repo). After the
+#     suffix and dirname prompts, a single sibling collection directory
+#     ../<cwd-basename>_<date>_<suffix>/ is created holding a NEW worktree
+#     of EVERY distinct repo found in the cwd, each on a new branch off its
+#     own origin/<default-branch>. Repos that appear as several existing
+#     worktrees are deduplicated (matched by --git-common-dir). Branch
+#     naming matches the single-repo flows: JIRA -> <KEY>/feat/<slug>,
+#     CUSTOM -> the bare <slug>.
+#
 # Sources (current repo only), shown in this order in the picker:
 #   1. All open PRs in the repo updated in the last 2 weeks, sorted by
 #      updatedAt desc. Rows authored by you are highlighted in green so
@@ -33,6 +51,9 @@
 # parent is always the repo's sibling). Press Enter to accept the default.
 #
 # Usage: pr-worktree [PR_NUMBER | JIRA_KEY | --suffix SUFFIX]
+#   - no arg (in a repo)      -> single-repo fzf picker
+#   - no arg (in a repo dir)  -> multi-repo picker (JIRA/CUSTOM), one worktree
+#                                per repo under ../<dir>_<date>_<suffix>/
 #   - no arg             -> fzf picker (JIRA selections also prompt for suffix)
 #   - PR num             -> skip picker, treat as PR
 #   - JIRA key           -> skip picker, treat as JIRA issue (e.g. DATA-1234);
@@ -54,11 +75,48 @@ done
 
 autoload -Uz _rlm-jira-cache _rlm-jira-history _rlm-jira-sorted-rows
 
-local repo_root main_root repo_slug repo_name
-repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || {
-  print -u2 "pr-worktree: not inside a git repository"
-  return 1
+# Emit the canonical repo roots (parent of each distinct --git-common-dir)
+# for every immediate subdirectory of $1 that lives inside a git working
+# tree. Repos that appear as several worktrees collapse to one row, since
+# every worktree of the same repo shares one --git-common-dir. One
+# absolute path per line, sorted; returns 1 (no output) when none found.
+_prwt_discover_repos() {
+  local base=$1 subdir common root
+  local -A seen
+  local -a roots
+  for subdir in "$base"/*(N/); do
+    common=$(git -C "$subdir" rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || continue
+    [[ -z $common ]] && continue
+    root=${common:h} # parent of the shared .git dir = main repo root
+    [[ -n ${seen[$root]} ]] && continue
+    seen[$root]=1
+    roots+=("$root")
+  done
+  (( ${#roots} == 0 )) && return 1
+  # (@o): preserve each element as a separate word (sorted) so `print -l`
+  # emits one path per line. A plain "${(o)roots}" would join into one
+  # word and collapse the whole list onto a single line.
+  print -rl -- "${(@o)roots}"
 }
+
+# Mode detection: single-repo when cwd is inside a git repo; otherwise
+# multi-repo when the cwd (a plain directory) contains git repos.
+local repo_root main_root repo_slug repo_name
+local multi_repo='' collection_dir=$PWD
+repo_root=$(git rev-parse --show-toplevel 2>/dev/null)
+if [[ -z $repo_root ]]; then
+  if _prwt_discover_repos "$collection_dir" >/dev/null 2>&1; then
+    multi_repo=1
+  else
+    print -u2 "pr-worktree: not inside a git repository, and no git repos found in $collection_dir"
+    return 1
+  fi
+fi
+
+# The repo-specific setup below only applies to single-repo mode. In
+# multi-repo mode each repo's root/default-branch is resolved per-repo
+# inside _prwt_make_multi_worktree, so skip it entirely.
+if [[ -z $multi_repo ]]; then
 # When invoked from inside a secondary worktree, `--show-toplevel` returns
 # the *worktree* root, not the main repo. New worktrees must be siblings of
 # the main repo (the one originally cloned), not siblings of whichever
@@ -78,17 +136,21 @@ if [[ -z $repo_slug ]]; then
   return 1
 fi
 repo_name=${main_root:t}
+fi # end single-repo setup
 
 # --- helpers ---------------------------------------------------------------
 
+# Print the default branch name for a repo. Optional $1 = repo root
+# (defaults to $repo_root, the single-repo mode's repo). Passing an
+# explicit root lets the multi-repo path resolve each repo's own default.
 _prwt_default_branch() {
-  local b
-  b=$(git -C "$repo_root" symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null)
+  local root=${1:-$repo_root} b
+  b=$(git -C "$root" symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null)
   if [[ -n $b ]]; then
     print -- "${b#origin/}"
     return 0
   fi
-  ( cd -- "$repo_root" && gh repo view --json defaultBranchRef -q .defaultBranchRef.name 2>/dev/null )
+  ( cd -- "$root" && gh repo view --json defaultBranchRef -q .defaultBranchRef.name 2>/dev/null )
 }
 
 # Print the absolute path of the worktree that currently has $1 checked
@@ -274,9 +336,11 @@ _prwt_prompt_suffix() {
 }
 
 # Prompt the user to edit the final worktree directory name (the basename,
-# not the full path — the parent is always ${main_root:h}). Pre-fills with
-# the proposed default name so the user can just press Enter to accept, or
-# tweak the tail.
+# not the full path — the parent is fixed by the caller). Pre-fills with the
+# proposed default name so the user can just press Enter to accept, or tweak
+# the tail. $2 is the parent dir shown in the prompt label (defaults to the
+# single-repo parent ${main_root:h}; multi-repo mode passes the collection
+# dir's sibling parent).
 #
 # IMPORTANT: vared requires an interactive zle session and CANNOT be called
 # from inside `$(...)` (command substitution forks a subshell where zle is
@@ -290,32 +354,50 @@ _prwt_prompt_suffix() {
 # that as cancel.
 _prwt_prompt_dirname() {
   local default_name=$1
+  local parent_dir=${2:-${main_root:h}}
   typeset -g _prwt_dirname_out=$default_name
-  vared -p "pr-worktree: worktree dir (under ${main_root:h}/) > " _prwt_dirname_out
+  vared -p "pr-worktree: worktree dir (under ${parent_dir}/) > " _prwt_dirname_out
   [[ -z $_prwt_dirname_out ]] && return 1
   return 0
+}
+
+# Derive the JIRA branch name and the dirname "tail" from a key + optional
+# suffix, writing them into globals `_prwt_branch_out` and `_prwt_tail_out`.
+# Shared by the single-repo (_prwt_make_jira_worktree) and multi-repo flows
+# so branch naming is provably identical between them.
+#
+#   branch: always <KEY>/feat/<slug>. slug from the suffix ('_'-separated),
+#           or the lowercased key when no suffix
+#           (DATA-1234 -> DATA-1234/feat/data_1234).
+#   tail:   <KEY>, or <KEY>-<path_slug> when a suffix is given. Callers
+#           prepend their own <name>-<date>- / <name>_<date>_ prefix.
+_prwt_jira_names() {
+  local key=${1:u}
+  local suffix=${2:-}
+  typeset -g _prwt_branch_out _prwt_tail_out
+  local path_slug branch_slug
+  if [[ -n $suffix ]]; then
+    path_slug=$(_prwt_slug "$suffix" '-')
+    branch_slug=$(_prwt_slug "$suffix" '_')
+  fi
+  if [[ -n $path_slug ]]; then
+    _prwt_tail_out=${key}-${path_slug}
+    _prwt_branch_out=${key}/feat/${branch_slug}
+  else
+    _prwt_tail_out=${key}
+    _prwt_branch_out=${key}/feat/$(_prwt_slug "$key" '_')
+  fi
 }
 
 _prwt_make_jira_worktree() {
   local key=${1:u}
   local suffix=${2:-}
-  local path_slug branch_slug default_dirname worktree_path branch
-  if [[ -n $suffix ]]; then
-    path_slug=$(_prwt_slug "$suffix" '-')
-    branch_slug=$(_prwt_slug "$suffix" '_')
-  fi
-  # Always use <KEY>/feat/<slug> branch structure for JIRA picks.
-  # When no suffix is provided, default the slug to the lowercased key
-  # (with '-' -> '_'), e.g. DATA-1234 -> DATA-1234/feat/data_1234.
+  local default_dirname worktree_path branch
+  _prwt_jira_names "$key" "$suffix"
+  branch=$_prwt_branch_out
   local today
   today=$(date +%Y%m%d)
-  if [[ -n $path_slug ]]; then
-    default_dirname=${repo_name}-${today}-${key}-${path_slug}
-    branch=${key}/feat/${branch_slug}
-  else
-    default_dirname=${repo_name}-${today}-${key}
-    branch=${key}/feat/$(_prwt_slug "$key" '_')
-  fi
+  default_dirname=${repo_name}-${today}-${_prwt_tail_out}
 
   _prwt_prompt_dirname "$default_dirname" || {
     print -u2 "pr-worktree: cancelled (empty worktree name)"
@@ -350,6 +432,86 @@ _prwt_make_jira_worktree() {
   git pull --no-rebase 2>/dev/null || true
 }
 
+# Multi-repo mode: create ONE sibling collection directory holding a new
+# worktree of every repo found in $collection_dir, each on branch $1 off its
+# own origin/<default-branch>. $2 is the dirname "tail" (the <KEY> / <slug>
+# part); the full default dirname is <collection-basename>_<date>_<tail>,
+# still editable via the shared _prwt_prompt_dirname prompt.
+#
+# Reuses the same upstream-wiring pattern as the single-repo flows. One repo
+# failing does not abort the rest; the return code is the count of failures.
+_prwt_make_multi_worktree() {
+  local branch=$1 tail=$2
+  local base_name=${collection_dir:t}
+  local today
+  today=$(date +%Y%m%d)
+  local default_dirname=${base_name}_${today}_${tail}
+
+  # Parent is the collection dir's sibling (${collection_dir:h}), mirroring
+  # how single-repo worktrees are siblings of the repo.
+  _prwt_prompt_dirname "$default_dirname" "${collection_dir:h}" || {
+    print -u2 "pr-worktree: cancelled (empty worktree name)"
+    return 1
+  }
+  local collection_new=${collection_dir:h}/${_prwt_dirname_out}
+
+  if [[ -e $collection_new ]]; then
+    print "pr-worktree: $collection_new already exists; entering it."
+    cd -- "$collection_new"
+    return 0
+  fi
+
+  local -a roots
+  roots=("${(@f)$(_prwt_discover_repos "$collection_dir")}")
+  if (( ${#roots} == 0 )); then
+    print -u2 "pr-worktree: no git repos found in $collection_dir"
+    return 1
+  fi
+
+  mkdir -p "$collection_new" || {
+    print -u2 "pr-worktree: failed to create $collection_new"
+    return 1
+  }
+
+  print "pr-worktree: creating ${#roots} worktree(s) on branch '$branch' in $collection_new"
+  local root name wt def failed=0
+  for root in "${roots[@]}"; do
+    name=${root:t}
+    wt=$collection_new/$name
+    def=$(_prwt_default_branch "$root") || def=main
+    [[ -z $def ]] && def=main
+    git -C "$root" fetch origin "$def" 2>/dev/null
+
+    if git -C "$root" show-ref --verify --quiet "refs/heads/$branch"; then
+      if git -C "$root" worktree add "$wt" "$branch" 2>/dev/null; then
+        print "  ok:   $name ($branch)"
+      else
+        print -u2 "  FAIL: $name (worktree add of existing branch '$branch')"
+        failed=$(( failed + 1 ))
+      fi
+    else
+      if git -C "$root" worktree add -b "$branch" "$wt" "origin/$def" 2>/dev/null; then
+        git -C "$wt" config "branch.${branch}.remote" origin
+        git -C "$wt" config "branch.${branch}.merge" "refs/heads/${branch}"
+        if _prwt_verify_upstream "$wt" "$branch"; then
+          print "  ok:   $name ($branch off origin/$def)"
+        else
+          print -u2 "  FAIL: $name (upstream verification)"
+          failed=$(( failed + 1 ))
+        fi
+      else
+        print -u2 "  FAIL: $name (worktree add -b '$branch' off origin/$def)"
+        failed=$(( failed + 1 ))
+      fi
+    fi
+  done
+
+  local made=$(( ${#roots} - failed ))
+  print "pr-worktree: created $made/${#roots} worktree(s) in $collection_new"
+  cd -- "$collection_new"
+  return $failed
+}
+
 # --- direct-arg fast path --------------------------------------------------
 
 local arg=$1
@@ -360,14 +522,37 @@ if [[ -n $arg ]]; then
       print -u2 "pr-worktree: --suffix requires a value"
       return 1
     fi
+    if [[ -n $multi_repo ]]; then
+      # Multi-repo: branch = path-slug of the suffix, applied to every repo.
+      local slug
+      slug=$(_prwt_slug "$suffix" '-')
+      if [[ -z $slug ]]; then
+        print -u2 "pr-worktree: --suffix produced an empty slug"
+        return 1
+      fi
+      _prwt_make_multi_worktree "$slug" "$slug"
+      return $?
+    fi
     _prwt_make_suffix_worktree "$suffix"
     return $?
   elif [[ $arg =~ '^[0-9]+$' ]]; then
+    if [[ -n $multi_repo ]]; then
+      print -u2 "pr-worktree: a PR number applies to a single repo, not the multi-repo directory $collection_dir"
+      print -u2 "pr-worktree: cd into a specific repo to create a PR worktree, or pass a JIRA key / --suffix here"
+      return 1
+    fi
     _prwt_make_pr_worktree "$arg"
     return $?
   elif [[ $arg =~ '^[A-Za-z][A-Za-z0-9_]+-[0-9]+$' ]]; then
     local key=${arg:u}
     _prwt_prompt_suffix "$key"
+    if [[ -n $multi_repo ]]; then
+      _prwt_jira_names "$key" "$_prwt_suffix_out"
+      _prwt_make_multi_worktree "$_prwt_branch_out" "$_prwt_tail_out"
+      local jira_rc=$?
+      [[ $jira_rc -eq 0 ]] && _rlm-jira-history append "$key" >/dev/null 2>&1 || true
+      return $jira_rc
+    fi
     _prwt_make_jira_worktree "$key" "$_prwt_suffix_out"
     return $?
   else
@@ -386,36 +571,41 @@ fi
 local -a rows
 local pr_rows jira_rows jira_available='' jira_cache_age='' me cutoff_date
 
-# Current GitHub login, used by the picker's awk filter to color rows
-# you authored. Empty string if `gh api` fails — coloring is then a no-op
-# and every row renders uncolored, which is a safe fallback.
-me=$(gh api user --jq .login 2>/dev/null)
+# PR rows are single-repo only — a PR belongs to one repo and can't map
+# onto the N worktrees created in multi-repo mode. In multi-repo mode
+# pr_rows stays empty and the picker shows JIRA + CUSTOM (+ REFRESH) only.
+if [[ -z $multi_repo ]]; then
+  # Current GitHub login, used by the picker's awk filter to color rows
+  # you authored. Empty string if `gh api` fails — coloring is then a no-op
+  # and every row renders uncolored, which is a safe fallback.
+  me=$(gh api user --jq .login 2>/dev/null)
 
-# Date cutoff for the `updated:>` search qualifier. 14 days back from
-# today in YYYY-MM-DD form. GNU and BSD date have incompatible flag
-# syntax; -v is BSD/macOS, -d is GNU/Linux.
-if cutoff_date=$(date -v-14d +%Y-%m-%d 2>/dev/null); then
-  : # BSD/macOS path
-else
-  cutoff_date=$(date -d '14 days ago' +%Y-%m-%d 2>/dev/null) || cutoff_date=""
+  # Date cutoff for the `updated:>` search qualifier. 14 days back from
+  # today in YYYY-MM-DD form. GNU and BSD date have incompatible flag
+  # syntax; -v is BSD/macOS, -d is GNU/Linux.
+  if cutoff_date=$(date -v-14d +%Y-%m-%d 2>/dev/null); then
+    : # BSD/macOS path
+  else
+    cutoff_date=$(date -d '14 days ago' +%Y-%m-%d 2>/dev/null) || cutoff_date=""
+  fi
+
+  # Single query: every open PR in this repo updated in the last 2 weeks.
+  # `gh search prs` accepts free-form qualifiers via positional args; we
+  # pass `updated:>YYYY-MM-DD` so the API does the date filtering server-
+  # side instead of pulling 200 PRs and trimming locally.
+  pr_rows=$(
+    gh search prs \
+      --repo "$repo_slug" \
+      --state=open \
+      --limit=200 \
+      --json number,title,author,isDraft,updatedAt \
+      ${cutoff_date:+"updated:>$cutoff_date"} 2>/dev/null \
+    | jq -r '
+        sort_by(.updatedAt) | reverse | .[] |
+        "PR\t#\(.number)\t\(if .isDraft then "[draft]" else "[ready]" end)\t\(.title)\t[\(.author.login)]"
+      ' 2>/dev/null
+  )
 fi
-
-# Single query: every open PR in this repo updated in the last 2 weeks.
-# `gh search prs` accepts free-form qualifiers via positional args; we
-# pass `updated:>YYYY-MM-DD` so the API does the date filtering server-
-# side instead of pulling 200 PRs and trimming locally.
-pr_rows=$(
-  gh search prs \
-    --repo "$repo_slug" \
-    --state=open \
-    --limit=200 \
-    --json number,title,author,isDraft,updatedAt \
-    ${cutoff_date:+"updated:>$cutoff_date"} 2>/dev/null \
-  | jq -r '
-      sort_by(.updatedAt) | reverse | .[] |
-      "PR\t#\(.number)\t\(if .isDraft then "[draft]" else "[ready]" end)\t\(.title)\t[\(.author.login)]"
-    ' 2>/dev/null
-)
 
 if command -v acli >/dev/null 2>&1 && acli jira auth status >/dev/null 2>&1; then
   jira_available=1
@@ -437,7 +627,11 @@ if command -v acli >/dev/null 2>&1 && acli jira auth status >/dev/null 2>&1; the
   )
 fi
 
-if [[ -z $pr_rows && -z $jira_rows ]]; then
+# Single-repo needs at least one PR or JIRA row to be useful; if neither
+# exists the picker would show only sentinels and there's nothing to act on
+# for the repo, so bail. Multi-repo always offers the CUSTOM sentinel (name
+# your own set), so an empty JIRA cache is fine — the picker still opens.
+if [[ -z $multi_repo && -z $pr_rows && -z $jira_rows ]]; then
   print -u2 "pr-worktree: no PRs or JIRA issues found in $repo_slug"
   return 1
 fi
@@ -465,6 +659,23 @@ fi
 # picker subshell; outer pipefail (which legitimately guards the jq
 # pipelines that build pr_rows / other_pr_rows / jira_rows above)
 # stays in effect.
+# Mode-dependent picker chrome. Multi-repo mode has no PR rows and acts on
+# every repo in the collection dir, so the sentinel text, prompt, and header
+# say so; the count is shown up front.
+local custom_sentinel fzf_prompt fzf_header
+if [[ -n $multi_repo ]]; then
+  local -a _prwt_repo_roots
+  _prwt_repo_roots=("${(@f)$(_prwt_discover_repos "$collection_dir")}")
+  local n_repos=${#_prwt_repo_roots}
+  custom_sentinel=$'CUSTOM\t<type your own name — worktrees for all '"${n_repos}"$' repos>'
+  fzf_prompt='JIRA/CUSTOM> '
+  fzf_header="Multi-repo (${collection_dir:t}, ${n_repos} repos): JIRA + CUSTOM only. Enter = create worktrees in all ${n_repos} repos. Ctrl-R: refresh JIRA cache. Ctrl-P: toggle preview"
+else
+  custom_sentinel=$'CUSTOM\t<type your own worktree name>'
+  fzf_prompt='PR/JIRA> '
+  fzf_header='PRs updated in last 2 weeks (green = you), then your JIRA. Enter = create worktree. Ctrl-R: refresh JIRA cache. Ctrl-P: toggle preview'
+fi
+
 local selection
 selection=$(
   setopt local_options no_pipefail
@@ -481,7 +692,7 @@ selection=$(
     # Sentinel: pick this to be prompted for a free-form suffix that
     # becomes both the worktree dirname tail and the branch name.
     # Handled by the CUSTOM branch of the selection case below.
-    print -- $'CUSTOM\t<type your own worktree name>'
+    print -r -- "$custom_sentinel"
     [[ -n $pr_rows   ]] && print -- "$pr_rows"
     [[ -n $jira_rows ]] && print -- "$jira_rows"
   } \
@@ -501,10 +712,10 @@ selection=$(
         print
       }
     ' \
-  | fzf --ansi --prompt='PR/JIRA> ' --height=80% --reverse \
+  | fzf --ansi --prompt="$fzf_prompt" --height=80% --reverse \
         --no-mouse \
         --expect=ctrl-r \
-        --header='PRs updated in last 2 weeks (green = you), then your JIRA. Enter = create worktree. Ctrl-R: refresh JIRA cache. Ctrl-P: toggle preview' \
+        --header="$fzf_header" \
         --preview='
           line={};
           kind=$(echo "$line" | awk "{print \$1}");
@@ -516,7 +727,8 @@ selection=$(
             echo "";
             echo "The suffix is normalized to a slug (e.g. \"fix bq cost\" -> \"fix-bq-cost\")";
             echo "and used as BOTH the worktree dirname tail AND the new branch name,";
-            echo "branched off origin/<default-branch>.";
+            echo "branched off origin/<default-branch>. In multi-repo mode this";
+            echo "creates one such worktree in every repo of the collection dir.";
           elif [ "$kind" = "REFRESH" ]; then
             echo "Refresh the shared ~/.cache/rlm-jira/ cache and reopen this picker";
             echo "with fresh JIRA rows.";
@@ -585,7 +797,13 @@ case $kind in
     key=$(print -- "$selection" | awk '{print $2}')
     key=${key:u}
     _prwt_prompt_suffix "$key"
-    _prwt_make_jira_worktree "$key" "$_prwt_suffix_out"
+    if [[ -n $multi_repo ]]; then
+      # Same branch/dirname naming as single-repo, applied to every repo.
+      _prwt_jira_names "$key" "$_prwt_suffix_out"
+      _prwt_make_multi_worktree "$_prwt_branch_out" "$_prwt_tail_out"
+    else
+      _prwt_make_jira_worktree "$key" "$_prwt_suffix_out"
+    fi
     jira_rc=$?
     if [[ $jira_rc -eq 0 ]]; then
       _rlm-jira-history append "$key" >/dev/null 2>&1 || true
@@ -603,7 +821,12 @@ case $kind in
       print -u2 "pr-worktree: cancelled (empty suffix)"
       return 1
     fi
-    _prwt_make_suffix_worktree "$custom_suffix"
+    if [[ -n $multi_repo ]]; then
+      # branch = tail = the path-slug, applied to every repo.
+      _prwt_make_multi_worktree "$custom_suffix" "$custom_suffix"
+    else
+      _prwt_make_suffix_worktree "$custom_suffix"
+    fi
     ;;
   *)
     print -u2 "pr-worktree: could not parse selection: $selection"

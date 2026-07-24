@@ -4,6 +4,12 @@ All notable changes to the zsh configuration are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2026-07-24]
+
+### Added
+
+- `rlm-pr-worktree` (`pr-worktree`): **multi-repo mode**, auto-detected from the cwd. When invoked from a directory that is *not* a git repo but contains git repos (e.g. `~/git/work/StorytelDataPlatform`, which holds `data-platform-dbt`, `data-platform-infra`, …), the picker shows JIRA + CUSTOM + REFRESH only (no PR rows — a PR belongs to a single repo) and, after the same suffix/dirname prompts as single-repo mode, creates one sibling collection directory `../<cwd-basename>_<date>_<suffix>/` holding a new worktree of **every distinct repo** found in the cwd, each on a new branch off its own `origin/<default-branch>`. Repos appearing as several existing worktrees are deduplicated by `--git-common-dir`. Branch naming matches the single-repo flows (JIRA → `<KEY>/feat/<slug>`, CUSTOM → the bare `<slug>`), and the same branch name is used in every repo's worktree; one repo failing does not abort the rest (return code is the failure count). Direct args are honored too: a JIRA key or `--suffix` builds the multi-repo set, while a bare PR number is rejected. Single-repo behavior is unchanged. New helpers: `_prwt_discover_repos` (emit canonical repo roots for a dir, deduped/sorted), `_prwt_make_multi_worktree` (create the collection dir + per-repo worktrees), and `_prwt_jira_names` (factored branch/dirname derivation shared by both modes so naming can't drift). `_prwt_default_branch` now takes an optional repo-root arg (defaults to `$repo_root`); `_prwt_prompt_dirname` takes an optional parent-dir label. `helpdir/rlm-pr-worktree` and the `README.md` row document the new mode.
+
 ## [2026-07-22]
 
 ### Fixed

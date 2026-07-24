@@ -57,4 +57,20 @@ When called with an argument, the picker is skipped:
 If the target worktree path already exists, it is entered instead of
 recreated.
 
+Multi-repo mode (auto-detected): when run from a directory that is
+NOT a git repo but contains git repos (e.g.
+~/git/work/StorytelDataPlatform, which holds data-platform-dbt,
+data-platform-infra, ...), the picker shows JIRA + CUSTOM + REFRESH
+only — no PR rows, since a PR belongs to a single repo. After the
+suffix and dirname prompts, a single sibling collection directory
+../<cwd-basename>_<date>_<suffix>/ is created holding a NEW worktree
+of EVERY distinct repo found in the cwd, each on a new branch off its
+own origin/<default-branch>. Repos that appear as several existing
+worktrees are deduplicated (matched by --git-common-dir). Branch
+naming matches the single-repo flows: JIRA -> <KEY>/feat/<slug>,
+CUSTOM -> the bare <slug>; the same branch name is used in every
+repo's worktree. One repo failing does not abort the rest. Direct
+args work too: a JIRA key or --suffix creates the multi-repo set,
+while a bare PR number is rejected (a PR can't map to N repos).
+
 Requires: gh, git, fzf. acli is optional (enables the JIRA rows).
