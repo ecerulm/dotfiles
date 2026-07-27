@@ -89,6 +89,74 @@ Symptom card: an awk pipeline producing zero output despite healthy upstream →
 
 `$(cd "$dir" && cmd)` leaks `direnv: loading/unloading` when `$dir` is outside the current direnv scope (the chpwd hook fires in the subshell). Fix: scope the redirect to `cd` only — `$(cd "$dir" 2>/dev/null && cmd)`. Do **not** redirect the whole subshell (`$(…) 2>/dev/null`) — that also swallows the inner command's diagnostics. No env-var override exists (`DIRENV_LOG_FORMAT` is not a thing; only `direnv.toml`'s `log_format = "-"` globally, or the per-call redirect). Already applied in the shared dbt helpers.
 
+### `IFS=$'\t' read` collapses empty fields — use `"${(@s:<tab>:)line}"`
+
+`read` treats a *run* of IFS delimiters as one separator, so any row with an
+empty field silently shifts every later field left:
+
+```zsh
+line=$(printf 'a\tb\t\td\te')          # col3 empty
+IFS=$'\t' read -r c1 c2 c3 c4 c5 <<< "$line"
+# c3=d  c4=e  c5=''   -- NOT c3='' c4=d c5=e
+```
+
+This bites hard on tab-separated picker rows where some row types legitimately
+have blank columns (an aggregate/sentinel row with no path, no id, no repo).
+The failure is downstream and confusing: a later field's value — often a
+human-readable display string — ends up where a path was expected, and you get
+`git -C '[7 wt: …]': No such file or directory` rather than a parse error.
+
+Split with the zsh parameter flag instead, which is positional and keeps empty
+fields:
+
+```zsh
+local -a f
+f=("${(@s:	:)line}")                  # a literal TAB between the colons
+local id=${f[4]} repo=${f[6]}
+```
+
+Note the separator must be an actual tab character in the source, not `\t`.
+Use one parsing style per file — mixing `read` and `(@s)` over the same row
+format is how this bug got in.
+
+Symptom card: a field holds the value of a *later* column, only for the row
+type that has a blank cell.
+
+### Bare `local x` inside a loop PRINTS `x=<value>` to stdout
+
+`local` is `typeset`, and `typeset name` with no `=` is *reporting* mode: if
+the name is already declared it prints `name=<current value>` to **stdout**.
+`local` scopes to the whole function, not to the enclosing loop, so a bare
+declaration in a loop body re-declares an already-declared name on every
+iteration after the first:
+
+```zsh
+f() {
+  for i in 1 2 3; do
+    local st            # iterations 2,3 print "st=b"
+    for st in a b; do :; done
+  done
+}
+# stdout: st=b
+#         st=b
+```
+
+This is silent sabotage when the function's stdout is data — the stray
+`name=value` lines land in the picker's input, the cache file, or the
+`$(...)` a caller is parsing.
+
+Always give loop-body locals an explicit initializer — `local st=''`,
+`local -a parts=()`, `local -A counts=()`, `local n=0`. This also resets
+them, which a bare re-declaration does **not** do: an accumulating
+`state_count[$k]=$(( ... + 1 ))` will otherwise carry the previous
+iteration's tallies forward.
+
+Loop *variables* (`local mrow` immediately before `for mrow in …`) are fine
+— that declaration runs once, outside the body.
+
+Symptom card: unexplained `somevar=somevalue` lines in a function's output,
+or per-group counters that grow monotonically across groups.
+
 ### Never use `path` as a local variable name
 
 `path` is a zsh tied array — the lowercase synonym for `$PATH`. Under

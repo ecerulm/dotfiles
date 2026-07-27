@@ -20,9 +20,40 @@ Every row is flagged with its deletion category:
   [open#N]                  open PR -- has active work; deletable but flagged.
   [has-work]                no PR but commits ahead of the default branch.
 
+COLLECTIONS. pr-worktree's multi-repo mode creates a whole SET of sibling
+worktrees -- one per repo -- inside a single collection dir next to the
+repos' parent, e.g.
+
+  ~/git/work/StorytelDataPlatform_20260727_DATA-2770-foo/
+    data-platform-dbt/  data-platform-infra/  ...
+
+`git worktree list` reports those wherever they live, so they always
+showed up here, but as raw absolute paths and only one row at a time.
+They now render relative to the repos' grandparent, and each fully
+in-scope collection gets ONE aggregate row for the whole set:
+
+  [7 wt: 5 merged, 2 open]  StorytelDataPlatform_20260727_DATA-2770-foo/
+  [merged#123]                └ data-platform-dbt
+  [open#456]                  └ data-platform-infra
+
+Selecting the aggregate deletes EVERY worktree in it -- whatever their
+individual states; the flag summary is there so you see what you are
+dropping -- and then `rmdir`s the collection dir. rmdir, not `rm -rf`: if
+a removal failed or the dir holds anything else, it refuses and the dir
+is kept. Members remain individually selectable; picking both an
+aggregate and one of its members deletes that member once. An aggregate
+counts as deletable (and so sorts to the top, taking its members with
+it) only when every member is deletable.
+
+An aggregate appears only when the run covers the collection in full. In
+single-repo mode you see just one of its worktrees while the dir still
+holds the other repos', so no aggregate is offered and the worktree is
+listed as an ordinary row.
+
 Deletable rows ([merged]/[closed]/[no-pr/no-diff]) sort to the top. TAB
 multi-selects, ENTER deletes the selection (after a y/N confirm), Ctrl-G
-aborts (deletes nothing). The preview pane is the shared ~/bin/wt-preview.
+aborts (deletes nothing). The preview pane is the shared ~/bin/wt-preview
+(aggregate rows preview their member list instead).
 
 After the picker (or in --dry-run), a combined table of the REMAINING
 worktrees across all repos is printed showing how stale each is:

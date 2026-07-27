@@ -19,9 +19,35 @@
 #   [open#N]                 open PR -- has active work; deletable but flagged.
 #   [has-work]               no PR but commits ahead of the default branch.
 #
+# COLLECTIONS. rlm-pr-worktree's multi-repo mode creates a whole SET of
+# sibling worktrees -- one per repo -- inside a single collection dir next to
+# the repos' parent, e.g.
+#
+#   ~/git/work/StorytelDataPlatform_20260727_DATA-2770-foo/
+#     data-platform-dbt/  data-platform-infra/  ...
+#
+# `git worktree list` reports those wherever they live, so they always
+# appeared here, but as raw absolute paths and only ever one row at a time.
+# They now render relative to the repos' grandparent and each collection gets
+# ONE aggregate row standing for the whole set:
+#
+#   [7 wt: 5 merged, 2 open]  StorytelDataPlatform_20260727_DATA-2770-foo/
+#   [merged#123]                └ data-platform-dbt
+#   [open#456]                  └ data-platform-infra
+#
+# Selecting the aggregate deletes EVERY worktree in it (whatever their
+# individual states -- the flag summary is there so you can see what you're
+# about to drop) and then `rmdir`s the collection dir. rmdir, not rm -rf: if
+# a removal failed or the dir holds anything else, it refuses and the dir is
+# kept. Members stay individually selectable; picking both an aggregate and
+# one of its members deletes that member once. The aggregate counts as
+# deletable (and so sorts to the top, dragging its members with it) only when
+# every member is deletable.
+#
 # Deletable rows ([merged]/[closed]/[no-pr/no-diff]) are sorted to the top.
 # TAB multi-selects, ENTER deletes the selection, Ctrl-G aborts (deletes
-# nothing). Preview pane is the shared ~/bin/wt-preview.
+# nothing). Preview pane is the shared ~/bin/wt-preview (aggregates preview
+# their member list instead).
 #
 # After the picker (or in --dry-run), it prints a table of the REMAINING
 # worktrees showing how stale each is:
@@ -75,6 +101,48 @@ for cmd in gh git fzf jq; do
     return 1
   fi
 done
+
+# ----- display path for a worktree ---------------------------------------
+# _prwtrmc_rel_path <wt_abs> <repo_root>
+#   Shorten an absolute worktree path for display. Worktrees live in two
+#   places:
+#
+#     * siblings of the repo         -> <repo-parent>/<repo>-<date>-<tail>
+#     * inside a sibling COLLECTION  -> <repo-grandparent>/<coll>_<date>_<tail>/<repo>
+#       dir created by rlm-pr-worktree's multi-repo mode
+#
+#   Stripping only ${repo_root:h} (the repo's parent) handles the first case
+#   but leaves the second as a full absolute path, because the collection dir
+#   is a sibling of the repo's PARENT, not of the repo. Try the parent first,
+#   then the grandparent, so collection worktrees render as
+#   "StorytelDataPlatform_20260727_DATA-2770-foo/data-platform-dbt".
+_prwtrmc_rel_path() {
+  local wt_abs=$1 repo_root=$2
+  local parent=${repo_root:h}
+  local grandparent=${parent:h}
+  local rel=${wt_abs#${parent}/}
+  [[ $rel != "$wt_abs" ]] && { print -r -- "$rel"; return 0; }
+  rel=${wt_abs#${grandparent}/}
+  print -r -- "$rel"
+}
+
+# ----- collection dir for a worktree --------------------------------------
+# _prwtrmc_collection_of <wt_abs> <repo_root>
+#   Print the absolute path of the multi-repo COLLECTION directory holding
+#   this worktree, or nothing when the worktree isn't in one.
+#
+#   A collection worktree sits at <grandparent>/<coll>/<repo-name>, i.e. its
+#   parent is a sibling of the repo's own parent. Sibling worktrees of the
+#   repo itself (<parent>/<repo>-<date>-<tail>) have the repo's parent as
+#   their parent, so they're correctly excluded.
+_prwtrmc_collection_of() {
+  local wt_abs=$1 repo_root=$2
+  local parent=${repo_root:h}
+  local wt_parent=${wt_abs:h}
+  [[ $wt_parent == "$parent" ]] && return 0     # plain sibling worktree
+  [[ ${wt_parent:h} == "${parent:h}" ]] && print -r -- "$wt_parent"
+  return 0
+}
 
 # ----- humanize seconds ("<N><unit> ago") --------------------------------
 # Same ladder as ~/bin/wt-preview's _wt_human_ago, compact units.
@@ -158,8 +226,8 @@ _prwtrmc_collect_repo() {
     [[ $wt_abs == "$main_worktree" ]] && return 0
     [[ -n $current_worktree && $wt_abs == "$current_worktree" ]] && return 0
 
-    local rel_path=${wt_abs#${repo_root:h}/}
-    [[ $rel_path == "$wt_abs" ]] && rel_path=$wt_abs
+    local rel_path
+    rel_path=$(_prwtrmc_rel_path "$wt_abs" "$repo_root")
 
     local flag="[has-work]" deletable=0
 
@@ -197,12 +265,20 @@ _prwtrmc_collect_repo() {
       fi
     fi
 
+    # Collection dir (multi-repo worktree set) this worktree belongs to, or
+    # empty for a plain sibling worktree. Used to synthesize aggregate rows.
+    local coll
+    coll=$(_prwtrmc_collection_of "$wt_abs" "$repo_root")
+
     # Display column bundles the flag with the path so it shows in the picker
     # (fzf renders only col1 via --with-nth=1). rel_path already carries the
-    # repo dir prefix, so the row is self-identifying across repos.
-    local display
-    display=$(printf '%-16s %s' "$flag" "$rel_path")
-    rows+=("$(printf '%s\t%s\t%s\t%s\t%d\t%s' "$display" "${branch:-<detached>}" "$rel_path" "$wt_abs" "$deletable" "$repo_root")")
+    # repo dir prefix, so the row is self-identifying across repos. Members of
+    # a collection are indented under their aggregate row.
+    local display label=$rel_path
+    [[ -n $coll ]] && label="  └ ${wt_abs:t}"
+    display=$(printf '%-18s %s' "$flag" "$label")
+    rows+=("$(printf '%s\t%s\t%s\t%s\t%d\t%s\t%s\t%s' \
+      "$display" "${branch:-<detached>}" "$rel_path" "$wt_abs" "$deletable" "$repo_root" "$coll" "$flag")")
   }
 
   while IFS= read -r line; do
@@ -245,8 +321,8 @@ _prwtrmc_table_repo() {
 
   _prwtrmc_table_row() {
     local wt_abs=$1 branch=$2
-    local rel_path=${wt_abs#${repo_root:h}/}
-    [[ $rel_path == "$wt_abs" ]] && rel_path=$wt_abs
+    local rel_path
+    rel_path=$(_prwtrmc_rel_path "$wt_abs" "$repo_root")
 
     local is_main=0
     [[ $wt_abs == "$main_worktree" ]] && is_main=1
@@ -323,27 +399,186 @@ for repo in "${repos[@]}"; do
   _prwtrmc_collect_repo "$repo"
 done
 
+# ----- synthesize one aggregate row per multi-repo collection -------------
+# rlm-pr-worktree's multi-repo mode creates a whole set of sibling worktrees
+# (one per repo) inside a single collection dir. Cleaning one up means
+# selecting every member individually and then rmdir'ing the leftover dir, so
+# add ONE aggregate row per collection that stands for the entire set.
+#
+# The aggregate's flag summarizes its members ("[7 wt: 5 merged, 2 open]");
+# selecting it deletes ALL of them and removes the (then-empty) collection
+# dir. It is marked deletable only when every member is, so fully-stale
+# collections still sort to the top of the picker.
+#
+# Aggregate row layout mirrors a worktree row but marks col4 (the path fzf
+# previews and the deletion loop consumes) empty and carries the collection
+# path in col7 — the deletion loop branches on that.
+local -A coll_total coll_deletable coll_flags
+local r_coll r_del r_flag
+local rrow
+for rrow in "${rows[@]}"; do
+  local -a f
+  f=("${(@s:	:)rrow}")
+  r_del=${f[5]}
+  r_coll=${f[7]}
+  r_flag=${f[8]}
+  [[ -z $r_coll ]] && continue
+  coll_total[$r_coll]=$(( ${coll_total[$r_coll]:-0} + 1 ))
+  coll_deletable[$r_coll]=$(( ${coll_deletable[$r_coll]:-0} + r_del ))
+  # Strip the "#<number>" so PRs of different numbers fold into one bucket.
+  local bare=${r_flag//[\[\]]/}
+  bare=${bare%%\#*}
+  coll_flags[$r_coll]="${coll_flags[$r_coll]:-} $bare"
+done
+
+local -a agg_rows
+local ckey
+for ckey in "${(@k)coll_total}"; do
+  local total=${coll_total[$ckey]}
+  local ndel=${coll_deletable[$ckey]}
+
+  # Only aggregate a collection this run actually covers in full. In
+  # single-repo mode (or any run whose scope is a subset of the collection's
+  # repos) we see just one member, while the dir still holds the other repos'
+  # worktrees — an aggregate there would promise to remove the whole
+  # collection and then fail the rmdir, since the dir isn't empty. Compare
+  # against what's on disk rather than against ${#repos}: a collection may
+  # predate a repo being added to (or removed from) the parent dir.
+  local on_disk=0                                  # explicit init: see loop-local note below
+  on_disk=$(ls -1 -- "$ckey" 2>/dev/null | grep -cv '^\.' 2>/dev/null) || on_disk=0
+  if (( total < on_disk )); then
+    continue
+  fi
+
+  # Count each distinct member state, preserving first-seen order so the
+  # summary reads stably across runs.
+  #
+  # These MUST be reset explicitly each iteration: `local` inside a function
+  # body scopes to the whole function, not to the enclosing loop, so a bare
+  # `local -A state_count` re-declares the same variable and keeps the
+  # previous collection's counts — every aggregate would otherwise inherit
+  # and accumulate the tallies of the ones before it.
+  local -A state_count=()
+  local -a state_order=()
+  local st=''
+  for st in ${=coll_flags[$ckey]}; do
+    [[ -z ${state_count[$st]} ]] && state_order+=("$st")
+    state_count[$st]=$(( ${state_count[$st]:-0} + 1 ))
+  done
+  local -a parts=()
+  for st in "${state_order[@]}"; do parts+=("${state_count[$st]} ${st}"); done
+  local summary="${(j:, :)parts}"
+
+  local agg_del=0
+  (( ndel == total )) && agg_del=1
+  local agg_flag="[${total} wt: ${summary}]"
+  # NOTE: `local x=...` with an explicit initializer, never a bare `local x`,
+  # because these run inside a loop — see the zsh gotcha in AGENTS.md: a bare
+  # re-declaration of an already-declared name switches typeset into reporting
+  # mode and PRINTS "x=<value>" to stdout on every iteration after the first,
+  # which lands straight in the picker's input.
+  local agg_display=''
+  agg_display=$(printf '%-18s %s' "$agg_flag" "${ckey:t}/")
+  agg_rows+=("$(printf '%s\t%s\t%s\t%s\t%d\t%s\t%s\t%s' \
+    "$agg_display" "<collection>" "${ckey:t}/" "" "$agg_del" "" "$ckey" "$agg_flag")")
+done
+(( ${#agg_rows} )) && rows+=("${agg_rows[@]}")
+
+# Collections that got an aggregate row. Members of a collection WITHOUT one
+# (suppressed above because this run only sees part of it) must behave like
+# standalone worktrees: sort by their own flag, render their full relative
+# path rather than an orphaned "└ name", and never be swept up by a
+# collection selection.
+local -A coll_has_agg
+local arow
+for arow in "${agg_rows[@]}"; do
+  local -a af
+  af=("${(@s:	:)arow}")
+  coll_has_agg[${af[7]}]=1
+done
+
+if (( ${#coll_has_agg} < ${#coll_total} )); then
+  local -a fixed=()
+  for rrow in "${rows[@]}"; do
+    local -a xf
+    xf=("${(@s:	:)rrow}")
+    if [[ -n ${xf[7]} && -n ${xf[4]} && -z ${coll_has_agg[${xf[7]}]} ]]; then
+      # Re-render as a standalone row: full relative path, no collection link.
+      xf[1]=$(printf '%-18s %s' "${xf[8]}" "${xf[3]}")
+      xf[7]=''
+      fixed+=("${(pj:\t:)xf}")
+    else
+      fixed+=("$rrow")
+    fi
+  done
+  rows=("${fixed[@]}")
+fi
+
 # Sort deletable rows (col5=1) first, then by display. Prefix an inverted
 # deletable flag (1-col5) so deletable rows (key 0) sort ahead of others.
+#
+# Collection members must stay grouped directly under their aggregate rather
+# than scattering by their own flag, so the sort key for any row belonging to
+# a collection is derived from the COLLECTION: key2 = "<coll>" for the
+# aggregate and "<coll> <member>" for its members. That sorts the aggregate
+# first (shorter prefix) with its members immediately after, and makes the
+# whole group's position depend on the aggregate's deletable flag, not each
+# member's. Non-collection rows keep sorting by their own display text.
+#
+# Keys are computed here in zsh rather than in awk because the group flag
+# lives in the coll_* associative arrays already built above; awk would need
+# a second pass to see aggregates (which are appended after their members).
+local -a keyed
+for rrow in "${rows[@]}"; do
+  local -a kf
+  kf=("${(@s:	:)rrow}")
+  local k_abs=${kf[4]} k_del=${kf[5]} k_coll=${kf[7]}
+  local key1='' key2=''                            # explicit init: see loop-local note above
+  if [[ -z $k_coll ]]; then                        # standalone worktree
+    key1=$(( 1 - k_del ))
+    key2=${kf[1]}
+  elif [[ -z $k_abs ]]; then                       # collection aggregate
+    key1=$(( 1 - k_del ))
+    key2=$k_coll
+  else                                             # member of a collection
+    local gdel=0
+    (( ${coll_deletable[$k_coll]:-0} == ${coll_total[$k_coll]:-0} )) && gdel=1
+    key1=$(( 1 - gdel ))
+    key2="${k_coll} ${k_abs}"
+  fi
+  keyed+=("$(printf '%d\t%s\t%s' "$key1" "$key2" "$rrow")")
+done
+
 local -a sorted
-if (( ${#rows} )); then
+if (( ${#keyed} )); then
   sorted=("${(@f)$(
-    printf '%s\n' "${rows[@]}" \
-      | awk -F'\t' '{ printf "%d\t%s\n", 1-$5, $0 }' \
+    printf '%s\n' "${keyed[@]}" \
       | sort -t$'\t' -k1,1n -k2,2 \
-      | cut -f2-
+      | cut -f3-
   )}")
 fi
 
 # ----- single picker (or dry-run listing) ---------------------------------
-local -a del_paths del_display del_repos
+local -a del_paths del_display del_repos del_colls
 if (( ${#sorted} == 0 )); then
   print "No removable worktrees found (excluding each repo's main/current)."
 elif (( dry_run )); then
+  # Keep a member row whenever its COLLECTION is deletable, even if that one
+  # member isn't (an aggregate deletes all of them). Filtering purely on each
+  # row's own flag would print members orphaned from their aggregate header
+  # and hide members that the aggregate would in fact remove.
   local r
   local -a would
   for r in "${sorted[@]}"; do
-    [[ ${${r%$'\t'*}##*$'\t'} == 1 ]] && would+=("${r%%$'\t'*}")
+    local -a df
+    df=("${(@s:	:)r}")
+    local d_abs=${df[4]} d_del=${df[5]} d_coll=${df[7]}
+    if [[ -n $d_coll && -n $d_abs ]]; then         # collection member
+      (( ${coll_deletable[$d_coll]:-0} == ${coll_total[$d_coll]:-0} )) \
+        && would+=("${df[1]}")
+    elif [[ $d_del == 1 ]]; then                   # aggregate or standalone
+      would+=("${df[1]}")
+    fi
   done
   if (( ${#would} )); then
     print "would delete (dry-run):"
@@ -358,20 +593,72 @@ else
       | fzf --multi --ansi --no-mouse --height=80% --reverse \
             --delimiter=$'\t' --with-nth=1 \
             --prompt='delete> ' \
-            --header='TAB multi-select | ENTER delete | Ctrl-G abort' \
-            --preview='"$HOME/bin/wt-preview" {4}' \
+            --header='TAB multi-select | ENTER delete | Ctrl-G abort (a collection row deletes all its worktrees + the dir)' \
+            --preview='
+              if [ -n "{4}" ]; then
+                "$HOME/bin/wt-preview" {4}
+              else
+                printf "COLLECTION %s\n\n" "{7}"
+                echo "A multi-repo worktree set created by pr-worktree."
+                echo "Selecting this row deletes EVERY worktree below and then"
+                echo "removes the collection directory itself."
+                echo ""
+                ls -1 "{7}" 2>/dev/null | sed "s/^/  /"
+              fi
+            ' \
             --preview-window=bottom:40%:wrap \
             --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)' \
             --bind='ctrl-g:abort'
   )
   if [[ -n $selection ]]; then
-    local sel_display sel_branch sel_rel sel_abs sel_del sel_repo
-    while IFS=$'\t' read -r sel_display sel_branch sel_rel sel_abs sel_del sel_repo; do
-      [[ -z $sel_abs ]] && continue
+    # An aggregate row (empty col4) stands for every worktree in its
+    # collection, so expand it into its member rows. Selecting both an
+    # aggregate and one of its members must not queue that member twice —
+    # `queued` dedupes on the absolute worktree path.
+    #
+    # Split each line with "${(@s:<tab>:)line}", NOT `IFS=$'\t' read`. read
+    # collapses runs of the delimiter, so an aggregate row — which carries an
+    # empty col4 (no single worktree path) and an empty col6 (no single repo
+    # root) — has its `\t\t` read as ONE separator and every later field
+    # shifts left. col4 then holds the deletable flag ("1") and col6 the
+    # display flag string, so the deletion loop ran `git -C '[7 wt: …]'` and
+    # died with "cannot change to '[7 wt: …]': No such file or directory".
+    # The (@s) split preserves empty fields positionally.
+    local -A queued sel_colls
+    local selline
+    for selline in "${(@f)selection}"; do
+      [[ -z $selline ]] && continue
+      local -a sf
+      sf=("${(@s:	:)selline}")
+      local sel_rel=${sf[3]} sel_abs=${sf[4]} sel_repo=${sf[6]} sel_coll=${sf[7]}
+      if [[ -z $sel_abs ]]; then
+        [[ -n $sel_coll ]] && sel_colls[$sel_coll]=1
+        continue
+      fi
+      [[ -n ${queued[$sel_abs]} ]] && continue
+      queued[$sel_abs]=1
       del_paths+=("$sel_abs")
       del_display+=("$sel_rel")
       del_repos+=("$sel_repo")
-    done <<< "$selection"
+    done
+
+    # Pull in every member of each selected collection.
+    if (( ${#sel_colls} )); then
+      local mrow
+      for mrow in "${rows[@]}"; do
+        local -a mf
+        mf=("${(@s:	:)mrow}")
+        local m_rel=${mf[3]} m_abs=${mf[4]} m_repo=${mf[6]} m_coll=${mf[7]}
+        [[ -z $m_abs ]] && continue                  # skip aggregates
+        [[ -z $m_coll || -z ${sel_colls[$m_coll]} ]] && continue
+        [[ -n ${queued[$m_abs]} ]] && continue
+        queued[$m_abs]=1
+        del_paths+=("$m_abs")
+        del_display+=("$m_rel")
+        del_repos+=("$m_repo")
+      done
+      del_colls=("${(@k)sel_colls}")
+    fi
   fi
 fi
 
@@ -382,6 +669,11 @@ if (( ${#del_paths} )); then
   print
   print "About to delete ${#del_paths} worktree(s):"
   for (( i = 1; i <= ${#del_display}; i++ )); do print "  ${del_display[$i]}"; done
+  if (( ${#del_colls} )); then
+    print "…and remove ${#del_colls} collection dir(s):"
+    local cshow
+    for cshow in "${del_colls[@]}"; do print "  ${cshow:t}/"; done
+  fi
   print -n "Proceed? [y/N] "
   local reply
   read -r reply
@@ -390,7 +682,19 @@ if (( ${#del_paths} )); then
       local p=${del_paths[$i]}
       local d=${del_display[$i]}
       local rr=${del_repos[$i]}
-      local err
+      local err=''                                 # explicit init: see loop-local note above
+
+      # Sanity-gate the two paths before handing them to git. A row that was
+      # parsed wrong (see the (@s) split note above) would otherwise become
+      # `git -C '<garbage>'`, which fails with a confusing "cannot change to
+      # …" and — because the repo root was also recorded in `pruned` — repeats
+      # the same error from the prune pass afterwards.
+      if [[ -z $rr || ! -d $rr ]]; then
+        print -u2 "failed:  $d (bad repo root: '${rr}')"
+        failed=$(( failed + 1 ))
+        continue
+      fi
+
       if git -C "$rr" worktree remove "$p" 2>/dev/null; then
         print "removed: $d"
       elif err=$(git -C "$rr" worktree remove --force "$p" 2>&1); then
@@ -405,6 +709,26 @@ if (( ${#del_paths} )); then
     local pr
     for pr in "${(@k)pruned}"; do
       git -C "$pr" worktree prune
+    done
+
+    # Remove the now-empty collection dirs. Deliberately `rmdir`, not
+    # `rm -rf`: if a worktree removal failed, or the dir holds anything we
+    # didn't put there, rmdir refuses and nothing is destroyed. macOS also
+    # leaves a .DS_Store behind, so clear that one known-disposable file
+    # first, then let rmdir arbitrate.
+    local cdir
+    for cdir in "${del_colls[@]}"; do
+      [[ -d $cdir ]] || continue
+      [[ -f $cdir/.DS_Store ]] && rm -f -- "$cdir/.DS_Store"
+      if rmdir -- "$cdir" 2>/dev/null; then
+        print "removed dir: ${cdir:t}/"
+      else
+        print -u2 "kept dir (not empty): $cdir"
+        local leftover=''                          # explicit init: see loop-local note above
+        leftover=$(ls -A -- "$cdir" 2>/dev/null | head -5)
+        [[ -n $leftover ]] && print -u2 "$leftover" | sed 's/^/  /' >&2
+        failed=$(( failed + 1 ))
+      fi
     done
   else
     print "Aborted (nothing deleted)."
