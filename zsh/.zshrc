@@ -105,6 +105,7 @@ autoload -Uz rlm-openports
 autoload -Uz rlm-pyclean
 autoload -Uz rlm-randompassword
 autoload -Uz rlm-mkpw
+autoload -Uz rlm-pr-list
 autoload -Uz rlm-pr-worktree
 autoload -Uz rlm-pr-worktree-rm
 autoload -Uz rlm-pr-worktree-rm-merged-closed
@@ -146,7 +147,45 @@ autoload -Uz rlm-dbt-test
 autoload -Uz rlm-tsconv
 # run-help: use the real autoloaded version (default is aliased to man)
 unalias run-help 2>/dev/null
-autoload -Uz run-help
+# Load the stock implementation under a second name so the wrapper below can
+# delegate to it. `autoload +X` loads the body now and `functions -c` copies
+# it; without the +X the copy would just be an unresolved autoload stub.
+#
+# Guarded so re-sourcing .zshrc in a live shell is safe: by then `run-help` is
+# the WRAPPER below, and copying that over _rlm-run-help-orig would make the
+# wrapper's delegation call itself — infinite recursion on any name without a
+# helpdir file. Only capture the original when we haven't already.
+if (( ! ${+functions[_rlm-run-help-orig]} )); then
+	autoload -Uz +X run-help 2>/dev/null && functions -c run-help _rlm-run-help-orig
+fi
+
+# $HELPDIR is a colon-separated LIST here (helpdir-private:helpdir), but the
+# stock run-help treats it as a single directory — it tests `[[ -d $HELPDIR ]]`
+# and reads `$HELPDIR/$1` verbatim. With a colon in the value neither ever
+# matches, so every helpdir/ file was silently invisible to run-help and every
+# lookup fell through to `man`, which then reports "No manual entry".
+#
+# This wrapper walks the list the way rlm-fcmd already does, and delegates to
+# the stock function (with HELPDIR unset, so it uses its own compiled-in
+# default for zsh builtins like `setopt`) when nothing matches.
+run-help() {
+	emulate -L zsh
+	local name=$1 d target
+	# Resolve one level of aliasing so `run-help pr-checkout` finds the help
+	# for the alias name itself, then for what it expands to (rlm-pr-checkout).
+	local -a candidates=("$name")
+	local expanded=${aliases[$name]:-}
+	[[ -n $expanded ]] && candidates+=("${expanded%% *}")
+	for target in "${candidates[@]}"; do
+		for d in ${(s.:.)HELPDIR}; do
+			if [[ -r $d/$target ]]; then
+				${=PAGER:-more} "$d/$target"
+				return 0
+			fi
+		done
+	done
+	HELPDIR='' _rlm-run-help-orig "$@"
+}
 # short aliases for autoloaded functions
 alias pyactivate='rlm-pyactivate'
 alias hello='rlm-hello'
@@ -155,6 +194,7 @@ alias dnsflush='rlm-dnsflush'
 alias openports='rlm-openports'
 alias pyclean='rlm-pyclean'
 alias mkpw='rlm-mkpw'
+alias pr-list='rlm-pr-list'
 alias pr-worktree='rlm-pr-worktree'
 alias pr-worktree-rm='rlm-pr-worktree-rm'
 alias pr-worktree-rm-merged-closed='rlm-pr-worktree-rm-merged-closed'
@@ -305,6 +345,205 @@ function rlm-switchbranch {
   git switch $(git branch | fzf)
 }
 alias switchbranch='rlm-switchbranch'
+
+# pr-checkout: pick one of the current repo's OPEN pull requests via fzf and
+# switch to its branch in place.
+#
+# Complements the two neighbours that do almost-but-not-this:
+#   switchbranch  local branches only, no PR context at all.
+#   pr-worktree   picks a PR but creates a NEW worktree for it.
+#
+# Only open PRs are listed (merged/closed are noise for "go work on this").
+# Rows you authored are green, matching pr-worktree's picker convention.
+#
+# WORKTREES. A branch can only be checked out in one worktree at a time, so
+# `git switch` to a branch another worktree holds fails hard (exit 128,
+# "already used by worktree at ..."). Those PRs are still listed — annotated
+# `(wt: <dirname>)` — and selecting one cds you into that worktree instead of
+# failing. Either way you end up looking at the branch.
+#
+# That cd is why this lives inline in .zshrc rather than my-zsh-functions/:
+# an autoloaded function runs in the calling shell too, but the repo
+# convention (AGENTS.md → Naming & Definition) is that anything which must
+# modify the caller's cwd is defined inline.
+#
+# Branch resolution: most open PRs have no local branch yet, so this defers
+# to `gh pr checkout`, which creates the branch, sets upstream, and handles
+# PRs from forks. When a local branch already exists it is a plain switch.
+#
+# Usage: pr-checkout [PR-NUMBER]     (number skips the picker)
+function rlm-pr-checkout {
+	# Job-control chatter suppression + EXTENDED_GLOB for the trailing-space
+	# trim below. local_options scopes both to this function. See AGENTS.md.
+	setopt local_options no_notify no_monitor extended_glob
+
+	local repo_root
+	repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || {
+		print -u2 "pr-checkout: not inside a git repository"
+		return 1
+	}
+
+	local c
+	for c in gh git jq fzf; do
+		command -v "$c" >/dev/null 2>&1 || {
+			print -u2 "pr-checkout: '$c' not found in PATH"
+			return 1
+		}
+	done
+
+	# branch -> worktree path, for every worktree of this repo except the one
+	# we are standing in (switching to our own current branch is a no-op, not
+	# a conflict, so it must not be annotated).
+	local here
+	here=$(git rev-parse --show-toplevel 2>/dev/null)
+	local -A wt_of
+	local wl_path='' wl_line=''
+	while IFS= read -r wl_line; do
+		case $wl_line in
+			worktree\ *) wl_path=${wl_line#worktree } ;;
+			branch\ *)
+				[[ -n $wl_path && ${wl_path:A} != "${here:A}" ]] \
+					&& wt_of[${wl_line#branch refs/heads/}]=$wl_path
+				;;
+			'') wl_path='' ;;
+		esac
+	done < <(git worktree list --porcelain)
+
+	local pr_number=${1:-}
+
+	if [[ -z $pr_number ]]; then
+		local me
+		me=$(gh api user --jq .login 2>/dev/null)
+
+		# One call for everything the rows need. --limit 200 is well past any
+		# realistic open-PR count; state defaults to open.
+		local pr_json
+		pr_json=$(gh pr list --limit 200 \
+			--json number,title,author,isDraft,headRefName,statusCheckRollup,reviewDecision 2>/dev/null) \
+			|| pr_json=''
+		if [[ -z $pr_json || $pr_json == '[]' ]]; then
+			print -u2 "pr-checkout: no open PRs in this repo"
+			return 1
+		fi
+
+		# Rows: <num>\t<draft>\t<checks>\t<review>\t<author>\t<branch>\t<title>
+		# Same rollup summary as rlm-pr-list; see the note there on `(.[0] // {})`
+		# — here we map over the whole array so no such binding is involved.
+		local -a raw
+		raw=("${(@f)$(print -r -- "$pr_json" | jq -r '
+			.[]
+			| (.statusCheckRollup // []) as $ctx
+			| [ $ctx[] | (.conclusion // .state // "") | ascii_upcase ] as $st
+			| ($st | map(select(. == "SUCCESS")) | length) as $ok
+			| ($st | map(select(. == "FAILURE" or . == "TIMED_OUT" or . == "CANCELLED" or . == "ERROR" or . == "ACTION_REQUIRED" or . == "STARTUP_FAILURE")) | length) as $bad
+			| ($st | map(select(. == "PENDING" or . == "QUEUED" or . == "IN_PROGRESS" or . == "WAITING" or . == "REQUESTED" or . == "EXPECTED")) | length) as $wip
+			| ($ok + $bad + $wip) as $tot
+			| (if $tot == 0 then "-"
+			   elif $bad > 0 then "fail \($bad)/\($tot)"
+			   elif $wip > 0 then "pend \($wip)/\($tot)"
+			   else "ok \($ok)" end) as $checks
+			| (.reviewDecision // "") as $rd
+			| (if $rd == "APPROVED" then "approved"
+			   elif $rd == "CHANGES_REQUESTED" then "changes-req"
+			   elif $rd == "REVIEW_REQUIRED" then "review-req"
+			   else "-" end) as $review
+			| [ (.number|tostring), (if .isDraft then "draft" else "open" end),
+			    $checks, $review, (.author.login // "?"), .headRefName, .title ]
+			| @tsv' 2>/dev/null)}")
+		(( ${#raw} == 0 )) && {
+			print -u2 "pr-checkout: failed to parse PR list"
+			return 1
+		}
+
+		# Column widths so the display field lines up.
+		local -i w_num=2 w_state=5 w_checks=6 w_review=6 w_auth=6
+		local r
+		local -a rr
+		for r in "${raw[@]}"; do
+			rr=("${(@s:	:)r}")
+			(( ${#rr[1]} + 1 > w_num ))  && w_num=$(( ${#rr[1]} + 1 ))
+			(( ${#rr[2]} > w_state ))    && w_state=${#rr[2]}
+			(( ${#rr[3]} > w_checks ))   && w_checks=${#rr[3]}
+			(( ${#rr[4]} > w_review ))   && w_review=${#rr[4]}
+			(( ${#rr[5]} > w_auth ))     && w_auth=${#rr[5]}
+		done
+
+		local green=$'\e[32m' grey=$'\e[90m' reset=$'\e[0m'
+		local -a lines
+		for r in "${raw[@]}"; do
+			rr=("${(@s:	:)r}")
+			local num=${rr[1]} state=${rr[2]} checks=${rr[3]} review=${rr[4]}
+			local author=${rr[5]} branch=${rr[6]} title=${rr[7]}
+
+			# Worktree annotation. Only the basename — the full path is long and
+			# the picker line is already wide; the preview pane shows the rest.
+			local wt=${wt_of[$branch]:-} note=''
+			[[ -n $wt ]] && note="  ${grey}(wt: ${wt:t})${reset}"
+
+			local disp=''
+			disp=$(printf '%-*s  %-*s  %-*s  %-*s  %-*s  %s' \
+				$w_num "#$num" $w_state "$state" $w_checks "$checks" \
+				$w_review "$review" $w_auth "$author" "$title")
+			disp=${disp%% ##}
+			[[ -n $me && $author == "$me" ]] && disp="${green}${disp}${reset}"
+
+			# display \t number \t branch \t worktree ; fzf renders field 1 only.
+			lines+=("$(printf '%s%s\t%s\t%s\t%s' "$disp" "$note" "$num" "$branch" "$wt")")
+		done
+
+		local sel
+		sel=$(print -rl -- "${lines[@]}" | fzf \
+			--no-mouse --ansi --height=80% --reverse \
+			--delimiter=$'\t' --with-nth=1 \
+			--header='ENTER switches to the PR branch ((wt:…) = cd to that worktree). Ctrl-P: preview. Ctrl-G: abort' \
+			--preview='gh pr view {2}' \
+			--preview-window=bottom:40%:wrap \
+			--bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)' \
+			--bind='ctrl-g:abort') || return 130
+		[[ -z $sel ]] && return 130
+
+		local -a sf=("${(@s:	:)sel}")
+		pr_number=${sf[2]}
+	fi
+
+	# Resolve the head branch. When the picker ran we already know it, but an
+	# explicit PR number argument skips all of the above.
+	#
+	# Initializers are mandatory, not style: `wt` is already declared inside
+	# the picker block above, and a bare re-`local` of a declared name is
+	# typeset REPORTING mode — it prints "wt=''" to stdout. See AGENTS.md →
+	# "Bare `local x` inside a loop PRINTS x=<value>".
+	local branch='' wt=''
+	branch=$(gh pr view "$pr_number" --json headRefName --jq .headRefName 2>/dev/null) || branch=''
+	if [[ -z $branch ]]; then
+		print -u2 "pr-checkout: could not resolve a branch for PR #$pr_number"
+		return 1
+	fi
+	wt=${wt_of[$branch]:-}
+
+	# Already checked out elsewhere -> go there rather than failing.
+	if [[ -n $wt ]]; then
+		print -r -- "pr-checkout: #$pr_number ($branch) is checked out in another worktree"
+		print -r -- "pr-checkout: cd $wt"
+		cd -- "$wt"
+		return $?
+	fi
+
+	if [[ $branch == "$(git branch --show-current 2>/dev/null)" ]]; then
+		print -r -- "pr-checkout: already on $branch"
+		return 0
+	fi
+
+	# Existing local branch -> plain switch. Otherwise let `gh pr checkout`
+	# create it (handles fork PRs and sets up tracking).
+	if git show-ref --verify --quiet "refs/heads/$branch"; then
+		git switch "$branch"
+	else
+		git -C "$repo_root" fetch --quiet origin 2>/dev/null
+		gh pr checkout "$pr_number"
+	fi
+}
+alias pr-checkout='rlm-pr-checkout'
 
 function rlm-sqlfluff-fix {
 pre-commit run sqlfluff-fix --from-ref $(git merge-base --fork-point origin/main HEAD) --to-ref HEAD

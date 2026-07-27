@@ -1,0 +1,63 @@
+pr-list [--interactive|-i]
+
+List the GitHub PRs for the branches currently checked out across a
+set of repos, so a multi-repo change lands as one reviewable table.
+
+Mode is auto-detected from the cwd:
+
+  single-repo  cwd is inside a git repo -> just this worktree's
+               branch.
+  multi-repo   cwd is not a repo but holds git repos as child dirs
+               -> one row per repo.
+
+The multi-repo case is the interesting one. `pr-worktree`'s
+multi-repo mode creates a COLLECTION dir holding one worktree of
+every repo, all on the same branch:
+
+  ~/git/work/StorytelDataPlatform_20260724_DATA-2769-foo/
+    data-platform-artifacts/  data-platform-dbt/  ...
+
+Running `pr-list` there gives the status of the whole change set.
+
+For each repo it looks up the PR whose head branch is that
+worktree's CURRENT branch, so the table tracks the change set you
+are working on rather than every open PR in the repo. Repos with no
+PR for their branch show as "no PR" -- that absence is the point:
+it is the repo you still have to open a PR for.
+
+Columns:
+
+  REPO     the worktree directory name.
+  PR       #number, an OSC 8 hyperlink to the PR.
+  STATE    open / draft / merged / closed / no PR (colored).
+  CHECKS   check rollup: "ok N", "fail N/M", "pend N/M", or "-".
+           SKIPPED and NEUTRAL contexts are excluded from the
+           denominator.
+  REVIEW   approved / changes-req / review-req, or "-".
+  UPDATED  humanized age of the PR's updatedAt ("3d ago").
+  TITLE    the PR title.
+
+After the table it prints a "links" block of bare `repo: url`
+lines, one per PR, for copy/pasting the whole set into Slack (which
+unfurls bare URLs into clickable titled links). These are
+deliberately NOT OSC 8 hyperlinks: an OSC 8 link lives in escape
+bytes that a terminal renders but a copy-paste does not carry.
+
+Repos are queried in parallel (one background `gh` per repo), so a
+7-repo collection costs about as much as a single `gh` call.
+
+Options:
+
+  -i, --interactive  Open an fzf picker instead of printing the
+                     table. ENTER opens the selected PR in the
+                     browser; the preview pane shows `gh pr view`.
+                     Ctrl-P cycles the preview size, Ctrl-G aborts.
+                     Rows without a PR are listed but not openable.
+  -h, --help         Show a usage line.
+
+Examples:
+
+  pr-list
+  pr-list -i
+
+Requires: gh, git, jq (plus fzf for -i).

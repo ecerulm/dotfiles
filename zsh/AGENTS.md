@@ -34,7 +34,11 @@ Every function file starts with `emulate -L zsh`. Validate syntax with `zsh -n <
 
 `rlm-fcmd` preview priority: `$HELPDIR/<name>` → system zsh helpdir → def cache (alias/function body) → `man <name> | col -bx` → `type <name>`.
 
-**run-help**: `.zshrc` does `unalias run-help; autoload -Uz run-help`. Uncalled autoloaded functions show as `"foo is an autoload shell function"`; the word `an` breaks run-help's matcher and falls through to `man` — the `helpdir/` files (checked first) work around this.
+**run-help**: `.zshrc` does `unalias run-help`, captures the stock implementation as `_rlm-run-help-orig` (via `autoload -Uz +X` + `functions -c`, guarded so re-sourcing `.zshrc` doesn't make the wrapper recurse into itself), then defines a `run-help` **wrapper**.
+
+The wrapper exists because `$HELPDIR` here is a colon-separated *list* (`helpdir-private:helpdir`) while stock run-help treats it as a single directory — it tests `[[ -d $HELPDIR ]]` and reads `$HELPDIR/$1` verbatim, so a colon made every `helpdir/` file invisible and every lookup fell through to `man` ("No manual entry for rlm-foo"). The wrapper walks the list the way `rlm-fcmd` does, resolving the alias name first and then what it expands to (so both `run-help pr-list` and `run-help rlm-pr-list` work), and delegates to `_rlm-run-help-orig` with `HELPDIR=''` when nothing matches — the empty value makes the stock function fall back to its own compiled-in helpdir, keeping builtins like `setopt` working.
+
+This also sidesteps the older problem the `helpdir/` files were meant to work around: uncalled autoloaded functions report as `"foo is an autoload shell function"`, and the word `an` breaks run-help's matcher.
 
 ## Internal Helpers (`_rlm-<name>`)
 
@@ -156,6 +160,64 @@ Loop *variables* (`local mrow` immediately before `for mrow in …`) are fine
 
 Symptom card: unexplained `somevar=somevalue` lines in a function's output,
 or per-group counters that grow monotonically across groups.
+
+### jq: `as` binds looser than `//`
+
+Not zsh, but it bites these functions whenever `gh --json` output is
+summarized. `as` binds **looser** than the alternative operator `//`, so
+
+```jq
+.[0] // {} as $pr | ($pr.number|tostring)
+```
+
+parses as `.[0] // ({} as $pr | rest)`: when `.[0]` is truthy jq
+short-circuits and emits the **raw input**, never running the pipeline.
+Exit code 0, no error — you get pretty-printed JSON where a scalar was
+expected. Parenthesize: `(.[0] // {}) as $pr | …`.
+
+Symptom card: a jq filter that looks ignored, but only when the data is
+non-empty (the empty case works, since `//` then falls through). Bit
+`rlm-pr-list`'s check-rollup summarizer.
+
+### `emulate -L zsh` turns EXTENDED_GLOB **off**
+
+Every function here starts with `emulate -L zsh`, which disables
+EXTENDED_GLOB. Any pattern using the closure operators `#` / `##` then
+silently never matches — no error, the substitution returns the string
+unchanged:
+
+```zsh
+f() {
+  emulate -L zsh
+  local s="abc   "
+  print -r -- "[${s%%[[:space:]]##}]"   # [abc   ]  <- strip did nothing
+}
+```
+
+Fix: `setopt extended_glob` right after `emulate -L zsh` (`-L` scopes it to
+the function). Do **not** substitute `%%[[:space:]]*` — `%%` is greedy from
+the left, so it strips from the *first* space and eats most of the string.
+
+Symptom card: a `${var%%…#}` / `${var##…#}` trim that is a visible no-op.
+
+### Backgrounded jobs print job-control noise in interactive shells
+
+A parallel fan-out (`cmd &` … `wait`) prints a start line and a done line
+per job when the shell is interactive:
+
+```
+[4] 23959
+[4]  + done       { local -i n=$idx ; … }
+```
+
+`emulate -L zsh` does **not** suppress these — MONITOR and NOTIFY are
+interactive-shell state, not emulation options. Add `unsetopt monitor notify` after `emulate -L zsh` (both: MONITOR off kills the job lines,
+NOTIFY off stops async completion reports).
+
+Testing trap: this never reproduces under `zsh -c` / `zsh -n`, where
+MONITOR is already off — so the function tests clean and still spews for
+the user. Reproduce with `script -q /dev/null zsh -ic '…'` and assert
+`grep -c '^\[[0-9]'` is 0. Applied in `rlm-pr-list`.
 
 ### Never use `path` as a local variable name
 

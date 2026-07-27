@@ -1,0 +1,53 @@
+pr-checkout [PR-NUMBER]
+
+Pick one of the current repo's OPEN pull requests via fzf and switch
+to its branch in place.
+
+Only open PRs are listed -- merged and closed ones are noise when the
+intent is "go work on this". Draft PRs count as open and are shown
+with a "draft" state. Rows you authored are colored green, matching
+the convention in pr-worktree's picker.
+
+Pass a PR number to skip the picker entirely.
+
+Picker columns:
+
+  #NUM  STATE  CHECKS  REVIEW  AUTHOR  TITLE  (wt: <dir>)
+
+  STATE   open or draft.
+  CHECKS  check rollup: "ok N", "fail N/M", "pend N/M", or "-".
+          SKIPPED and NEUTRAL contexts are excluded from the
+          denominator.
+  REVIEW  approved / changes-req / review-req, or "-".
+  (wt:)   present when the PR's branch is already checked out in
+          another worktree of this repo -- see below.
+
+The preview pane shows `gh pr view` for the highlighted PR.
+
+WORKTREES. A branch can only be checked out in one worktree at a
+time, so `git switch` to a branch that another worktree holds fails
+outright ("fatal: ... is already used by worktree at ..."). Those
+PRs are still listed, annotated `(wt: <dirname>)`, and selecting one
+cds you into that existing worktree instead of failing. Either way
+you end up looking at the branch.
+
+The worktree you are currently standing in is never annotated --
+switching to your own current branch is a no-op, not a conflict.
+
+Branch resolution: most open PRs have no local branch yet, so this
+defers to `gh pr checkout`, which creates the branch, sets up
+tracking, and handles PRs from forks. When a local branch already
+exists it is a plain `git switch`.
+
+Related:
+
+  switchbranch   local branches only, no PR context.
+  pr-worktree    picks a PR but creates a NEW worktree for it.
+  pr-list        lists PRs across a multi-repo collection dir.
+
+Examples:
+
+  pr-checkout
+  pr-checkout 3726
+
+Requires: gh, git, jq, fzf.

@@ -1,0 +1,418 @@
+# pr-list: list the GitHub PRs for the branches currently checked out across a
+# set of repos, so a multi-repo change lands as one reviewable table.
+#
+# Mode is auto-detected from the cwd, mirroring rlm-pr-worktree /
+# rlm-pr-worktree-rm-merged-closed:
+#
+#   * inside a git repo -> single-repo mode (just this worktree's branch).
+#   * otherwise, if the cwd holds git repos as child dirs -> multi-repo mode,
+#     one row per repo. This is the interesting case: rlm-pr-worktree's
+#     multi-repo mode creates a COLLECTION dir holding one worktree of every
+#     repo, all on the same branch, e.g.
+#
+#       ~/git/work/StorytelDataPlatform_20260724_DATA-2769-foo/
+#         data-platform-artifacts/  data-platform-dbt/  data-platform-infra/ ...
+#
+#     `pr-list` in that dir gives you the status of the whole change set.
+#
+# For each repo it looks up the PR whose head branch is that worktree's
+# CURRENT branch (`gh pr list --head <branch> --state all`), so the table
+# tracks the change set you're working on rather than every open PR in the
+# repo. Repos with no PR for their branch are listed as `-  no PR` — that
+# absence is the point (it's the repo you still have to open a PR for).
+#
+# Output columns:
+#
+#   REPO  PR  STATE  CHECKS  REVIEW  UPDATED  TITLE
+#
+#   PR      OSC 8 hyperlink on the #number (see the OSC 8 note in AGENTS.md:
+#           never print the bare URL, it wraps and breaks on click).
+#   STATE   open / draft / merged / closed.
+#   CHECKS  statusCheckRollup collapsed to a rollup: ok N (all passed),
+#           fail N/M, pending N/M, or `-` when the PR has no checks.
+#   REVIEW  reviewDecision: approved / changes-req / review-req, `-` if unset.
+#   UPDATED humanized age of updatedAt ("2d ago").
+#
+# After the table it prints a "links" block of BARE `repo: url` lines, one
+# per PR, for copy/pasting the whole change set into Slack (which unfurls
+# bare URLs into clickable titled links). See the comment on that block for
+# why it does NOT use OSC 8 hyperlinks like the rest of the codebase.
+#
+# Repos are queried in PARALLEL (one background `gh` per repo writing to a
+# tmpdir), so a 7-repo collection costs about as much as one `gh` call.
+#
+# Flags:
+#   -i, --interactive   fzf picker instead of the table; ENTER opens the
+#                       selected PR in the browser (`gh pr view --web`).
+#                       Rows without a PR are shown but not openable.
+#   -h, --help
+#
+# Usage:
+#   pr-list                # table for the cwd's repo / collection dir
+#   pr-list -i             # pick one and open it in the browser
+#
+# Requires: gh, git, jq (+ fzf for -i)
+
+emulate -L zsh
+set -o pipefail
+
+# Silence job-control chatter from the parallel `gh` fan-out below. In an
+# INTERACTIVE shell zsh has MONITOR (job control) and NOTIFY on, so each
+# backgrounded job prints a "[4] 23959" start line and a "[4]  + done …"
+# completion line — with one job per repo that is a two-screen wall of noise
+# above the actual table. `emulate -L zsh` does NOT reset these (they are
+# interactive-shell state, not emulation-mode options), which is why this
+# only shows up when the function is run for real and never under
+# `zsh -c`/`zsh -n`.
+#
+# Both are needed: MONITOR off suppresses the job lines, NOTIFY off stops
+# asynchronous completion reports. `emulate -L` scopes the change to this
+# function, so the caller's settings are restored on return.
+unsetopt monitor notify
+
+# `emulate -L zsh` turns EXTENDED_GLOB off; the trailing-whitespace strip on
+# each table row uses the `#` closure operator, which needs it on. Scoped to
+# this function by `emulate -L`.
+setopt extended_glob
+
+local interactive=0
+local arg
+for arg in "$@"; do
+  case $arg in
+    -i | --interactive) interactive=1 ;;
+    -h | --help)
+      print -- "usage: pr-list [--interactive|-i]"
+      return 0
+      ;;
+    *)
+      print -u2 "pr-list: unknown arg: $arg"
+      return 1
+      ;;
+  esac
+done
+
+local -a required=(gh git jq)
+(( interactive )) && required+=(fzf)
+local cmd
+for cmd in "${required[@]}"; do
+  if ! command -v "$cmd" >/dev/null 2>&1; then
+    print -u2 "pr-list: '$cmd' not found in PATH"
+    return 1
+  fi
+done
+
+# ----- worktree discovery -------------------------------------------------
+# _prl_discover_worktrees <dir>
+#   Print one absolute path per line for each child dir of <dir> that is a git
+#   worktree. Unlike _prwt_discover_repos (which dedupes to the MAIN repo root
+#   via --git-common-dir) we want the CHILD dirs themselves: in a collection
+#   dir every child is a linked worktree of a repo living elsewhere, and it's
+#   the worktree's checked-out branch we care about.
+_prl_discover_worktrees() {
+  local base=$1 subdir top
+  local -a found
+  for subdir in "$base"/*(N/); do
+    top=$(git -C "$subdir" rev-parse --show-toplevel 2>/dev/null) || continue
+    [[ -z $top ]] && continue
+    # Skip a child that merely sits inside an enclosing repo without being its
+    # own worktree root (e.g. a plain subdirectory of a repo).
+    [[ ${top:A} != "${subdir:A}" ]] && continue
+    found+=("${subdir:A}")
+  done
+  (( ${#found} == 0 )) && return 1
+  print -rl -- "${(@o)found}"
+}
+
+# ----- humanize seconds ("<N><unit> ago") ---------------------------------
+# Same compact ladder as rlm-pr-worktree-rm-merged-closed's _prwtrmc_human_ago.
+_prl_human_ago() {
+  local secs=$1
+  [[ -z $secs ]] && { print -r -- "-"; return 0; }
+  (( secs < 0 )) && secs=0
+  if   (( secs < 60       )); then print -r -- "${secs}s ago"
+  elif (( secs < 3600     )); then print -r -- "$(( secs / 60 ))m ago"
+  elif (( secs < 86400    )); then print -r -- "$(( secs / 3600 ))h ago"
+  elif (( secs < 2592000  )); then print -r -- "$(( secs / 86400 ))d ago"
+  elif (( secs < 31536000 )); then print -r -- "$(( secs / 2592000 ))mo ago"
+  else                             print -r -- "$(( secs / 31536000 ))y ago"
+  fi
+}
+
+# ----- ISO8601 -> epoch ---------------------------------------------------
+# gh emits UTC timestamps like 2026-07-24T12:46:53Z. BSD date needs -j -f and
+# an explicit UTC zone; GNU date takes -d. Empty on failure.
+_prl_iso_epoch() {
+  local iso=$1 epoch=''
+  [[ -z $iso ]] && { print -r -- ""; return 0; }
+  epoch=$(TZ=UTC date -j -f '%Y-%m-%dT%H:%M:%SZ' "$iso" '+%s' 2>/dev/null) \
+    || epoch=$(date -d "$iso" '+%s' 2>/dev/null) \
+    || epoch=''
+  print -r -- "$epoch"
+}
+
+# ----- mode detection -----------------------------------------------------
+# Single-repo when the cwd is inside a git repo, else multi-repo over the
+# cwd's children.
+local -a worktrees
+local base_dir=$PWD single_root
+single_root=$(git rev-parse --show-toplevel 2>/dev/null)
+if [[ -n $single_root ]]; then
+  worktrees=("${single_root:A}")
+  base_dir=${single_root:h}
+else
+  if ! worktrees=("${(@f)$(_prl_discover_worktrees "$base_dir")}"); then
+    print -u2 "pr-list: not inside a git repository, and no git repos found in $base_dir"
+    return 1
+  fi
+fi
+
+# ----- fetch PRs in parallel ----------------------------------------------
+# One background `gh` per repo. Each writes a single TSV line to its own file
+# in a tmpdir; we read them back in worktree order afterwards. `gh` resolves
+# the repo from its cwd, so each subshell cds into the worktree.
+#
+# Fields written per repo (tab-separated, 8 cols):
+#   name  branch  number  state  isDraft  checks  review  updated_epoch  title
+# A repo with no PR for its branch writes only name+branch and empty rest.
+local tmpdir
+tmpdir=$(mktemp -d "${TMPDIR:-/tmp}/pr-list.XXXXXX") || {
+  print -u2 "pr-list: failed to create temp dir"
+  return 1
+}
+
+# jq program: collapse the first PR's fields into one TSV line. The check
+# rollup is summarized rather than listed: contexts have either .conclusion
+# (check runs) or .state (legacy statuses), and SKIPPED/NEUTRAL count as
+# neither pass nor fail, so they're excluded from the denominator.
+#
+# NOTE the parens around `(.[0] // {})`: `as` binds LOOSER than `//`, so a
+# bare `.[0] // {} as $pr | rest` parses as `.[0] // ({} as $pr | rest)` and
+# jq short-circuits to emit the raw input whenever .[0] is truthy — the whole
+# pipeline is silently skipped and you get pretty-printed JSON in your column.
+local -r jq_prog='
+  (.[0] // {}) as $pr
+  | ($pr.statusCheckRollup // []) as $ctx
+  | [ $ctx[] | (.conclusion // .state // "") | ascii_upcase ] as $st
+  | ($st | map(select(. == "SUCCESS")) | length) as $ok
+  | ($st | map(select(. == "FAILURE" or . == "TIMED_OUT" or . == "CANCELLED" or . == "ERROR" or . == "ACTION_REQUIRED" or . == "STARTUP_FAILURE")) | length) as $bad
+  | ($st | map(select(. == "PENDING" or . == "QUEUED" or . == "IN_PROGRESS" or . == "WAITING" or . == "REQUESTED" or . == "EXPECTED")) | length) as $wip
+  | ($ok + $bad + $wip) as $tot
+  | (if $tot == 0 then "-"
+     elif $bad > 0 then "fail \($bad)/\($tot)"
+     elif $wip > 0 then "pend \($wip)/\($tot)"
+     else "ok \($ok)" end) as $checks
+  | (if $pr.number == null then ""
+     else [ ($pr.number|tostring), $pr.state, ($pr.isDraft|tostring), $checks,
+            ($pr.reviewDecision // ""), ($pr.updatedAt // ""), ($pr.title // ""),
+            ($pr.url // "") ] | @tsv
+     end)
+'
+
+local wt idx=0
+for wt in "${worktrees[@]}"; do
+  (( idx++ ))
+  {
+    local -i n=$idx
+    local name=${wt:t} branch='' payload=''
+    branch=$(git -C "$wt" branch --show-current 2>/dev/null)
+    if [[ -n $branch ]]; then
+      payload=$(cd -- "$wt" 2>/dev/null \
+        && gh pr list --head "$branch" --state all --limit 1 \
+             --json number,state,isDraft,statusCheckRollup,reviewDecision,updatedAt,title,url 2>/dev/null \
+        | jq -r "$jq_prog" 2>/dev/null) || payload=''
+    fi
+    printf '%s\t%s\t%s\n' "$name" "$branch" "$payload" > "$tmpdir/$n"
+  } &
+done
+wait
+
+# ----- assemble rows ------------------------------------------------------
+# Row (tab-separated) shared by the table and the picker:
+#   1 repo  2 branch  3 num  4 state_label  5 checks  6 review  7 age  8 title
+#   9 url  10 worktree_abs
+local -a rows
+local -i i
+local now=$EPOCHSECONDS
+[[ -z $now ]] && now=$(date '+%s')
+
+for (( i = 1; i <= ${#worktrees}; i++ )); do
+  local line=''
+  [[ -r $tmpdir/$i ]] && line=$(< "$tmpdir/$i")
+  # Positional split: several fields are legitimately empty for a no-PR repo,
+  # and `IFS=$'\t' read` collapses runs of tabs, shifting fields left.
+  local -a f=()
+  f=("${(@s:	:)line}")
+  local repo=${f[1]:-${worktrees[$i]:t}} branch=${f[2]:-}
+  local num=${f[3]:-} state=${f[4]:-} draft=${f[5]:-} checks=${f[6]:-}
+  local review=${f[7]:-} updated=${f[8]:-} title=${f[9]:-} url=${f[10]:-}
+
+  local state_label='no PR' age='-' num_disp='-'
+  if [[ -n $num ]]; then
+    num_disp="#$num"
+    state_label=${(L)state}
+    [[ $draft == true && $state_label == open ]] && state_label='draft'
+    local epoch=''
+    epoch=$(_prl_iso_epoch "$updated")
+    [[ -n $epoch ]] && age=$(_prl_human_ago $(( now - epoch )))
+  else
+    checks='-'
+    review=''
+    title=''
+  fi
+
+  local review_disp='-'
+  case ${(U)review} in
+    APPROVED)          review_disp='approved' ;;
+    CHANGES_REQUESTED) review_disp='changes-req' ;;
+    REVIEW_REQUIRED)   review_disp='review-req' ;;
+  esac
+
+  rows+=("$(printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s' \
+    "$repo" "$branch" "$num_disp" "$state_label" "${checks:--}" "$review_disp" \
+    "$age" "$title" "$url" "${worktrees[$i]}")")
+done
+
+rm -rf -- "$tmpdir"
+
+if (( ${#rows} == 0 )); then
+  print -u2 "pr-list: no repos found"
+  return 1
+fi
+
+# ----- colors -------------------------------------------------------------
+# Only when stdout is a tty (table) — the picker always colors, since fzf
+# gets --ansi.
+local -A state_color=(
+  open   $'\e[32m'    # green
+  draft  $'\e[90m'    # grey
+  merged $'\e[35m'    # magenta
+  closed $'\e[31m'    # red
+  'no PR' $'\e[33m'   # yellow
+)
+local reset=$'\e[0m'
+
+# _prl_color <state_label> <text>
+_prl_color() {
+  local c=${state_color[$1]:-}
+  [[ -z $c ]] && { print -r -- "$2"; return 0; }
+  print -r -- "${c}${2}${reset}"
+}
+
+# ----- column widths ------------------------------------------------------
+local -i w_repo=4 w_pr=2 w_state=5 w_checks=6 w_review=6 w_age=7
+local row
+local -a rf
+for row in "${rows[@]}"; do
+  rf=("${(@s:	:)row}")
+  (( ${#rf[1]} > w_repo ))   && w_repo=${#rf[1]}
+  (( ${#rf[3]} > w_pr ))     && w_pr=${#rf[3]}
+  (( ${#rf[4]} > w_state ))  && w_state=${#rf[4]}
+  (( ${#rf[5]} > w_checks )) && w_checks=${#rf[5]}
+  (( ${#rf[6]} > w_review )) && w_review=${#rf[6]}
+  (( ${#rf[7]} > w_age ))    && w_age=${#rf[7]}
+done
+
+# ----- interactive picker -------------------------------------------------
+if (( interactive )); then
+  local -a lines
+  for row in "${rows[@]}"; do
+    rf=("${(@s:	:)row}")
+    local disp=''
+    disp=$(printf '%-*s  %-*s  %-*s  %-*s  %-*s  %-*s  %s' \
+      $w_repo "${rf[1]}" $w_pr "${rf[3]}" $w_state "${rf[4]}" \
+      $w_checks "${rf[5]}" $w_review "${rf[6]}" $w_age "${rf[7]}" "${rf[8]}")
+    disp=$(_prl_color "${rf[4]}" "$disp")
+    # display \t url \t worktree ; fzf renders field 1 only.
+    lines+=("$(printf '%s\t%s\t%s' "$disp" "${rf[9]}" "${rf[10]}")")
+  done
+
+  local selection
+  selection=$(print -rl -- "${lines[@]}" | fzf \
+    --no-mouse --ansi --height=80% --reverse \
+    --delimiter=$'\t' --with-nth=1 \
+    --header='ENTER opens the PR in the browser. Ctrl-P: toggle preview. Ctrl-G: abort' \
+    --preview='[ -n "{2}" ] && (cd "{3}" 2>/dev/null && gh pr view "{2}") || echo "no PR for this branch"' \
+    --preview-window=bottom:40%:wrap \
+    --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)' \
+    --bind='ctrl-g:abort') || return 130
+  [[ -z $selection ]] && return 130
+
+  local -a sf=("${(@s:	:)selection}")
+  local sel_url=${sf[2]:-} sel_wt=${sf[3]:-}
+  if [[ -z $sel_url ]]; then
+    print -u2 "pr-list: no PR for that branch"
+    return 1
+  fi
+  (cd -- "$sel_wt" 2>/dev/null && gh pr view --web "$sel_url")
+  return $?
+fi
+
+# ----- table --------------------------------------------------------------
+local use_color=0
+[[ -t 1 ]] && use_color=1
+
+printf '%-*s  %-*s  %-*s  %-*s  %-*s  %-*s  %s\n' \
+  $w_repo REPO $w_pr PR $w_state STATE $w_checks CHECKS \
+  $w_review REVIEW $w_age UPDATED TITLE
+
+local -i n_pr=0
+for row in "${rows[@]}"; do
+  rf=("${(@s:	:)row}")
+  local pr_cell=${rf[3]}
+  [[ ${rf[3]} != '-' ]] && (( n_pr++ ))
+  # OSC 8 hyperlink on the #number so the URL never wraps (AGENTS.md rule).
+  # Pad BEFORE wrapping: the escape bytes are zero-width but printf counts
+  # them, so %-*s on the linked string would under-pad the column.
+  if (( use_color )) && [[ -n ${rf[9]} ]]; then
+    pr_cell=$(printf '\e]8;;%s\e\\%-*s\e]8;;\e\\' "${rf[9]}" $w_pr "${rf[3]}")
+  else
+    pr_cell=$(printf '%-*s' $w_pr "${rf[3]}")
+  fi
+
+  local state_cell=''
+  if (( use_color )); then
+    state_cell=$(_prl_color "${rf[4]}" "$(printf '%-*s' $w_state "${rf[4]}")")
+  else
+    state_cell=$(printf '%-*s' $w_state "${rf[4]}")
+  fi
+
+  # TITLE is the last column and is empty for no-PR rows, which would leave
+  # the preceding column padding as trailing whitespace.
+  #
+  # Stripped with the `#` closure operator, which requires EXTENDED_GLOB —
+  # turned OFF by `emulate -L zsh`, hence the explicit `setopt` at the top.
+  # Without it the pattern never matches and the strip silently does nothing.
+  # Note `%%[[:space:]]*` is NOT a substitute: `%%` is greedy from the left,
+  # so it would strip from the FIRST space and eat most of the row.
+  local line_out=''
+  line_out=$(printf '%-*s  %s  %s  %-*s  %-*s  %-*s  %s' \
+    $w_repo "${rf[1]}" "$pr_cell" "$state_cell" \
+    $w_checks "${rf[5]}" $w_review "${rf[6]}" $w_age "${rf[7]}" "${rf[8]}")
+  print -r -- "${line_out%%[[:space:]]##}"
+done
+
+print -r -- ""
+print -r -- "${n_pr}/${#rows} repo(s) with a PR for their current branch"
+
+# ----- Slack-pasteable links ----------------------------------------------
+# A second block of BARE URLs, one per line, prefixed with the repo name.
+#
+# This deliberately breaks the "always use OSC 8, never print a bare URL"
+# rule in AGENTS.md, and the exception is the whole point of the block: an
+# OSC 8 hyperlink lives in escape bytes that a terminal *renders* but a
+# copy-paste does NOT carry -- selecting the linked "#3726" above and pasting
+# it into Slack yields the literal text "#3726" with the URL gone. Slack also
+# auto-unfurls a bare URL into a titled, clickable link, so the raw form is
+# both the copyable one and the one that renders best at the destination.
+#
+# The wrapping hazard the OSC 8 rule guards against doesn't apply here: these
+# lines are for selecting and copying, not for clicking in place.
+if (( n_pr > 0 )); then
+  print -r -- ""
+  print -r -- "--- links (copy/paste to Slack) ---"
+  for row in "${rows[@]}"; do
+    rf=("${(@s:	:)row}")
+    [[ -z ${rf[9]} ]] && continue
+    print -r -- "${rf[1]}: ${rf[9]}"
+  done
+fi

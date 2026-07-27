@@ -24,8 +24,14 @@ fpath+=~/dotfiles/zsh/my-zsh-functions
 fpath+=~/dotfiles/zsh/my-zsh-functions-private
 
 # HELPDIR: custom help files take priority; zsh system helpdir is the fallback.
-# run-help and fcmd both use these for preview/help lookup.
 # Private helpdir entries shadow the shared ones when names collide.
+#
+# NOTE this is a colon-separated LIST, which is NOT what stock zsh expects:
+# the shipped run-help treats $HELPDIR as a single directory (`[[ -d $HELPDIR ]]`,
+# `$HELPDIR/$1`), so a colon in the value makes every entry invisible to it.
+# Both consumers here handle the list explicitly — rlm-fcmd splits it with
+# ${(s.:.)HELPDIR}, and .zshrc wraps run-help to do the same before delegating
+# to the stock implementation.
 export HELPDIR=~/dotfiles/zsh/helpdir-private:~/dotfiles/zsh/helpdir
 
 export PAGER="less"
