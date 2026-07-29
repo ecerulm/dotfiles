@@ -7,6 +7,11 @@ for every repo under the current directory. The mode is auto-detected:
   * Otherwise, if the cwd holds primary git repos (child dirs with a
     `.git` directory, i.e. not worktree checkouts) -> multi-repo mode:
     gathers worktrees across all of them.
+  * Otherwise, if the cwd holds git worktrees -- i.e. it is itself one
+    of the COLLECTION dirs described below -> the same multi-repo mode,
+    over the primary repos those worktrees belong to. Running from
+    inside a collection is equivalent to running from the base dir,
+    which is where you usually are when a change set is done.
 
 ONE fzf multi-select picker lists worktrees across every repo in scope
 (except each repo's main worktree and, in single-repo mode, the current

@@ -6,6 +6,10 @@
 #   * otherwise, if the cwd holds one or more primary git repos (child dirs
 #     with a `.git` DIRECTORY, i.e. not worktree checkouts) -> multi-repo
 #     mode, gathering worktrees across all of them.
+#   * otherwise, if the cwd holds git WORKTREES (i.e. it is itself one of the
+#     collection dirs described below) -> the same multi-repo mode, over the
+#     primary repos those worktrees belong to. Running from inside a
+#     collection is therefore equivalent to running from the base dir.
 #
 # It opens ONE fzf multi-select picker listing worktrees across every repo in
 # scope (except each repo's main/primary worktree and, in single-repo mode,
@@ -386,8 +390,40 @@ else
   done
   repos=("${(@o)repos}")                                 # sort
 
+  # Collection mode. Standing INSIDE a collection dir found nothing above,
+  # because a collection's children are worktree CHECKOUTS -- their `.git` is a
+  # file, not a directory -- so the primary-repo test rejects all of them and
+  # the function used to bail with "no primary git repos found". But that dir
+  # is exactly where you are when you finish a multi-repo change set and want
+  # to clean it up, and the intent there is the same as running from the base
+  # dir: operate on the whole family.
+  #
+  # Resolve each child worktree to the primary repo backing it via
+  # --git-common-dir (that path is the repo's .git dir, so :h is the repo
+  # root). Using git's own record rather than a dirname convention means this
+  # keeps working for a renamed collection, and it yields precisely the repo
+  # set the base dir would have produced -- making this equivalent to `cd`ing
+  # there first, which is the point. Collections whose members span several
+  # base dirs resolve to all of them, which is still the right answer.
   if (( ${#repos} == 0 )); then
-    print -u2 "pr-worktree-rm-merged-closed: not inside a git repo, and no primary git repos found under $PWD"
+    local common
+    for d in *(/N); do
+      common=$(git -C "$d" rev-parse --git-common-dir 2>/dev/null) || continue
+      [[ -n $common ]] || continue
+      # --git-common-dir may be relative to the worktree it was run from.
+      [[ $common != /* ]] && common="$d/$common"
+      common=${common:A}
+      # Ignore anything not backed by a real .git dir (e.g. a bare stray).
+      [[ ${common:t} == .git && -d $common ]] || continue
+      repos+=("${common:h}")
+    done
+    # Members of one collection are one-per-repo, but dedupe defensively:
+    # a duplicate repo would collect the same worktrees twice.
+    repos=("${(@ou)repos}")
+  fi
+
+  if (( ${#repos} == 0 )); then
+    print -u2 "pr-worktree-rm-merged-closed: not inside a git repo, and no primary git repos or worktrees found under $PWD"
     return 1
   fi
 fi
