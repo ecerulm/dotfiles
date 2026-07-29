@@ -3,7 +3,8 @@ rlm-wts
 Fuzzy-pick a git worktree from the current repository and cd
 into it, with Jira annotations on each line. Outside a git
 repository, falls back to picking a multi-repo collection
-directory (see COLLECTION MODE below).
+directory from the current directory's family (see COLLECTION
+MODE below).
 
 Lists every worktree via `git worktree list`, then for each
 worktree whose branch name contains a Jira-style key (regex
@@ -29,20 +30,31 @@ holding several repositories (a "base" directory, such as
 directories named <basename>_<YYYYMMDD>_<tail>, each holding
 one worktree of every repository, all on a shared branch.
 
-Run from such a base directory, rlm-wts lists those sibling
-collections newest-first and cds into the one you pick. The
-preview pane is ~/bin/wt-collection-preview: the Jira summary
-(clickable link, key taken from the directory name or, failing
-that, from a member worktree's branch), the shared branch,
-created and updated times, and a per-repository roll-up of
-changes. Repositories that differ from their default branch
-are listed with their changed files; the rest collapse onto a
-single "unchanged:" line.
+Run from the base directory *or* from any collection in the
+family, rlm-wts lists the whole family newest-first and cds
+into the one you pick. The preview pane is
+~/bin/wt-collection-preview: the Jira summary (clickable link,
+key taken from the directory name or, failing that, from a
+member worktree's branch), the shared branch, created and
+updated times, and a per-repository roll-up of changes.
+Repositories that differ from their default branch are listed
+with their changed files; the rest collapse onto a single
+"unchanged:" line.
 
-Collections are found by globbing <basename>_* next to the base
-directory. That matches the name rlm-pr-worktree generates by
-default, but the name is editable when the worktree is created,
-so a renamed collection will not be listed.
+The family is found by truncating the current directory name at
+the first "_" to get a stem, then globbing both <stem> and
+<stem>_* next to it. Truncating is what lets the picker work
+from inside a collection as well as from the base directory:
+collections have no children of their own, so globbing the full
+directory name would match nothing. The base directory itself is
+included in the list, and the current directory is flagged
+"<- here".
+
+That matches the name rlm-pr-worktree generates by default, but
+the name is editable when the worktree is created, so a renamed
+collection will not be listed. A collection whose name is edited
+to change the part before the first "_" lands in a different
+family.
 
 Rows are built from directory timestamps only; the per-repo git
 diffs run lazily in the preview for the highlighted row, so the

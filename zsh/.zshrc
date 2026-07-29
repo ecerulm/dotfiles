@@ -654,13 +654,22 @@ _rlm-wts-collections() {
 	done
 	(( found_repo )) || return 1
 
-	# Sibling dirs named "<basename>_*". Collection dirs use "_" separators
-	# while single-repo sibling worktrees use "-", so this glob excludes those.
-	# (N/) = nullglob + directories only.
+	# Family stem: the dirname up to the first "_". rlm-pr-worktree names
+	# collections "<stem>_<YYYYMMDD>_<tail>", so the cwd is either the base dir
+	# itself (stem == dirname) or one of its collections — from either we want
+	# to list the whole family. Truncating at the first "_" is what makes the
+	# collection case work: globbing "<full dirname>_*" from inside a collection
+	# matches nothing, since collections have no children of their own.
+	local stem="${base:t}"
+	stem="${stem%%_*}"
+
+	# Family = the base dir plus its "<stem>_*" siblings. Collection dirs use
+	# "_" separators while single-repo sibling worktrees use "-", so this glob
+	# excludes those. (N/) = nullglob + directories only.
 	local -a colls
-	colls=( ${base:h}/${base:t}_*(N/) )
+	colls=( ${base:h}/${stem}(N/) ${base:h}/${stem}_*(N/) )
 	if (( ${#colls} == 0 )); then
-		print -u2 "wts: no collection directories matching ${base:t}_* in ${base:h}"
+		print -u2 "wts: no collection directories matching ${stem}_* in ${base:h}"
 		return 1
 	fi
 
@@ -692,12 +701,18 @@ _rlm-wts-collections() {
 	# Columns: <sortkey>\t<display>\t<abs>. Only column 2 is shown; column 3 is
 	# the id handed to the preview and to cd. See AGENTS.md -> fzf Conventions.
 	local -a rows
-	local mtime nrepos disp
+	local mtime nrepos disp here
 	for c in "${colls[@]}"; do
 		mtime=$(stat -f %m "$c" 2>/dev/null || stat -c %Y "$c" 2>/dev/null || echo 0)
 		nrepos=$(print -rl -- "$c"/*(N/) | grep -c . 2>/dev/null) || nrepos=0
+		# The family now includes the cwd itself; flag it so the picker shows
+		# where you are rather than offering an unmarked no-op row. Passed as an
+		# argument, never folded into the format string — a dirname (or this
+		# marker) containing '%' would otherwise be read as a format specifier.
+		here=''
+		[[ "$c" == "$base" ]] && here=$'  \033[36m<- here\033[0m'
 		# Zero-pad so a plain lexical sort orders by time; negate for newest-first.
-		disp=$(printf '%s/ \033[2m(%s repos)\033[0m' "${c:t}" "$nrepos")
+		disp=$(printf '%s/ \033[2m(%s repos)\033[0m%s' "${c:t}" "$nrepos" "$here")
 		rows+=("$(printf '%012d\t%s\t%s' $(( 99999999999 - mtime )) "$disp" "$c")")
 	done
 
@@ -708,7 +723,7 @@ _rlm-wts-collections() {
 		--height=80% --reverse \
 		--delimiter=$'\t' --with-nth=2 \
 		--prompt='collection> ' \
-		--header="${base:t} collections — Enter: cd | Ctrl-P: toggle preview" \
+		--header="${stem} collections — Enter: cd | Ctrl-P: toggle preview" \
 		--preview='"$HOME/bin/wt-collection-preview" {3}' \
 		--preview-window=bottom:40%:wrap \
 		--bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)' \
