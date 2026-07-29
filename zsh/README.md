@@ -161,7 +161,7 @@ ______________________________________________________________________
 
 | Function | Short alias | Description |
 |---|---|---|
-| `rlm-wts` | `wts` | Switch into a git worktree via fzf. Strips common path prefixes for readability, annotates worktrees whose branch contains a JIRA key with `(Status) Summary` fetched from JIRA (cached 1 hour in `~/.cache/wts-jira/`), and shows a preview pane with full JIRA detail. |
+| `rlm-wts` | `wts` | Switch into a git worktree via fzf. Strips common path prefixes for readability, annotates worktrees whose branch contains a JIRA key with `(Status) Summary` fetched from JIRA (cached in `~/.cache/wts-jira/`), and previews via `wt-preview`. Outside a repo, in a multi-repo base dir (e.g. `~/git/work/StorytelDataPlatform`), instead lists the sibling `<basename>_*` collection dirs created by `rlm-pr-worktree`'s multi-repo mode, previewing each with its JIRA summary and a per-repo change roll-up (`wt-collection-preview`). |
 | `rlm-pre-commit-pr [base]` | `pre-commit-pr`, `pcpr` | Run `pre-commit` on files changed in the current branch since its fork point from `base` (default: `main`). |
 | `rlm-lhdir [hook]` | `lhdir`, `lhd` | Run lefthook on every tracked/non-ignored file under the current directory. Defaults to the `pre-commit` hook. |
 | `rlm-awsprofile` | `awsprofile` | Pick an AWS profile via fzf and export it as `AWS_PROFILE`. |

@@ -1,25 +1,60 @@
 rlm-wts
 
 Fuzzy-pick a git worktree from the current repository and cd
-into it, with Jira annotations on each line.
+into it, with Jira annotations on each line. Outside a git
+repository, falls back to picking a multi-repo collection
+directory (see COLLECTION MODE below).
 
 Lists every worktree via `git worktree list`, then for each
 worktree whose branch name contains a Jira-style key (regex
 `[A-Z][A-Z0-9]+-[0-9]+`, e.g. DATA-1234, feature/DATA-9)
 fetches `(Status) Summary` from Jira via the `acli` CLI in
-parallel and shows it inline. The fzf preview pane shows a
-fuller multi-line view: key, type, status, summary, assignee.
+parallel and shows it inline.
+
+The fzf preview pane is the shared ~/bin/wt-preview script:
+path, branch, Jira summary (clickable link), pull request,
+created and updated times, and the list of files changed
+against origin/<default-branch> with +adds/-dels per file.
 
 Display rules:
   * $HOME is shortened to ~
   * the longest common path prefix across all worktrees is
     stripped
-  * lines wider than the terminal are truncated from the left,
-    preserving the tail, prefixed with "..."
 
-Jira data is cached for 1 hour in ~/.cache/wts-jira/ as
-<KEY>.summary and <KEY>.preview. A 3-second watchdog kills any
-hung acli call so the picker never freezes. If `acli` is not
-installed, the function still works but without annotations.
+COLLECTION MODE
+
+`rlm-pr-worktree`'s multi-repo mode turns a plain directory
+holding several repositories (a "base" directory, such as
+~/git/work/StorytelDataPlatform) into sibling "collection"
+directories named <basename>_<YYYYMMDD>_<tail>, each holding
+one worktree of every repository, all on a shared branch.
+
+Run from such a base directory, rlm-wts lists those sibling
+collections newest-first and cds into the one you pick. The
+preview pane is ~/bin/wt-collection-preview: the Jira summary
+(clickable link, key taken from the directory name or, failing
+that, from a member worktree's branch), the shared branch,
+created and updated times, and a per-repository roll-up of
+changes. Repositories that differ from their default branch
+are listed with their changed files; the rest collapse onto a
+single "unchanged:" line.
+
+Collections are found by globbing <basename>_* next to the base
+directory. That matches the name rlm-pr-worktree generates by
+default, but the name is editable when the worktree is created,
+so a renamed collection will not be listed.
+
+Rows are built from directory timestamps only; the per-repo git
+diffs run lazily in the preview for the highlighted row, so the
+picker opens immediately.
+
+In a directory that is neither a git repository nor a base
+directory containing repositories, rlm-wts does nothing.
+
+Jira data is cached in ~/.cache/wts-jira/ as <KEY>.summary,
+refreshed hourly by the picker and on a 3-day TTL by the
+preview scripts. A 3-second watchdog kills any hung acli call
+so the picker never freezes. If `acli` is not installed, the
+function still works but without annotations.
 
 Aliases: wts

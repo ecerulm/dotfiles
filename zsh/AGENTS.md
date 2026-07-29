@@ -303,8 +303,9 @@ For BigQuery and git-worktree previews, call the shared scripts (full path) inst
 
 - `"$HOME/bin/bq-preview" "project:dataset.table"` — type, project_id (purple `-dev`/green `-prod`), dataset, table, updated/created (local + humanized), rows, bytes, description/partitioning/clustering when present, schema field list. Strip ANSI + extract the ref first if lines are colored/tab-delimited.
 - `"$HOME/bin/wt-preview" {N}` (`{N}` = absolute worktree path) — path, branch, JIRA (OSC 8 link, cached `~/.cache/wts-jira/<KEY>.summary`, 3-day TTL), PR (`gh pr list`), created (birthtime), updated (newest mtime), changed files vs `origin/<default>`. Used by `rlm-wts`, `rlm-pr-worktree-rm`.
+- `"$HOME/bin/wt-collection-preview" {N}` (`{N}` = absolute path of a multi-repo **collection** dir) — JIRA (OSC 8 link, key from the dirname else a member branch; same cache/TTL), the branch shared by members, created/updated, and a per-repo change roll-up: repos differing from `origin/<default>` get their changed-file list, the rest collapse onto one `unchanged:` line. Used by `rlm-wts`'s collection mode. Reserve for collection dirs; `wt-preview` remains the single-worktree case.
 
-Both are at `~/dotfiles/bin/` symlinked to `~/bin/`; being on `$PATH` is what makes them callable from the preview subshell.
+All three are at `~/dotfiles/bin/` symlinked to `~/bin/`; being on `$PATH` is what makes them callable from the preview subshell.
 
 ## Linting
 

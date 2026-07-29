@@ -622,11 +622,114 @@ _rlm-wts-jira-refresh() {
 	} >"$pf"
 }
 
+# Collection-directory mode for rlm-wts (see below). Called only when
+# `git worktree list` produced nothing, i.e. the cwd is not inside a repo.
+#
+# `rlm-pr-worktree`'s multi-repo mode turns a plain directory holding several
+# repos (a "base" dir, e.g. ~/git/work/StorytelDataPlatform) into sibling
+# "collection" dirs <basename>_<YYYYMMDD>_<tail>, each holding one worktree of
+# every repo on a shared branch. Those sets were unreachable from wts: the base
+# dir is not a repo, so the picker came up empty and the function returned
+# silently. Here we list the sibling collections instead and cd into the pick.
+#
+# Returns non-zero when the cwd is not a collection base dir, so the caller
+# falls back to its previous silent no-op.
+#
+# NB: inline in .zshrc (not autoloaded) because it cd's the calling shell.
+_rlm-wts-collections() {
+	# Job-control chatter from the Jira fan-out below; see rlm-wts.
+	setopt local_options no_notify no_monitor
+	local base="${PWD:A}"
+
+	# Qualify the cwd as a base dir: it must itself contain at least one git
+	# repo. rlm-pr-worktree has a richer _prwt_discover_repos, but that is
+	# defined inline in its own file (there is no _prwt_* autoload file), so it
+	# cannot be autoloaded from here; we only need the boolean anyway.
+	local sub found_repo=0
+	for sub in "$base"/*(N/); do
+		if git -C "$sub" rev-parse --git-dir >/dev/null 2>&1; then
+			found_repo=1
+			break
+		fi
+	done
+	(( found_repo )) || return 1
+
+	# Sibling dirs named "<basename>_*". Collection dirs use "_" separators
+	# while single-repo sibling worktrees use "-", so this glob excludes those.
+	# (N/) = nullglob + directories only.
+	local -a colls
+	colls=( ${base:h}/${base:t}_*(N/) )
+	if (( ${#colls} == 0 )); then
+		print -u2 "wts: no collection directories matching ${base:t}_* in ${base:h}"
+		return 1
+	fi
+
+	# Warm the Jira cache for keys embedded in the collection dirnames, in
+	# parallel, exactly as the worktree path below does. Dirname only: reading a
+	# member branch would cost a git call per collection, and the preview script
+	# already does that fallback where it is paying for git anyway.
+	local c ckey
+	local -a cpids
+	for c in "${colls[@]}"; do
+		if [[ ${c:t} =~ ([A-Z][A-Z0-9]+-[0-9]+) ]]; then
+			ckey="${match[1]}"
+			_rlm-wts-jira-refresh "$ckey" &
+			cpids+=($!)
+		fi
+	done
+	if (( ${#cpids[@]} > 0 )); then
+		( sleep 3; for pid in "${cpids[@]}"; do kill "$pid" 2>/dev/null; done ) &
+		local cguard=$!
+		wait "${cpids[@]}" 2>/dev/null
+		kill "$cguard" 2>/dev/null
+	fi
+
+	# Rows are stat-only: a `git diff` sweep over every member of every
+	# collection takes ~1.7s each (~15s for the 9 collections here), which would
+	# be paid before the picker even appears. All git work lives in the preview,
+	# which fzf runs lazily for the highlighted row only.
+	#
+	# Columns: <sortkey>\t<display>\t<abs>. Only column 2 is shown; column 3 is
+	# the id handed to the preview and to cd. See AGENTS.md -> fzf Conventions.
+	local -a rows
+	local mtime nrepos disp
+	for c in "${colls[@]}"; do
+		mtime=$(stat -f %m "$c" 2>/dev/null || stat -c %Y "$c" 2>/dev/null || echo 0)
+		nrepos=$(print -rl -- "$c"/*(N/) | grep -c . 2>/dev/null) || nrepos=0
+		# Zero-pad so a plain lexical sort orders by time; negate for newest-first.
+		disp=$(printf '%s/ \033[2m(%s repos)\033[0m' "${c:t}" "$nrepos")
+		rows+=("$(printf '%012d\t%s\t%s' $(( 99999999999 - mtime )) "$disp" "$c")")
+	done
+
+	local selected
+	selected=$(print -rl -- "${rows[@]}" | sort | fzf \
+		--no-mouse \
+		--ansi \
+		--height=80% --reverse \
+		--delimiter=$'\t' --with-nth=2 \
+		--prompt='collection> ' \
+		--header="${base:t} collections — Enter: cd | Ctrl-P: toggle preview" \
+		--preview='"$HOME/bin/wt-collection-preview" {3}' \
+		--preview-window=bottom:40%:wrap \
+		--bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)' \
+		--bind='ctrl-g:abort') || return 0
+	[[ -z "$selected" ]] && return 0
+
+	# Split on tabs positionally: `IFS=$'\t' read` collapses runs of the
+	# delimiter and would shift fields left. See AGENTS.md.
+	local -a f
+	f=("${(@s:	:)selected}")
+	[[ -n "${f[3]}" && -d "${f[3]}" ]] && cd -- "${f[3]}"
+	return 0
+}
+
 # git worktree switch / cd into a worktree, presents a fuzzy finder with all the worktree in the current repo.
-# Display rules: $HOME -> ~, strip the longest common ancestor across all worktree paths,
-# and if a line is wider than the terminal, truncate from the left (preserving the tail) with a leading "...".
+# Display rules: $HOME -> ~, strip the longest common ancestor across all worktree paths.
 # When a worktree's branch contains a Jira key (e.g. DATA-1234, DATA-2538-foo, feature/DATA-9), the line is
 # annotated with "(Status) Summary" from Jira and a fuller preview pane is shown via fzf --preview.
+#
+# Outside a git repo, falls back to collection mode (_rlm-wts-collections above):
+# in a multi-repo base dir it lists the sibling <basename>_* collection dirs.
 rlm-wts() {
 	# Suppress "[1] 2966" job-control chatter from the background _wts_jira_refresh
 	# calls and the watchdog subshell below. local_options scopes these to the function.
@@ -651,9 +754,17 @@ rlm-wts() {
 			jkey="${match[1]}"
 		fi
 		jkeys+=("$jkey")
-	done < <(git worktree list)
+	# 2>/dev/null: outside a repo this prints "fatal: not a git repository",
+	# which is not an error here — it is the signal to try collection mode.
+	done < <(git worktree list 2>/dev/null)
 
-	[[ ${#paths[@]} -eq 0 ]] && return 0
+	# No worktrees: either not a git repo at all, or a repo that reported none.
+	# Try collection mode (it cd's on success); otherwise keep the old silent
+	# no-op rather than erroring.
+	if (( ${#paths[@]} == 0 )); then
+		_rlm-wts-collections && return 0
+		return 0
+	fi
 
 	# Refresh Jira info in parallel; cache lives in ~/.cache/wts-jira.
 	local i

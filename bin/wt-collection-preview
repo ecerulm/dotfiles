@@ -1,0 +1,355 @@
+#!/usr/bin/env zsh
+# Usage: wt-collection-preview <collection-directory-absolute-path>
+#
+# Prints a summary of a multi-repo COLLECTION directory for fzf preview panes.
+# Collections are created by `rlm-pr-worktree`'s multi-repo mode: one sibling
+# directory holding a worktree of every repo in a base directory, all on the
+# same branch (e.g. StorytelDataPlatform_20260729_DATA-2772-fix-airflow-oom/
+# containing data-platform-dbt/, data-platform-infra/, ...).
+#
+# Used by `rlm-wts` when it is invoked from a collection *base* directory.
+# The single-worktree equivalent is ~/bin/wt-preview.
+#
+# Output fields (in order):
+#   JIRA      DATA-XXXX  Title    (OSC 8 hyperlink, blue; omitted when the
+#                                  collection has no JIRA key)
+#   Branch    the branch shared by the member worktrees
+#   Created   collection birthtime, local time + "(X units ago)"
+#   Updated   newest file mtime across members + "(X units ago)"
+#   Changed   "N of M repos", then per-repo detail
+#
+# Only repos that actually differ from their origin/<default> get a block with
+# their changed-file list; the rest collapse onto one dim "unchanged:" line.
+# In practice ~2 of 7 members have changes, so this keeps the pane readable.
+#
+# The script never fails the picker: every external call is guarded, bad input
+# exits 0, and missing sections are simply omitted.
+#
+# JIRA lookups share the cache used by rlm-wts and wt-preview
+# (~/.cache/wts-jira/<KEY>.summary), refreshed on a 3-day TTL when `acli` is
+# available.
+emulate -L zsh
+set -o pipefail
+
+local coll="${1:-}"
+if [[ -z $coll ]]; then
+  print "Usage: wt-collection-preview <collection-directory-absolute-path>" >&2
+  exit 1
+fi
+if [[ ! -d $coll ]]; then
+  print "wt-collection-preview: not a directory: $coll" >&2
+  exit 0
+fi
+
+# ----- color / hyperlink helpers -----------------------------------------
+# Same set as wt-preview. Each bin/ preview script carries its own copy —
+# they run as standalone processes and cannot autoload from my-zsh-functions/.
+local blue=$'\e[34m'
+local bold=$'\e[1m'
+local dim=$'\e[2m'
+local green=$'\e[32m'
+local red=$'\e[31m'
+local reset=$'\e[0m'
+
+# OSC 8 hyperlink: ESC ] 8 ; ; URL ESC \ TEXT ESC ] 8 ; ; ESC \
+# Captured into a var via $(printf ...) so the two ST terminator bytes
+# survive intact. Re-emit with `print -r --` (see zsh/AGENTS.md).
+_wtc_link() {
+  local url=$1 text=$2
+  printf '\e]8;;%s\e\\%s%s%s\e]8;;\e\\' "$url" "$blue" "$text" "$reset"
+}
+
+# ----- humanize seconds ---------------------------------------------------
+_wtc_human_ago() {
+  local secs=$1
+  (( secs < 0 )) && secs=0
+  if   (( secs < 60      )); then print -r -- "${secs} seconds ago"
+  elif (( secs < 3600    )); then print -r -- "$(( secs / 60 )) minutes ago"
+  elif (( secs < 86400   )); then print -r -- "$(( secs / 3600 )) hours ago"
+  elif (( secs < 2592000 )); then print -r -- "$(( secs / 86400 )) days ago"
+  elif (( secs < 31536000)); then print -r -- "$(( secs / 2592000 )) months ago"
+  else                            print -r -- "$(( secs / 31536000 )) years ago"
+  fi
+}
+
+# Format an epoch as "YYYY-MM-DD HH:MM:SS (X units ago)". Empty on failure.
+_wtc_format_epoch() {
+  local epoch=$1
+  [[ -z $epoch ]] && return 0
+  local now stamp
+  now=$(date +%s)
+  if date -r "$epoch" '+%Y-%m-%d %H:%M:%S' >/dev/null 2>&1; then
+    stamp=$(date -r "$epoch" '+%Y-%m-%d %H:%M:%S')               # macOS / BSD
+  else
+    stamp=$(date -d "@$epoch" '+%Y-%m-%d %H:%M:%S' 2>/dev/null)  # GNU
+  fi
+  [[ -z $stamp ]] && return 0
+  print -r -- "$stamp  ${dim}($(_wtc_human_ago $(( now - epoch ))))${reset}"
+}
+
+# ----- member worktrees ---------------------------------------------------
+# Child dirs that are their own git worktree root. The ${top:A} == ${subdir:A}
+# guard rejects a plain subdirectory of an enclosing repo (same test as
+# rlm-pr-list's _prl_discover_worktrees).
+local -a members
+local subdir top
+for subdir in "$coll"/*(N/); do
+  top=$(git -C "$subdir" rev-parse --show-toplevel 2>/dev/null) || continue
+  [[ -z $top ]] && continue
+  [[ ${top:A} != "${subdir:A}" ]] && continue
+  members+=("${subdir:A}")
+done
+
+if (( ${#members} == 0 )); then
+  printf '%sPath:%s    %s\n' "$bold" "$reset" "${coll/#$HOME/~}"
+  printf '%s(no git worktrees found in this directory)%s\n' "$dim" "$reset"
+  exit 0
+fi
+
+# ----- branch (shared across members) -------------------------------------
+# rlm-pr-worktree puts every member on the same branch, so the first member
+# that reports one speaks for the collection.
+local branch="" m
+for m in "${members[@]}"; do
+  branch=$(git -C "$m" symbolic-ref --quiet --short HEAD 2>/dev/null) && [[ -n $branch ]] && break
+  branch=""
+done
+
+# ----- JIRA key: dirname first, then the branch ---------------------------
+# The collection dirname usually embeds the key (..._DATA-2772-fix-airflow-oom)
+# but not always (..._duplicates-ppb), so fall back to the branch name.
+local jira_key=""
+if [[ ${coll:t} =~ '([A-Z][A-Z0-9]+-[0-9]+)' ]]; then
+  jira_key=${match[1]}
+elif [[ -n $branch && $branch =~ '([A-Z][A-Z0-9]+-[0-9]+)' ]]; then
+  jira_key=${match[1]}
+fi
+
+# ----- emit: JIRA ---------------------------------------------------------
+if [[ -n $jira_key ]]; then
+  local cache="$HOME/.cache/wts-jira/${jira_key}.summary"
+  local summary=""
+
+  # Refresh opportunistically if missing or older than 3 days (same TTL and
+  # guards as wt-preview, sharing the same cache files).
+  local refresh=0
+  if [[ ! -s $cache ]]; then
+    refresh=1
+  else
+    local mtime now age
+    now=$(date +%s)
+    mtime=$(stat -f %m "$cache" 2>/dev/null || stat -c %Y "$cache" 2>/dev/null || echo 0)
+    age=$(( now - mtime ))
+    (( age >= 259200 )) && refresh=1
+  fi
+  if (( refresh )) && command -v acli >/dev/null 2>&1; then
+    mkdir -p "$HOME/.cache/wts-jira"
+    local raw
+    raw=$(acli jira workitem view "$jira_key" -f summary,status 2>/dev/null) || raw=""
+    if [[ -n $raw ]]; then
+      local jsum jstat short
+      jsum=$(printf '%s\n' "$raw" | awk -F': ' '/^Summary: /{sub(/^Summary: /,""); print; exit}')
+      jstat=$(printf '%s\n' "$raw" | awk -F': ' '/^Status: /{sub(/^Status: /,""); print; exit}')
+      short=$jsum
+      (( ${#short} > 60 )) && short="${short:0:57}..."
+      if [[ -n $jstat ]]; then
+        printf '(%s) %s\n' "$jstat" "$short" >"$cache"
+      else
+        printf '%s\n' "$short" >"$cache"
+      fi
+    fi
+  fi
+
+  [[ -s $cache ]] && summary=$(<"$cache")
+
+  local label="$jira_key"
+  [[ -n $summary ]] && label="${jira_key}  ${summary}"
+  local link
+  link=$(_wtc_link "https://storytel.atlassian.net/browse/${jira_key}" "$label")
+  printf '%sJIRA:%s    ' "$bold" "$reset"
+  print -r -- "$link"
+fi
+
+# ----- emit: branch -------------------------------------------------------
+printf '%sBranch:%s  %s\n' "$bold" "$reset" "${branch:-<detached>}"
+
+# ----- emit: Created / Updated -------------------------------------------
+# Created: collection dir birthtime (macOS: stat -f %B; GNU: stat -c %W),
+# falling back to ctime when the filesystem records no birthtime.
+local created_epoch=""
+if stat -f '%B' "$coll" >/dev/null 2>&1; then
+  created_epoch=$(stat -f '%B' "$coll" 2>/dev/null)
+else
+  created_epoch=$(stat -c '%W' "$coll" 2>/dev/null)
+  if [[ -z $created_epoch || $created_epoch == 0 || $created_epoch == "-" ]]; then
+    created_epoch=$(stat -c '%Z' "$coll" 2>/dev/null)
+  fi
+fi
+[[ $created_epoch == 0 ]] && created_epoch=""
+
+local created_line
+created_line=$(_wtc_format_epoch "$created_epoch")
+[[ -n $created_line ]] && printf '%sCreated:%s %s\n' "$bold" "$reset" "$created_line"
+
+# Updated: newest file mtime across all members, excluding .git/.
+local updated_epoch=""
+if command -v fd >/dev/null 2>&1; then
+  updated_epoch=$(
+    fd --type f --hidden --exclude .git . "${members[@]}" \
+       --exec-batch stat -f '%m' {} 2>/dev/null \
+    | sort -nr | head -1
+  )
+  if [[ -z $updated_epoch ]]; then
+    updated_epoch=$(
+      fd --type f --hidden --exclude .git . "${members[@]}" \
+         --exec-batch stat -c '%Y' {} 2>/dev/null \
+      | sort -nr | head -1
+    )
+  fi
+else
+  updated_epoch=$(
+    find "${members[@]}" -type d -name .git -prune -o -type f -print 2>/dev/null \
+    | xargs stat -f '%m' 2>/dev/null | sort -nr | head -1
+  )
+  if [[ -z $updated_epoch ]]; then
+    updated_epoch=$(
+      find "${members[@]}" -type d -name .git -prune -o -type f -print 2>/dev/null \
+      | xargs stat -c '%Y' 2>/dev/null | sort -nr | head -1
+    )
+  fi
+fi
+
+local updated_line
+updated_line=$(_wtc_format_epoch "$updated_epoch")
+[[ -n $updated_line ]] && printf '%sUpdated:%s %s\n' "$bold" "$reset" "$updated_line"
+
+# ----- per-member change roll-up ------------------------------------------
+# `git diff --numstat <fork-point>` reports committed AND uncommitted changes
+# (working tree vs the fork-point commit). Collect first so the "N of M repos"
+# header can be printed before the detail blocks.
+#
+# Each of these MUST carry an explicit initializer: `local` scopes to the whole
+# function/script body, not the loop, so a bare re-declaration on iteration 2+
+# switches typeset into reporting mode and prints "name=<value>" to stdout —
+# which would land straight in the preview pane. See zsh/AGENTS.md.
+local -a changed_names changed_blocks unchanged_names
+local name='' default_branch='' fork_point='' numstat=''
+
+for m in "${members[@]}"; do
+  name=${m:t}
+
+  default_branch=$(git -C "$m" symbolic-ref refs/remotes/origin/HEAD 2>/dev/null \
+                    | sed 's|refs/remotes/origin/||')
+  [[ -z $default_branch ]] && default_branch=main
+
+  # --fork-point is the strictest match but fails when the reflog has been
+  # pruned; fall back to a plain merge-base. Same chain as wt-preview.
+  fork_point=$(git -C "$m" merge-base --fork-point "origin/${default_branch}" 2>/dev/null)
+  [[ -z $fork_point ]] && fork_point=$(git -C "$m" merge-base HEAD "origin/${default_branch}" 2>/dev/null)
+
+  numstat=''
+  [[ -n $fork_point ]] && numstat=$(git -C "$m" diff --numstat "$fork_point" 2>/dev/null)
+
+  if [[ -z $numstat ]]; then
+    unchanged_names+=("$name")
+    continue
+  fi
+
+  # Totals + column widths for this member. Binary files report "-" for both
+  # counts; they contribute nothing to the totals and render as "bin".
+  local n_files=0 tot_add=0 tot_del=0 max_add=0 max_del=0
+  local a='' d='' relpath=''
+  while IFS=$'\t' read -r a d relpath; do
+    [[ -z $relpath ]] && continue
+    (( n_files++ ))
+    if [[ $a != '-' ]]; then
+      (( tot_add += a ))
+      (( ${#a} > max_add )) && max_add=${#a}
+    fi
+    if [[ $d != '-' ]]; then
+      (( tot_del += d ))
+      (( ${#d} > max_del )) && max_del=${#d}
+    fi
+  done <<< "$numstat"
+  (( max_add < 1 )) && max_add=1
+  (( max_del < 1 )) && max_del=1
+
+  local plural='files'
+  (( n_files == 1 )) && plural='file'
+
+  # Build the whole block as one string so the header can be emitted first.
+  local block=''
+  block+=$(printf '%s%-28s%s %d %s  %s+%d%s / %s-%d%s' \
+    "$bold" "$name" "$reset" "$n_files" "$plural" \
+    "$green" "$tot_add" "$reset" "$red" "$tot_del" "$reset")
+  block+=$'\n'
+
+  while IFS=$'\t' read -r a d relpath; do
+    [[ -z $relpath ]] && continue
+    if [[ $a == '-' && $d == '-' ]]; then
+      block+=$(printf '  %s%*s%s / %s%*s%s  %s' \
+        "$green" "$max_add" "bin" "$reset" \
+        "$red"   "$max_del" "bin" "$reset" \
+        "$relpath")
+    else
+      block+=$(printf '  %s+%*s%s / %s-%*s%s  %s' \
+        "$green" "$max_add" "$a" "$reset" \
+        "$red"   "$max_del" "$d" "$reset" \
+        "$relpath")
+    fi
+    block+=$'\n'
+  done <<< "$numstat"
+
+  changed_names+=("$name")
+  changed_blocks+=("$block")
+done
+
+print
+printf '%sChanged:%s %d of %d repos\n' \
+  "$bold" "$reset" "${#changed_names}" "${#members}"
+
+local blk
+for blk in "${changed_blocks[@]}"; do
+  print
+  print -rn -- "$blk"
+done
+
+# Unchanged members collapse to one dim line. Strip the longest common
+# "-"-delimited prefix shared by EVERY member (e.g. "data-platform-"), so the
+# line stays short without inventing ambiguous names. Computed over all
+# members, not just the unchanged ones, so the abbreviation is stable no
+# matter which repos happen to have changes.
+if (( ${#unchanged_names} )); then
+  local -a short_names
+  local prefix=''
+  local -a seg_parts
+  seg_parts=("${(@s:-:)${members[1]:t}}")
+  # Drop the last segment: a prefix must leave something behind to display.
+  local -i si=0
+  local cand=''
+  for (( si = ${#seg_parts} - 1; si >= 1; si-- )); do
+    cand="${(j:-:)seg_parts[1,$si]}-"
+    local ok=1 mm=''
+    for mm in "${members[@]}"; do
+      [[ ${mm:t} == ${cand}* ]] || { ok=0; break; }
+    done
+    (( ok )) && { prefix=$cand; break; }
+  done
+
+  local all_prefixed=0
+  if [[ -n $prefix ]]; then
+    all_prefixed=1
+    for name in "${unchanged_names[@]}"; do
+      [[ $name == ${prefix}* ]] || { all_prefixed=0; break; }
+    done
+  fi
+  for name in "${unchanged_names[@]}"; do
+    if (( all_prefixed )); then
+      short_names+=("${name#$prefix}")
+    else
+      short_names+=("$name")
+    fi
+  done
+  print
+  printf '%sunchanged: %s%s\n' "$dim" "${(j:, :)short_names}" "$reset"
+fi
