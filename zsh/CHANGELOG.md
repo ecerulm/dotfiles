@@ -4,6 +4,13 @@ All notable changes to the zsh configuration are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2026-07-30]
+
+### Added
+
+- `.zshenv`: pin the Google Cloud SDK's Python interpreter via `CLOUDSDK_PYTHON=~/.local/gcloud-venv/bin/python` and `CLOUDSDK_PYTHON_SITEPACKAGES=1`, exported next to the existing `path.zsh.inc` block. Without `CLOUDSDK_PYTHON` gcloud falls back to its own `order_python()` search over `$PATH`, which with pyenv on the path means the interpreter backing gcloud changes depending on the current directory's `.python-version` — gcloud then re-resolves its dependencies against whatever the shim happens to point at that moment. `SITEPACKAGES=1` additionally makes the venv's `site-packages` importable, which is what puts `grpcio` and `google-cloud-logging` within gcloud's reach. Verified with `gcloud info --format='value(basic.python_location, basic.python_version)'` → `/Users/rubenlaguna/.local/gcloud-venv/bin/python` / `3.13.7`. The export is **guarded on the interpreter existing** (`[[ -x … ]]`) rather than set unconditionally, because a `CLOUDSDK_PYTHON` pointing at a missing file is worse than no pin at all: gcloud aborts every invocation with `invalid Python interpreter` instead of falling back, which would brick gcloud on any machine where the venv has not been created yet. Both branches were tested under `zsh --no-rcs` (absent → both vars unset and `gcloud version` still works; present → both exported).
+- `rlm-gcloud-venv` (`gcloud-venv`): companion bootstrap that creates the venv above from `/usr/local/bin/python3.13` and installs `grpcio` + `google-cloud-logging`. Kept as a separate hand-invoked function rather than inlined into `.zshenv` on purpose — `.zshenv` is sourced by **every** non-interactive shell (`make`, editor subshells, `$(…)` in scripts), so a `pip install` reachable from there could fire in the middle of an unrelated build; the guarded export costs one `[[ -x ]]` test instead. Idempotent in a way that survives a half-finished earlier run: an existing venv is not assumed complete, each required package is probed with `pip show` and only the missing ones installed, so an interrupted first run self-heals on the next call rather than leaving a venv that exists but cannot serve gcloud. `-f`/`--force` removes and rebuilds. A missing `/usr/local/bin/python3.13` is reported as an actionable message (`install python.org 3.13 first`) with rc=1 rather than a bare `venv` traceback. First-time creation prints a reminder to open a new shell, since the already-running one sourced `.zshenv` before the venv existed and so has no `CLOUDSDK_PYTHON`.
+
 ## [2026-07-29]
 
 ### Fixed

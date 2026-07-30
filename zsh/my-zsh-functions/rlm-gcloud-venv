@@ -1,0 +1,62 @@
+# Create (or verify) the dedicated Python venv that gcloud runs on.
+#
+# .zshenv exports CLOUDSDK_PYTHON / CLOUDSDK_PYTHON_SITEPACKAGES only when
+# ~/.local/gcloud-venv/bin/python exists, so this is the bootstrap step on a
+# fresh machine. It is NOT run from .zshenv on purpose: that file is sourced by
+# every non-interactive shell (make, scripts, editor subshells) and a pip
+# install must never fire from one of those.
+#
+# Idempotent: with the venv already present it verifies the required packages
+# and exits without touching anything. -f/--force recreates from scratch.
+
+emulate -L zsh
+setopt extended_glob
+
+local venv_dir="$HOME/.local/gcloud-venv"
+local python_bin=/usr/local/bin/python3.13
+local -a required_pkgs=(grpcio google-cloud-logging)
+local -i force=0
+
+while (( $# )); do
+  case $1 in
+    -f|--force) force=1; shift ;;
+    -h|--help)  run-help rlm-gcloud-venv; return 0 ;;
+    *) print -u2 -- "gcloud-venv: unknown option: $1"; return 2 ;;
+  esac
+done
+
+if (( force )) && [[ -d $venv_dir ]]; then
+  print -r -- "🔴 gcloud-venv: --force given, removing $venv_dir"
+  rm -rf -- "$venv_dir" || return 1
+fi
+
+if [[ -x $venv_dir/bin/python ]]; then
+  # Venv is there — confirm the packages gcloud expects are importable rather
+  # than assuming a half-finished earlier run left it complete.
+  local -a missing=()
+  local pkg=''
+  for pkg in $required_pkgs; do
+    "$venv_dir/bin/pip" show -- "$pkg" >/dev/null 2>&1 || missing+=("$pkg")
+  done
+  if (( ${#missing} == 0 )); then
+    print -r -- "🟢 gcloud-venv: $venv_dir is ready ($("$venv_dir/bin/python" -V 2>&1))"
+    return 0
+  fi
+  print -r -- "🟡 gcloud-venv: installing missing packages: ${missing[*]}"
+  "$venv_dir/bin/pip" install --upgrade -- $missing || return 1
+  print -r -- "🟢 gcloud-venv: $venv_dir is ready"
+  return 0
+fi
+
+if [[ ! -x $python_bin ]]; then
+  print -u2 -- "gcloud-venv: $python_bin not found — install python.org 3.13 first"
+  return 1
+fi
+
+print -r -- "🔴 gcloud-venv: creating $venv_dir with $python_bin"
+"$python_bin" -m venv "$venv_dir" || return 1
+"$venv_dir/bin/pip" install --upgrade pip || return 1
+"$venv_dir/bin/pip" install -- $required_pkgs || return 1
+
+print -r -- "🟢 gcloud-venv: created $venv_dir — open a new shell (or re-source"
+print -r -- "   ~/.zshenv) so CLOUDSDK_PYTHON is exported"

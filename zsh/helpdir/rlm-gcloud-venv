@@ -1,0 +1,37 @@
+rlm-gcloud-venv [-f|--force]
+
+Create (or verify) the dedicated Python virtualenv that the Google Cloud
+SDK runs on, at ~/.local/gcloud-venv.
+
+.zshenv exports CLOUDSDK_PYTHON and CLOUDSDK_PYTHON_SITEPACKAGES=1 only
+when ~/.local/gcloud-venv/bin/python exists, so this function is the
+bootstrap step on a fresh machine. It is deliberately not run from
+.zshenv: that file is sourced by every non-interactive shell (make,
+scripts, editor subshells) and a pip install must never fire from one
+of those.
+
+Pinning the interpreter matters because without CLOUDSDK_PYTHON gcloud
+runs its own order_python() search over $PATH. With pyenv installed the
+resolved interpreter then changes depending on the current directory's
+.python-version, and gcloud re-resolves its dependencies against
+whatever the shim happens to point at.
+
+The venv is built from /usr/local/bin/python3.13 (the python.org
+framework build) and carries grpcio and google-cloud-logging, which
+CLOUDSDK_PYTHON_SITEPACKAGES=1 makes importable by gcloud.
+
+Idempotent. When the venv already exists the required packages are
+checked with "pip show" and installed only if absent; an already
+complete venv is left untouched.
+
+Options:
+
+  -f, --force   Remove an existing venv and recreate it from scratch.
+  -h, --help    Show this help.
+
+After a first-time creation, open a new shell (or re-source ~/.zshenv)
+so CLOUDSDK_PYTHON is exported.
+
+Requires: /usr/local/bin/python3.13.
+
+See also: rlm-glogin.

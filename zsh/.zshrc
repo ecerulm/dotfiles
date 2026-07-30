@@ -117,6 +117,7 @@ autoload -Uz rlm-bq-open
 autoload -Uz rlm-sandbox-bq-open
 autoload -Uz rlm-sandbox-bq-rm
 autoload -Uz rlm-bq-rm-tables
+autoload -Uz rlm-gcloud-venv
 autoload -Uz rlm-gcp-project-open
 autoload -Uz rlm-glogin
 autoload -Uz rlm-gar-open
@@ -213,6 +214,7 @@ alias bq-open='rlm-bq-open'
 alias sandbox-bq-open='rlm-sandbox-bq-open'
 alias sandbox-bq-rm='rlm-sandbox-bq-rm'
 alias bq-rm-tables='rlm-bq-rm-tables'
+alias gcloud-venv='rlm-gcloud-venv'
 alias gcp-project-open='rlm-gcp-project-open'
 alias glogin='rlm-glogin'
 alias gar-open='rlm-gar-open'

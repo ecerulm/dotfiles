@@ -56,6 +56,21 @@ export NVM_DIR="${XDG_CONFIG_HOME:-$HOME}/nvm"
     && path+=(~/Library/Application\ Support/Coursier/bin)
 
 # Google Cloud SDK — path only (completion is interactive-only, stays in .zshrc)
+#
+# Pin gcloud's interpreter to a dedicated venv. Without CLOUDSDK_PYTHON, gcloud
+# runs its own order_python() search over $PATH, so with pyenv in the mix the
+# interpreter changes depending on the cwd's .python-version — gcloud then
+# re-resolves its deps against whatever that shim points at. The venv also
+# carries grpcio + google-cloud-logging, which SITEPACKAGES=1 makes importable.
+#
+# Only export when the venv exists: a missing CLOUDSDK_PYTHON path makes every
+# gcloud invocation die with "invalid Python interpreter". Run rlm-gcloud-venv
+# to create it (deliberately NOT done here — .zshenv runs for non-interactive
+# shells too, and a pip install must never fire from inside a make subshell).
+[[ -x "$HOME/.local/gcloud-venv/bin/python" ]] && {
+  export CLOUDSDK_PYTHON="$HOME/.local/gcloud-venv/bin/python"
+  export CLOUDSDK_PYTHON_SITEPACKAGES=1
+}
 [[ -f "$HOME/.local/google-cloud-sdk/path.zsh.inc" ]] \
     && . "$HOME/.local/google-cloud-sdk/path.zsh.inc"
 
