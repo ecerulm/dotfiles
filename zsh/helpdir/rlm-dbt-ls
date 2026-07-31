@@ -28,7 +28,8 @@ WORKFLOW
      selector from scratch (e.g. tag:nightly,config.materialized:view)
      without first picking a model.
   2. "dbt ls -s <selector> --profiles-dir <dir> --profile local_dev"
-     is run via "poetry run dbt ls …".
+     is run via "uv run dbt ls …" or "poetry run dbt ls …",
+     depending on the detected package manager.
   3. The resulting model names are shown in an fzf multi-select picker.
      TAB selects multiple entries; Enter confirms the selection.
      Ctrl-Y copies the currently marked entries (or the highlighted
@@ -71,16 +72,18 @@ SELECTOR
 
 PREREQUISITES
   - Must be run from the project root (containing pyproject.toml).
-  - poetry must be available in PATH.
-  - The poetry environment must include dbt and "poetry run dbt" must
-    resolve to a binary inside that venv (not a stray dbt on $PATH).
-    If not, the function runs "poetry install" automatically once; if
-    it is still not in the venv, the function aborts with a three-line
-    diagnostic (expected venv, resolved dbt, project dir).
+  - poetry (or uv, when DBT_USE_UV=1 or a uv.lock sits next to
+    pyproject.toml) must be available in PATH.
+  - The project venv must include dbt and "uv run dbt" / "poetry run
+    dbt" must resolve to a binary inside that venv (not a stray dbt
+    on $PATH). If not, the function runs "uv sync" / "poetry install"
+    automatically once; if it is still not in the venv, the function
+    aborts with a three-line diagnostic (expected venv, resolved dbt,
+    project dir).
   - dbt_profiles.yml must exist somewhere under the current directory.
 
-Requires: poetry, fzf, dbt (in the poetry env), jq (for the preview
-pane's JSON parsing and for extracting model names from
+Requires: poetry or uv, fzf, dbt (in the project venv), jq (for the
+preview pane's JSON parsing and for extracting model names from
 `dbt ls --output json`).
 Optional: pbcopy (macOS) / xclip / xsel for the Ctrl-Y copy binding
 and the post-confirmation auto-copy; without any of these the picker

@@ -50,15 +50,13 @@ if (( ${+functions[$wrapper]} )) || (( ${+aliases[$wrapper]} )); then
   return $?
 fi
 
-# Plain-dbt path: resolve the dbt invocation.
-autoload -Uz _rlm-dbt-bin
-local -a dbt_bin
-dbt_bin=(${(f)"$(_rlm-dbt-bin "${_proj_dir:-}")"}) || return 1
-
 # Auto-inject --project-dir by walking up from $PWD for dbt_project.yml,
 # unless the user already supplied one. The resolved dir is also reused
 # below as the cwd for the `_rlm-python-ensure-version` probe; capture it
 # from either source.
+#
+# This must run BEFORE _rlm-dbt-bin: the helper needs the *Python* project
+# root to detect uv.lock, and that is derived from $_proj_dir below.
 local -a injected=()
 local _proj_dir=""
 local _user_proj_idx=${@[(I)--project-dir]}
@@ -76,6 +74,30 @@ else
     dir=${dir:h}
   done
 fi
+
+# Locate the Python project root (pyproject.toml dir) by walking up from
+# the dbt project dir. In some layouts dbt_project.yml lives in a subdir
+# of the repo while pyproject.toml (and uv.lock / poetry.lock) live at the
+# repo root — so uv.lock must be probed here, not in $_proj_dir. Mirrors
+# the resolution _rlm-dbt-cmd / rlm-dbt-ls already do.
+local _py_root=""
+if [[ -n $_proj_dir ]]; then
+  local _pr_dir="$_proj_dir"
+  while [[ $_pr_dir != / && $_pr_dir != "" ]]; do
+    if [[ -f "$_pr_dir/pyproject.toml" ]]; then
+      _py_root="$_pr_dir"
+      break
+    fi
+    _pr_dir="${_pr_dir:h}"
+  done
+  [[ -z $_py_root ]] && _py_root="$_proj_dir"
+fi
+
+# Resolve the dbt invocation. Passing $_py_root (not $_proj_dir) is what
+# lets _rlm-dbt-bin auto-detect a uv project via uv.lock.
+autoload -Uz _rlm-dbt-bin
+local -a dbt_bin
+dbt_bin=(${(f)"$(_rlm-dbt-bin "$_py_root")"}) || return 1
 
 # Auto-inject --profiles-dir, unless the user already supplied one. Prefer a
 # `profile/` dir colocated with the resolved dbt project (i.e. the
@@ -119,7 +141,7 @@ fi
 # that does not touch pyenv), when no project dir is resolvable, and
 # when the project is uv-managed (uv manages its own Python).
 local _is_uv=0
-[[ ${DBT_USE_UV:-0} == 1 || ( -n $_proj_dir && -f "${_proj_dir}/uv.lock" ) ]] && _is_uv=1
+[[ ${DBT_USE_UV:-0} == 1 || ( -n $_py_root && -f "${_py_root}/uv.lock" ) ]] && _is_uv=1
 if [[ ${DBT_USE_FUSION:-0} != 1 && -n $_proj_dir && $_is_uv != 1 ]]; then
   autoload -Uz _rlm-python-ensure-version
   _rlm-python-ensure-version "$_proj_dir" "rlm-dbt $subcmd" || return 1
