@@ -223,6 +223,37 @@ MONITOR is already off — so the function tests clean and still spews for
 the user. Reproduce with `script -q /dev/null zsh -ic '…'` and assert
 `grep -c '^\[[0-9]'` is 0. Applied in `rlm-pr-list`.
 
+### `${var:+--flag "$var"}` passes ONE argument, not two
+
+zsh does not word-split unquoted parameter expansions the way bash does, so
+the common bash idiom for an optional flag-with-value collapses into a single
+argv entry:
+
+```zsh
+f=/tmp/x
+show ${f:+--baseline "$f"}     # argv[1] = '--baseline /tmp/x'   <- one word
+```
+
+The callee's arg parser then sees `--baseline /tmp/x` as one unrecognized
+flag and dies with `unknown flag: --baseline /tmp/x` — the value visibly
+glued to the flag in the error message is the tell.
+
+Build optional args as array elements instead, which also keeps the empty
+case clean (an empty array expands to nothing under `"${arr[@]}"`):
+
+```zsh
+local -a opt_args=()
+[[ -n $baseline_file ]] && opt_args+=(--baseline "$baseline_file")
+[[ -n $prev_gen ]] && opt_args+=(--prev-generation "$prev_gen")
+cmd --project "$p" "${opt_args[@]}" --timeout 300
+```
+
+`${f:+--baseline} ${f:+"$f"}` also works but is easy to mis-edit into the
+broken form. Bit `rlm-afw-deploy`'s call into `_rlm-afw-wait-parsed`.
+
+Symptom card: `unknown flag: --something /some/value` — flag and value in a
+single error token.
+
 ### Never use `path` as a local variable name
 
 `path` is a zsh tied array — the lowercase synonym for `$PATH`. Under

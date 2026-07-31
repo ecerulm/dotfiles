@@ -328,12 +328,20 @@ if [[ -n ${AFW_NO_WAIT:-} ]]; then
 fi
 
 autoload -Uz _rlm-afw-wait-parsed
+
+# Build the optional flags as array ELEMENTS, not via ${var:+--flag "$var"}.
+# In zsh that form expands to a SINGLE word ("--baseline /path/to/file"), since
+# zsh does not word-split unquoted parameter expansions the way bash does — the
+# callee then sees one unknown flag rather than a flag and its value.
+local -a opt_args=()
+[[ -n $baseline_file ]] && opt_args+=(--baseline "$baseline_file")
+[[ -n $prev_gen ]] && opt_args+=(--prev-generation "$prev_gen")
+
 _rlm-afw-wait-parsed \
   --project "$project" \
   --sandbox "$subnetwork" \
   --since "$deploy_started" \
-  ${baseline_file:+--baseline "$baseline_file"} \
-  ${prev_gen:+--prev-generation "$prev_gen"} \
+  "${opt_args[@]}" \
   --timeout "${AFW_WAIT_TIMEOUT:-300}" \
   --interval "${AFW_WAIT_INTERVAL:-10}" \
   "${dag_names[@]}"
