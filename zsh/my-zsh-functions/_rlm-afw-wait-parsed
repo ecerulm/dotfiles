@@ -1,0 +1,375 @@
+emulate -L zsh
+setopt extended_glob
+
+# _rlm-afw-wait-parsed — block until Composer has re-parsed deployed DAG files.
+#
+# Usage:
+#   _rlm-afw-wait-parsed --project <gcp_project> --sandbox <name> \
+#                        --since <epoch> [--baseline <file>] \
+#                        [--timeout <sec>] [--interval <sec>] \
+#                        <dag_file.py> [<dag_file.py> …]
+#
+# Polls the Airflow REST API of the Composer environment until every named DAG
+# file has been re-parsed since the deploy. Returns:
+#   0   every DAG re-parsed, no import errors
+#   1   hard error (missing dependency, env lookup / API failure)
+#   2   ran out of time with at least one DAG still stale
+#   3   a DAG re-parsed but reports an import error (new code is broken)
+#   4   the deployed zip in GCS did not change — nothing was uploaded to the
+#       bucket this environment reads, so no wait can ever succeed
+#   130 interrupted by the user (Ctrl-C)
+#
+# --- Why a baseline, and not just a timestamp --------------------------------
+#
+# Composer re-parses the DAG bundle on a TIMER (~40-80s observed) whether or
+# not anything changed. So "wait for the next parse" is not the same question
+# as "is my code live", and a naive `last_parsed_time > upload_time` check
+# passes as soon as the scheduler's own periodic re-parse of the OLD code
+# happens to land after the upload. This was observed in testing: a wait armed
+# with --since=<now> and a 22s timeout reported success in ~14s without
+# anything having been deployed at all.
+#
+# Clock skew is NOT the cause (client and Composer agreed to the second when
+# measured); the periodic re-parse alone is sufficient to produce the false
+# positive. The API also exposes no content hash to compare against.
+#
+# The fix is to anchor on the artifact rather than the clock. The caller
+# snapshots each DAG's last_parsed_time BEFORE uploading (--baseline, produced
+# by `_rlm-afw-wait-parsed snapshot`) and this function then requires, for each
+# file, that BOTH hold:
+#
+#   1. last_parsed_time differs from the baseline value  (a parse has happened
+#      since the deploy started), and
+#   2. that parse is at or after the moment the new zip generation landed in
+#      GCS (so it cannot be a re-parse of the pre-upload code).
+#
+# Condition 2 uses the GCS object generation of <sandbox>_dags.zip, which the
+# upload advances; its `updated` time is the authoritative "new code became
+# visible to the scheduler" instant, on the same server-side clock domain as
+# the parse times. --since remains as a floor for the no-baseline case.
+#
+# Matching key is `relative_fileloc`, which for a sandboxed deploy reads
+# "<sandbox>_dags.zip/<dag_file.py>" — derivable from what the picker already
+# selected. Deliberately NOT `dag_id`: the id carries a version suffix set
+# inside the DAG file (dbt_all_in_one_dag.py -> ecerulm_dbt_all_in_one_v1.3),
+# so it cannot be predicted from the filename.
+#
+# Airflow 3 (Composer image composer-3-airflow-3.1.7-*) serves /api/v2; /api/v1
+# was removed and returns a 404 JSON body pointing at v2. Auth is a plain
+# gcloud access token — an identity token gets a 401 from the Composer proxy.
+
+# `snapshot` mode: emit "<relative_fileloc>\t<last_parsed_time>" for the
+# sandbox's DAGs so the caller can capture a pre-deploy baseline. Emits nothing
+# (rc 0) when the sandbox has no DAGs deployed yet — a first-ever deploy has no
+# baseline, and the GCS-generation condition alone covers that case.
+#
+# `generation` mode: emit the current GCS generation of <sandbox>_dags.zip (or
+# nothing if absent), for the caller to pass back as --prev-generation.
+local mode=poll
+case ${1:-} in
+  snapshot)   mode=snapshot;   shift ;;
+  generation) mode=generation; shift ;;
+esac
+
+local project="" sandbox="" since=0 timeout=300 interval=10 baseline=""
+local prev_generation=""
+local -a dag_files=()
+
+while (( $# )); do
+  case $1 in
+    --project)         project=$2;         shift 2 ;;
+    --sandbox)         sandbox=$2;         shift 2 ;;
+    --since)           since=$2;           shift 2 ;;
+    --baseline)        baseline=$2;        shift 2 ;;
+    --prev-generation) prev_generation=$2; shift 2 ;;
+    --timeout)         timeout=$2;         shift 2 ;;
+    --interval)        interval=$2;        shift 2 ;;
+    --) shift; dag_files+=("$@"); break ;;
+    -*) print -u2 "afw-wait: unknown flag: $1"; return 1 ;;
+    *)  dag_files+=("$1"); shift ;;
+  esac
+done
+
+if [[ -z $project || -z $sandbox ]]; then
+  print -u2 "afw-wait: --project and --sandbox are required"
+  return 1
+fi
+if [[ $mode == poll ]] && (( ${#dag_files} == 0 )); then
+  print -u2 "afw-wait: no DAG files given"
+  return 1
+fi
+
+local dep
+for dep in gcloud curl jq; do
+  if ! command -v $dep >/dev/null 2>&1; then
+    print -u2 "afw-wait: '$dep' not found in PATH"
+    return 1
+  fi
+done
+
+# ---------------------------------------------------------------------------
+# Resolve the environment's Airflow endpoint.
+#
+# COMPOSER_ENV_NAME mirrors the constant in airflow_manager/click/objects/
+# sandbox.py. Overridable so a rename (sdp-composer -> sdp-composer3 happened
+# once already) doesn't require editing this file.
+# ---------------------------------------------------------------------------
+
+local composer_env=${AFW_COMPOSER_ENV:-sdp-composer3}
+local composer_location=${AFW_COMPOSER_LOCATION:-europe-west1}
+local airflow_uri
+
+airflow_uri=$(gcloud composer environments describe "$composer_env" \
+  --project="$project" --location="$composer_location" \
+  --format='value(config.airflowUri)' 2>/dev/null)
+
+if [[ -z $airflow_uri ]]; then
+  print -u2 "afw-wait: could not resolve the Airflow URI for '$composer_env' in '$project' ($composer_location)."
+  print -u2 "afw-wait: list environments with: gcloud composer environments list --project=$project --locations=$composer_location"
+  return 1
+fi
+
+local token
+token=$(gcloud auth print-access-token 2>/dev/null)
+if [[ -z $token ]]; then
+  print -u2 "afw-wait: could not mint a gcloud access token (try: gcloud auth login)"
+  return 1
+fi
+
+# --- snapshot mode -----------------------------------------------------------
+
+if [[ $mode == snapshot ]]; then
+  curl -s --max-time 30 -H "Authorization: Bearer $token" \
+    "${airflow_uri}/api/v2/dags?limit=200" 2>/dev/null \
+    | jq -r --arg pfx "${sandbox}_dags.zip/" '
+        .dags // [] | .[]
+        | select(.relative_fileloc != null and (.relative_fileloc | startswith($pfx)))
+        | [.relative_fileloc, (.last_parsed_time // "")] | @tsv
+      ' 2>/dev/null
+  return 0
+fi
+
+# ---------------------------------------------------------------------------
+# When did the new bundle land in GCS?
+#
+# The upload advances the generation of <sandbox>_dags.zip; its `updated`
+# timestamp is the instant the new code became visible to the scheduler, on
+# the same server-side clock as last_parsed_time. A parse at or after this is
+# necessarily a parse of the new bundle. Best-effort: if the object can't be
+# read (permissions, first-ever deploy), fall back to the --since floor.
+# ---------------------------------------------------------------------------
+
+local zip_object="dags/${sandbox}_dags.zip"
+local bucket=${AFW_COMPOSER_BUCKET:-}
+if [[ -z $bucket ]]; then
+  bucket=$(gcloud composer environments describe "$composer_env" \
+    --project="$project" --location="$composer_location" \
+    --format='value(config.dagGcsPrefix)' 2>/dev/null)
+  bucket=${${bucket#gs://}%/dags}
+fi
+
+if [[ $mode == generation ]]; then
+  [[ -z $bucket ]] && return 0
+  curl -s --max-time 30 -H "Authorization: Bearer $token" \
+    "https://storage.googleapis.com/storage/v1/b/${bucket}/o/${zip_object//\//%2F}" 2>/dev/null \
+    | jq -r '.generation // empty' 2>/dev/null
+  return 0
+fi
+
+local zip_epoch=0 zip_gen=""
+if [[ -n $bucket ]]; then
+  local zip_meta
+  zip_meta=$(curl -s --max-time 30 -H "Authorization: Bearer $token" \
+    "https://storage.googleapis.com/storage/v1/b/${bucket}/o/${zip_object//\//%2F}" 2>/dev/null)
+  local zip_updated
+  zip_updated=$(print -r -- "$zip_meta" | jq -r '.updated // empty' 2>/dev/null)
+  zip_gen=$(print -r -- "$zip_meta" | jq -r '.generation // empty' 2>/dev/null)
+  if [[ -n $zip_updated ]]; then
+    # BSD date (macOS) needs the fractional seconds stripped.
+    zip_epoch=$(date -j -u -f '%Y-%m-%dT%H:%M:%SZ' "${zip_updated%.*}Z" +%s 2>/dev/null) \
+      || zip_epoch=$(date -u -d "$zip_updated" +%s 2>/dev/null) \
+      || zip_epoch=0
+  fi
+fi
+
+# Guard against the "nothing was actually uploaded" case.
+#
+# If the zip in GCS is unchanged from before the deploy, then no new code
+# exists to become effective, and waiting for a parse is meaningless: Composer
+# re-parses on a timer, so ANY time-based condition would eventually be
+# satisfied by a re-parse of the OLD bundle and report a false success. This
+# is not hypothetical — it is exactly what a stale-bucket deploy looks like
+# (upload "succeeds" into a bucket nothing reads, zip here never changes).
+#
+# --prev-generation carries the pre-deploy generation; when it still matches,
+# fail loudly instead of waiting for a lie to come true.
+if [[ -n $prev_generation && -n $zip_gen && $prev_generation == $zip_gen ]]; then
+  print -u2 "afw-wait: the deployed zip in GCS did not change (generation still ${zip_gen})."
+  print -u2 "afw-wait: nothing new was uploaded, so the DAG code cannot become effective."
+  print -u2 "afw-wait:   bucket: gs://${bucket}/${zip_object}"
+  print -u2 "afw-wait: check that afw is uploading to the bucket this environment actually reads."
+  return 4
+fi
+
+# The effective floor: a parse must be at or after the new bundle landing.
+local floor=$since
+(( zip_epoch > floor )) && floor=$zip_epoch
+
+if (( zip_epoch == 0 )); then
+  print -u2 "afw-wait: note: could not read the deployed zip's timestamp; falling back to a time-only check."
+fi
+
+# Load the pre-deploy baseline (relative_fileloc -> last_parsed_time), if any.
+typeset -A base_parsed=()
+if [[ -n $baseline && -f $baseline ]]; then
+  local bline
+  while IFS= read -r bline; do
+    [[ -z $bline ]] && continue
+    local -a bf=("${(@s:	:)bline}")
+    [[ -n ${bf[1]} ]] && base_parsed[${bf[1]}]=${bf[2]}
+  done < "$baseline"
+fi
+
+# ---------------------------------------------------------------------------
+# Poll. One API call per round covers every DAG; the jq pass reports which
+# files are still stale so the progress line can name them.
+# ---------------------------------------------------------------------------
+
+local -a wanted=()
+local f
+for f in $dag_files; do
+  wanted+=("${sandbox}_dags.zip/${f}")
+done
+
+# Newline-separated for jq --rawfile-ish consumption via --args below.
+local deadline=$(( SECONDS + timeout ))
+local -a pending=("${wanted[@]}")
+local body http_code round=0
+
+# Scratch file for each API response (see the jq --args note below). Cleaned up
+# on every return path, including Ctrl-C, via TRAPEXIT — which zsh scopes to
+# this function.
+local resp_file
+resp_file=$(mktemp -t afw-wait-XXXXXXXX) || {
+  print -u2 "afw-wait: could not create a temp file"
+  return 1
+}
+TRAPEXIT() { [[ -n $resp_file ]] && rm -f "$resp_file"; }
+
+print -u2 "afw-deploy: waiting for Composer to parse ${#wanted} DAG file(s) (timeout ${timeout}s) …"
+
+while (( SECONDS < deadline )); do
+  (( round++ ))
+
+  body=$(curl -s --max-time 30 -w $'\n%{http_code}' \
+    -H "Authorization: Bearer $token" \
+    "${airflow_uri}/api/v2/dags?limit=200" 2>/dev/null)
+  local curl_rc=$?
+
+  if (( curl_rc == 2 )); then
+    return 130
+  fi
+
+  http_code=${body##*$'\n'}
+  body=${body%$'\n'*}
+
+  # 401/403 mid-run: the access token expired (they are ~1h). Mint a fresh one
+  # and retry rather than failing a long wait on a recoverable condition.
+  if [[ $http_code == 401 || $http_code == 403 ]]; then
+    token=$(gcloud auth print-access-token 2>/dev/null)
+    if [[ -z $token ]]; then
+      print -u2 "afw-wait: lost API authorization and could not refresh the token"
+      return 1
+    fi
+    sleep $interval
+    continue
+  fi
+
+  if [[ $http_code != 200 ]]; then
+    # Transient 5xx / proxy hiccup: keep waiting, the deploy itself succeeded.
+    print -u2 "afw-wait: API returned HTTP $http_code, retrying …"
+    sleep $interval
+    continue
+  fi
+
+  # Emit the still-stale files. A file counts as re-parsed only when its parse
+  # time is at or after `floor` (the new bundle's GCS landing) AND differs from
+  # the pre-deploy baseline — see the header for why either alone is unsound.
+  #
+  # The response goes to a temp FILE rather than down a pipe: `--args` swallows
+  # every remaining argument as a positional, so with piped stdin jq is left
+  # with no input file, waits on a stdin it will never read, and hangs forever.
+  # Naming the file before `--args` is the only ordering that works.
+  print -r -- "$body" >| "$resp_file"
+
+  # baseline as JSON so jq can compare per-file.
+  local base_json='{}'
+  if (( ${#base_parsed} )); then
+    base_json=$(
+      local k
+      for k in ${(k)base_parsed}; do
+        printf '%s\t%s\n' "$k" "${base_parsed[$k]}"
+      done | jq -R -s 'split("\n") | map(select(length>0) | split("\t"))
+                       | map({key: .[0], value: (.[1] // "")}) | from_entries'
+    )
+  fi
+
+  pending=(${(f)"$(jq -r --argjson floor "$floor" --argjson base "$base_json" '
+      [ .dags[] | select(.relative_fileloc != null)
+        | { loc: .relative_fileloc,
+            raw: (.last_parsed_time // ""),
+            parsed: (if .last_parsed_time == null then -1
+                     else (.last_parsed_time | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601)
+                     end) } ]
+      as $seen
+    | $ARGS.positional[]
+    | . as $want
+    # first(...) is load-bearing: a bare `$seen[] | select(...)` is a generator
+    # that emits ZERO rows when nothing matches, so the whole pipeline for that
+    # file produces no output and the "$hit == null" branch below is never
+    # reached — a DAG that never appears in the API would be silently treated
+    # as deployed. first(...) collapses no-match to an explicit null instead.
+    | (first($seen[] | select(.loc == $want)) // null) as $hit
+    | if $hit == null then $want
+      elif $hit.parsed < $floor then $want
+      elif ($base[$want] // "") != "" and $base[$want] == $hit.raw then $want
+      else empty end
+  ' "$resp_file" --args "${wanted[@]}" 2>/dev/null)"})
+
+  if (( ${#pending} == 0 )); then
+    # Parsed — but "parsed" includes "parsed and failed to import". Surface
+    # that rather than reporting a clean deploy over broken code.
+    local -a broken=()
+    broken=(${(f)"$(jq -r '
+        .dags[] | select(.relative_fileloc != null and .has_import_errors == true)
+        | .relative_fileloc
+      ' "$resp_file" --args "${wanted[@]}" 2>/dev/null)"})
+    local -a broken_wanted=()
+    local b w
+    for b in $broken; do
+      for w in $wanted; do
+        [[ $b == $w ]] && broken_wanted+=("$b")
+      done
+    done
+
+    if (( ${#broken_wanted} )); then
+      print -u2 "afw-deploy: parsed, but ${#broken_wanted} DAG(s) report IMPORT ERRORS: ${(j:, :)${broken_wanted[@]##*/}}"
+      print -u2 "afw-deploy: inspect them in the Airflow UI: ${airflow_uri}"
+      return 3
+    fi
+
+    print -u2 "afw-deploy: all ${#wanted} DAG file(s) re-parsed by Composer."
+    return 0
+  fi
+
+  local remaining=$(( deadline - SECONDS ))
+  (( remaining < 0 )) && remaining=0
+  print -u2 "afw-deploy:   [${round}] ${#pending}/${#wanted} still stale (${remaining}s left): ${(j:, :)${pending[@]##*/}}"
+
+  sleep $interval
+done
+
+print -u2 "afw-deploy: timed out after ${timeout}s; still stale: ${(j:, :)${pending[@]##*/}}"
+print -u2 "afw-deploy: the upload succeeded — Composer may just be slow. Check the Airflow UI:"
+print -u2 "afw-deploy:   ${airflow_uri}"
+return 2

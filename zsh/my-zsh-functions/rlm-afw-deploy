@@ -258,16 +258,86 @@ print -l -- "${dag_files_selected[@]}" >| "$cache_file"
 
 # ---------------------------------------------------------------------------
 # Deploy (single invocation; afw stops on the first DAG that fails)
+#
+# The target bucket is deliberately NOT passed with -b. afw resolves it itself
+# (Sandbox.__resolve_composer_bucket) from the live Composer environment, which
+# is the only source that stays correct across environment recreations.
+#
+# This used to hardcode -b europe-west1-sdp-composer-91ff48c9-bucket, the DAG
+# bucket of the pre-Composer-3 environment. After the sdp-composer ->
+# sdp-composer3 migration that bucket still EXISTS and still accepts uploads,
+# so deploys kept reporting "Done!" while writing to a bucket no scheduler
+# reads — the deployed DAG simply never became effective. Verified at the time
+# of this change: the old bucket's ecerulm_dags.zip was minutes old while the
+# live environment's was a week stale.
 # ---------------------------------------------------------------------------
 
-local env bucket subnetwork
+local env subnetwork
 env="dev"
-bucket="europe-west1-sdp-composer-91ff48c9-bucket"
-subnetwork="ecerulm"
+subnetwork="${DBT_DATASET_PREFIX:-ecerulm}"
+
+local project="storytel-data-platform-${env}"
+
+# Snapshot each DAG's current parse time BEFORE uploading, so the wait below
+# can tell a genuine re-parse from Composer's periodic one. Best-effort: an
+# empty baseline just makes the wait rely on the GCS-generation floor alone.
+local baseline_file="" prev_gen=""
+if [[ -z ${AFW_NO_WAIT:-} ]]; then
+  autoload -Uz _rlm-afw-wait-parsed
+  baseline_file=$(mktemp -t afw-baseline-XXXXXXXX 2>/dev/null)
+  if [[ -n $baseline_file ]]; then
+    _rlm-afw-wait-parsed snapshot \
+      --project "$project" --sandbox "$subnetwork" >| "$baseline_file" 2>/dev/null
+  fi
+  # Pre-deploy generation of the DAG zip. If this is unchanged afterwards then
+  # nothing was uploaded to the bucket this environment reads, and the wait
+  # fails fast (rc 4) instead of blocking until a periodic re-parse fakes it.
+  prev_gen=$(_rlm-afw-wait-parsed generation \
+    --project "$project" --sandbox "$subnetwork" 2>/dev/null)
+fi
 
 print "afw-deploy: deploying ${(j:, :)dag_names} to env=${env} …" >&2
+
+# `date +%s` rather than $EPOCHSECONDS: the latter needs zmodload zsh/datetime,
+# which is not loaded here (verified), and would silently expand to empty.
+local deploy_started=$(date +%s)
 uv run afw sandbox deploy \
   -e "$env" \
-  -b "$bucket" \
   -s "$subnetwork" \
   "${dag_args[@]}"
+local deploy_rc=$?
+
+if (( deploy_rc != 0 )); then
+  [[ -n $baseline_file ]] && rm -f "$baseline_file"
+  print -u2 "afw-deploy: deploy failed (exit $deploy_rc); not waiting."
+  return $deploy_rc
+fi
+
+# ---------------------------------------------------------------------------
+# Wait for the new code to actually become effective in Composer.
+#
+# `afw` returns as soon as the zip is uploaded to GCS; the scheduler picks it
+# up on its own schedule, so there is a window where the deploy "succeeded"
+# but the old DAG code is still live. Skip with AFW_NO_WAIT=1; tune with
+# AFW_WAIT_TIMEOUT / AFW_WAIT_INTERVAL.
+# ---------------------------------------------------------------------------
+
+if [[ -n ${AFW_NO_WAIT:-} ]]; then
+  print -u2 "afw-deploy: AFW_NO_WAIT set — skipping the parse wait."
+  return 0
+fi
+
+autoload -Uz _rlm-afw-wait-parsed
+_rlm-afw-wait-parsed \
+  --project "$project" \
+  --sandbox "$subnetwork" \
+  --since "$deploy_started" \
+  ${baseline_file:+--baseline "$baseline_file"} \
+  ${prev_gen:+--prev-generation "$prev_gen"} \
+  --timeout "${AFW_WAIT_TIMEOUT:-300}" \
+  --interval "${AFW_WAIT_INTERVAL:-10}" \
+  "${dag_names[@]}"
+local wait_rc=$?
+
+[[ -n $baseline_file ]] && rm -f "$baseline_file"
+return $wait_rc

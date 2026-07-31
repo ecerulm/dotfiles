@@ -37,9 +37,54 @@ WHAT IT DOES
 
        uv run afw sandbox deploy \
          -e dev \
-         -b europe-west1-sdp-composer-91ff48c9-bucket \
-         -s ecerulm \
+         -s $DBT_DATASET_PREFIX \
          -d <dag-a.py> -d <dag-b.py> …
+
+     No -b/--bucket is passed: afw resolves the DAG bucket from the
+     live Composer environment, which stays correct when that
+     environment is recreated. This previously hardcoded the
+     pre-Composer-3 bucket, which still exists and still accepts
+     uploads — so deploys reported "Done!" while writing somewhere
+     no scheduler reads, and the DAG never became effective.
+
+  5. Waits until Composer has actually parsed the new code (see
+     WAITING below), so the command returns when the DAG is live
+     rather than when the upload finished.
+
+WAITING
+  afw returns as soon as the zip is in GCS; the scheduler picks it
+  up on its own schedule, so there is a window where the deploy
+  "succeeded" but the old DAG code is still running. After a
+  successful deploy the function polls the environment's Airflow
+  REST API (/api/v2/dags) until every deployed file has been
+  re-parsed.
+
+  Composer re-parses the DAG bundle on a timer (~40-80s observed)
+  whether or not anything changed, so "wait for the next parse" is
+  not the same question as "is my code live". Three conditions must
+  all hold before the wait reports success:
+
+    - the DAG zip's GCS generation changed (something was really
+      uploaded to the bucket this environment reads),
+    - the file's last_parsed_time is at or after the moment the new
+      zip landed in GCS, and
+    - that parse time differs from the pre-deploy snapshot.
+
+  Exit status:
+    0  every DAG re-parsed, no import errors
+    2  timed out (the upload succeeded; Composer may just be slow)
+    3  parsed, but the DAG reports import errors — the new code is
+       broken; the Airflow UI URL is printed
+    4  the zip in GCS did not change, so nothing can become
+       effective (this is what a wrong-bucket deploy looks like)
+
+  Environment variables:
+    AFW_NO_WAIT=1         skip the wait entirely
+    AFW_WAIT_TIMEOUT=N    seconds before giving up (default 300)
+    AFW_WAIT_INTERVAL=N   seconds between polls (default 10)
+    AFW_COMPOSER_ENV      environment name (default sdp-composer3)
+    AFW_COMPOSER_LOCATION region (default europe-west1)
+    AFW_COMPOSER_BUCKET   skip the bucket lookup
 
 PICKER LAYOUT
   Each fzf line is a tab-separated record with hidden sort-key
@@ -57,4 +102,4 @@ LAST SELECTION
   ~/.cache/afw-deploy/ (one filename per line). On subsequent runs
   fzf's query is pre-filled with the first previously-selected DAG.
 
-Requires: uv, fd, fzf, git.
+Requires: uv, fd, fzf, git; gcloud, curl, jq for the wait step.
