@@ -14,11 +14,13 @@ WHAT IT DOES
   1. Walks up from $PWD to find the project root (a directory
      containing both airflow_manager/ and pyproject.toml) and
      cds there. Aborts if no such ancestor exists.
-  2. Verifies that "poetry run afw" resolves to a binary inside the
-     project's poetry virtualenv (not a stray afw on $PATH). If the
-     venv is missing afw, runs "poetry install" automatically once;
-     if afw is still not in the venv after that, aborts with a
-     three-line diagnostic (expected venv, resolved afw, project dir).
+  2. Verifies that "uv run afw" resolves to a binary inside the
+     project's .venv/ (not a stray afw on $PATH). If the venv is
+     missing afw, runs "uv sync" automatically once; if afw is still
+     not in the venv after that, aborts with a three-line diagnostic
+     (expected venv, resolved afw, project dir). uv honours the
+     project's requires-python and will fetch a managed interpreter
+     when no compatible one is installed.
   3. Opens a multi-select fzf picker over *.py files in
      airflow_manager/dag_folder/. Tag DAGs with tab / shift-tab
      (ctrl-a selects all, ctrl-d deselects all); enter deploys the
@@ -33,7 +35,7 @@ WHAT IT DOES
      -d/--dags option is multiple=True, so one -d is passed per DAG;
      afw stops on the first DAG that fails):
 
-       poetry run afw sandbox deploy \
+       uv run afw sandbox deploy \
          -e dev \
          -b europe-west1-sdp-composer-91ff48c9-bucket \
          -s ecerulm \
@@ -55,4 +57,4 @@ LAST SELECTION
   ~/.cache/afw-deploy/ (one filename per line). On subsequent runs
   fzf's query is pre-filled with the first previously-selected DAG.
 
-Requires: poetry, fd, fzf, git.
+Requires: uv, fd, fzf, git.

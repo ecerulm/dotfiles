@@ -8,7 +8,10 @@ set -o pipefail
 local -a required_cmds=(fzf jq)
 if [[ ${DBT_USE_FUSION:-0} == 1 ]]; then
   required_cmds+=(dbtf)
+elif [[ ${DBT_USE_UV:-0} == 1 ]]; then
+  required_cmds+=(uv)
 else
+  # uv.lock detection happens later once project_root is known; default to poetry for now
   required_cmds+=(poetry)
 fi
 for cmd in "${required_cmds[@]}"; do
@@ -24,7 +27,7 @@ if [[ -z $EDITOR ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# Find pyproject.toml by walking up from cwd (poetry must be run from there)
+# Find pyproject.toml by walking up from cwd (poetry/uv must be run from there)
 # ---------------------------------------------------------------------------
 
 local project_root=""
@@ -108,14 +111,23 @@ fi
 [[ -z $dbt_target ]] && dbt_target="dev"
 
 # ---------------------------------------------------------------------------
-# Ensure poetry env is synced and dbt resolves to the project venv
+# Ensure the project venv is synced and dbt resolves to it
+# (not a stray $PATH dbt). Auto-installs once if not.
 # ---------------------------------------------------------------------------
 
 if [[ ${DBT_USE_FUSION:-0} != 1 ]]; then
-  autoload -Uz _rlm-python-ensure-version
-  _rlm-python-ensure-version "$dbt_project_root" dbt-find-source-code || return 1
-  autoload -Uz _rlm-poetry-ensure-venv
-  _rlm-poetry-ensure-venv "$project_root" dbt dbt-find-source-code || return 1
+  # Probe pyenv's `python` shim from $dbt_project_root *before* the
+  # package-manager venv check, so a missing/misconfigured .python-version
+  # surfaces with a clear diagnostic instead of bubbling up as an install
+  # failure. Probe runs from $dbt_project_root (where .python-version
+  # typically lives) rather than $project_root.
+  # Skipped for uv: uv manages its own Python and does not rely on pyenv.
+  if [[ ${DBT_USE_UV:-0} != 1 && ! -f "${project_root}/uv.lock" ]]; then
+    autoload -Uz _rlm-python-ensure-version
+    _rlm-python-ensure-version "$dbt_project_root" dbt-find-source-code || return 1
+  fi
+  autoload -Uz _rlm-dbt-ensure-venv
+  _rlm-dbt-ensure-venv "$project_root" dbt dbt-find-source-code || return 1
 fi
 
 # ---------------------------------------------------------------------------

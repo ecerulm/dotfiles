@@ -1,0 +1,477 @@
+emulate -L zsh
+setopt extended_glob
+unsetopt monitor notify
+set -o pipefail
+
+# ---------------------------------------------------------------------------
+# rlm-git-status — status roll-up across every git repo in a directory.
+#
+# Answers "what is unfinished in this change set?" for the multi-repo
+# collection dirs created by rlm-pr-worktree's multi-repo mode — one
+# directory holding a worktree of every repo on a shared branch, e.g.
+#   ~/git/work/StorytelDataPlatform_20260730_DATA-2770-widen-gar-cleanup/
+#     {data-platform-dbt,data-platform-infra,...}
+#
+# Two independent dimensions are reported per repo, because a repo can be
+# any combination of them and collapsing to one "differs" boolean would
+# hide the interesting case:
+#
+#   VS <base>   commit divergence from the base branch, as +N/-N
+#               (ahead/behind). Base is origin/<default> by default.
+#   LOCAL       uncommitted work: staged / unstaged / untracked / conflicts.
+#
+# Repos in either state are listed one per row; the rest collapse onto a
+# single dim "unchanged:" line (in a 7-repo collection typically 1-2 differ,
+# so listing all of them buries the ones that matter). --all keeps every row.
+#
+# Scans children of the target dir. If the target is itself a git repo and
+# has no repo children, it reports on just that repo, so the function is
+# also usable as a plain `git status` summary from inside a worktree.
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# Precondition checks
+# ---------------------------------------------------------------------------
+
+if ! command -v git >/dev/null 2>&1; then
+  print -u2 "git-status: 'git' not found in PATH"
+  return 1
+fi
+
+# ---------------------------------------------------------------------------
+# Argument parsing
+# ---------------------------------------------------------------------------
+
+local target=''
+local base_override=''
+local -i show_all=0
+local -i no_fetch=1  # reserved: we never fetch, but keep the intent explicit
+
+while (( $# )); do
+  case $1 in
+    -a|--all)
+      show_all=1
+      shift
+      ;;
+    -b|--base)
+      if [[ -z ${2:-} ]]; then
+        print -u2 "git-status: --base requires an argument"
+        return 1
+      fi
+      base_override=$2
+      shift 2
+      ;;
+    -h|--help)
+      print -r -- "usage: git-status [-a|--all] [-b|--base <ref>] [<directory>]"
+      return 0
+      ;;
+    --)
+      shift
+      break
+      ;;
+    -*)
+      print -u2 "git-status: unknown option: $1"
+      return 1
+      ;;
+    *)
+      if [[ -n $target ]]; then
+        print -u2 "git-status: unexpected extra argument: $1"
+        return 1
+      fi
+      target=$1
+      shift
+      ;;
+  esac
+done
+[[ -z $target && $# -gt 0 ]] && { target=$1; shift; }
+[[ -z $target ]] && target=$PWD
+
+if [[ ! -d $target ]]; then
+  print -u2 "git-status: not a directory: $target"
+  return 1
+fi
+target=${target:A}
+
+# ---------------------------------------------------------------------------
+# Discover member repos
+#
+# A child counts as a member when it is its own git worktree root: git
+# reports a toplevel AND that toplevel is the child itself. Without the
+# second test a plain subdirectory of an enclosing repo would match, since
+# rev-parse happily answers from any depth. Same guard as
+# wt-collection-preview / _prl_discover_worktrees.
+# ---------------------------------------------------------------------------
+
+local -a members
+local subdir='' top=''
+for subdir in "$target"/*(N/); do
+  top=$(cd "$subdir" 2>/dev/null && git rev-parse --show-toplevel 2>/dev/null) || continue
+  [[ -z $top ]] && continue
+  [[ ${top:A} != ${subdir:A} ]] && continue
+  members+=("${subdir:A}")
+done
+
+# Fall back to the target itself when it is a repo with no repo children,
+# so `git-status` works from inside a single worktree too.
+if (( ${#members} == 0 )); then
+  top=$(cd "$target" 2>/dev/null && git rev-parse --show-toplevel 2>/dev/null)
+  if [[ -n $top ]]; then
+    members=("${top:A}")
+  else
+    print -u2 "git-status: no git repositories found in ${target/#$HOME/~}"
+    return 1
+  fi
+fi
+
+# ---------------------------------------------------------------------------
+# Colors — only when stdout is a terminal, so the table stays pasteable
+# when piped or redirected.
+# ---------------------------------------------------------------------------
+
+local bold='' dim='' green='' red='' yellow='' cyan='' reset=''
+if [[ -t 1 ]]; then
+  bold=$'\e[1m'
+  dim=$'\e[2m'
+  green=$'\e[32m'
+  red=$'\e[31m'
+  yellow=$'\e[33m'
+  cyan=$'\e[36m'
+  reset=$'\e[0m'
+fi
+
+# ---------------------------------------------------------------------------
+# Collect per-repo state
+#
+# Each repo is probed in a background job writing one TSV line to a tmpdir,
+# so a 7-repo collection costs one git round of wall-clock rather than
+# seven. MONITOR/NOTIFY are already off (top of file) so the fan-out does
+# not print "[4] + done ..." pairs in an interactive shell.
+#
+# Row format (7 fields, any of which may be empty):
+#   name \t branch \t base \t ahead \t behind \t local_summary \t dirty_flag
+# ---------------------------------------------------------------------------
+
+local tmpdir
+tmpdir=$(mktemp -d "${TMPDIR:-/tmp}/rlm-git-status.XXXXXX") || {
+  print -u2 "git-status: could not create temp directory"
+  return 1
+}
+
+local -i idx=0
+local m=''
+for m in "${members[@]}"; do
+  (( idx++ ))
+  {
+    local -i n=$idx
+    local repo=$m
+    local name=${repo:t}
+
+    local branch=''
+    branch=$(git -C "$repo" symbolic-ref --quiet --short HEAD 2>/dev/null) || branch=''
+    if [[ -z $branch ]]; then
+      local short_sha=''
+      short_sha=$(git -C "$repo" rev-parse --short HEAD 2>/dev/null) || short_sha=''
+      branch="(detached${short_sha:+ $short_sha})"
+    fi
+
+    # Base ref: explicit override, else origin/<default>. origin/HEAD is
+    # only present when the clone recorded it; fall back to origin/main.
+    local base=''
+    if [[ -n $base_override ]]; then
+      base=$base_override
+    else
+      local default_branch=''
+      default_branch=$(git -C "$repo" symbolic-ref refs/remotes/origin/HEAD 2>/dev/null \
+                        | sed 's|refs/remotes/origin/||')
+      [[ -z $default_branch ]] && default_branch=main
+      base="origin/${default_branch}"
+    fi
+
+    # Divergence. rev-list --left-right --count <base>...HEAD emits
+    # "<behind>\t<ahead>": left = commits only on base, right = only on
+    # HEAD. Empty when the base ref does not exist (fresh clone, renamed
+    # default branch), which renders as "?" rather than a bogus 0/0.
+    local ahead='' behind=''
+    local counts=''
+    if git -C "$repo" rev-parse --verify --quiet "$base" >/dev/null 2>&1; then
+      counts=$(git -C "$repo" rev-list --left-right --count "${base}...HEAD" 2>/dev/null)
+      if [[ -n $counts ]]; then
+        behind=${counts%%[[:space:]]*}
+        ahead=${counts##*[[:space:]]}
+      fi
+    fi
+
+    # Working tree. porcelain=v2 gives stable two-char XY codes on the
+    # "1"/"2" (ordinary/renamed) lines, "u" for unmerged and "?" for
+    # untracked. X = staged, Y = unstaged; "." means unchanged in that
+    # half, so a staged-only change is "M." and an unstaged-only ".M".
+    local -i n_staged=0 n_unstaged=0 n_untracked=0 n_conflict=0
+    local pline='' ptype='' xy=''
+    while IFS= read -r pline; do
+      [[ -z $pline ]] && continue
+      ptype=${pline%% *}
+      case $ptype in
+        '?')
+          (( n_untracked++ ))
+          ;;
+        'u')
+          (( n_conflict++ ))
+          ;;
+        '1'|'2')
+          xy=${${(s: :)pline}[2]}
+          [[ ${xy[1]} != '.' ]] && (( n_staged++ ))
+          [[ ${xy[2]} != '.' ]] && (( n_unstaged++ ))
+          ;;
+      esac
+    done < <(git -C "$repo" status --porcelain=v2 2>/dev/null)
+
+    local -a bits
+    (( n_conflict  )) && bits+=("${n_conflict} conflict")
+    (( n_staged    )) && bits+=("${n_staged} staged")
+    (( n_unstaged  )) && bits+=("${n_unstaged} unstaged")
+    (( n_untracked )) && bits+=("${n_untracked} untracked")
+
+    local local_summary="${(j:, :)bits}"
+    local -i dirty=0
+    (( ${#bits} )) && dirty=1
+
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%d\n' \
+      "$name" "$branch" "$base" "$ahead" "$behind" "$local_summary" "$dirty" \
+      >"$tmpdir/$n"
+  } &
+done
+wait
+
+# ---------------------------------------------------------------------------
+# Read rows back in member order
+#
+# Split with the (@s) parameter flag, NOT `IFS=$'\t' read`: several fields
+# are legitimately empty (a clean repo has no local_summary; a missing base
+# ref leaves ahead/behind blank) and `read` collapses a run of delimiters
+# into one, silently shifting every later field left. See zsh/AGENTS.md.
+# ---------------------------------------------------------------------------
+
+local -a rows_changed rows_clean unchanged_names
+local -i n_changed=0
+local raw='' fname=''
+
+for (( idx = 1; idx <= ${#members}; idx++ )); do
+  fname="$tmpdir/$idx"
+  [[ -s $fname ]] || continue
+  raw=$(<"$fname")
+  raw=${raw%$'\n'}
+
+  local -a f=()
+  f=("${(@s:	:)raw}")
+  local name=${f[1]} branch=${f[2]} base=${f[3]}
+  local ahead=${f[4]} behind=${f[5]} local_summary=${f[6]} dirty=${f[7]}
+
+  # A repo is "changed" when it has uncommitted work OR has diverged from
+  # the base in either direction. An unknown base (missing ref) also counts
+  # — silence there would be indistinguishable from "in sync".
+  local -i diverged=0
+  if [[ -z $ahead || -z $behind ]]; then
+    diverged=1
+  elif (( ahead > 0 || behind > 0 )); then
+    diverged=1
+  fi
+
+  if (( dirty || diverged )); then
+    (( n_changed++ ))
+    rows_changed+=("$raw")
+  else
+    rows_clean+=("$raw")
+    unchanged_names+=("$name")
+  fi
+done
+
+rm -rf "$tmpdir"
+
+# ---------------------------------------------------------------------------
+# Render
+# ---------------------------------------------------------------------------
+
+local -a render_rows
+if (( show_all )); then
+  render_rows=("${rows_changed[@]}" "${rows_clean[@]}")
+else
+  render_rows=("${rows_changed[@]}")
+fi
+
+local repo_word='repos'
+(( ${#members} == 1 )) && repo_word='repo'
+
+printf '%s%s%s  %s(%d %s)%s\n' \
+  "$bold" "${target/#$HOME/~}" "$reset" "$dim" "${#members}" "$repo_word" "$reset"
+print
+
+if (( ${#render_rows} == 0 )); then
+  if (( ${#members} == 1 )); then
+    printf '%sclean and in sync%s\n' "$dim" "$reset"
+  else
+    printf '%sall %d repos clean and in sync%s\n' "$dim" "${#members}" "$reset"
+  fi
+  return 0
+fi
+
+# Column widths, measured over the rows actually being rendered. The base
+# ref is shown in the header rather than per row: every member of a
+# collection shares a default branch, and repeating "origin/main" seven
+# times costs a column for no information. A row whose base differs from
+# the majority is annotated inline instead.
+local -A base_count
+local row='' r_base=''
+for row in "${render_rows[@]}"; do
+  local -a rf=()
+  rf=("${(@s:	:)row}")
+  r_base=${rf[3]}
+  base_count[$r_base]=$(( ${base_count[$r_base]:-0} + 1 ))
+done
+
+local common_base='' bk=''
+local -i best=0
+for bk in ${(k)base_count}; do
+  if (( base_count[$bk] > best )); then
+    best=${base_count[$bk]}
+    common_base=$bk
+  fi
+done
+
+local -i w_name=4 w_branch=6
+for row in "${render_rows[@]}"; do
+  local -a rf=()
+  rf=("${(@s:	:)row}")
+  (( ${#rf[1]} > w_name   )) && w_name=${#rf[1]}
+  (( ${#rf[2]} > w_branch )) && w_branch=${#rf[2]}
+done
+
+# Keep the branch column from swallowing the terminal. Collections use long
+# branch names (DATA-2770/feat/widen_gar_cleanup_policies), so cap and
+# ellipsize rather than wrapping the table.
+local -i w_branch_max=38
+(( w_branch > w_branch_max )) && w_branch=$w_branch_max
+
+printf '%s%-*s  %-*s  %-11s  %s%s\n' \
+  "$bold" "$w_name" "REPO" "$w_branch" "BRANCH" "VS ${common_base#origin/}" "LOCAL" "$reset"
+
+local -a shown_clean
+for row in "${render_rows[@]}"; do
+  local -a rf=()
+  rf=("${(@s:	:)row}")
+  local r_name=${rf[1]} r_branch=${rf[2]}
+  local r_ahead=${rf[4]} r_behind=${rf[5]} r_local=${rf[6]}
+  r_base=${rf[3]}
+
+  local disp_branch=$r_branch
+  if (( ${#disp_branch} > w_branch )); then
+    disp_branch="${disp_branch[1,$(( w_branch - 1 ))]}…"
+  fi
+
+  # Divergence cell: "=" in sync, "+N" ahead, "-N" behind, "+N -M" both,
+  # "?" when the base ref is missing.
+  local cell='' cell_plain=''
+  if [[ -z $r_ahead || -z $r_behind ]]; then
+    cell="${yellow}?${reset}"
+    cell_plain='?'
+  elif (( r_ahead == 0 && r_behind == 0 )); then
+    cell="${dim}=${reset}"
+    cell_plain='='
+  else
+    local -a parts=() parts_plain=()
+    (( r_ahead  > 0 )) && { parts+=("${green}+${r_ahead}${reset}"); parts_plain+=("+${r_ahead}"); }
+    (( r_behind > 0 )) && { parts+=("${red}-${r_behind}${reset}");  parts_plain+=("-${r_behind}"); }
+    cell="${(j: :)parts}"
+    cell_plain="${(j: :)parts_plain}"
+  fi
+
+  # printf counts escape bytes, so pad against the visible width and emit
+  # the colored string separately.
+  local -i pad=$(( 11 - ${#cell_plain} ))
+  (( pad < 0 )) && pad=0
+
+  local local_cell=''
+  if [[ -n $r_local ]]; then
+    local_cell="${yellow}${r_local}${reset}"
+  else
+    local_cell="${dim}clean${reset}"
+  fi
+
+  # A row on a non-majority base gets the base spelled out after it.
+  local base_note=''
+  [[ -n $common_base && $r_base != $common_base ]] && base_note=" ${dim}(vs ${r_base})${reset}"
+
+  printf '%-*s  %s%-*s%s  ' "$w_name" "$r_name" "$cyan" "$w_branch" "$disp_branch" "$reset"
+  print -rn -- "$cell"
+  printf '%*s  ' "$pad" ''
+  print -rn -- "$local_cell"
+  print -r -- "$base_note"
+done
+
+# ---------------------------------------------------------------------------
+# Unchanged roll-up
+#
+# Strip the longest "-"-delimited prefix shared by EVERY member (e.g.
+# "data-platform-") so the line stays short. Computed across all members,
+# not just the unchanged ones, so the abbreviation does not shift depending
+# on which repos happen to be dirty. Same approach as wt-collection-preview.
+#
+# A prefix is only stripped when it is long enough to be boilerplate: at
+# least 8 characters AND spanning 2+ "-"-delimited segments. "data-platform-"
+# (14 chars, 2 segments) qualifies; "repo-" (5 chars, 1 segment) does not —
+# stripping the latter turns repo-one/repo-two/repo-three into
+# "one, two, three", which is shorter but no longer reads as repo names.
+# The remainder must also keep 3+ characters on every name.
+# ---------------------------------------------------------------------------
+
+if (( ! show_all )) && (( ${#unchanged_names} )); then
+  local prefix=''
+  local -a seg_parts=()
+  seg_parts=("${(@s:-:)${members[1]:t}}")
+  local -i si=0
+  local cand=''
+  for (( si = ${#seg_parts} - 1; si >= 1; si-- )); do
+    cand="${(j:-:)seg_parts[1,$si]}-"
+    local -i ok=1
+    local mm=''
+    for mm in "${members[@]}"; do
+      [[ ${mm:t} == ${cand}* ]] || { ok=0; break; }
+    done
+    (( ok )) && { prefix=$cand; break; }
+  done
+
+  # Reject a prefix that is too short to be boilerplate, measured both in
+  # characters and in "-"-delimited segments.
+  if [[ -n $prefix ]]; then
+    local -a pseg=()
+    pseg=("${(@s:-:)${prefix%-}}")
+    if (( ${#prefix} < 8 || ${#pseg} < 2 )); then
+      prefix=''
+    fi
+  fi
+
+  local -i all_prefixed=0
+  local nm=''
+  if [[ -n $prefix ]]; then
+    all_prefixed=1
+    for nm in "${unchanged_names[@]}"; do
+      [[ $nm == ${prefix}* ]] || { all_prefixed=0; break; }
+      (( ${#nm} - ${#prefix} >= 3 )) || { all_prefixed=0; break; }
+    done
+  fi
+
+  local -a short_names=()
+  for nm in "${unchanged_names[@]}"; do
+    if (( all_prefixed )); then
+      short_names+=("${nm#$prefix}")
+    else
+      short_names+=("$nm")
+    fi
+  done
+
+  print
+  printf '%sunchanged: %s%s\n' "$dim" "${(j:, :)short_names}" "$reset"
+fi
+
+print
+printf '%s%d of %d %s with changes%s\n' \
+  "$dim" "$n_changed" "${#members}" "$repo_word" "$reset"

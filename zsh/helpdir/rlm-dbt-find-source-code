@@ -57,18 +57,22 @@ ENVIRONMENT
                     profile's default target, then "dev".
   DBT_USE_FUSION    Optional. When set to "1", invokes "dbtf" (the
                     Fusion binary) instead of "poetry run dbt".
+  DBT_USE_UV        Optional. When set to "1", uses uv instead of
+                    poetry. uv is also auto-detected when a uv.lock
+                    file sits next to pyproject.toml.
 
 PREREQUISITES
   - Must be run from inside a dbt project (a dbt_project.yml file
     must exist in the current directory or any parent, outside
     package directories).
-  - poetry must be available in PATH and the project venv must
-    include dbt-core (unless DBT_USE_FUSION=1, in which case the
-    `dbtf` alias must point at a Fusion binary).
+  - poetry (or uv, when DBT_USE_UV=1 or uv.lock is present) must be
+    available in PATH and the project venv must include dbt-core
+    (unless DBT_USE_FUSION=1, in which case the `dbtf` alias must
+    point at a Fusion binary).
   - profile/profiles.yml must exist under dbt_project_root.
 
 REQUIRES
-  fzf, jq, poetry (or dbtf when DBT_USE_FUSION=1)
+  fzf, jq, poetry or uv (or dbtf when DBT_USE_FUSION=1)
 OPTIONAL
   bat (better-rendered preview), pbcopy / xclip / xsel (clipboard
   copy of the selected path)

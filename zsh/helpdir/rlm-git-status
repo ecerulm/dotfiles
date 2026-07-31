@@ -1,0 +1,55 @@
+rlm-git-status [-a|--all] [-b|--base <ref>] [<directory>]
+
+Status roll-up across every git repo in a directory. Written for the
+multi-repo collection dirs created by rlm-pr-worktree's multi-repo mode
+— one directory holding a worktree of every repo on a shared branch —
+where the question is "what in this change set is still unfinished?"
+
+Scans the immediate children of <directory> (default: the current
+directory), treating each child that is its own git worktree root as a
+member. When the target is itself a repo and has no repo children, it
+reports on just that repo, so the function also works as a plain
+status summary from inside a single worktree.
+
+Two independent dimensions are reported per repo, because a repo can
+be any combination of them:
+
+  VS <base>   Commit divergence from the base branch, shown as +N
+              (ahead), -N (behind), both, "=" when in sync, or "?"
+              when the base ref does not exist in that repo.
+  LOCAL       Uncommitted work, broken down as conflict / staged /
+              unstaged / untracked counts, or "clean".
+
+By default only repos in either state are listed; the rest collapse
+onto one dim "unchanged:" line, since in a typical 7-repo collection
+only one or two differ and listing all of them buries the ones that
+matter. Repo names on that line are abbreviated by stripping a shared
+boilerplate prefix (data-platform-) when one is long enough to be
+worth removing.
+
+The base ref defaults to origin/<default branch>, read from
+origin/HEAD and falling back to origin/main. Nothing is ever fetched,
+so divergence is measured against the remote-tracking refs as they
+stand locally — run `git fetch` first if they may be stale.
+
+Repos are probed in parallel, so a 7-repo collection costs roughly one
+git round of wall-clock rather than seven.
+
+Colors are emitted only when stdout is a terminal, so the table stays
+pasteable when piped or redirected.
+
+OPTIONS
+  -a, --all          List every repo, including clean ones, instead of
+                     collapsing them onto the "unchanged:" line.
+  -b, --base <ref>   Compare against <ref> instead of
+                     origin/<default branch>.
+  -h, --help         Print a usage line.
+
+EXAMPLES
+  git-status ~/git/work/StorytelDataPlatform_20260730_DATA-2770-foo
+  git-status                      # current directory
+  git-status --all                # include clean repos
+  git-status --base origin/develop
+
+REQUIRES
+  git

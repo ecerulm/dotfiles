@@ -29,8 +29,8 @@ if [[ $PWD != $project_root ]]; then
   cd "$project_root" || return 1
 fi
 
-if ! command -v poetry >/dev/null 2>&1; then
-  print -u2 "afw-deploy: 'poetry' not found in PATH"
+if ! command -v uv >/dev/null 2>&1; then
+  print -u2 "afw-deploy: 'uv' not found in PATH"
   return 1
 fi
 
@@ -44,11 +44,17 @@ if ! command -v fd >/dev/null 2>&1; then
   return 1
 fi
 
-# Verify `poetry run afw` resolves to the project venv (not a stray $PATH
+# Verify `uv run afw` resolves to the project venv (not a stray $PATH
 # afw) and auto-install if not. Shared helper handles the three-line
 # diagnostic on hard failure.
-autoload -Uz _rlm-poetry-ensure-venv
-_rlm-poetry-ensure-venv "$PWD" afw afw-deploy || return 1
+#
+# The project is uv-managed (uv.lock is tracked; the Justfile drives
+# everything through `uv run`). uv also honours `requires-python`
+# (>=3.11,<3.12, pinned to the Cloud Composer 3 image) and will fetch a
+# managed interpreter when no compatible one is installed — poetry
+# instead errors out and demands a manual `env use`.
+autoload -Uz _rlm-uv-ensure-venv
+_rlm-uv-ensure-venv "$PWD" afw afw-deploy || return 1
 
 # ---------------------------------------------------------------------------
 # Cache: remember last selections per project root
@@ -260,7 +266,7 @@ bucket="europe-west1-sdp-composer-91ff48c9-bucket"
 subnetwork="ecerulm"
 
 print "afw-deploy: deploying ${(j:, :)dag_names} to env=${env} …" >&2
-poetry run afw sandbox deploy \
+uv run afw sandbox deploy \
   -e "$env" \
   -b "$bucket" \
   -s "$subnetwork" \
