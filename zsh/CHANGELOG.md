@@ -4,6 +4,12 @@ All notable changes to the zsh configuration are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2026-08-01]
+
+### Added
+
+- `rlm-tfplan` (`tfplan`) and `rlm-tfapply` (`tfapply`): function forms of the long-standing `tp` / `ta` aliases (`terraform plan -out latest.tfplan` / `terraform apply latest.tfplan`), which stay available unchanged. The aliases already encoded the right workflow — plan to a file, apply *that* file, so what runs is what was reviewed rather than a plan terraform re-computes at apply time — but being aliases they had nowhere to put the two checks that make the workflow safe to use unattended. `rlm-tfplan` refuses to run when the current directory holds no `*.tf` / `*.tf.json`, turning the everyday wrong-directory mistake into an immediate message instead of terraform's confusing complaint about an empty configuration, and on success prints the exact `terraform apply <plan-file>` command so the follow-up is copy-pasteable when the plan filename isn't the default. `rlm-tfapply` refuses when the plan file is absent ("run tfplan first"), and — the reason the pair is worth having as functions at all — **warns when any `*.tf` / `*.tf.json` source is newer than the plan file**: terraform applies a saved plan without complaint after the config has been edited, silently leaving those edits out of the run, and nothing in the output says so. The warning goes to stderr and deliberately does *not* block, since re-planning is sometimes exactly what you don't want; staleness is detected with zsh's `-nt` test rather than parsing `stat` output. Both take pass-through arguments (`-target=`, `-var-file=` on plan; `-parallelism=`, `-lock-timeout=` on apply — extra apply flags go *before* the plan file, since terraform rejects `-var`/`-target`/`-refresh` alongside a saved plan) and honour `TFPLAN_FILE` to override `latest.tfplan`; note the `ta` alias still hardcodes `latest.tfplan`, so a custom name has to go through `tfapply`. Exit status is terraform's in both.
+
 ## [2026-07-31]
 
 ### Added

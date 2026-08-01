@@ -1,0 +1,32 @@
+# tfplan — run `terraform plan -out latest.tfplan` in the current
+# directory, then print the exact `terraform apply` command for the
+# saved plan file.
+#
+# Usage:
+#   tfplan
+#   tfplan -target=module.foo
+#   tfplan -var-file=prod.tfvars -refresh=false
+#   TFPLAN_FILE=prod.tfplan tfplan
+#
+# Requires: terraform.
+
+emulate -L zsh
+set -o pipefail
+
+(( $+commands[terraform] )) || {
+  print -u2 -r -- "tfplan: 'terraform' not found in PATH"
+  return 1
+}
+
+local -a tf_files
+tf_files=(*.tf(N) *.tf.json(N))
+if (( ${#tf_files} == 0 )); then
+  print -u2 -r -- "tfplan: no *.tf files in ${PWD} — not a terraform directory"
+  return 1
+fi
+
+local plan_file=${TFPLAN_FILE:-latest.tfplan}
+
+terraform plan -out "$plan_file" "$@" || return $?
+
+print -r -- "tfplan: wrote ${plan_file} — apply with: terraform apply ${plan_file}"

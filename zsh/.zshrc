@@ -146,6 +146,8 @@ autoload -Uz rlm-dbt-ls
 autoload -Uz rlm-dbt-run
 autoload -Uz rlm-dbt-sandbox
 autoload -Uz rlm-dbt-test
+autoload -Uz rlm-tfapply
+autoload -Uz rlm-tfplan
 autoload -Uz rlm-tsconv
 # run-help: use the real autoloaded version (default is aliased to man)
 unalias run-help 2>/dev/null
@@ -238,6 +240,8 @@ alias dbt-ls='rlm-dbt-ls'
 alias dbt-run='rlm-dbt-run'
 alias dbt-sandbox='rlm-dbt-sandbox'
 alias dbt-test='rlm-dbt-test'
+alias tfapply='rlm-tfapply'
+alias tfplan='rlm-tfplan'
 alias tsconv='rlm-tsconv'
 
 # brew shellenv — single eval based on the hardcoded prefix above.

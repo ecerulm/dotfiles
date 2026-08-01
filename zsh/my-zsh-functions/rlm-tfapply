@@ -1,0 +1,38 @@
+# tfapply — apply the saved plan file written by `tfplan`
+# (`latest.tfplan` by default), so the applied changes are exactly the
+# ones that were reviewed.
+#
+# Usage:
+#   tfapply
+#   tfapply -parallelism=5
+#   TFPLAN_FILE=prod.tfplan tfapply
+#
+# Requires: terraform.
+
+emulate -L zsh
+set -o pipefail
+
+(( $+commands[terraform] )) || {
+  print -u2 -r -- "tfapply: 'terraform' not found in PATH"
+  return 1
+}
+
+local plan_file=${TFPLAN_FILE:-latest.tfplan}
+
+if [[ ! -f $plan_file ]]; then
+  print -u2 -r -- "tfapply: no plan file '${plan_file}' in ${PWD} — run tfplan first"
+  return 1
+fi
+
+# A saved plan does not pick up later edits to the config, and terraform
+# applies it without complaint, so flag sources newer than the plan.
+local -a stale_srcs=()
+local src=''
+for src in *.tf(N) *.tf.json(N); do
+  [[ $src -nt $plan_file ]] && stale_srcs+=("$src")
+done
+if (( ${#stale_srcs} )); then
+  print -u2 -r -- "tfapply: warning: ${plan_file} is older than ${stale_srcs[*]} — re-run tfplan to include those edits"
+fi
+
+terraform apply "$@" "$plan_file"

@@ -1,0 +1,31 @@
+rlm-tfplan [TERRAFORM-PLAN-ARGS...]
+
+Run `terraform plan -out latest.tfplan` in the current directory, so
+the plan can be reviewed and then applied unchanged. On success it
+prints the exact `terraform apply <plan-file>` command to run next.
+
+Refuses to run when `terraform` is not on `$PATH`, or when the current
+directory contains no `*.tf` / `*.tf.json` files — that check turns the
+common "wrong directory" mistake into an immediate error instead of a
+confusing terraform message about an empty configuration.
+
+Any extra arguments are passed straight through to `terraform plan`,
+so flags like `-target=`, `-var-file=`, `-refresh=false` and
+`-destroy` work as usual. The function's own exit status is
+terraform's.
+
+This is the function form of the older `tp` alias, which remains
+available.
+
+ARGUMENTS
+  TERRAFORM-PLAN-ARGS   Optional; forwarded verbatim to
+                        `terraform plan`.
+
+ENVIRONMENT
+  TFPLAN_FILE   Plan output filename (optional, default
+                `latest.tfplan`). Note that the `ta` alias always
+                applies `latest.tfplan`, so a custom name must be
+                applied with the printed command instead.
+
+REQUIRES
+  terraform

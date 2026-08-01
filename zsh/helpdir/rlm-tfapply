@@ -1,0 +1,36 @@
+rlm-tfapply [TERRAFORM-APPLY-ARGS...]
+
+Apply the saved plan file written by `rlm-tfplan` (`latest.tfplan` by
+default), so what gets applied is exactly what was reviewed rather than
+a freshly re-computed plan.
+
+Refuses to run when `terraform` is not on `$PATH`, or when the plan file
+does not exist in the current directory — the latter turns the usual
+"wrong directory" and "forgot to plan" mistakes into a clear message.
+
+Terraform will happily apply a saved plan even after the `.tf` sources
+have been edited, silently leaving those edits out of the run, so any
+`*.tf` / `*.tf.json` file newer than the plan file is reported as a
+warning on stderr. The warning does not block the apply; re-run
+`tfplan` to fold the edits in.
+
+Any extra arguments are passed to `terraform apply` ahead of the plan
+file, so flags like `-parallelism=` and `-lock-timeout=` work as usual.
+Flags that terraform rejects when applying a saved plan (`-var`,
+`-target`, `-refresh`, …) belong on `tfplan` instead. The function's
+exit status is terraform's.
+
+This is the function form of the older `ta` alias, which remains
+available.
+
+ARGUMENTS
+  TERRAFORM-APPLY-ARGS   Optional; forwarded verbatim to
+                         `terraform apply`, before the plan file.
+
+ENVIRONMENT
+  TFPLAN_FILE   Plan file to apply (optional, default
+                `latest.tfplan`). Shared with `rlm-tfplan`, so setting
+                it for both keeps the pair in sync.
+
+REQUIRES
+  terraform

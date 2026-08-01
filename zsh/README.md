@@ -130,6 +130,13 @@ are available in any interactive shell. Each function is also aliased to a short
 | `rlm-pyactivate [version]` | `pyactivate` | Activate a Python environment by name. Uses `uv` if available, falls back to `pyenv`. Without an argument reads the version from `.python-version`. Defines a `deactivate` function to restore `PATH`. |
 | `rlm-pyclean` | `pyclean` | Delete all `*.pyc` / `*.pyo` files and `__pycache__` directories under the current directory. |
 
+### Terraform
+
+| Function | Short alias | Description |
+|---|---|---|
+| `rlm-tfapply [args...]` | `tfapply` | Apply the saved `latest.tfplan` written by `tfplan`, so the applied changes are the reviewed ones. Errors out if `terraform` is missing or the plan file is absent, and warns (without blocking) when a `*.tf` / `*.tf.json` file is newer than the plan. Extra arguments are forwarded to `terraform apply` before the plan file; override the plan filename with `$TFPLAN_FILE`. Function form of the `ta` alias. Requires `terraform`. |
+| `rlm-tfplan [args...]` | `tfplan` | Run `terraform plan -out latest.tfplan` in the current directory and print the matching `terraform apply <plan-file>` command. Errors out early if `terraform` is missing or the directory holds no `*.tf` / `*.tf.json` files. Extra arguments are forwarded to `terraform plan` (`-target=`, `-var-file=`, …); override the output filename with `$TFPLAN_FILE`. Function form of the `tp` alias. Requires `terraform`. |
+
 ### Passwords / Security
 
 | Function | Short alias | Description |
