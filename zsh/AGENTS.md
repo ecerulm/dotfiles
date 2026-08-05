@@ -86,12 +86,13 @@ Always emit strings with `print -r -- "$value"` (or `printf '%s\n'`). Without `-
 
 ### awk on macOS is BWK, not gawk
 
-Two patterns silently fail (exit 0, empty output — no error):
+Three patterns silently fail (exit 0, no error):
 
 1. **`-` for stdin alongside a real file** (`awk '...' fileA -`) breaks when `fileA` is empty (0 bytes); BWK skips the `-`. Fix: write both inputs to real `mktemp` files, or gate the awk pass on `[[ -s $file ]]` and use a shell-only path otherwise. `/dev/stdin` is not a fix.
 2. **`awk -v var=value` with embedded newlines** → `awk: newline in string`. Pass multi-line data via a real file, never `-v`.
+3. **`RS='\0'` for NUL-separated input** (`git … -z`, `find -print0`) is **not supported**. BWK does not error — it reads the *entire stream as one record*, so a loop that should emit N paths emits 1. Fix: `| tr '\0' '\n' |` before awk. Caught in `rlm-fe`'s `_fe_dirty_files`, where 8 dirty files produced 1 path and the other 7 were silently mis-sorted as clean — the tell is output that is non-empty but suspiciously short, which is easier to miss than an empty pipeline.
 
-Symptom card: an awk pipeline producing zero output despite healthy upstream → suspect (1) a `-` after a possibly-empty mktemp file, or (2) `-v var=$(cmd_emitting_newlines)`.
+Symptom card: an awk pipeline producing zero output despite healthy upstream → suspect (1) a `-` after a possibly-empty mktemp file, or (2) `-v var=$(cmd_emitting_newlines)`. Producing exactly **one** record from many → suspect (3).
 
 ### direnv chatter from `$(cd … && cmd)` subshells
 
@@ -266,6 +267,40 @@ Use a descriptive name instead: `wt_abs`, `abs_path`, `dir_path`, etc.
 The same applies to other zsh tied scalars/arrays: `cdpath`, `fpath`,
 `manpath`, `mailpath`.
 
+### `git log` over a partial clone hangs — set `GIT_NO_LAZY_FETCH=1`
+
+Some checkouts here are partial clones (`git config remote.origin.partialclonefilter` → `blob:none`; `storytelhomepage` is
+one). Any history walk that needs tree/blob data — `git log --name-only`,
+`--stat`, `-p`, `--follow` — makes git **lazily fetch the missing objects
+over the network, one round-trip at a time**. There is no error and no
+progress output; the command just sits there.
+
+The cost is per missing object, not per commit, so the usual "cap it with
+`-n`" reflex misleads you into thinking it scales:
+
+| repo | walk |
+|---|---|
+| dotfiles (2k commits) | 0.13 s |
+| infra-gcp (16k commits) | 0.19 s |
+| storytelhomepage `-n 300` | 0.06 s |
+| storytelhomepage `-n 1500` | **45 s** |
+| storytelhomepage (full) | **>3 min** |
+
+Prefix any history walk in an interactive path with `GIT_NO_LAZY_FETCH=1`:
+
+```zsh
+GIT_NO_LAZY_FETCH=1 git -C "$repo_root" log --format='C%ct' --name-only --no-merges
+```
+
+git then refuses to hit the network and stops at the first missing object
+— 1.16s instead of minutes, still resolving ~78% of tracked files. Treat
+partial results as expected and fall back per-file (`rlm-fe` falls back to
+filesystem mtime). This matters most in fzf previews, which re-run on
+every keystroke.
+
+Symptom card: a `git log` variant that is instant in one repo and appears
+to hang forever in another, with no error and no output.
+
 ### Always use OSC 8 hyperlinks for URLs — never print a bare URL
 
 Bare URLs in fzf preview panes (and in terminal output generally) wrap at
@@ -290,6 +325,13 @@ Rules:
   (query params, long project IDs) and wrapping breaks them silently.
 - Keep the visible label short and human-readable (`Open in GCP console`,
   `Artifact Registry`, `BigQuery table`, etc.).
+- When a line pairs a short identifier with long prose (`#13106` +
+  a PR title, a ticket key + its summary), **link only the identifier**
+  and print the prose as plain text beside it. The click target then
+  cannot wrap, it is visually obvious, and the prose is free to be any
+  length — plain-text wrapping is harmless. Linking the whole string
+  forces you to truncate it to protect the link. Applied in
+  `bin/fe-preview`'s PR line.
 - In preview commands (plain `sh` subshell): use `printf` directly —
   `print` is not available and `echo` interprets escapes inconsistently.
 - In zsh function bodies: capture with `$(printf …)` and re-emit with
@@ -305,13 +347,18 @@ Every `fzf` invocation includes:
 ```sh
 fzf --no-mouse --ansi --height=80% --reverse \
     --preview-window=bottom:40%:wrap \
+    --header='TAB multi • Enter open • Shift/Alt-↑↓ scroll • Ctrl-P size • Ctrl-G abort' \
     --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)' \
+    --bind='shift-up:preview-up' --bind='shift-down:preview-down' \
+    --bind='alt-up:preview-half-page-up' --bind='alt-down:preview-half-page-down' \
     --bind='ctrl-g:abort'
 ```
 
 - `--no-mouse` — lets the terminal handle selection/copy and keep OSC 8 links clickable.
 - `--ansi` — required for ANSI color **and** OSC 8 pass-through (fzf ≥0.55 strips `ESC ]` without it). Always pass it, even when the preview doesn't yet emit color/links.
 - `--bind='ctrl-g:abort'` — reliable escape hatch; Ghostty's keyboard protocol can swallow Ctrl-C and leave the picker hung. Add to **every** picker regardless of terminal.
+- **Preview scrolling** — `shift-up`/`shift-down` are fzf defaults but undiscoverable; bind them explicitly so the header can't drift from behaviour, and add `alt-up`/`alt-down` for half-page jumps (a previewed file is usually longer than the pane). Do **not** use Ctrl-U/Ctrl-D: fzf binds those to `unix-line-discard` and `delete-char/eof` on the query line.
+- `--header` — list the keys. Keep it **≤80 display columns** or it wraps and eats a second row; `•` is the separator used across these pickers. Measure the string, don't eyeball it — `Shift/Alt-↑↓` reads as ASCII width but the arrows are multibyte.
 
 Preview commands run in a plain `sh` subshell with **no** zsh `$PATH` additions or autoloaded functions — use full paths (e.g. `$HOME/bin/<script>`) for helper scripts. Inside tmux, OSC 8 also needs `set -ga terminal-features "*:hyperlinks"` in `tmux.conf` (already set).
 
@@ -334,13 +381,14 @@ Use this whenever entries have color categories, hidden sort keys, a display≠i
 
 ### Standard preview scripts
 
-For BigQuery and git-worktree previews, call the shared scripts (full path) instead of inlining `bq show`/jq or JIRA/`gh`/`stat` logic:
+For BigQuery, git-worktree, and file previews, call the shared scripts (full path) instead of inlining `bq show`/jq or JIRA/`gh`/`stat` logic:
 
 - `"$HOME/bin/bq-preview" "project:dataset.table"` — type, project_id (purple `-dev`/green `-prod`), dataset, table, updated/created (local + humanized), rows, bytes, description/partitioning/clustering when present, schema field list. Strip ANSI + extract the ref first if lines are colored/tab-delimited.
 - `"$HOME/bin/wt-preview" {N}` (`{N}` = absolute worktree path) — path, branch, JIRA (OSC 8 link, cached `~/.cache/wts-jira/<KEY>.summary`, 3-day TTL), PR (`gh pr list`), created (birthtime), updated (newest mtime), changed files vs `origin/<default>`. Used by `rlm-wts`, `rlm-pr-worktree-rm`.
 - `"$HOME/bin/wt-collection-preview" {N}` (`{N}` = absolute path of a multi-repo **collection** dir) — JIRA (OSC 8 link, key from the dirname else a member branch; same cache/TTL), the branch shared by members, created/updated, and a per-repo change roll-up: repos differing from `origin/<default>` get their changed-file list, the rest collapse onto one `unchanged:` line. Used by `rlm-wts`'s collection mode. Reserve for collection dirs; `wt-preview` remains the single-worktree case.
+- `"$HOME/bin/fe-preview" {N}` (`{N}` = absolute **file** path) — path, GitHub permalink (OSC 8; pinned to the file's last-touching commit, emitted only when `git branch -r --contains` proves that commit is on a remote — a local-only commit would 404; label is the repo-relative path, middle-elided past 58 chars so it never wraps), fs mtime (tagged `[dirty XY]`/`[untracked]`), last commit (time + short SHA + subject), author as `Name <email>` via **`%aN <%aE>`** (mailmap-aware — `%an`/`%ae` leak GitHub noreply addresses; `~/git/work/.gitconfig` sets `mailmap.file`), PR number **and title** (only `#N` is the OSC 8 link — a short click target can't wrap; title follows as plain text, sourced from the subject for `… (#N)` or from the API for `Merge pull request #N from …`, which carries only the branch), then contents via `bat` else `cat`. PR number is parsed from the commit subject first (`… (#123)` / `Merge pull request #123 from …`, free + offline), falling back to `gh api …/commits/<sha>/pulls` cached at `~/.cache/rlm-fe/pr/<sha>` (negatives cached as empty files). Used by `rlm-fe`. Binary files render `<binary file>`; untracked files and non-git dirs omit the git sections.
 
-All three are at `~/dotfiles/bin/` symlinked to `~/bin/`; being on `$PATH` is what makes them callable from the preview subshell.
+All four are at `~/dotfiles/bin/` symlinked to `~/bin/`; being on `$PATH` is what makes them callable from the preview subshell.
 
 ## Linting
 

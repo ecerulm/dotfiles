@@ -1,26 +1,120 @@
 rlm-fe
 
 Fuzzy-edit. Pick one or more files reachable from the current
-directory (recursive) using fzf, then open them in $EDITOR. The file
-contents are shown in the fzf preview pane. Press Tab to mark files
-for multi-select, Enter to open, Ctrl-P to cycle the preview pane
-height.
+directory (recursive) using fzf, then open them in $EDITOR.
+
+KEYS  (also listed in the picker's header line)
+  Tab            mark a file for multi-select
+  Enter          open the marked files (or the current one) in $EDITOR
+  Shift-Up/Down  scroll the preview one line
+  Alt-Up/Down    scroll the preview half a page
+  Ctrl-P         cycle preview pane height (40% / 70% / hidden)
+  Ctrl-G         abort
+
+Shift-Up/Down are fzf's own defaults, bound explicitly here so the
+header cannot drift from what the picker actually does. The half-page
+Alt bindings are added because a source file is usually longer than
+the pane. Ctrl-U/Ctrl-D were deliberately not used: fzf binds those to
+unix-line-discard and delete-char/eof on the query line, which are
+worth keeping.
 
 Files are listed with fd, including hidden and gitignored files (the
-.git directory is excluded). The display column is relative to the
-current directory; the full absolute path is what the picker acts on.
+.git directory is excluded). The first column is a humanized age
+("2 hours ago"); the second is the path relative to the current
+directory. The full absolute path is what the picker acts on.
 
-Entries are sorted by recently-selected first, then by file mtime
-descending for entries that have never been picked. Within
-previously-picked entries, the most-recent pick wins.
+SORTING
+Entries form a single timeline, newest first, so the visible order
+always matches the visible age column. Each file's change time is:
+
+  dirty / untracked   filesystem mtime  (when you actually edited it)
+  clean, tracked      git commit time   (when it last really changed)
+  not in git at all   filesystem mtime
+
+That time is then taken against the MRU pick time, so opening a file
+floats it to the top and it decays from there, interleaved with
+everything else. There is no separate pinned block of picked files.
+
+The dirty/clean split matters because in a fresh clone every file's
+filesystem mtime is the *checkout* timestamp, not an edit time: 500
+sampled files in one work checkout shared just 2 distinct mtimes.
+Sorting on mtime alone (or on max(mtime, commit time)) would stamp the
+whole tree with one meaningless value. A file's mtime only means
+"someone edited this" when git reports it as modified, staged, or
+untracked, which is exactly when it should win over the commit time.
+Dirty state comes from one `git status --porcelain -z` per run.
+
+Git times come from one `git log --name-only` walk that resolves every
+tracked file in a single process. The walk runs with
+GIT_NO_LAZY_FETCH=1: in a partial clone (--filter=blob:none) git would
+otherwise fetch missing objects over the network one round-trip at a
+time, which turns a 0.1s walk into minutes. With lazy fetch refused
+git stops at the first missing object; files it could not resolve fall
+back to their filesystem mtime. Outside a git repo the git step is
+skipped entirely.
+
+PREVIEW
+The preview pane is rendered by bin/fe-preview and shows the full
+path, a GitHub permalink to the file, the filesystem mtime (tagged
+[dirty XY] or [untracked] when git says so, which is when that mtime
+is the authoritative change time), the last commit (time, short SHA,
+subject), its author as "Name <email>", the associated pull request
+(number and title) as a clickable link, and then the file contents
+(via bat when available, else cat).
+
+The author is read with git's %aN <%aE>, the mailmap-aware forms, so a
+GitHub noreply address is rewritten to the person's real one when a
+.mailmap applies (the work checkouts set mailmap.file in
+~/git/work/.gitconfig). The lowercase %an/%ae would show an address you
+cannot mail.
+
+The GitHub line is an OSC 8 hyperlink pinned to the commit that last
+touched that file, not to HEAD: that is the revision being previewed,
+and it is far likelier to exist on the remote than a local HEAD
+sitting on unpushed work. It is emitted only when the commit is
+actually reachable from a remote branch, so a local-only commit shows
+no link rather than one that 404s. Non-GitHub remotes are skipped. For
+a dirty file the link is marked "(committed version)", since the
+on-disk contents differ from what it points at. The visible label is
+the repo-relative path, elided in the middle when long (src/…/Foo.java)
+— a wrapped OSC 8 label breaks the click target, and the full path is
+already on the Path: line where wrapping is harmless.
+
+The PR number is parsed out of the commit subject first, matching the
+two GitHub merge styles at their anchors:
+
+  "<title> (#123)"                  squash-merge — subject IS the title,
+                                    so number and title both come free
+  "Merge pull request #123 from X"  merge commit — carries only the
+                                    source branch, never the title
+
+A bare "#123" anywhere else ("Fix #4242 in the parser") is an issue
+reference, not a merge, and is deliberately ignored.
+
+The GitHub API is consulted only when that leaves something missing —
+no number at all, or a merge commit whose title is still unknown — and
+the result is cached under ~/.cache/rlm-fe/pr/<sha> as
+"<number>\t<title>\t<url>". A negative result is cached too (empty
+file), so a commit genuinely without a PR costs one call once rather
+than one per preview. A failed or empty lookup never discards a number
+already parsed from the subject: "#123" with no title beats no PR line
+at all.
+
+Only the "#123" token is the hyperlink; the title follows as plain
+text. A short, fixed-width click target can never wrap (which would
+break the link) and makes the clickable region obvious instead of
+turning a whole sentence into one link — and the title, being plain
+text, is free to wrap harmlessly at any length.
 
 MRU history is recorded by the shared helper _rlm-fe-history in
 ~/.cache/rlm-fe/history.tsv, keyed on each file's full absolute path.
-Because the cache stores full paths, a file keeps its MRU rank no
+Because the cache stores full paths, a file keeps its recency no
 matter which directory rlm-fe is run from.
 
 ENVIRONMENT
   EDITOR   Editor to open the selected files (falls back to vi).
 
 REQUIRES
-  fd, fzf, python3
+  fd, fzf, python3. Optional: git (commit times, author, PR),
+  gh (PR lookup when the subject has no number), bat (syntax
+  highlighting in the preview).

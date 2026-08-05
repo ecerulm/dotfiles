@@ -1,0 +1,351 @@
+#!/usr/bin/env zsh
+# Usage: fe-preview <file-absolute-path>
+#
+# Prints a standardized file summary + contents for the fzf preview pane
+# used by `rlm-fe` (fuzzy-edit).
+#
+# Output fields (in order):
+#   Path        the full absolute path of the file
+#   Modified    filesystem mtime, local time + "(X units ago)"
+#   Commit      last commit that touched the file, local time +
+#               "(X units ago)" + short SHA + subject  (tracked files only)
+#   Author      author of that last commit                (tracked files only)
+#   PR          #NNN  Title  (OSC 8 hyperlink to the PR)   (when resolvable)
+#   ---
+#   <file contents>  (bat when available, else cat)
+#
+# The script never fails the picker: every external call is guarded and
+# missing sections are simply omitted.
+#
+# PR resolution is cheap-first. The PR number is parsed out of the commit
+# subject, which covers both GitHub merge styles seen in these repos:
+#   squash-merge   "fix: change cachekey (#13110)"
+#   merge-commit   "Merge pull request #13099 from Storytel/..."
+# That costs nothing and needs no network. Only when the subject carries
+# no number do we fall back to the GitHub API (the same
+# repos/{owner}/{repo}/commits/<sha>/pulls call rlm-pr-for-commit makes),
+# and the answer is cached under ~/.cache/rlm-fe/pr/<sha> so scrolling
+# back over a file never re-queries. A negative result is cached too (as
+# an empty file), so files genuinely without a PR cost one call, once.
+#
+# GIT_NO_LAZY_FETCH=1 guards the git call: in a partial clone
+# (--filter=blob:none) git would otherwise fetch missing objects over the
+# network, stalling the preview pane on every keystroke.
+emulate -L zsh
+# `emulate -L zsh` turns EXTENDED_GLOB off; the PR-subject patterns below
+# use the `##` closure operator, which silently never matches without it.
+setopt extended_glob
+set -o pipefail
+
+local abs_file="${1:-}"
+if [[ -z $abs_file ]]; then
+  print "Usage: fe-preview <file-absolute-path>" >&2
+  exit 1
+fi
+if [[ ! -e $abs_file ]]; then
+  print "fe-preview: no such file: $abs_file" >&2
+  exit 0
+fi
+
+# ----- color / hyperlink helpers -----------------------------------------
+local blue=$'\e[34m'
+local yellow=$'\e[33m'
+local bold=$'\e[1m'
+local dim=$'\e[2m'
+local reset=$'\e[0m'
+
+# OSC 8 hyperlink: ESC ] 8 ; ; URL ESC \ TEXT ESC ] 8 ; ; ESC \
+# Captured into a var via $(printf ...) so the two ST terminator bytes
+# survive intact. Re-emit with `print -r --` (see zsh/CLAUDE.md).
+_fe_link() {
+  local url=$1 text=$2
+  printf '\e]8;;%s\e\\%s%s%s\e]8;;\e\\' "$url" "$blue" "$text" "$reset"
+}
+
+# ----- humanize seconds ---------------------------------------------------
+# "<N> <unit> ago" with the largest unit that yields >= 1.
+_fe_human_ago() {
+  local secs=$1
+  (( secs < 0 )) && secs=0
+  local n='' unit=''
+  if   (( secs < 60      )); then n=$secs                    unit=second
+  elif (( secs < 3600    )); then n=$(( secs / 60 ))         unit=minute
+  elif (( secs < 86400   )); then n=$(( secs / 3600 ))       unit=hour
+  elif (( secs < 2592000 )); then n=$(( secs / 86400 ))      unit=day
+  elif (( secs < 31536000)); then n=$(( secs / 2592000 ))    unit=month
+  else                            n=$(( secs / 31536000 ))   unit=year
+  fi
+  (( n == 1 )) || unit+=s
+  print -r -- "${n} ${unit} ago"
+}
+
+# Format an epoch as "YYYY-MM-DD HH:MM:SS  (X units ago)". Empty on failure.
+_fe_format_epoch() {
+  local epoch=$1
+  [[ -z $epoch || $epoch == 0 ]] && return 0
+  local now stamp
+  now=$(date +%s)
+  if date -r "$epoch" '+%Y-%m-%d %H:%M:%S' >/dev/null 2>&1; then
+    stamp=$(date -r "$epoch" '+%Y-%m-%d %H:%M:%S')               # macOS / BSD
+  else
+    stamp=$(date -d "@$epoch" '+%Y-%m-%d %H:%M:%S' 2>/dev/null)  # GNU
+  fi
+  [[ -z $stamp ]] && return 0
+  print -r -- "$stamp  ${dim}($(_fe_human_ago $(( now - epoch ))))${reset}"
+}
+
+# ----- git: repo root + dirty state ---------------------------------------
+local file_dir="${abs_file:h}"
+local repo_root=''
+repo_root=$(git -C "$file_dir" rev-parse --show-toplevel 2>/dev/null) || repo_root=''
+
+# owner/repo of the origin remote, empty for a non-GitHub (or absent)
+# remote. Handles all three URL forms git hands out:
+#   git@github.com:owner/repo.git
+#   https://github.com/owner/repo.git
+#   ssh://git@github.com/owner/repo.git
+# The github.com test is explicit rather than inferred from "did the
+# prefix strip change the string": a gitlab URL survives that strip
+# unchanged except for its .git suffix, which is enough to make a
+# naive `slug != raw` check pass and emit a nonsense link.
+_fe_gh_slug() {
+  [[ -n $repo_root ]] || return 0
+  local raw=''
+  raw=$(git -C "$repo_root" remote get-url origin 2>/dev/null) || return 0
+  [[ $raw == *github.com[:/]* ]] || return 0
+  local slug="${raw#*github.com[:/]}"
+  print -r -- "${slug%.git}"
+}
+
+# Is this specific file modified/staged/untracked? Passing the pathspec
+# keeps this O(1) rather than scanning the whole tree.
+local dirty_state=''
+if [[ -n $repo_root ]]; then
+  dirty_state=$(GIT_NO_LAZY_FETCH=1 git -C "$repo_root" status --porcelain -- "$abs_file" 2>/dev/null \
+                  | head -1 | cut -c1-2) || dirty_state=''
+fi
+
+# ----- git: last commit touching this file --------------------------------
+local commit_sha='' commit_epoch='' commit_author='' commit_subject=''
+if [[ -n $repo_root ]]; then
+  local git_line=''
+  # %aN <%aE>, not %an <%ae>: the capitalized forms apply .mailmap, which
+  # rewrites GitHub noreply addresses to real ones
+  # ("Sandeep Mallya <141225766+sandeep-storytel@users.noreply.github.com>"
+  # -> "<sandeep.mallya@storytel.com>"). The work checkouts set
+  # mailmap.file in ~/git/work/.gitconfig, so the lowercase forms would
+  # show an address you cannot mail. Name alone is also ambiguous across
+  # people sharing a display name, hence including the address at all.
+  git_line=$(GIT_NO_LAZY_FETCH=1 git -C "$repo_root" log -1 \
+               --format='%H%x09%ct%x09%aN <%aE>%x09%s' -- "$abs_file" 2>/dev/null) || git_line=''
+  if [[ -n $git_line ]]; then
+    # Split positionally: a commit subject can be empty, and `read` with
+    # IFS=$'\t' would collapse the run of delimiters and shift fields
+    # left (see zsh/CLAUDE.md).
+    local -a gf=()
+    gf=("${(@s:	:)git_line}")
+    commit_sha=${gf[1]}
+    commit_epoch=${gf[2]}
+    commit_author=${gf[3]}
+    commit_subject=${gf[4]}
+  fi
+fi
+
+# ----- emit: path (GitHub permalink when we can build a valid one) --------
+# Pinned to the commit that last touched THIS file, not HEAD: that is the
+# revision being previewed, and it is far more likely to exist on the
+# remote than a local HEAD that may sit on unpushed work.
+#
+# The link is only emitted when the commit is actually reachable from a
+# remote branch — `git blob/<sha>` 404s for a local-only commit, and a
+# link that silently opens an error page is worse than plain text. The
+# check costs ~0.01s here / ~0.03s in the big partial clone, cheap enough
+# to run on every preview keystroke.
+#
+# A dirty file's on-disk contents differ from the linked revision, so the
+# link is labelled to say which version it points at.
+local gh_slug='' path_link=''
+gh_slug=$(_fe_gh_slug)
+if [[ -n $gh_slug && -n $commit_sha ]]; then
+  if [[ -n $(GIT_NO_LAZY_FETCH=1 git -C "$repo_root" branch -r --contains "$commit_sha" 2>/dev/null) ]]; then
+    local rel_to_root="${abs_file#$repo_root/}"
+    local url="https://github.com/${gh_slug}/blob/${commit_sha}/${rel_to_root}"
+    # Keep the visible label short: a wrapped OSC 8 label breaks the
+    # click target, which is the whole reason this repo mandates short
+    # labels. The absolute path runs ~125 cols on a deep source tree and
+    # even "owner/repo/<rel>" reaches ~106 — both wrap at 80. Elide the
+    # middle of the relative path instead, keeping the head and the
+    # filename, which are the parts you actually read. The full path is
+    # printed on the Path: line above as plain text, where wrapping is
+    # harmless, and the complete URL rides invisibly in the escape.
+    local label="$rel_to_root"
+    if (( ${#label} > 58 )); then
+      label="${rel_to_root%%/*}/…/${rel_to_root:t}"
+      # A single very long filename can still exceed the budget.
+      (( ${#label} > 58 )) && label="…/${rel_to_root:t}"
+    fi
+    path_link=$(_fe_link "$url" "$label")
+  fi
+fi
+
+printf '%sPath:%s     %s\n' "$bold" "$reset" "$abs_file"
+if [[ -n $path_link ]]; then
+  printf '%sGitHub:%s   ' "$bold" "$reset"
+  print -rn -- "$path_link"
+  # Say so when the link points at something other than what is on disk.
+  if [[ -n $dirty_state ]]; then
+    print -r -- "  ${dim}(committed version)${reset}"
+  else
+    print -r -- ""
+  fi
+fi
+
+# ----- emit: filesystem mtime --------------------------------------------
+# Flagged as the authoritative change time only when the file is dirty;
+# on a clean file the mtime is usually just when the tree was checked
+# out, which is why the picker sorts clean files by their commit time.
+local fs_epoch=''
+fs_epoch=$(stat -f '%m' "$abs_file" 2>/dev/null) \
+  || fs_epoch=$(stat -c '%Y' "$abs_file" 2>/dev/null) \
+  || fs_epoch=''
+if [[ -n $fs_epoch ]]; then
+  local fs_line=''
+  fs_line=$(_fe_format_epoch "$fs_epoch")
+  if [[ -n $fs_line ]]; then
+    printf '%sModified:%s ' "$bold" "$reset"
+    print -rn -- "$fs_line"
+    if [[ -n $dirty_state ]]; then
+      # Untracked ("??") vs modified/staged.
+      if [[ $dirty_state == '??' ]]; then
+        print -r -- "  ${yellow}[untracked]${reset}"
+      else
+        print -r -- "  ${yellow}[dirty ${dirty_state}]${reset}"
+      fi
+    else
+      print -r -- ""
+    fi
+  fi
+fi
+
+# ----- emit: commit + author ---------------------------------------------
+if [[ -n $commit_epoch ]]; then
+  local commit_line=''
+  commit_line=$(_fe_format_epoch "$commit_epoch")
+  if [[ -n $commit_line ]]; then
+    printf '%sCommit:%s   ' "$bold" "$reset"
+    print -rn -- "$commit_line"
+    print -r -- "  ${dim}${commit_sha[1,9]}${reset}"
+  fi
+  [[ -n $commit_subject ]] && printf '%s          %s%s\n' "$dim" "$commit_subject" "$reset"
+  [[ -n $commit_author  ]] && printf '%sAuthor:%s   %s\n' "$bold" "$reset" "$commit_author"
+fi
+
+# ----- emit: PR -----------------------------------------------------------
+# 1) parse the number out of the subject (free, offline)
+# 2) else ask the GitHub API once and cache the answer by SHA
+if [[ -n $commit_sha ]]; then
+  local pr_num='' pr_url='' pr_title=''
+
+  # Derive the title from the subject for the two GitHub merge styles.
+  # Only these two shapes are trusted, matched at their anchors:
+  #   "<title> (#N)"                     squash-merge — subject IS the title
+  #   "Merge pull request #N from <br>"  merge commit — subject has NO title,
+  #                                      only the source branch
+  # A bare "#N" anywhere else (e.g. "Fix #4242 in the parser") is an issue
+  # reference, not a merge, so it is deliberately not treated as a PR.
+  if [[ $commit_subject == *' (#'[0-9]##')' ]]; then
+    pr_num=${${commit_subject##*' (#'}%')'}
+    # Quote the literal parens. In ${s% \(#${n}\)} the backslashes are
+    # literal characters inside the pattern, not escapes, so the suffix
+    # never matches and the strip silently no-ops.
+    pr_title=${commit_subject%" (#${pr_num})"}
+  elif [[ $commit_subject == 'Merge pull request #'[0-9]##' from '* ]]; then
+    # Quote the whole prefix: an unquoted `#` inside ${var#...} starts a
+    # comment, silently truncating the pattern to "Merge pull request"
+    # and leaving a leading space that `%% *` then eats — yielding "".
+    pr_num=${${commit_subject#"Merge pull request #"}%% *}
+    # The branch name is not the PR title; leave pr_title empty so the
+    # API lookup below can fetch the real one.
+  fi
+
+  # Ask the API when we have no number at all, or a number but no title
+  # (the merge-commit case). Cached by SHA as "<number>\t<title>\t<url>";
+  # an empty file is a cached "this commit has no PR".
+  local pr_cache="$HOME/.cache/rlm-fe/pr/${commit_sha}"
+  if [[ -z $pr_num || -z $pr_title ]]; then
+    # Note the guarded assignments throughout: a lookup that comes back
+    # empty (no PR, offline, no gh, a 404) must never clobber a number
+    # already parsed from the subject — losing it would drop the PR line
+    # entirely for merge commits, which is worse than showing "#N" with
+    # no title.
+    if [[ -f $pr_cache ]]; then
+      if [[ -s $pr_cache ]]; then
+        local -a cf=()
+        cf=("${(@s:	:)$(<"$pr_cache")}")
+        [[ -n ${cf[1]} ]] && pr_num=${cf[1]}
+        [[ -n ${cf[2]} ]] && pr_title=${cf[2]}
+        [[ -n ${cf[3]} ]] && pr_url=${cf[3]}
+      fi
+    elif command -v gh >/dev/null 2>&1; then
+      mkdir -p "${pr_cache:h}" 2>/dev/null
+      # gh has no -C/--cwd; it resolves the repo from the cwd. Tabs in a
+      # PR title would corrupt the cache record, so strip them.
+      local api_row=''
+      api_row=$(cd -- "$repo_root" 2>/dev/null \
+                  && gh api "repos/{owner}/{repo}/commits/${commit_sha}/pulls" \
+                       --jq '.[0] | select(.) | [(.number|tostring), (.title|gsub("\t";" ")), .html_url] | @tsv' \
+                       2>/dev/null) || api_row=''
+      # Write even when empty: caches the negative result so a commit
+      # genuinely without a PR costs one call once, not one per preview.
+      print -rn -- "$api_row" >|"$pr_cache" 2>/dev/null
+      if [[ -n $api_row ]]; then
+        local -a af=()
+        af=("${(@s:	:)api_row}")
+        [[ -n ${af[1]} ]] && pr_num=${af[1]}
+        [[ -n ${af[2]} ]] && pr_title=${af[2]}
+        [[ -n ${af[3]} ]] && pr_url=${af[3]}
+      fi
+    fi
+  fi
+
+  if [[ -n $pr_num ]]; then
+    # Build the URL from the origin remote when the API wasn't consulted.
+    [[ -z $pr_url && -n $gh_slug ]] && pr_url="https://github.com/${gh_slug}/pull/${pr_num}"
+
+    # Only "#N" is the hyperlink; the title follows as plain text. Keeping
+    # the click target to a short, fixed-width token means it can never
+    # wrap (a wrapped OSC 8 label breaks the link), and it makes the
+    # clickable region obvious rather than turning a whole sentence into
+    # one big link. The title is then free to be as long as it likes —
+    # plain text wrapping is harmless — so no truncation is needed.
+    printf '%sPR:%s       ' "$bold" "$reset"
+    if [[ -n $pr_url ]]; then
+      local pr_link=''
+      pr_link=$(_fe_link "$pr_url" "#${pr_num}")
+      print -rn -- "$pr_link"
+    else
+      print -rn -- "#${pr_num}"
+    fi
+    if [[ -n $pr_title ]]; then
+      print -r -- "  ${pr_title}"
+    else
+      print -r -- ""
+    fi
+  fi
+fi
+
+# ----- emit: contents -----------------------------------------------------
+printf '%s%s%s\n' "$dim" "${(l:60::-:)}" "$reset"
+
+# Binary files would spray control bytes across the pane.
+if [[ -f $abs_file ]] && ! grep -Iq . "$abs_file" 2>/dev/null; then
+  printf '%s<binary file>%s\n' "$dim" "$reset"
+  exit 0
+fi
+
+if command -v bat >/dev/null 2>&1; then
+  bat --color=always --style=plain --paging=never -- "$abs_file" 2>/dev/null
+else
+  cat -- "$abs_file" 2>/dev/null
+fi
+exit 0
