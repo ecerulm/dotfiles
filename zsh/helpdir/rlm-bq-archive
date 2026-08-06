@@ -4,18 +4,79 @@ Multi-select BigQuery tables from the bq-open cache, run three
 diagnostic queries per table (recent jobs, audit-log access, storage
 freshness), print the results, ask for confirmation, then copy the
 selected table(s) into the archival_data dataset with
-`bq cp --no-clobber`.
+`bq cp --no-clobber`, verify each copy, and offer to delete each
+verified source table one at a time.
 
-Selected entries are first classified via `bq show`. Anything whose
-type is VIEW or MATERIALIZED_VIEW is dropped from the run with a
-"views do not need to be archived" notice — the diagnostics and copy
-only operate on actual tables (TABLE / EXTERNAL / SNAPSHOT).
+Selected entries are first classified via `bq show`. Only actual
+tables (TABLE / EXTERNAL / SNAPSHOT) go through the diagnostics and
+copy.
 
-The original tables are NOT deleted. A `DROP TABLE` SQL block (plus
-`bq rm` equivalents and queries to locate downstream views and
-routines) is printed to stdout AND written to a timestamped file
-under $TMPDIR/bq-archive-drop-<timestamp>.sql so the user can run
-them later by hand.
+VIEWS ARE OFFERED FOR DELETION INSTEAD OF ARCHIVING
+
+A view stores no data of its own — it is a saved SELECT — so there is
+nothing for `bq cp` to copy and an "archived" view would only be a
+detached duplicate of the definition. Selecting one is therefore read
+as "I want this gone": VIEW and MATERIALIZED_VIEW entries skip the
+diagnostics, confirmation, and copy stages entirely and are carried to
+the delete stage at the end, where each is offered for deletion
+individually.
+
+Because a view's SQL is the only thing lost when it is dropped, the
+definition is printed in full immediately above each prompt (read via
+`bq show --view` / `--materialized_view`, whichever the type requires).
+Save it if you may need it, then confirm by typing the view name.
+Nothing is written to disk for you — the definition is shown, not
+archived.
+
+A selection containing only views is valid: the run skips straight to
+the view delete prompts. Views are also still offered when the table
+side of a mixed selection aborts (every destination already exists, or
+you decline the copy) — an aborted archive ends the archiving, not the
+run.
+
+STAGES
+
+1. Pick        fzf multi-select over the shared bq-open cache.
+2. Diagnostics three queries per table (see Query A/B/C below).
+3. Confirm     a summary table listing every selected table with its
+               row count, logical size, and DATA UPDATED timestamp
+               (storage_last_modified_time — when the data was last
+               written, not when metadata was touched). Destinations
+               are probed first and any that already exist are listed
+               in red and excluded from the run, so collisions are
+               visible before you commit rather than surfacing as
+               mid-copy failures. Requires typing 'yes'.
+4. Copy        `bq cp --no_clobber` per table.
+5. Verify      SELECT COUNT(*) on both source and archive. A match is
+               required to reach stage 6. TABLE_STORAGE logical bytes
+               are also compared but are advisory only — storage stats
+               lag writes by minutes, so a fresh copy legitimately
+               reports 0 for a while and gating on it would block
+               every delete on a fast run.
+6. Delete      one prompt per verified table, showing its row count and
+               size, then one prompt per selected view, showing its SQL
+               definition. Confirmation is the bare table/view name,
+               not 'yes': the prompts are near-identical and repeated N
+               times, which is precisely the shape that trains you to
+               type the magic word without reading it. Confirming runs
+               `bq rm --force --table` immediately. A table whose
+               verification failed is never prompted for; views have no
+               verification gate because nothing was copied.
+
+Deleted refs are appended to ~/.cache/bq-open/dead-refs.txt so the
+shared GC prunes them from every rlm-bq-* picker on the next run.
+
+Any source that was NOT deleted — declined at the prompt, blocked by
+failed verification, or whose `bq rm` failed — gets a `DROP TABLE` SQL
+block (plus `bq rm` equivalents and queries to locate downstream views
+and routines) printed to stdout AND written to a timestamped file
+under $TMPDIR/bq-archive-drop-<timestamp>.sql. Tables already deleted
+in stage 6 are omitted from that file. When every copied source was
+deleted, no file is written.
+
+Exit status is non-zero when a copy failed, a destination already
+existed, the copy was declined, or a confirmed delete (table or view)
+failed.
 
 The picker reuses the `~/.cache/bq-open/` cache — run `bq-open` once
 first to populate it. The cache key is derived from BQ_SEARCH_PATH +
@@ -35,7 +96,8 @@ Key bindings:
   Ctrl-P           cycle preview height (tall -> short -> hidden)
   Enter            confirm selection and proceed to diagnostics
 
-Confirmation requires typing 'yes' before any copy happens.
+Confirmation requires typing 'yes' before any copy happens, and the
+exact table name before each individual delete.
 
 ENVIRONMENT
   BQ_SEARCH_PATH

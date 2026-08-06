@@ -219,7 +219,10 @@ _type_dir=$(mktemp -d -t bq-archive-types.XXXXXX) || {
   return 1
 }
 
-local _i _ref _pid
+# _ref is already declared above (in_scope build). Re-declaring it bare
+# would print "_ref=''" to stdout — `local` with no `=` is typeset in
+# reporting mode. See the gotcha in zsh/AGENTS.md.
+local _i _pid
 local -a _type_pids
 for (( _i = 1; _i <= ${#to_process}; _i++ )); do
   _ref="${to_process[$_i]}"
@@ -309,39 +312,33 @@ if (( ${#dead_refs} > 0 )); then
   print -u2 "bq-archive: ${#dead_refs} ref(s) marked dead — re-run bq-archive and the picker will offer a clean list."
 fi
 
+# Views are not archivable — a view stores no data, it is a saved
+# SELECT, so `bq cp` would copy nothing and the copy would lose the
+# link to the source tables. But "not archivable" is not "nothing to
+# do": the reason you selected it is that you want it gone. So views
+# bypass the copy/verify machinery entirely and are carried straight
+# to the delete stage at the end, where each is offered for deletion
+# with its SQL definition shown inline.
 if (( ${#views_skipped} > 0 )); then
   print ""
-  print -P "%F{yellow}=== Skipping ${#views_skipped} view(s) — views do not need to be archived ===%f"
-  print "  A view stores no data of its own; it is just a saved SELECT."
-  print "  Archiving a view would copy nothing and break the link to its source tables."
-  print "  To retire a view: save its definition first, then drop it."
+  print -P "%F{yellow}=== ${#views_skipped} view(s) selected — these cannot be archived ===%f"
+  print "  A view stores no data of its own; it is just a saved SELECT, so"
+  print "  there is nothing to copy into the archive dataset."
+  print "  They will be offered for DELETION at the end of this run, with"
+  print "  their SQL definitions shown so you can save them first."
   print ""
-  local _v_ref _v_type _v_url _v_show_flag
-  for (( _i = 1; _i <= ${#views_skipped}; _i++ )); do
-    _v_ref="${views_skipped[$_i]}"
-    _v_type="${views_skipped_types[$_i]}"
-    _v_url=$("$HOME/bin/bq-console-url" "$_v_ref" 2>/dev/null)
-    # `bq show --view <ref>` works only for standard VIEWs. For
-    # MATERIALIZED_VIEWs use `--materialized_view` so the SQL definition
-    # comes back in the output.
-    if [[ $_v_type == MATERIALIZED_VIEW ]]; then
-      _v_show_flag="--materialized_view"
-    else
-      _v_show_flag="--view"
-    fi
-    print -P "  - ${views_skipped_colored[$_i]}  %F{8}[${_v_type}]%f"
-    [[ -n $_v_url ]] && print -P "    %F{8}${_v_url}%f"
-    print -P "    %F{8}# save the SQL definition before deleting:%f"
-    print -P "    bq show ${_v_show_flag} ${_v_ref}"
-    print -P "    %F{8}# then delete the view:%f"
-    print -P "    bq rm -f --table ${_v_ref}"
-    print ""
+  local _v_i
+  for (( _v_i = 1; _v_i <= ${#views_skipped}; _v_i++ )); do
+    print -P "  - ${views_skipped_colored[$_v_i]}  %F{8}[${views_skipped_types[$_v_i]}]%f"
   done
 fi
 
-if (( ${#tables_to_process} == 0 )); then
+# Only bail early when there is nothing to do at all. A views-only
+# selection still has work — the delete stage — so it must fall
+# through rather than return here.
+if (( ${#tables_to_process} == 0 && ${#views_skipped} == 0 )); then
   print ""
-  print "bq-archive: no archivable tables in selection"
+  print "bq-archive: nothing archivable or deletable in selection"
   return 0
 fi
 
@@ -366,6 +363,25 @@ for (( hi = 1; hi <= ${#to_process}; hi++ )); do
     _rlm-bq-history append bq-archive "${to_process[$hi]}"
   fi
 done
+
+# ---------------------------------------------------------------------------
+# Diagnostics + copy + verify — the table pipeline.
+#
+# `archive_stage_ok` tracks whether the pipeline is still viable. A
+# views-only selection starts it at 0 and every table-only stage below
+# is skipped, so the run falls through to the delete stage at the end
+# rather than early-returning and stranding the views the user asked
+# to remove. The same flag absorbs the pipeline's own abort conditions
+# (every destination already exists, copy declined at the prompt,
+# nothing copied) for the same reason: those end the *archiving*, not
+# the run, whenever views are still pending.
+#
+# archive_rc carries the exit status those aborts used to return
+# directly, so the function's final status still reports them.
+# ---------------------------------------------------------------------------
+
+local archive_stage_ok=1 archive_rc=0
+(( ${#to_process} == 0 )) && archive_stage_ok=0
 
 # ---------------------------------------------------------------------------
 # Diagnostics: three queries per selected table
@@ -395,6 +411,43 @@ _bq_archive_run_query() {
     "$@" \
     "$sql"
 }
+
+# jq prelude shared by Query C's display and the pre-copy summary table.
+# prettyjson returns INT64 columns as JSON strings, so every numeric
+# field is coerced with tonumber before formatting.
+local JQ_HUMANIZE='
+  def hbytes(n):
+    if n == null then "?"
+    elif n < 1024            then (n|tostring) + " B"
+    elif n < 1048576         then ((n/1024)         | . * 10 | floor / 10 | tostring) + " KiB"
+    elif n < 1073741824      then ((n/1048576)      | . * 10 | floor / 10 | tostring) + " MiB"
+    elif n < 1099511627776   then ((n/1073741824)   | . * 10 | floor / 10 | tostring) + " GiB"
+    else                          ((n/1099511627776)| . * 10 | floor / 10 | tostring) + " TiB"
+    end;
+  def hrows(n):
+    if n == null then "?"
+    elif n < 1000        then (n|tostring)
+    elif n < 1000000     then ((n/1000)        | . * 10 | floor / 10 | tostring) + "K"
+    elif n < 1000000000  then ((n/1000000)     | . * 10 | floor / 10 | tostring) + "M"
+    else                      ((n/1000000000)  | . * 10 | floor / 10 | tostring) + "B"
+    end;
+  def num(f): (f // null) | if . == null then null else tonumber end;
+'
+
+# Per-table facts harvested from Query C, indexed in lockstep with
+# to_process. Populated below; consumed by the confirmation summary and
+# by the post-copy verification gate (which compares the recorded source
+# row count against the destination's). Missing values stay "?" so a
+# table whose Query C failed still renders a row rather than vanishing
+# from the confirmation list.
+local -a summary_rows summary_bytes summary_modified summary_created
+local i_init
+for (( i_init = 1; i_init <= ${#to_process}; i_init++ )); do
+  summary_rows+=("?")
+  summary_bytes+=("?")
+  summary_modified+=("?")
+  summary_created+=("?")
+done
 
 local idx=0 ref_i src_proj src_ds src_tbl qp sql out row_count
 local -a ignored_quoted
@@ -594,29 +647,41 @@ WHERE t.table_schema = '${src_ds}'
       # since the raw numbers are unreadable at a glance. Strings
       # are quoted from prettyjson so .total_logical_bytes etc.
       # come in as STRING — coerce via tonumber.
-      print -r -- "$out" | jq -r '
-        def hbytes(n):
-          if n == null then "?"
-          elif n < 1024            then (n|tostring) + " B"
-          elif n < 1048576         then ((n/1024)        | . * 10 | floor / 10 | tostring) + " KiB"
-          elif n < 1073741824      then ((n/1048576)     | . * 10 | floor / 10 | tostring) + " MiB"
-          elif n < 1099511627776   then ((n/1073741824)  | . * 10 | floor / 10 | tostring) + " GiB"
-          else                          ((n/1099511627776)| . * 10 | floor / 10 | tostring) + " TiB"
-          end;
-        def hrows(n):
-          if n == null then "?"
-          elif n < 1000        then (n|tostring)
-          elif n < 1000000     then ((n/1000)    | . * 10 | floor / 10 | tostring) + "K"
-          elif n < 1000000000  then ((n/1000000) | . * 10 | floor / 10 | tostring) + "M"
-          else                      ((n/1000000000)|. * 10 | floor / 10 | tostring) + "B"
-          end;
+      print -r -- "$out" | jq -r "$JQ_HUMANIZE"'
         .[] |
         "  type:           " + (.table_type // "?"),
         "  created:        " + (.creation_time // "?"),
         "  last_modified:  " + (.storage_last_modified_time // "(no TABLE_STORAGE row — view/external/snapshot)"),
-        "  rows:           " + hrows((.total_rows // null) | if . == null then null else tonumber end) + ((.total_rows // null) | if . == null then "" else "  (" + . + ")" end),
-        "  logical_bytes:  " + hbytes((.total_logical_bytes // null) | if . == null then null else tonumber end) + ((.total_logical_bytes // null) | if . == null then "" else "  (" + . + ")" end)
+        "  rows:           " + hrows(num(.total_rows)) + ((.total_rows // null) | if . == null then "" else "  (" + . + ")" end),
+        "  logical_bytes:  " + hbytes(num(.total_logical_bytes)) + ((.total_logical_bytes // null) | if . == null then "" else "  (" + . + ")" end)
       '
+
+      # Harvest the same row into the summary arrays so the
+      # confirmation block can show size / rows / freshness without
+      # re-querying, and so the post-copy gate has a source row count
+      # to compare the destination against. Fields are emitted on one
+      # tab-separated line and split positionally — `storage_last_modified_time`
+      # is NULL for external/snapshot sources, and `IFS=$'\t' read`
+      # would collapse that empty field and shift every later value
+      # left (see zsh/AGENTS.md).
+      # Both locals carry an explicit initializer: this is a loop body,
+      # and a bare `local x` re-declaration prints "x=<value>" to stdout
+      # on every iteration after the first (see zsh/AGENTS.md).
+      local _c_line=''
+      _c_line=$(print -r -- "$out" | jq -r '
+        .[0] |
+        [ (.total_rows // ""), (.total_logical_bytes // ""),
+          (.storage_last_modified_time // ""), (.creation_time // "") ]
+        | @tsv
+      ' 2>/dev/null)
+      if [[ -n $_c_line ]]; then
+        local -a _c_f=()
+        _c_f=("${(@s:	:)_c_line}")
+        [[ -n ${_c_f[1]:-} ]] && summary_rows[$idx]=${_c_f[1]}
+        [[ -n ${_c_f[2]:-} ]] && summary_bytes[$idx]=${_c_f[2]}
+        [[ -n ${_c_f[3]:-} ]] && summary_modified[$idx]=${_c_f[3]}
+        [[ -n ${_c_f[4]:-} ]] && summary_created[$idx]=${_c_f[4]}
+      fi
     fi
   else
     print -u2 "bq-archive: Query C returned unexpected output:"
@@ -628,30 +693,174 @@ done
 # Confirmation
 # ---------------------------------------------------------------------------
 
-print ""
-print "About to archive ${#to_process} table(s):"
-local i
-for (( i = 1; i <= ${#to_process_colored}; i++ )); do
-  print "  - ${to_process_colored[$i]}"
-done
-
 local archive_target_default archive_target archive_proj archive_ds
 archive_target_default="${${to_process[1]%%:*}}.archival_data"
 archive_target="${BQ_ARCHIVE_TARGET:-$archive_target_default}"
 archive_proj=${archive_target%%.*}
 archive_ds=${archive_target##*.}
 
+# Humanize a raw byte / row count captured from Query C. Delegates to
+# the same jq definitions used above so the confirmation table and the
+# per-table diagnostics never disagree on a size. "?" passes through.
+_bq_archive_human() {
+  local kind="$1" raw="$2"
+  [[ -z $raw || $raw == "?" ]] && { print -r -- "?"; return 0; }
+  jq -rn "$JQ_HUMANIZE"' $v | tonumber as $n | if $k == "bytes" then hbytes($n) else hrows($n) end' \
+    --arg v "$raw" --arg k "$kind" 2>/dev/null || print -r -- "$raw"
+}
+
+# Trim BigQuery's fractional seconds + " UTC" suffix so the timestamp
+# fits the column: "2026-05-20 11:04:31.921000 UTC" -> "2026-05-20 11:04".
+_bq_archive_short_ts() {
+  local ts="$1"
+  [[ -z $ts || $ts == "?" ]] && { print -r -- "?"; return 0; }
+  print -r -- "${ts[1,16]}"
+}
+
+# Middle-elide an over-long bq ref so the TABLE column keeps its width
+# and the row stays under 80 display columns. A ref that overflows the
+# column would push every later column right and destroy the alignment
+# that makes this table scannable — and a wrapped row is worse than an
+# elided one, since the numbers are the point here. Head and tail are
+# both kept: the tail holds the table name, the head the project.
+_bq_archive_elide() {
+  local s="$1" max="$2"
+  (( ${#s} <= max )) && { print -r -- "$s"; return 0; }
+  local keep=$(( max - 1 ))
+  local head_n=$(( keep / 2 )) tail_n=$(( keep - keep / 2 ))
+  print -r -- "${s[1,head_n]}…${s[-tail_n,-1]}"
+}
+
+if (( archive_stage_ok )); then
+
+print ""
+print -P "%F{yellow}=== About to archive ${#to_process} table(s) ===%f"
+print ""
+# Widths are sized so the longest possible row is 78 display columns:
+# 2 indent + 42 ref + 1 + 7 rows + 1 + 8 size + 1 + 16 timestamp. A
+# wrapped row would defeat the point of tabulating these at all.
+printf '  %-42s %-7s %-8s %s\n' "TABLE" "ROWS" "SIZE" "DATA UPDATED"
+printf '  %-42s %-7s %-8s %s\n' \
+  "------------------------------------------" \
+  "-------" "--------" "----------------"
+local i _h_rows _h_bytes _h_mod _h_ref
+for (( i = 1; i <= ${#to_process}; i++ )); do
+  _h_rows=$(_bq_archive_human rows "${summary_rows[$i]}")
+  _h_bytes=$(_bq_archive_human bytes "${summary_bytes[$i]}")
+  _h_mod=$(_bq_archive_short_ts "${summary_modified[$i]}")
+  _h_ref=$(_bq_archive_elide "${to_process[$i]}" 42)
+  # Print the uncolored ref: printf pads by byte count, so the ANSI
+  # sequences in to_process_colored would be counted as width and
+  # misalign every later column. Full refs are listed unelided below.
+  printf '  %-42s %-7s %-8s %s\n' \
+    "$_h_ref" "$_h_rows" "$_h_bytes" "$_h_mod"
+done
+
+# The table may have elided a ref, and a delete decision should never
+# rest on a truncated name — list the full refs underneath, colored.
+local _any_elided=0
+for (( i = 1; i <= ${#to_process}; i++ )); do
+  (( ${#to_process[$i]} > 42 )) && _any_elided=1
+done
+if (( _any_elided )); then
+  print ""
+  print "  Full references:"
+  for (( i = 1; i <= ${#to_process}; i++ )); do
+    print "    - ${to_process_colored[$i]}"
+  done
+fi
+
+print ""
+print "  ROWS / SIZE / DATA UPDATED come from INFORMATION_SCHEMA.TABLE_STORAGE"
+print "  (storage_last_modified_time — actual data writes, not metadata edits)."
+print "  '?' means Query C returned no storage row for that table."
+
 print ""
 print "Archive target dataset: ${archive_proj}.${archive_ds}"
-print ""
+print "Each source table is copied to ${archive_proj}:${archive_ds}.<table_name>"
+print "with 'bq cp --no_clobber', which fails rather than overwrite an existing"
+print "destination table."
 
-local confirm
-vared -p "Proceed with archive copy? Type 'yes' to continue: " confirm
+# ---------------------------------------------------------------------------
+# Destination pre-flight. `bq cp --no_clobber` already refuses to
+# overwrite, but it only says so per-table midway through the copy loop
+# — after the user has typed 'yes'. Probing up front turns "3 of 5
+# copies mysteriously failed" into a list shown before the prompt, so
+# the decision is made with the collisions visible.
+#
+# Fan out `bq show` one fork per destination. Exit status alone
+# classifies: 0 = exists, non-zero = absent (or unreadable, which
+# surfaces as a copy failure later anyway).
+# ---------------------------------------------------------------------------
 
-if [[ $confirm != "yes" ]]; then
-  print "bq-archive: cancelled"
+local _dst_dir
+_dst_dir=$(mktemp -d -t bq-archive-dst.XXXXXX) || {
+  print -u2 "bq-archive: failed to create tmpdir for destination probes"
   return 1
+}
+
+local -a _dst_pids
+local _di _dst_probe
+for (( _di = 1; _di <= ${#to_process}; _di++ )); do
+  _dst_probe="${archive_proj}:${archive_ds}.${to_process[$_di]##*.}"
+  (
+    if bq --quiet show --format=json "$_dst_probe" >/dev/null 2>&1; then
+      print -n 1 >"${_dst_dir}/${_di}.exists"
+    else
+      : >"${_dst_dir}/${_di}.exists"
+    fi
+  ) &
+  _dst_pids+=($!)
+done
+for _pid in "${_dst_pids[@]}"; do
+  wait "$_pid" 2>/dev/null
+done
+
+local -a dst_exists
+for (( _di = 1; _di <= ${#to_process}; _di++ )); do
+  if [[ -s "${_dst_dir}/${_di}.exists" ]]; then
+    dst_exists+=(1)
+  else
+    dst_exists+=(0)
+  fi
+done
+rm -rf "$_dst_dir"
+
+local _n_collisions=0
+for (( _di = 1; _di <= ${#dst_exists}; _di++ )); do
+  (( dst_exists[_di] )) && _n_collisions=$(( _n_collisions + 1 ))
+done
+
+if (( _n_collisions > 0 )); then
+  print ""
+  print -P "%F{red}=== ${_n_collisions} destination table(s) ALREADY EXIST ===%f"
+  print "  These will be skipped — bq cp --no_clobber will not overwrite them,"
+  print "  and their source tables will NOT be offered for deletion:"
+  for (( _di = 1; _di <= ${#to_process}; _di++ )); do
+    (( dst_exists[_di] )) || continue
+    print -P "    - %F{red}${archive_proj}:${archive_ds}.${to_process[$_di]##*.}%f"
+  done
 fi
+
+if (( _n_collisions == ${#to_process} )); then
+  print ""
+  print -u2 "bq-archive: every destination already exists; nothing to copy"
+  archive_stage_ok=0
+  archive_rc=1
+fi
+
+if (( archive_stage_ok )); then
+  print ""
+  local confirm
+  vared -p "Proceed with archive copy? Type 'yes' to continue: " confirm
+  if [[ $confirm != "yes" ]]; then
+    print "bq-archive: archive copy cancelled"
+    archive_stage_ok=0
+    archive_rc=1
+  fi
+fi
+
+fi  # end: confirmation stage (archive_stage_ok)
 
 # ---------------------------------------------------------------------------
 # Copy step: bq cp --no_clobber per table.
@@ -667,14 +876,31 @@ fi
 # VIEWs were filtered out earlier).
 # ---------------------------------------------------------------------------
 
-local -a copied failed
+# copied_idx tracks each successful copy's index into to_process, so the
+# verification and delete stages can reach that table's Query C facts
+# (summary_rows / summary_bytes) without re-deriving them from the ref.
+local -a copied copied_idx failed skipped
 local src dst src_type src_url dst_url ci
-for (( ci = 1; ci <= ${#to_process}; ci++ )); do
+# Loop bound is 0 when the pipeline was skipped or aborted (views-only
+# selection, all destinations present, copy declined), leaving copied
+# empty so the verification and table-delete stages are no-ops too.
+local _copy_n=0
+(( archive_stage_ok )) && _copy_n=${#to_process}
+for (( ci = 1; ci <= _copy_n; ci++ )); do
   src="${to_process[$ci]}"
   src_type="${to_process_type[$ci]}"
   # src is "src_proj:src_ds.src_tbl" — derive bare table name
   src_tbl=${src##*.}
   dst="${archive_proj}:${archive_ds}.${src_tbl}"
+
+  if (( dst_exists[ci] )); then
+    skipped+=("$src")
+    print ""
+    print -P "%F{magenta}=== [${ci}/${#to_process}] copy ===%f"
+    print -u2 "bq-archive: SKIPPED ${src} — destination ${dst} already exists"
+    continue
+  fi
+
   src_url=$("$HOME/bin/bq-console-url" "$src" 2>/dev/null)
   dst_url=$("$HOME/bin/bq-console-url" "$dst" 2>/dev/null)
 
@@ -684,6 +910,7 @@ for (( ci = 1; ci <= ${#to_process}; ci++ )); do
 
   if bq cp --no_clobber "$src" "$dst" 2>&1; then
     copied+=("${src}|${dst}")
+    copied_idx+=("$ci")
     print -u2 "bq-archive: copied  ${src} -> ${dst}"
     print -P "%F{cyan}Origin      ${src_type}:%f ${src}"
     [[ -n $src_url ]] && print -P "%F{8}            %f${src_url}"
@@ -691,29 +918,96 @@ for (( ci = 1; ci <= ${#to_process}; ci++ )); do
     [[ -n $dst_url ]] && print -P "%F{8}            %f${dst_url}"
   else
     failed+=("$src")
-    print -u2 "bq-archive: FAILED  ${src} (target may already exist; bq cp --no_clobber refuses to overwrite)"
+    print -u2 "bq-archive: FAILED  ${src} (bq cp --no_clobber refuses to overwrite an existing target)"
   fi
 done
 
-print ""
-print "Summary: ${#copied} copied, ${#failed} failed"
+if (( _copy_n > 0 )); then
+  print ""
+  print "Summary: ${#copied} copied, ${#failed} failed, ${#skipped} skipped (destination existed)"
+fi
 
 # ---------------------------------------------------------------------------
 # Verification: side-by-side preview for each successful copy
 # ---------------------------------------------------------------------------
 
+# verified[] is the gate for the delete stage: 1 only when the live
+# COUNT(*) on both sides agree. Anything else — a count mismatch, a
+# failed query, a byte-size discrepancy — leaves it 0 and the source
+# table is never offered for deletion.
+#
+# Two independent checks per pair:
+#   1. SELECT COUNT(*) on source and destination. This is the
+#      authoritative one and the only one that gates: it reads the
+#      actual rows rather than trusting metadata.
+#   2. TABLE_STORAGE total_rows / total_logical_bytes. Advisory only.
+#      TABLE_STORAGE lags writes by minutes, so a freshly-created
+#      destination legitimately reports 0 rows / 0 bytes for a while;
+#      gating on it would block every delete on a fast run. Reported so
+#      a genuine size discrepancy is visible, but it never blocks.
+local -a verified verify_note
 if (( ${#copied} > 0 )); then
   print ""
   print -P "%F{magenta}=== Verification (source vs archive) ===%f"
-  local pair s d
-  for pair in "${copied[@]}"; do
+  print "  COUNT(*) on both sides gates deletion. TABLE_STORAGE bytes are"
+  print "  advisory — it lags writes by minutes, so a fresh copy may read 0."
+
+  local pair s d vi v_src_cnt v_dst_cnt v_out v_qp
+  local v_src_bytes v_dst_bytes v_src_h v_dst_h
+  for (( vi = 1; vi <= ${#copied}; vi++ )); do
+    pair="${copied[$vi]}"
     s=${pair%%|*}
     d=${pair##*|}
+    verified+=(0)
+    verify_note+=("")
+
     print ""
-    print -P "%F{cyan}--- source: ${s} ---%f"
-    "$HOME/bin/bq-preview" "$s" 2>&1 | head -10
-    print -P "%F{cyan}--- archive: ${d} ---%f"
-    "$HOME/bin/bq-preview" "$d" 2>&1 | head -10
+    print -P "%F{cyan}--- ${s}%f  ->  %F{green}${d}%f ---"
+
+    v_qp=$(_bq_archive_query_project "${s%%:*}")
+
+    # COUNT(*) both sides. SQL identifiers use dots, not colons.
+    v_out=$(_bq_archive_run_query "$v_qp" \
+      "SELECT COUNT(*) AS n FROM \`${s/:/.}\`;" 2>/dev/null)
+    v_src_cnt=$(print -r -- "$v_out" | jq -r '.[0].n // empty' 2>/dev/null)
+
+    v_out=$(_bq_archive_run_query "$v_qp" \
+      "SELECT COUNT(*) AS n FROM \`${d/:/.}\`;" 2>/dev/null)
+    v_dst_cnt=$(print -r -- "$v_out" | jq -r '.[0].n // empty' 2>/dev/null)
+
+    if [[ -z $v_src_cnt || -z $v_dst_cnt ]]; then
+      verify_note[$vi]="COUNT(*) query failed on one or both sides"
+      print -P "  %F{red}✗ COUNT(*) could not be read (src='${v_src_cnt:-?}' dst='${v_dst_cnt:-?}')%f"
+    elif [[ $v_src_cnt == "$v_dst_cnt" ]]; then
+      verified[$vi]=1
+      print -P "  %F{green}✓ COUNT(*) match:%f source=${v_src_cnt}  archive=${v_dst_cnt}"
+    else
+      verify_note[$vi]="COUNT(*) mismatch: source=${v_src_cnt} archive=${v_dst_cnt}"
+      print -P "  %F{red}✗ COUNT(*) MISMATCH:%f source=${v_src_cnt}  archive=${v_dst_cnt}"
+    fi
+
+    # TABLE_STORAGE bytes, advisory. The archive dataset lives in
+    # archive_proj, which is not necessarily the source project (and not
+    # necessarily BQ_ARCHIVE_QUERY_PROJECT either), so the destination's
+    # INFORMATION_SCHEMA must be addressed under archive_proj.
+    v_out=$(_bq_archive_run_query "$archive_proj" \
+      "SELECT total_rows, total_logical_bytes
+       FROM \`${archive_proj}\`.\`region-eu\`.\`INFORMATION_SCHEMA\`.\`TABLE_STORAGE\`
+       WHERE table_schema = '${archive_ds}' AND table_name = '${d##*.}';" 2>/dev/null)
+    v_dst_bytes=$(print -r -- "$v_out" | jq -r '.[0].total_logical_bytes // empty' 2>/dev/null)
+    v_src_bytes="${summary_bytes[${copied_idx[$vi]}]}"
+
+    if [[ -n $v_dst_bytes && -n $v_src_bytes && $v_src_bytes != "?" ]]; then
+      v_src_h=$(_bq_archive_human bytes "$v_src_bytes")
+      v_dst_h=$(_bq_archive_human bytes "$v_dst_bytes")
+      if [[ $v_src_bytes == "$v_dst_bytes" ]]; then
+        print -P "  %F{green}✓ TABLE_STORAGE bytes match:%f ${v_src_h}"
+      else
+        print -P "  %F{yellow}• TABLE_STORAGE bytes differ:%f source=${v_src_h}  archive=${v_dst_h}  %F{8}(advisory — storage stats lag writes)%f"
+      fi
+    else
+      print -P "  %F{8}• TABLE_STORAGE bytes unavailable for comparison%f"
+    fi
   done
 fi
 
@@ -721,10 +1015,219 @@ fi
 # Drop instructions: print + write to a timestamped .sql file
 # ---------------------------------------------------------------------------
 
+# Nothing copied means there is no table-delete work and no DROP file
+# to write. Return only if there are also no views pending — otherwise
+# fall through to the delete stage, which is the whole point of a
+# views-only selection.
 if (( ${#copied} == 0 )); then
+  if (( _copy_n > 0 )); then
+    print ""
+    print -u2 "bq-archive: nothing was copied; no DROP instructions emitted"
+    archive_rc=1
+  fi
+  if (( ${#views_skipped} == 0 )); then
+    return $archive_rc
+  fi
+fi
+
+# ---------------------------------------------------------------------------
+# Deletion of the source tables — one prompt per table, gated on
+# verification. A source is only offered when its COUNT(*) matched the
+# archive copy's; an unverified pair is reported and skipped, never
+# prompted for, so a bad copy cannot be talked into a delete by
+# reflexively typing 'yes'.
+#
+# Confirmation is the full table name rather than 'yes': at this point
+# the prompts are near-identical and repeated N times, which is exactly
+# the shape that trains you to type the magic word without reading. The
+# name has to be looked at to be typed.
+#
+# Anything not deleted here (unverified, declined, or failed) still
+# gets DROP instructions written to the .sql file below.
+# ---------------------------------------------------------------------------
+
+local -a deleted delete_failed not_deleted
+local di d_src d_dst d_ans d_tbl d_rows d_bytes
+
+if (( ${#copied} > 0 )); then
   print ""
-  print -u2 "bq-archive: nothing was copied; no DROP instructions emitted"
-  return 1
+  print -P "%F{yellow}=== Delete source tables ===%f"
+  print "  Sources are deleted one at a time, only where verification passed."
+  print "  Confirm by typing the table name exactly; anything else skips it."
+fi
+
+for (( di = 1; di <= ${#copied}; di++ )); do
+  d_src=${copied[$di]%%|*}
+  d_dst=${copied[$di]##*|}
+  d_tbl=${d_src##*.}
+
+  print ""
+  print -P "%F{magenta}--- [${di}/${#copied}] ${d_src} ---%f"
+
+  if (( ! verified[di] )); then
+    not_deleted+=("$d_src")
+    print -P "  %F{red}NOT OFFERED — verification failed:%f ${verify_note[$di]}"
+    print "  Investigate the copy before deleting anything. DROP SQL is still"
+    print "  written to the file below if you decide to proceed by hand."
+    continue
+  fi
+
+  d_rows=$(_bq_archive_human rows "${summary_rows[${copied_idx[$di]}]}")
+  d_bytes=$(_bq_archive_human bytes "${summary_bytes[${copied_idx[$di]}]}")
+
+  print -P "  %F{green}verified%f — archive copy has the same COUNT(*)"
+  print "  source:   ${d_src}   (${d_rows} rows, ${d_bytes})"
+  print "  archive:  ${d_dst}"
+  print -P "  %F{red}This permanently deletes the source table.%f"
+
+  d_ans=""
+  vared -p "  Type '${d_tbl}' to DELETE the source (anything else skips): " d_ans
+
+  if [[ $d_ans != "$d_tbl" ]]; then
+    not_deleted+=("$d_src")
+    print "  skipped — ${d_src} left in place"
+    continue
+  fi
+
+  if bq rm --force --table "$d_src" 2>&1; then
+    deleted+=("$d_src")
+    print -P "  %F{green}deleted%f ${d_src}"
+    _rlm-bq-history append bq-archive "$d_src" archived deleted
+  else
+    delete_failed+=("$d_src")
+    print -u2 "  bq-archive: FAILED to delete ${d_src}"
+  fi
+done
+
+# ---------------------------------------------------------------------------
+# Deletion of selected VIEWs.
+#
+# Views were never copied — there is nothing in a view to archive — so
+# there is no verification gate here and nothing to compare against.
+# The gate is instead the definition itself: a view's SQL is the only
+# thing lost when it is dropped, so it is printed in full immediately
+# above the prompt. Read it, copy it if you want it, then confirm.
+#
+# `bq show --view` works only for standard VIEWs; MATERIALIZED_VIEWs
+# need --materialized_view or the definition is missing from the
+# output. A materialized view does hold data, but that data is derived
+# and is regenerated from the definition, so it is still the SQL — not
+# the bytes — that is worth keeping.
+# ---------------------------------------------------------------------------
+
+local -a views_deleted views_kept views_delete_failed
+if (( ${#views_skipped} > 0 )); then
+  print ""
+  print -P "%F{yellow}=== Delete ${#views_skipped} selected view(s) ===%f"
+  print "  Views hold no data of their own, so there is nothing to archive —"
+  print "  deleting is the only meaningful action. Each definition is shown"
+  print "  below; save any you might need before confirming."
+  print "  Confirm by typing the view name exactly; anything else skips it."
+
+  local vd_i vd_ref vd_type vd_name vd_url vd_flag vd_ans vd_def
+  for (( vd_i = 1; vd_i <= ${#views_skipped}; vd_i++ )); do
+    vd_ref="${views_skipped[$vd_i]}"
+    vd_type="${views_skipped_types[$vd_i]}"
+    vd_name=${vd_ref##*.}
+
+    print ""
+    print -P "%F{magenta}--- [${vd_i}/${#views_skipped}] ${vd_ref}  [${vd_type}] ---%f"
+
+    vd_url=$("$HOME/bin/bq-console-url" "$vd_ref" 2>/dev/null)
+    [[ -n $vd_url ]] && print -P "  %F{8}${vd_url}%f"
+
+    if [[ $vd_type == MATERIALIZED_VIEW ]]; then
+      vd_flag="--materialized_view"
+    else
+      vd_flag="--view"
+    fi
+
+    # Pull the definition from the JSON payload rather than bq's table
+    # rendering, which truncates long SQL to fit the terminal.
+    vd_def=$(bq --quiet show --format=json "$vd_flag" "$vd_ref" 2>/dev/null \
+      | jq -r '.view.query // .materializedView.query // empty' 2>/dev/null)
+
+    if [[ -n $vd_def ]]; then
+      print -P "  %F{8}--- SQL definition (save this if you may need it) ---%f"
+      print -r -- "$vd_def" | sed 's/^/    /'
+      print -P "  %F{8}--- end definition ---%f"
+    else
+      print -P "  %F{red}could not read the definition%f — recover it with:"
+      print "    bq show ${vd_flag} ${vd_ref}"
+      print "  Deleting without a saved definition is unrecoverable."
+    fi
+
+    print -P "  %F{red}This permanently deletes the view.%f"
+
+    vd_ans=""
+    vared -p "  Type '${vd_name}' to DELETE this view (anything else skips): " vd_ans
+
+    if [[ $vd_ans != "$vd_name" ]]; then
+      views_kept+=("$vd_ref")
+      print "  skipped — ${vd_ref} left in place"
+      continue
+    fi
+
+    if bq rm --force --table "$vd_ref" 2>&1; then
+      views_deleted+=("$vd_ref")
+      print -P "  %F{green}deleted%f ${vd_ref}"
+      _rlm-bq-history append bq-archive "$vd_ref" view deleted
+    else
+      views_delete_failed+=("$vd_ref")
+      print -u2 "  bq-archive: FAILED to delete ${vd_ref}"
+    fi
+  done
+fi
+
+if (( ${#copied} > 0 || ${#views_skipped} > 0 )); then
+  print ""
+  if (( ${#copied} > 0 )); then
+    print "Delete summary (tables): ${#deleted} deleted, ${#not_deleted} kept, ${#delete_failed} failed"
+  fi
+  if (( ${#views_skipped} > 0 )); then
+    print "Delete summary (views):  ${#views_deleted} deleted, ${#views_kept} kept, ${#views_delete_failed} failed"
+  fi
+fi
+
+# Deleted views leave the pickers by the same route as deleted tables.
+if (( ${#views_deleted} > 0 )); then
+  local _vdead_file="$HOME/.cache/bq-open/dead-refs.txt"
+  mkdir -p "${_vdead_file:h}"
+  local _vd
+  for _vd in "${views_deleted[@]}"; do
+    print -r -- "$_vd" >>"$_vdead_file"
+  done
+fi
+
+# Deleted sources must leave the pickers, or the next run offers refs
+# that no longer exist. dead-refs.txt is the shared channel the GC at
+# the top of every rlm-bq-* invocation drains.
+if (( ${#deleted} > 0 )); then
+  local _dead_file="$HOME/.cache/bq-open/dead-refs.txt"
+  mkdir -p "${_dead_file:h}"
+  local _d
+  for _d in "${deleted[@]}"; do
+    print -r -- "$_d" >>"$_dead_file"
+  done
+  print "Deleted refs queued for cache pruning on the next rlm-bq-* run."
+fi
+
+# DROP instructions cover only the sources still standing — the ones
+# skipped at the prompt, blocked by verification, or whose `bq rm`
+# failed. Emitting statements for already-deleted tables would leave a
+# file whose statements error out on a second run and obscure the ones
+# that still matter.
+local -a pending_drop
+pending_drop=("${not_deleted[@]}" "${delete_failed[@]}")
+
+if (( ${#pending_drop} == 0 )); then
+  if (( ${#copied} > 0 )); then
+    print ""
+    print -P "%F{green}All copied source tables were deleted; no DROP instructions needed.%f"
+  fi
+  (( ${#failed} > 0 || ${#skipped} > 0 )) && archive_rc=1
+  (( ${#views_delete_failed} > 0 )) && archive_rc=1
+  return $archive_rc
 fi
 
 local ts drop_file
@@ -733,15 +1236,23 @@ drop_file="${TMPDIR:-/tmp}/bq-archive-drop-${ts}.sql"
 
 {
   print -- "-- bq-archive: generated $(date '+%Y-%m-%d %H:%M:%S')"
-  print -- "-- Source tables successfully copied to ${archive_proj}.${archive_ds}."
+  print -- "-- Source tables successfully copied to ${archive_proj}.${archive_ds}"
+  print -- "-- but NOT deleted (declined at the prompt, blocked by failed"
+  print -- "-- verification, or the delete itself failed)."
   print -- "-- Review the diagnostics output above and your downstream consumers"
   print -- "-- BEFORE running any of the statements below."
+  if (( ${#delete_failed} > 0 )); then
+    print -- ""
+    print -- "-- WARNING: these were confirmed for deletion but 'bq rm' failed:"
+    for s in "${delete_failed[@]}"; do
+      print -- "--   ${s}"
+    done
+  fi
   print -- ""
   print -- "-- ============================================================"
   print -- "-- Drop the original source tables (run in BigQuery UI / bq query):"
   print -- "-- ============================================================"
-  for pair in "${copied[@]}"; do
-    s=${pair%%|*}
+  for s in "${pending_drop[@]}"; do
     # SQL identifier uses dots, not colons
     print -- "DROP TABLE \`${s/:/.}\`;"
   done
@@ -749,16 +1260,14 @@ drop_file="${TMPDIR:-/tmp}/bq-archive-drop-${ts}.sql"
   print -- "-- ============================================================"
   print -- "-- Or via the bq CLI:"
   print -- "-- ============================================================"
-  for pair in "${copied[@]}"; do
-    s=${pair%%|*}
+  for s in "${pending_drop[@]}"; do
     print -- "-- bq rm --table ${s}"
   done
   print -- ""
   print -- "-- ============================================================"
   print -- "-- Find downstream views / procedures that reference each table:"
   print -- "-- ============================================================"
-  for pair in "${copied[@]}"; do
-    s=${pair%%|*}
+  for s in "${pending_drop[@]}"; do
     src_proj=${s%%:*}
     src_tbl=${s##*.}
     qp=$(_bq_archive_query_project "$src_proj")
@@ -775,9 +1284,11 @@ drop_file="${TMPDIR:-/tmp}/bq-archive-drop-${ts}.sql"
 } >| "$drop_file"
 
 print ""
-print -P "%F{yellow}=== DROP instructions (NOT executed) ===%f"
+print -P "%F{yellow}=== DROP instructions for ${#pending_drop} undeleted source(s) (NOT executed) ===%f"
 cat "$drop_file"
 print ""
 print -P "%F{yellow}Drop instructions written to:%f $drop_file"
 
-return 0
+(( ${#delete_failed} > 0 )) && archive_rc=1
+(( ${#views_delete_failed} > 0 )) && archive_rc=1
+return $archive_rc
