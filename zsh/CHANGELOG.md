@@ -4,7 +4,19 @@ All notable changes to the zsh configuration are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [2026-08-06]
+## [2026-08-10]
+
+### Changed
+
+- `rlm-git-status` (`git-status`, `git-repos`): **absorbed the in-progress `rlm-git-repos` inventory view; the two are now one function and `rlm-git-repos`/`git-repos` are aliases.** They had been written as complements — one the verbose local-work view, one the one-row-per-repo inventory with PR and JIRA columns — but the split did not survive contact with use: both scanned the same directory the same way, resolved the same base ref, computed divergence with the same `rev-list --left-right --count`, and rendered the same padded-against-visible-width divergence cell, so ~150 lines were duplicated and every fix had to be applied twice. The question they answered was also one question, not two: "where does this change set stand" spans uncommitted work *and* whether it has been pushed, and having to run two commands to see both halves is what made the split feel wrong. The merged table carries all four state columns (`AHEAD/BEHIND`, `LOCAL`, `PR`, `JIRA`), which stay independent rather than collapsing into a "differs" boolean — a repo can be committed with no PR, or have a PR open while its tree is still dirty, and those are different situations.
+
+- `rlm-git-status`: **every repo now gets a row by default; the `unchanged:` roll-up moved behind `--changed`.** The pre-merge default listed only dirty-or-diverged repos, which is right when you are asking "what is left to do" and wrong when you are asking "what does this change set look like" — the inventory reading needs the clean rows present. `-a`/`--all` is accepted as a no-op so the old spelling still works. The header hoists `BRANCH` and `JIRA` out of the table when every repo shares one value (as collection members do) and drops those columns, which is what keeps a 6-column table inside 80 columns; the `JIRA` column is also dropped when *no* repo resolved a key, since a column of `-` is noise. Hoisting is computed over all rows rather than the rendered ones, so `--changed` does not shift columns in and out depending on which repos happen to be dirty.
+
+- `rlm-git-status`: PR and JIRA lookups are on by default, with `-P`/`--no-pr` and `-J`/`--no-jira` to skip. The `gh pr list` call is the slow part (~300-800ms/repo), so it rides the existing background fan-out — 7 repos land in ~700ms rather than ~4s. `--no-pr` is also implied when `gh` or `jq` is missing. JIRA summaries reuse the `~/.cache/wts-jira/<KEY>.summary` cache shared with `wt-preview`/`wt-collection-preview` on the same 3-day TTL, refreshed once per key rather than once per repo since collection members share one.
+
+- `rlm-git-status`: the divergence column keeps the `AHEAD/BEHIND` label rather than the pre-merge `VS <base>`; the base ref it is measured against is still reported, but per-row only when a repo's base differs from the majority. Column width is derived from the label rather than hardcoded, so header and per-row padding cannot drift apart if it is reworded.
+
+- `rlm-git-status`: the "N with a PR" summary counts over **all** members, not just the rendered rows. Under `--changed` a clean, in-sync repo can still have a merged PR, and counting only rendered rows would have under-reported against a total that is stated in full-member terms.
 
 ### Added
 
