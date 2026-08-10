@@ -1,0 +1,61 @@
+rlm-git-update [-n|--dry-run] [-b|--branch <name>] [<directory>]
+
+Switch every git repo in a directory to the target branch (default
+main) and hard-reset that branch to exactly origin/<branch>. Written
+for the multi-repo collection dirs that rlm-git-status reports on —
+one directory holding a checkout of every repo — where the routine
+task is "get all of these back to a clean copy of the remote".
+
+The target branch is treated as a read-only mirror of the remote.
+That is the intent, but it means unpushed commits on that branch are
+destroyed, so the function is deliberately conservative about what it
+will touch and loud about what it discards.
+
+Scans the immediate children of <directory> (default: the current
+directory), treating each child that is its own git worktree root as
+a member. When the target has no repo children it falls back to the
+enclosing repo, so the function also works from inside a single
+worktree at any depth.
+
+SAFETY
+  Repos with uncommitted changes to *tracked* files are skipped and
+  listed — reset --hard would destroy those edits. Untracked files do
+  not block the run, since reset leaves them alone.
+
+  Commits that exist on the local branch but not on origin are listed
+  before being discarded, so nothing is thrown away silently. They
+  remain recoverable via `git reflog`.
+
+  Stashes are never touched (reset does not affect refs/stash), and
+  neither are other branches. A branch left behind that has no
+  upstream is reported, so local-only work stays visible.
+
+  Each repo is fetched before it is reset. Resetting to a stale
+  cached origin/<branch> would report success while pinning the repo
+  to an old commit.
+
+A per-repo log is followed by a summary counting updated, skipped and
+failed repos, plus sections listing anything skipped, left behind
+without an upstream, or discarded. The function returns 1 when any
+repo failed, otherwise 0.
+
+Colors are emitted only when stdout is a terminal, so the log stays
+pasteable when piped or redirected.
+
+OPTIONS
+  -n, --dry-run       Report what would happen without changing
+                      anything. No fetch is performed, so the discard
+                      report is computed against a possibly stale
+                      origin/<branch>.
+  -b, --branch <name> Use <name> instead of main as the target
+                      branch.
+  -h, --help          Print a usage line.
+
+EXAMPLES
+  git-update                      # every repo under the current dir
+  git-update -n                   # dry run: report, change nothing
+  git-update ~/git/work/Platform  # a collection dir, from anywhere
+  git-update -b devel             # target a different branch
+
+REQUIRES
+  git

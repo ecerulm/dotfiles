@@ -1,0 +1,246 @@
+emulate -L zsh
+set -o pipefail
+
+# ---------------------------------------------------------------------------
+# rlm-git-update — switch every git repo in a directory to the target branch
+# and hard-reset it to origin/<branch>.
+#
+# Treats the target branch as a read-only mirror of the remote. That is the
+# intent, but it means unpushed commits on that branch are destroyed, so:
+#
+#   - Repos with uncommitted *tracked* changes are skipped. reset --hard would
+#     eat those edits. Untracked files do not block the run, since reset leaves
+#     them alone.
+#   - Commits that exist locally but not on origin are listed before being
+#     discarded. Nothing disappears silently.
+#   - Stashes are untouched (reset does not affect refs/stash), and so are
+#     other branches. Branches with no upstream are reported on the way out so
+#     local-only work stays visible.
+#
+# Fetches before resetting: resetting to a stale cached origin/<branch> would
+# report success while pinning the repo to an old commit.
+#
+# Directory handling mirrors rlm-git-status — scan the immediate children of
+# <directory> (default cwd), and fall back to the target itself when it is a
+# repo with no repo children — so the two compose over the same multi-repo
+# collection dirs.
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# Precondition checks
+# ---------------------------------------------------------------------------
+
+if ! command -v git >/dev/null 2>&1; then
+  print -u2 "git-update: 'git' not found in PATH"
+  return 1
+fi
+
+# ---------------------------------------------------------------------------
+# Argument parsing
+# ---------------------------------------------------------------------------
+
+local target=''
+local target_branch='main'
+local -i dry_run=0
+
+while (( $# )); do
+  case $1 in
+    -n|--dry-run) dry_run=1; shift ;;
+    -b|--branch)
+      if [[ -z $2 ]]; then
+        print -u2 "git-update: --branch requires an argument"
+        return 2
+      fi
+      target_branch=$2; shift 2 ;;
+    -h|--help)
+      print -r -- "rlm-git-update [-n|--dry-run] [-b|--branch <name>] [<directory>]"
+      return 0 ;;
+    --) shift; break ;;
+    -*)
+      print -u2 "git-update: unknown option '$1'"
+      return 2 ;;
+    *)
+      if [[ -n $target ]]; then
+        print -u2 "git-update: unexpected extra argument '$1'"
+        return 2
+      fi
+      target=$1; shift ;;
+  esac
+done
+
+[[ -z $target && -n $1 ]] && target=$1
+
+target=${target:-$PWD}
+
+if [[ ! -d $target ]]; then
+  print -u2 "git-update: '$target' is not a directory"
+  return 1
+fi
+
+target=${target:A}
+
+# ---------------------------------------------------------------------------
+# Repo discovery
+#
+# A child counts as a member when it is its own git worktree root: git reports
+# a toplevel AND that toplevel is the child itself. Without the second test a
+# plain subdirectory of an enclosing repo would match, since rev-parse happily
+# answers from any depth. Same guard as rlm-git-status.
+# ---------------------------------------------------------------------------
+
+local -a repos
+local subdir='' top=''
+for subdir in "$target"/*(N/); do
+  top=$(cd "$subdir" 2>/dev/null && git rev-parse --show-toplevel 2>/dev/null) || continue
+  [[ -z $top ]] && continue
+  [[ ${top:A} != ${subdir:A} ]] && continue
+  repos+=("${subdir:A}")
+done
+
+# Fall back to the enclosing repo when the target has no repo children, so the
+# function works from inside a single worktree (at any depth) too.
+if (( ${#repos} == 0 )); then
+  top=$(cd "$target" 2>/dev/null && git rev-parse --show-toplevel 2>/dev/null)
+  if [[ -n $top ]]; then
+    repos=("${top:A}")
+  else
+    print -u2 "git-update: no git repositories found in ${target/#$HOME/~}"
+    return 1
+  fi
+fi
+
+# ---------------------------------------------------------------------------
+# Output styling — only when attached to a terminal, so the log stays
+# pasteable when piped or redirected.
+# ---------------------------------------------------------------------------
+
+local bold='' red='' green='' yellow='' dim='' reset=''
+if [[ -t 1 ]]; then
+  bold=$'\e[1m'; red=$'\e[31m'; green=$'\e[32m'
+  yellow=$'\e[33m'; dim=$'\e[2m'; reset=$'\e[0m'
+fi
+
+# ---------------------------------------------------------------------------
+# Main loop
+# ---------------------------------------------------------------------------
+
+local -a updated skipped failed stranded discarded
+local repo name current ahead upstream summary
+
+_rlm_git_update_run() {
+  if (( dry_run )); then
+    print -r -- "    ${dim}would run: git ${@}${reset}"
+    return 0
+  fi
+  git "$@"
+}
+
+for repo in $repos; do
+  name=${repo:t}
+  print -r -- "${bold}==> ${name}${reset}"
+
+  if [[ -n $(git -C "$repo" status --porcelain --untracked-files=no 2>/dev/null) ]]; then
+    print -r -- "    ${yellow}skipped: uncommitted changes to tracked files${reset}"
+    git -C "$repo" status --short --untracked-files=no | sed 's/^/      /'
+    skipped+=("$name")
+    continue
+  fi
+
+  current=$(git -C "$repo" symbolic-ref --short HEAD 2>/dev/null) || current='DETACHED'
+
+  if [[ $current != $target_branch && $current != 'DETACHED' ]]; then
+    if ! git -C "$repo" rev-parse --abbrev-ref --symbolic-full-name '@{u}' >/dev/null 2>&1; then
+      print -r -- "    ${yellow}note: leaving '$current', which has no upstream (local-only commits)${reset}"
+      stranded+=("$name ($current)")
+    fi
+  fi
+
+  print -r -- "    fetching"
+  if ! _rlm_git_update_run -C "$repo" fetch --prune origin; then
+    print -r -- "    ${red}failed: fetch${reset}"
+    failed+=("$name")
+    continue
+  fi
+
+  if ! git -C "$repo" rev-parse --verify -q "refs/remotes/origin/$target_branch" >/dev/null; then
+    print -r -- "    ${red}failed: origin/$target_branch does not exist${reset}"
+    failed+=("$name")
+    continue
+  fi
+
+  if [[ $current == $target_branch ]]; then
+    print -r -- "    already on $target_branch"
+  else
+    print -r -- "    switching from $current to $target_branch"
+    if ! _rlm_git_update_run -C "$repo" switch "$target_branch"; then
+      print -r -- "    ${red}failed: could not switch to $target_branch${reset}"
+      failed+=("$name")
+      continue
+    fi
+  fi
+
+  # Compare by ref name rather than HEAD: in a dry run the branch may not be
+  # checked out yet.
+  if git -C "$repo" rev-parse --verify -q "refs/heads/$target_branch" >/dev/null; then
+    ahead=$(git -C "$repo" rev-list --count "origin/$target_branch..$target_branch" 2>/dev/null) || ahead=0
+    if (( ${ahead:-0} > 0 )); then
+      print -r -- "    ${yellow}discarding $ahead local commit(s) on $target_branch:${reset}"
+      git -C "$repo" log --oneline "origin/$target_branch..$target_branch" | sed 's/^/      /'
+      discarded+=("$name ($ahead commit(s))")
+    fi
+  fi
+
+  if ! _rlm_git_update_run -C "$repo" reset --hard "origin/$target_branch"; then
+    print -r -- "    ${red}failed: reset${reset}"
+    failed+=("$name")
+    continue
+  fi
+
+  summary=$(git -C "$repo" log -1 --format='%h %s' "origin/$target_branch" 2>/dev/null)
+  print -r -- "    ${green}ok${reset} ${dim}${summary}${reset}"
+  updated+=("$name")
+done
+
+unfunction _rlm_git_update_run
+
+# ---------------------------------------------------------------------------
+# Summary
+# ---------------------------------------------------------------------------
+
+print
+print -r -- "${bold}Summary${reset}"
+if (( dry_run )); then
+  print -r -- "${dim}(dry run - nothing was changed)${reset}"
+  print -r -- "${dim}Note: no fetch was performed, so the discard report above is${reset}"
+  print -r -- "${dim}computed against a possibly stale origin/$target_branch.${reset}"
+fi
+print -r -- "  ${green}updated: ${#updated}${reset}"
+print -r -- "  ${yellow}skipped: ${#skipped}${reset}"
+print -r -- "  ${red}failed:  ${#failed}${reset}"
+
+if (( ${#skipped} )); then
+  print
+  print -r -- "${yellow}Skipped (commit or stash, then re-run):${reset}"
+  printf '  %s\n' "${skipped[@]}"
+fi
+
+if (( ${#stranded} )); then
+  print
+  print -r -- "${yellow}Branches left behind with no upstream (work exists only locally):${reset}"
+  printf '  %s\n' "${stranded[@]}"
+fi
+
+if (( ${#discarded} )); then
+  print
+  print -r -- "${yellow}Local commits discarded by reset (recoverable via 'git reflog'):${reset}"
+  printf '  %s\n' "${discarded[@]}"
+fi
+
+if (( ${#failed} )); then
+  print
+  print -r -- "${red}Failed:${reset}"
+  printf '  %s\n' "${failed[@]}"
+  return 1
+fi
+
+return 0

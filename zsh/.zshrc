@@ -137,6 +137,7 @@ autoload -Uz rlm-git-changed
 autoload -Uz rlm-git-diff-base
 autoload -Uz rlm-git-find-in-remotes
 autoload -Uz rlm-git-status
+autoload -Uz rlm-git-update
 autoload -Uz rlm-git-squash-branch
 autoload -Uz rlm-git-squash-branch-old
 autoload -Uz rlm-dbt
@@ -214,6 +215,7 @@ alias git-find-in-remotes='rlm-git-find-in-remotes'
 alias rlm-git-repos='rlm-git-status'
 alias git-repos='rlm-git-status'
 alias git-status='rlm-git-status'
+alias git-update='rlm-git-update'
 alias git-squash-branch='rlm-git-squash-branch'
 alias git-squash-branch-old='rlm-git-squash-branch-old'
 alias bq-archive='rlm-bq-archive'
