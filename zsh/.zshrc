@@ -268,6 +268,12 @@ fi
 # fi
 
 if builtin command -v zoxide >/dev/null ;then
+
+  export _ZO_FZF_OPTS="--no-sort --keep-right --cycle --exit-0
+  --height=45% --layout=reverse --info=inline --tabstop=1 --border=sharp
+  --no-mouse --ansi
+  --bind=ctrl-z:ignore,btab:up,tab:down --bind=ctrl-g:abort
+  --preview='command -p ls -Cp {2..}' --preview-window=down,30%,sharp"
   eval "$(zoxide init zsh)"
   alias cd=z
 fi

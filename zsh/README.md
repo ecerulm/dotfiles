@@ -227,6 +227,10 @@ ______________________________________________________________________
 |---|---|
 | `cd` | `z` (zoxide, if installed) |
 
+zoxide's interactive picker (`zi`) is configured via `_ZO_FZF_OPTS` in `.zshrc` so it
+matches the other fzf pickers here — `--no-mouse` (terminal keeps selection/copy and
+clickable links), `--ansi`, and `Ctrl-G` to abort.
+
 ### Terraform
 
 | Alias | Expands to |

@@ -362,6 +362,8 @@ fzf --no-mouse --ansi --height=80% --reverse \
 
 Preview commands run in a plain `sh` subshell with **no** zsh `$PATH` additions or autoloaded functions — use full paths (e.g. `$HOME/bin/<script>`) for helper scripts. Inside tmux, OSC 8 also needs `set -ga terminal-features "*:hyperlinks"` in `tmux.conf` (already set).
 
+Third-party pickers that shell out to `fzf` themselves take their options from an env var, not from these call sites — set that var in `.zshrc` so they inherit the same conventions. zoxide's `zi` reads `_ZO_FZF_OPTS`, which must be exported **before** `eval "$(zoxide init zsh)"`; it *replaces* zoxide's built-in defaults rather than adding to them, so the whole option set has to be restated (the upstream defaults plus `--no-mouse`, `--ansi`, and `ctrl-g:abort`).
+
 ### Separating display from ID
 
 Don't inline ANSI into the visible string and strip it back out. Build each line as tab-separated fields (hidden sort keys, colored display, raw id); hand fzf `--delimiter=$'\t'` + `--with-nth=<N>` to render only the display field, and read fields back by index — `${sel##*$'\t'}` in zsh, or `{N}` inside `--preview`.
