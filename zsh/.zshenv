@@ -45,6 +45,11 @@ export LC_ALL="en_US.utf-8"
 export NVM_DIR="${XDG_CONFIG_HOME:-$HOME}/nvm"
 [[ ! -d "$NVM_DIR" && -d "$HOME/.nvm" ]] && export NVM_DIR="$HOME/.nvm"
 
+# uv resolves index credentials through the system keyring. Here (not .zshrc)
+# because uv also runs from scripts and editor subshells, where .zshrc never loads.
+export UV_KEYRING_PROVIDER=subprocess
+export UV_KEYRING_PROVIDER_COMMAND="$HOME/.local/bin/keyring"
+
 # PATH additions that should be visible to non-interactive shells too
 # (scripts, make, editor subshells). Homebrew / Java / VS Code / Antigravity
 # stay in .zshrc because they're either interactive-only or installer-managed.
