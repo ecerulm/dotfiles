@@ -2,28 +2,29 @@ emulate -L zsh
 set -o pipefail
 
 # ---------------------------------------------------------------------------
-# rlm-git-update — switch every git repo in a directory to the target branch
-# and hard-reset it to origin/<branch>.
+# rlm-git-update — bring every git repo in a directory up to date with
+# origin/<branch> by merging it into whatever branch is checked out.
 #
-# Treats the target branch as a read-only mirror of the remote. That is the
-# intent, but it means unpushed commits on that branch are destroyed, so:
+# Stays on the current branch. The point is to pick up upstream work without
+# losing the branch you are on, so nothing is ever discarded:
 #
-#   - Repos with uncommitted *tracked* changes are skipped. reset --hard would
-#     eat those edits. Untracked files do not block the run, since reset leaves
-#     them alone.
-#   - Commits that exist locally but not on origin are listed before being
-#     discarded. Nothing disappears silently.
-#   - Stashes are untouched (reset does not affect refs/stash), and so are
-#     other branches. Branches with no upstream are reported on the way out so
-#     local-only work stays visible.
+#   - Repos with uncommitted *tracked* changes are skipped. git merge refuses
+#     to run over a dirty tree anyway, and stopping early gives a clearer
+#     message than git's. Untracked files do not block the run.
+#   - Merges that would conflict are aborted and reported. The repo is left
+#     exactly as it was, for the human to merge by hand.
+#   - Local commits are preserved — a merge commit is created when the
+#     branches have diverged, rather than rewriting history.
+#   - Detached HEADs are skipped: there is no branch to merge into.
 #
-# Fetches before resetting: resetting to a stale cached origin/<branch> would
-# report success while pinning the repo to an old commit.
+# Fetches before merging: merging a stale cached origin/<branch> would report
+# success while leaving the repo behind.
 #
 # Directory handling mirrors rlm-git-status — scan the immediate children of
 # <directory> (default cwd), and fall back to the target itself when it is a
 # repo with no repo children — so the two compose over the same multi-repo
-# collection dirs.
+# collection dirs. rlm-git-status is invoked at the end to show where every
+# repo landed.
 # ---------------------------------------------------------------------------
 
 # ---------------------------------------------------------------------------
@@ -54,6 +55,10 @@ while (( $# )); do
       target_branch=$2; shift 2 ;;
     -h|--help)
       print -r -- "rlm-git-update [-n|--dry-run] [-b|--branch <name>] [<directory>]"
+      print -r -- ""
+      print -r -- "Merge origin/<branch> (default: main) into the branch checked out in"
+      print -r -- "every repo under <directory> (default: cwd), then show rlm-git-status."
+      print -r -- "Repos that would conflict are left untouched and reported."
       return 0 ;;
     --) shift; break ;;
     -*)
@@ -124,8 +129,8 @@ fi
 # Main loop
 # ---------------------------------------------------------------------------
 
-local -a updated skipped failed stranded discarded
-local repo name current ahead upstream summary
+local -a updated uptodate skipped failed conflicted
+local repo name current behind summary
 
 _rlm_git_update_run() {
   if (( dry_run )); then
@@ -146,16 +151,15 @@ for repo in $repos; do
     continue
   fi
 
-  current=$(git -C "$repo" symbolic-ref --short HEAD 2>/dev/null) || current='DETACHED'
-
-  if [[ $current != $target_branch && $current != 'DETACHED' ]]; then
-    if ! git -C "$repo" rev-parse --abbrev-ref --symbolic-full-name '@{u}' >/dev/null 2>&1; then
-      print -r -- "    ${yellow}note: leaving '$current', which has no upstream (local-only commits)${reset}"
-      stranded+=("$name ($current)")
-    fi
+  # A detached HEAD has no branch to merge into. Merging would leave the
+  # result unreachable once HEAD moves, so skip rather than pretend.
+  if ! current=$(git -C "$repo" symbolic-ref --short HEAD 2>/dev/null); then
+    print -r -- "    ${yellow}skipped: detached HEAD (no branch to merge into)${reset}"
+    skipped+=("$name")
+    continue
   fi
 
-  print -r -- "    fetching"
+  (( dry_run )) || print -r -- "    fetching"
   if ! _rlm_git_update_run -C "$repo" fetch --prune origin; then
     print -r -- "    ${red}failed: fetch${reset}"
     failed+=("$name")
@@ -168,35 +172,38 @@ for repo in $repos; do
     continue
   fi
 
-  if [[ $current == $target_branch ]]; then
-    print -r -- "    already on $target_branch"
-  else
-    print -r -- "    switching from $current to $target_branch"
-    if ! _rlm_git_update_run -C "$repo" switch "$target_branch"; then
-      print -r -- "    ${red}failed: could not switch to $target_branch${reset}"
-      failed+=("$name")
-      continue
-    fi
+  # Nothing to do when origin/<branch> is already an ancestor of HEAD. Checked
+  # explicitly so the common case reports "up to date" instead of a no-op merge.
+  if git -C "$repo" merge-base --is-ancestor "origin/$target_branch" HEAD 2>/dev/null; then
+    print -r -- "    ${green}up to date${reset} ${dim}($current already contains origin/$target_branch)${reset}"
+    uptodate+=("$name")
+    continue
   fi
 
-  # Compare by ref name rather than HEAD: in a dry run the branch may not be
-  # checked out yet.
-  if git -C "$repo" rev-parse --verify -q "refs/heads/$target_branch" >/dev/null; then
-    ahead=$(git -C "$repo" rev-list --count "origin/$target_branch..$target_branch" 2>/dev/null) || ahead=0
-    if (( ${ahead:-0} > 0 )); then
-      print -r -- "    ${yellow}discarding $ahead local commit(s) on $target_branch:${reset}"
-      git -C "$repo" log --oneline "origin/$target_branch..$target_branch" | sed 's/^/      /'
-      discarded+=("$name ($ahead commit(s))")
-    fi
+  behind=$(git -C "$repo" rev-list --count "HEAD..origin/$target_branch" 2>/dev/null) || behind=0
+  print -r -- "    merging origin/$target_branch into $current ${dim}($behind commit(s) behind)${reset}"
+
+  # Probe with merge-tree before touching the working tree. --write-tree exits
+  # non-zero on conflict, so a conflicting merge is detected without ever
+  # starting one — no half-merged state to clean up, no --abort to get wrong.
+  if ! git -C "$repo" merge-tree --write-tree "HEAD" "origin/$target_branch" >/dev/null 2>&1; then
+    print -r -- "    ${yellow}cannot merge automatically: conflicts with origin/$target_branch${reset}"
+    print -r -- "    ${yellow}merge by hand: git -C ${repo/#$HOME/~} merge origin/$target_branch${reset}"
+    conflicted+=("$name ($current)")
+    continue
   fi
 
-  if ! _rlm_git_update_run -C "$repo" reset --hard "origin/$target_branch"; then
-    print -r -- "    ${red}failed: reset${reset}"
+  if ! _rlm_git_update_run -C "$repo" merge --no-edit "origin/$target_branch"; then
+    # merge-tree said it was clean, so a failure here is something else
+    # (hooks, a pre-existing MERGE_HEAD). Roll back so the repo is not left
+    # mid-merge, then report.
+    git -C "$repo" merge --abort 2>/dev/null
+    print -r -- "    ${red}failed: merge${reset}"
     failed+=("$name")
     continue
   fi
 
-  summary=$(git -C "$repo" log -1 --format='%h %s' "origin/$target_branch" 2>/dev/null)
+  summary=$(git -C "$repo" log -1 --format='%h %s' 2>/dev/null)
   print -r -- "    ${green}ok${reset} ${dim}${summary}${reset}"
   updated+=("$name")
 done
@@ -211,12 +218,20 @@ print
 print -r -- "${bold}Summary${reset}"
 if (( dry_run )); then
   print -r -- "${dim}(dry run - nothing was changed)${reset}"
-  print -r -- "${dim}Note: no fetch was performed, so the discard report above is${reset}"
-  print -r -- "${dim}computed against a possibly stale origin/$target_branch.${reset}"
+  print -r -- "${dim}Note: no fetch was performed, so the reports above are computed${reset}"
+  print -r -- "${dim}against a possibly stale origin/$target_branch.${reset}"
 fi
-print -r -- "  ${green}updated: ${#updated}${reset}"
-print -r -- "  ${yellow}skipped: ${#skipped}${reset}"
-print -r -- "  ${red}failed:  ${#failed}${reset}"
+print -r -- "  ${green}merged:     ${#updated}${reset}"
+print -r -- "  ${green}up to date: ${#uptodate}${reset}"
+print -r -- "  ${yellow}conflicted: ${#conflicted}${reset}"
+print -r -- "  ${yellow}skipped:    ${#skipped}${reset}"
+print -r -- "  ${red}failed:     ${#failed}${reset}"
+
+if (( ${#conflicted} )); then
+  print
+  print -r -- "${yellow}Could not merge automatically (merge these by hand):${reset}"
+  printf '  %s\n' "${conflicted[@]}"
+fi
 
 if (( ${#skipped} )); then
   print
@@ -224,23 +239,23 @@ if (( ${#skipped} )); then
   printf '  %s\n' "${skipped[@]}"
 fi
 
-if (( ${#stranded} )); then
-  print
-  print -r -- "${yellow}Branches left behind with no upstream (work exists only locally):${reset}"
-  printf '  %s\n' "${stranded[@]}"
-fi
-
-if (( ${#discarded} )); then
-  print
-  print -r -- "${yellow}Local commits discarded by reset (recoverable via 'git reflog'):${reset}"
-  printf '  %s\n' "${discarded[@]}"
-fi
-
 if (( ${#failed} )); then
   print
   print -r -- "${red}Failed:${reset}"
   printf '  %s\n' "${failed[@]}"
-  return 1
 fi
 
+# ---------------------------------------------------------------------------
+# Status table
+#
+# Show where every repo ended up. Guarded on the function existing so the file
+# stays usable if it is sourced without the rest of the function collection.
+# ---------------------------------------------------------------------------
+
+if (( $+functions[rlm-git-status] )) || command -v rlm-git-status >/dev/null 2>&1; then
+  print
+  rlm-git-status "$target"
+fi
+
+(( ${#failed} )) && return 1
 return 0
