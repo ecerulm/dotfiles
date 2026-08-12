@@ -39,6 +39,10 @@
 #   [merged#123]                └ data-platform-dbt
 #   [open#456]                  └ data-platform-infra
 #
+# The aggregate's state counts are always listed in the same canonical order
+# (merged, closed, no-pr/no-diff, open, has-work, detached) so the summaries
+# line up when scanning several collection rows.
+#
 # Selecting the aggregate deletes EVERY worktree in it (whatever their
 # individual states -- the flag summary is there so you can see what you're
 # about to drop) and then `rmdir`s the collection dir. rmdir, not rm -rf: if
@@ -486,8 +490,14 @@ for ckey in "${(@k)coll_total}"; do
     continue
   fi
 
-  # Count each distinct member state, preserving first-seen order so the
-  # summary reads stably across runs.
+  # Count each distinct member state. The summary lists states in a FIXED
+  # canonical order (deletable-first, then the states that need attention),
+  # not in the order members happened to be walked: an aggregate's flag is
+  # read at a glance across many rows, so the columns have to line up
+  # semantically. First-seen order made the same collection render
+  # "[7 wt: 6 no-pr/no-diff, 1 merged]" or "[7 wt: 1 merged, 6 no-pr/no-diff]"
+  # depending on repo iteration order. Any state not in the list (a future
+  # flag) is appended after, sorted, so it still shows up.
   #
   # These MUST be reset explicitly each iteration: `local` inside a function
   # body scopes to the whole function, not to the enclosing loop, so a bare
@@ -495,14 +505,20 @@ for ckey in "${(@k)coll_total}"; do
   # previous collection's counts — every aggregate would otherwise inherit
   # and accumulate the tallies of the ones before it.
   local -A state_count=()
-  local -a state_order=()
   local st=''
   for st in ${=coll_flags[$ckey]}; do
-    [[ -z ${state_count[$st]} ]] && state_order+=("$st")
     state_count[$st]=$(( ${state_count[$st]:-0} + 1 ))
   done
+  local -a state_order=(merged closed no-pr/no-diff open has-work detached)
+  local -a extra=()
+  for st in "${(@ko)state_count}"; do
+    (( ${state_order[(Ie)$st]} )) || extra+=("$st")
+  done
+  state_order+=("${extra[@]}")
   local -a parts=()
-  for st in "${state_order[@]}"; do parts+=("${state_count[$st]} ${st}"); done
+  for st in "${state_order[@]}"; do
+    (( ${state_count[$st]:-0} )) && parts+=("${state_count[$st]} ${st}")
+  done
   local summary="${(j:, :)parts}"
 
   local agg_del=0

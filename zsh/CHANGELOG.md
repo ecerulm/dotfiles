@@ -4,6 +4,12 @@ All notable changes to the zsh configuration are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2026-08-12]
+
+### Fixed
+
+- `rlm-pr-worktree-rm-merged-closed` (`pr-worktree-rm-merged-closed`): **collection aggregate rows list their member states in a fixed canonical order** — `merged, closed, no-pr/no-diff, open, has-work, detached` — instead of first-seen order. The summary was built by walking members and appending each state the first time it appeared, so the order depended on which repo happened to be iterated first: the same collection rendered `[7 wt: 6 no-pr/no-diff, 1 merged]` on one run and `[7 wt: 1 merged, 6 no-pr/no-diff]` on the next, and two collections with identical state mixes could disagree with each other in a single picker. That defeats the point of the flag, which is read by eye across a stack of rows. Deletable states are listed first so the leading count is the one that answers "can I drop this". Unknown states (a future flag) are appended after the known set, sorted, so nothing is silently dropped from the summary.
+
 ## [2026-08-10]
 
 ### Added
