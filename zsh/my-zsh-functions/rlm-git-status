@@ -17,6 +17,12 @@ set -o pipefail
 #
 #   AHEAD/BEHIND  commit divergence from the base branch, as +N/-N.
 #                 Base is origin/<default> by default.
+#   PUSH          divergence from the branch's own upstream, as ^N/vN — i.e.
+#                 what `git status` calls "ahead/behind". Distinct from the
+#                 column above: work committed on a feature branch counts
+#                 toward AHEAD forever, but leaves PUSH the moment it is
+#                 pushed. "unpushed" = no upstream at all, "gone" = the
+#                 upstream ref was deleted.
 #   LOCAL         uncommitted work: staged / unstaged / untracked / conflicts.
 #   PR            pull request for the branch, as an OSC 8 link.
 #   JIRA          issue key from the branch (or the collection dirname).
@@ -186,9 +192,9 @@ fi
 # of file) so the fan-out does not print "[4] + done ..." pairs in an
 # interactive shell.
 #
-# Row format (10 fields, any of which may be empty):
+# Row format (13 fields, any of which may be empty):
 #   name \t branch \t base \t ahead \t behind \t local_summary \t dirty_flag
-#     \t pr_num \t pr_state \t pr_url
+#     \t pr_num \t pr_state \t pr_url \t push_state \t up_ahead \t up_behind
 # ---------------------------------------------------------------------------
 
 local tmpdir
@@ -239,6 +245,52 @@ for m in "${members[@]}"; do
         behind=${counts%%[[:space:]]*}
         ahead=${counts##*[[:space:]]}
       fi
+    fi
+
+    # Upstream divergence — the "ahead 4" that `git status` reports, which
+    # answers a different question than the base divergence above: how much
+    # of this branch is not yet on its remote. A branch can be +8 vs
+    # origin/main while being fully pushed.
+    #
+    # %(upstream:track) is empty for BOTH "in sync" and "no upstream", so
+    # %(upstream:short) is needed to tell them apart. Both come from one
+    # for-each-ref call; the branch is interpolated as a full refs/heads/
+    # path so a branch named e.g. "HEAD" cannot be misresolved.
+    #
+    #   in sync      track=''          upstream='origin/foo'
+    #   ahead 4      track='[ahead 4]' upstream='origin/foo'
+    #   gone         track='[gone]'    upstream='origin/foo'
+    #   no upstream  track=''          upstream=''
+    local push_state='' up_ahead='' up_behind=''
+    if [[ $branch != '(detached'* ]]; then
+      local up_line=''
+      up_line=$(git -C "$repo" for-each-ref \
+                  --format='%(upstream:short)%09%(upstream:track)' \
+                  "refs/heads/${branch}" 2>/dev/null)
+      local up_ref='' up_track=''
+      if [[ -n $up_line ]]; then
+        local -a uf=()
+        uf=("${(@s:	:)up_line}")
+        up_ref=${uf[1]}
+        up_track=${uf[2]:-}
+      fi
+
+      if [[ -z $up_ref ]]; then
+        push_state='none'
+      elif [[ $up_track == *'[gone]'* ]]; then
+        push_state='gone'
+      else
+        # Parse counts out of "[ahead 4]", "[behind 2]", "[ahead 4, behind 2]".
+        [[ $up_track =~ 'ahead ([0-9]+)'  ]] && up_ahead=${match[1]}
+        [[ $up_track =~ 'behind ([0-9]+)' ]] && up_behind=${match[1]}
+        if [[ -n $up_ahead || -n $up_behind ]]; then
+          push_state='diverged'
+        else
+          push_state='sync'
+        fi
+      fi
+    else
+      push_state='detached'
     fi
 
     # Working tree. porcelain=v2 gives stable two-char XY codes on the
@@ -301,9 +353,9 @@ for m in "${members[@]}"; do
       fi
     fi
 
-    printf '%s\t%s\t%s\t%s\t%s\t%s\t%d\t%s\t%s\t%s\n' \
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%d\t%s\t%s\t%s\t%s\t%s\t%s\n' \
       "$name" "$branch" "$base" "$ahead" "$behind" "$local_summary" "$dirty" \
-      "$pr_num" "$pr_state" "$pr_url" \
+      "$pr_num" "$pr_state" "$pr_url" "$push_state" "$up_ahead" "$up_behind" \
       >"$tmpdir/$n"
   } &
 done
@@ -334,6 +386,7 @@ for (( idx = 1; idx <= ${#members}; idx++ )); do
   f=("${(@s:	:)raw}")
   local name=${f[1]}
   local ahead=${f[4]} behind=${f[5]} dirty=${f[7]}
+  local r_push=${f[11]:-}
 
   # A repo is "changed" when it has uncommitted work OR has diverged from
   # the base in either direction. An unknown base (missing ref) also counts
@@ -345,7 +398,27 @@ for (( idx = 1; idx <= ${#members}; idx++ )); do
     diverged=1
   fi
 
-  if (( dirty || diverged )); then
+  # Unpushed work is a change too — it is exactly the state that is easy to
+  # forget about, so --changed must not collapse it into "unchanged".
+  #
+  # All three cases are gated on the branch actually carrying commits vs the
+  # base. rlm-pr-worktree's multi-repo mode sets an upstream on every member
+  # at creation time, so an untouched member sits at "gone" (branch never
+  # pushed) with nothing on it — the overwhelmingly common case in a
+  # collection. Flagging those would mark all N repos changed and make
+  # --changed useless. A gone upstream on a branch that HAS commits is the
+  # meaningful case: the remote branch was deleted out from under work.
+  local -i has_commits=0
+  [[ -n $ahead ]] && (( ahead > 0 )) && has_commits=1
+
+  local -i unpushed=0
+  if (( has_commits )); then
+    case $r_push in
+      diverged|gone|none) unpushed=1 ;;
+    esac
+  fi
+
+  if (( dirty || diverged || unpushed )); then
     (( n_changed++ ))
     rows_changed+=("$raw")
   else
@@ -586,13 +659,46 @@ done
 local divergence_label='AHEAD/BEHIND'
 local -i w_div=${#divergence_label}
 
+# PUSH column. Unlike the divergence column the widest cell ("unpushed", 8)
+# exceeds the label, so measure the rendered cells and floor at the label.
+# The column is dropped entirely when every repo is pushed and in sync —
+# that is the steady state, and a full column of "=" is noise.
+local push_label='PUSH'
+local -i w_push=${#push_label}
+local -i show_push=0
+for row in "${render_rows[@]}"; do
+  local -a pf2=()
+  pf2=("${(@s:	:)row}")
+  local p_state=${pf2[11]:-} p_ahead=${pf2[12]:-} p_behind=${pf2[13]:-}
+  local p_base_ahead=${pf2[4]:-}
+  local -i p_has_commits=0
+  [[ -n $p_base_ahead ]] && (( p_base_ahead > 0 )) && p_has_commits=1
+  local p_plain=''
+  case $p_state in
+    none)     (( p_has_commits )) && p_plain='unpushed' ;;
+    gone)     (( p_has_commits )) && p_plain='gone' ;;
+    diverged)
+      local -a pp=()
+      [[ -n $p_ahead  ]] && pp+=("^${p_ahead}")
+      [[ -n $p_behind ]] && pp+=("v${p_behind}")
+      p_plain="${(j: :)pp}"
+      ;;
+  esac
+  if [[ -n $p_plain ]]; then
+    show_push=1
+    (( ${#p_plain} > w_push )) && w_push=${#p_plain}
+  fi
+done
+
 # PR is the last column when JIRA is hidden, so it only needs padding when
 # something follows it.
 local -i w_pr=7
 
 printf '%s%-*s  ' "$bold" "$w_name" "REPO"
 (( show_branch )) && printf '%-*s  ' "$w_branch" "BRANCH"
-printf '%-*s  %-*s  ' "$w_div" "$divergence_label" "$w_local" "LOCAL"
+printf '%-*s  ' "$w_div" "$divergence_label"
+(( show_push )) && printf '%-*s  ' "$w_push" "$push_label"
+printf '%-*s  ' "$w_local" "LOCAL"
 if (( show_jira )); then
   printf '%-*s  %s' "$w_pr" "PR" "JIRA"
 else
@@ -616,6 +722,7 @@ for row in "${render_rows[@]}"; do
   local r_name=${rf[1]} r_branch=${rf[2]}
   local r_ahead=${rf[4]} r_behind=${rf[5]} r_local=${rf[6]}
   local r_pr=${rf[8]} r_state=${rf[9]} r_url=${rf[10]}
+  local r_push=${rf[11]:-} r_up_ahead=${rf[12]:-} r_up_behind=${rf[13]:-}
   r_base=${rf[3]}
 
   local disp_branch=$r_branch
@@ -642,6 +749,60 @@ for row in "${render_rows[@]}"; do
   fi
   local -i pad_div=$(( w_div - ${#cell_plain} ))
   (( pad_div < 0 )) && pad_div=0
+
+  # PUSH cell: "=" pushed and in sync, "^N" unpushed commits, "vN" unpulled,
+  # "gone" upstream deleted, "unpushed" never pushed, "-" detached HEAD.
+  # Unpushed work is yellow (an action for you), unpulled and gone are red
+  # (someone else moved, or the branch is orphaned).
+  #
+  # "gone"/"unpushed" are only shown for a branch that carries commits — see
+  # the has_commits note in the classification pass. An empty collection
+  # member renders "=" instead: there is nothing to push.
+  local -i r_has_commits=0
+  [[ -n $r_ahead ]] && (( r_ahead > 0 )) && r_has_commits=1
+
+  local push_cell='' push_plain=''
+  case $r_push in
+    none)
+      if (( r_has_commits )); then
+        push_plain='unpushed'
+        push_cell="${yellow}unpushed${reset}"
+      else
+        push_plain='='
+        push_cell="${dim}=${reset}"
+      fi
+      ;;
+    gone)
+      if (( r_has_commits )); then
+        push_plain='gone'
+        push_cell="${red}gone${reset}"
+      else
+        push_plain='='
+        push_cell="${dim}=${reset}"
+      fi
+      ;;
+    diverged)
+      local -a uparts=() uparts_plain=()
+      [[ -n $r_up_ahead ]] && {
+        uparts+=("${yellow}^${r_up_ahead}${reset}"); uparts_plain+=("^${r_up_ahead}")
+      }
+      [[ -n $r_up_behind ]] && {
+        uparts+=("${red}v${r_up_behind}${reset}"); uparts_plain+=("v${r_up_behind}")
+      }
+      push_cell="${(j: :)uparts}"
+      push_plain="${(j: :)uparts_plain}"
+      ;;
+    detached)
+      push_plain='-'
+      push_cell="${dim}-${reset}"
+      ;;
+    *)
+      push_plain='='
+      push_cell="${dim}=${reset}"
+      ;;
+  esac
+  local -i pad_push=$(( w_push - ${#push_plain} ))
+  (( pad_push < 0 )) && pad_push=0
 
   local local_cell='' local_plain=''
   if [[ -n $r_local ]]; then
@@ -705,6 +866,10 @@ for row in "${render_rows[@]}"; do
   (( show_branch )) && printf '%s%-*s%s  ' "$cyan" "$w_branch" "$disp_branch" "$reset"
   print -rn -- "$cell"
   printf '%*s  ' "$pad_div" ''
+  if (( show_push )); then
+    print -rn -- "$push_cell"
+    printf '%*s  ' "$pad_push" ''
+  fi
   print -rn -- "$local_cell"
   printf '%*s  ' "$pad_local" ''
   print -rn -- "$pr_cell"
@@ -785,3 +950,50 @@ local -a summary_bits=()
 summary_bits+=("${n_changed} of ${#members} ${repo_word} with changes")
 (( want_pr )) && summary_bits+=("${n_with_pr} with a PR")
 printf '%s%s%s\n' "$dim" "${(j:, :)summary_bits}" "$reset"
+
+# Unpushed work gets its own line rather than a summary bit: it is the one
+# state here that is both easy to forget and cheap to fix, and it is counted
+# over every repo (not just rendered ones) so --changed cannot hide it.
+local -i n_unpushed=0 n_gone=0
+local -i total_unpushed_commits=0
+for row in "${rows[@]}"; do
+  local -a uf2=()
+  uf2=("${(@s:	:)row}")
+  local u_state=${uf2[11]:-} u_ahead=${uf2[12]:-} u_base_ahead=${uf2[4]:-}
+  local -i u_has_commits=0
+  [[ -n $u_base_ahead ]] && (( u_base_ahead > 0 )) && u_has_commits=1
+  case $u_state in
+    diverged)
+      if [[ -n $u_ahead ]] && (( u_ahead > 0 )); then
+        (( n_unpushed++ ))
+        (( total_unpushed_commits += u_ahead ))
+      fi
+      ;;
+    gone)
+      (( u_has_commits )) && (( n_gone++ ))
+      ;;
+    none)
+      if (( u_has_commits )); then
+        (( n_unpushed++ ))
+        (( total_unpushed_commits += u_base_ahead ))
+      fi
+      ;;
+  esac
+done
+
+if (( n_unpushed || n_gone )); then
+  local -a warn_bits=()
+  if (( n_unpushed )); then
+    local commit_word='commits'
+    (( total_unpushed_commits == 1 )) && commit_word='commit'
+    if (( ${#members} == 1 )); then
+      warn_bits+=("${total_unpushed_commits} unpushed ${commit_word}")
+    else
+      local unpushed_repo_word='repos'
+      (( n_unpushed == 1 )) && unpushed_repo_word='repo'
+      warn_bits+=("${total_unpushed_commits} unpushed ${commit_word} in ${n_unpushed} ${unpushed_repo_word}")
+    fi
+  fi
+  (( n_gone )) && warn_bits+=("${n_gone} with a deleted upstream")
+  printf '%s%s%s\n' "$yellow" "${(j:, :)warn_bits}" "$reset"
+fi

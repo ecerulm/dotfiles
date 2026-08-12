@@ -28,6 +28,24 @@ COLUMNS
             Commit divergence from the base branch, shown as +N
             (ahead), -N (behind), both, "=" when in sync, or "?" when
             the base ref does not exist in that repo.
+  PUSH      Divergence from the branch's own upstream — what `git
+            status` calls "ahead/behind". Shown as ^N (unpushed
+            commits), vN (unpulled), both, "unpushed" when the branch
+            has no upstream at all, "gone" when its upstream ref was
+            deleted, "-" on a detached HEAD, or "=" when pushed and in
+            sync. Hidden when every repo is in sync.
+
+            This answers a different question than AHEAD/BEHIND: work
+            committed on a feature branch counts toward AHEAD for as
+            long as the branch lives, but leaves PUSH the moment it is
+            pushed. A branch can be +8 vs origin/main and fully
+            pushed, or "=" vs the base and still carry unpushed work.
+
+            "unpushed" and "gone" are only reported for a branch that
+            actually carries commits. Multi-repo collections created
+            by rlm-pr-worktree set an upstream on every member up
+            front, so an untouched member sits at "gone" with nothing
+            on it; flagging those would mark every repo changed.
   LOCAL     Uncommitted work, broken down as conflict / staged /
             unstaged / untracked counts, or "clean".
   PR        Pull request number for the branch, as an OSC 8 hyperlink
@@ -45,8 +63,13 @@ them, and collapsing to one "differs" boolean would hide the
 interesting cases: work committed but no PR, or a PR open while the
 tree is still dirty.
 
+A summary line below the table calls out unpushed work across the
+collection ("4 unpushed commits in 1 repo"), since that is the one
+state here that is both easy to forget and cheap to fix.
+
 By default every repo gets a row. Pass --changed to narrow the table
-to repos that have uncommitted work or have diverged from the base;
+to repos that have uncommitted work, have diverged from the base, or
+have unpushed commits;
 the rest then collapse onto one dim "unchanged:" line, which is the
 useful view once a collection grows past a handful of repos. Repo
 names on that line are abbreviated by stripping a shared boilerplate
