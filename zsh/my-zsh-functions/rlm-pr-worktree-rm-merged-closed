@@ -152,6 +152,34 @@ _prwtrmc_collection_of() {
   return 0
 }
 
+# ----- progress reporting -------------------------------------------------
+# The scan is network-bound (a fetch + a PR search per repo) and takes tens of
+# seconds across a full set of repos, so it has to say what it's doing.
+#
+# Everything goes to STDERR, never stdout: the picker rows are assembled on
+# stdout and piped into fzf, so a stray progress line there becomes a bogus
+# selectable row. (Same class of bug as the `local` re-declaration note below.)
+#
+# When stderr is a TTY, each phase line is rewritten in place with \r and a
+# clear-to-EOL, so a long run shows one updating line instead of a wall of
+# output. When it isn't (piped, redirected, CI), fall back to plain lines so
+# the log stays readable.
+_prwtrmc_progress() {
+  [[ -n $PRWTRMC_QUIET ]] && return 0
+  if [[ -t 2 ]]; then
+    print -nu2 -- $'\r\e[2K'"$*"
+  else
+    print -u2 -- "$*"
+  fi
+}
+
+# End an in-place progress sequence so the next output starts on a fresh line.
+_prwtrmc_progress_done() {
+  [[ -n $PRWTRMC_QUIET ]] && return 0
+  [[ -t 2 ]] && print -nu2 -- $'\r\e[2K'
+  return 0
+}
+
 # ----- humanize seconds ("<N><unit> ago") --------------------------------
 # Same ladder as ~/bin/wt-preview's _wt_human_ago, compact units.
 _prwtrmc_human_ago() {
@@ -194,6 +222,7 @@ _prwtrmc_created_epoch() {
 #   fzf shows col1 (--with-nth=1); preview uses col4; deletion uses col4/col6.
 _prwtrmc_collect_repo() {
   local repo_root=$1
+  local repo_label=${repo_root:t}
 
   # Identify the main/primary worktree (first porcelain entry).
   local main_worktree
@@ -212,20 +241,76 @@ _prwtrmc_collect_repo() {
   [[ -z $def_branch ]] && def_branch=main
 
   # Refresh origin/<def> so the ahead check + later behind/ahead are current.
+  _prwtrmc_progress "[${repo_label}] fetching origin/${def_branch}…"
   git -C "$repo_root" fetch --quiet origin "$def_branch" 2>/dev/null
 
-  # Build branch -> "<state>#<number>" map (state lower-cased). gh resolves the
-  # repo from the cwd, so run it inside the repo (subshell keeps our cwd).
+  # ----- branch -> "<state>#<number>" PR map ------------------------------
+  # Ask GitHub only about the branches this repo actually has worktrees for,
+  # via one `--search "head:a head:b …"` query (the terms OR together).
+  #
+  # This replaces a `gh pr list --limit 500` bulk fetch, which was both slow
+  # and WRONG on a busy repo: 500 PRs no longer reach back far enough, so any
+  # worktree whose PR predated the window fell through to a per-branch `gh`
+  # call — one extra round trip each, and a silent mislabel as "no PR" when
+  # that fallback was also skipped. Measured on data-platform-dbt (19
+  # worktrees): ~6.8s of gh time before, ~0.8s after, same 13 PRs resolved.
+  #
+  # Only branches with an upstream ref are worth asking about — a branch that
+  # was never pushed cannot have a PR, so it is answered locally for free.
+  local -a wt_branches
+  local b_line
+  while IFS= read -r b_line; do
+    [[ -n $b_line ]] && wt_branches+=("$b_line")
+  done < <(git -C "$repo_root" worktree list --porcelain \
+    | awk '/^branch refs\/heads\//{sub("branch refs/heads/","");print}')
+
+  local -a query_branches
+  local qb
+  for qb in "${wt_branches[@]}"; do
+    git -C "$repo_root" show-ref --verify --quiet "refs/remotes/origin/${qb}" \
+      && query_branches+=("$qb")
+  done
+
   local -A pr_state
-  local pr_json
-  pr_json=$(cd -- "$repo_root" 2>/dev/null \
-    && gh pr list --state all --limit 500 --json number,state,headRefName 2>/dev/null) \
-    || pr_json='[]'
-  local map_branch map_state map_number
-  while IFS=$'\t' read -r map_branch map_state map_number; do
-    [[ -z $map_branch ]] && continue
-    pr_state[$map_branch]="${(L)map_state}#${map_number}"
-  done < <(print -r -- "$pr_json" | jq -r '.[] | [.headRefName, .state, .number] | @tsv')
+  if (( ${#query_branches} )); then
+    _prwtrmc_progress "[${repo_label}] querying ${#query_branches} branch(es) for PRs…"
+
+    # Batch the terms. No ceiling was hit at 60 terms / 2.6KB, but the search
+    # API does cap query length, and a silent truncation would mislabel real
+    # PRs as "no PR" — the one failure mode this map must not have.
+    local -i batch=40 start=1
+    local pr_json search_q
+    local map_branch map_state map_number
+    while (( start <= ${#query_branches} )); do
+      local -a chunk=("${(@)query_branches[start,start+batch-1]}")
+      search_q="${(j: :)${(@)chunk/#/head:}}"
+      pr_json=$(cd -- "$repo_root" 2>/dev/null \
+        && gh pr list --state all --limit 200 \
+             --json number,state,headRefName \
+             --search "$search_q" 2>/dev/null) \
+        || pr_json='[]'
+      [[ -z $pr_json ]] && pr_json='[]'
+
+      # `head:` is a PREFIX match, not an exact one: head:DATA-2792 also
+      # returns DATA-2792/feat/partition_config. Keep only exact headRefName
+      # hits, or a worktree inherits a sibling branch's PR state — which for a
+      # merged sibling would wrongly mark it deletable.
+      while IFS=$'\t' read -r map_branch map_state map_number; do
+        [[ -z $map_branch ]] && continue
+        (( ${wt_branches[(Ie)$map_branch]} )) || continue
+        # Several PRs can share a head branch; keep the highest number (most
+        # recent), matching what `gh pr view <branch>` would report.
+        local prev=${pr_state[$map_branch]:-}
+        if [[ -n $prev ]] && (( ${prev#*#} >= map_number )); then
+          continue
+        fi
+        pr_state[$map_branch]="${(L)map_state}#${map_number}"
+      done < <(print -r -- "$pr_json" \
+        | jq -r '.[] | [.headRefName, .state, .number] | @tsv' 2>/dev/null)
+
+      start=$(( start + batch ))
+    done
+  fi
 
   local wt_path="" wt_branch=""
 
@@ -243,16 +328,24 @@ _prwtrmc_collect_repo() {
       flag="[detached]"                                  # detached HEAD: not deletable here
     else
       local entry=${pr_state[$branch]:-}
-      if [[ -z $entry ]]; then
-        # Not in the bulk map: query gh directly (PR may be past --limit 500).
+      if [[ -z $entry ]] \
+        && git -C "$repo_root" show-ref --verify --quiet "refs/remotes/origin/${branch}"; then
+        # The targeted search above already asked about every pushed branch, so
+        # reaching here means it found nothing — normally because there really
+        # is no PR. Confirm with a single `gh pr view` rather than trusting a
+        # negative from a search index that can lag just-opened PRs.
+        #
+        # Gated on having an upstream: an unpushed branch cannot have a PR, and
+        # this round trip used to run for every such branch (6 of 19 in
+        # data-platform-dbt) only ever to come back empty.
         local pr_check
         pr_check=$(cd -- "$repo_root" 2>/dev/null \
-          && gh pr list --head "$branch" --state all --json number,state 2>/dev/null) \
-          || pr_check='[]'
-        if [[ $pr_check != '[]' && -n $pr_check ]]; then
+          && gh pr view "$branch" --json number,state 2>/dev/null) \
+          || pr_check=''
+        if [[ -n $pr_check && $pr_check != '[]' ]]; then
           local pr_st pr_num
-          pr_st=$(print -r -- "$pr_check" | jq -r '.[0].state // empty' 2>/dev/null)
-          pr_num=$(print -r -- "$pr_check" | jq -r '.[0].number // empty' 2>/dev/null)
+          pr_st=$(print -r -- "$pr_check" | jq -r '.state // empty' 2>/dev/null)
+          pr_num=$(print -r -- "$pr_check" | jq -r '.number // empty' 2>/dev/null)
           [[ -n $pr_st ]] && entry="${(L)pr_st}#${pr_num}"
         fi
       fi
@@ -435,9 +528,13 @@ fi
 # ----- collect all picker rows across every repo in scope -----------------
 local -a rows
 local repo
+local -i repo_i=0
 for repo in "${repos[@]}"; do
+  repo_i=$(( repo_i + 1 ))
+  _prwtrmc_progress "[${repo_i}/${#repos}] scanning ${repo:t}…"
   _prwtrmc_collect_repo "$repo"
 done
+_prwtrmc_progress_done
 
 # ----- synthesize one aggregate row per multi-repo collection -------------
 # rlm-pr-worktree's multi-repo mode creates a whole set of sibling worktrees
@@ -730,6 +827,24 @@ if (( ${#del_paths} )); then
   local reply
   read -r reply
   if [[ ${reply:l} == y || ${reply:l} == yes ]]; then
+    # Removals are SERIAL, deliberately. The cost here is not git but
+    # unlink(): a worktree carries a .venv of ~18k files (518MB of the 581MB
+    # total in data-platform-dbt), so a single `git worktree remove` spends
+    # ~5s in the kernel deleting files.
+    #
+    # Parallelising this does NOT help, which is worth recording so it doesn't
+    # get "optimised" again. Measured on 7 worktrees x 6k files: 8.71s serial
+    # vs 8.74s parallel — and with git taken out of the picture entirely,
+    # plain `rm -rf` gave 8.705s vs 8.743s. Concurrency is *safe* (8 parallel
+    # removes against one repo all exit 0; git locks .git/worktrees/ itself),
+    # it just buys nothing: APFS serialises the metadata mutations, so the
+    # background jobs queue on the same lock and only the CPU accounting
+    # changes (system time 0.39s -> 5.13s at identical wall clock).
+    #
+    # Batching is not an option either: `git worktree remove` takes exactly
+    # one worktree per invocation, and the syscall count would be unchanged.
+    local -i nremove=${#del_paths}
+    local -i ndone=0
     for (( i = 1; i <= ${#del_paths}; i++ )); do
       local p=${del_paths[$i]}
       local d=${del_display[$i]}
@@ -747,17 +862,27 @@ if (( ${#del_paths} )); then
         continue
       fi
 
+      # Each removal is seconds of silent unlink()ing, so name the one in
+      # flight rather than letting the terminal sit idle.
+      ndone=$(( ndone + 1 ))
+      _prwtrmc_progress "[${ndone}/${nremove}] removing ${d}…"
+
       if git -C "$rr" worktree remove "$p" 2>/dev/null; then
+        _prwtrmc_progress_done
         print "removed: $d"
       elif err=$(git -C "$rr" worktree remove --force "$p" 2>&1); then
+        _prwtrmc_progress_done
         print "removed (force): $d"
       else
+        _prwtrmc_progress_done
         print -u2 "failed:  $d ($p)"
         [[ -n $err ]] && print -u2 "  force: $err"
         failed=$(( failed + 1 ))
       fi
       pruned[$rr]=1
     done
+    _prwtrmc_progress_done
+
     local pr
     for pr in "${(@k)pruned}"; do
       git -C "$pr" worktree prune
@@ -789,9 +914,13 @@ fi
 
 # ----- remaining-worktrees table (combined, across all repos) -------------
 local -a table_rows
+repo_i=0
 for repo in "${repos[@]}"; do
+  repo_i=$(( repo_i + 1 ))
+  _prwtrmc_progress "[${repo_i}/${#repos}] computing status for ${repo:t}…"
   _prwtrmc_table_repo "$repo"
 done
+_prwtrmc_progress_done
 
 if (( ${#table_rows} )); then
   print

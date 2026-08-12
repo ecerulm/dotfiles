@@ -72,6 +72,22 @@ worktree appears as a reference row labeled (main).
 
 Each worktree is removed with `git worktree remove`, retrying with
 `--force` on failure; `git worktree prune` runs once per affected repo.
+Removal is serial and is dominated by unlink() -- a worktree carrying a
+.venv is ~18k files, several seconds each -- so the removal in flight is
+named as it goes. Parallelising it does not help: APFS serialises the
+metadata work, so concurrent removes measure the same wall clock.
+
+PR STATE is resolved with ONE `gh pr list --search "head:a head:b ..."`
+per repo, asking only about the branches that repo actually has worktrees
+for, and only those that have been pushed (an unpushed branch cannot have
+a PR). A branch the search does not answer for is confirmed with a single
+`gh pr view`.
+
+PROGRESS. The scan is network-bound (a fetch plus one PR query per repo),
+so each phase reports which repo it is on -- scanning, computing status,
+removing. Progress goes to stderr and is rewritten in place on a TTY,
+falling back to plain lines when redirected. Set PRWTRMC_QUIET to a
+non-empty value to silence it.
 
 Flags:
   --dry-run, -n   Skip the picker; print the deletable set and the
