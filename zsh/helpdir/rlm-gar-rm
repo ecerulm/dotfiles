@@ -1,0 +1,76 @@
+rlm-gar-rm [-n|--dry-run]
+
+Delete Artifact Registry <repo>/<package> entries picked in an fzf
+picker. TAB multi-selects; every selected package is confirmed
+individually before anything is destroyed.
+
+The package list, its cache, and the MRU history are shared with
+gar-open — both commands read and refresh the same files under
+~/.cache/gar-open/, so a refresh in either benefits the other.
+Selecting --- REFRESH CACHE --- opens a secondary picker where you
+TAB-multi-select which projects to re-fetch; entries for un-picked
+projects are preserved.
+
+The preview pane is deletion-oriented rather than browse-oriented
+(that is gar-open's job): it reports the version count, total size on
+disk, newest and oldest version timestamps, tag count, package
+create/update time and annotations, the number of 1000-version delete
+batches required, and a sample of the newest tagged versions. If the
+version count cannot be determined — expired credentials, missing IAM
+permission — the preview says so loudly instead of rendering an empty
+package, because "no versions" reads as "safe to delete".
+
+DELETION
+
+Deletion runs in two phases per package, because
+`gcloud artifacts packages delete` fails server-side on packages
+holding more than 1000 versions:
+
+  1. Versions are deleted in batches of at most 1000 via
+     `gcloud artifacts versions delete --delete-tags`, re-counting
+     between batches and continuing until none remain.
+  2. The now-empty package is removed with
+     `gcloud artifacts packages delete`.
+
+Before the confirmation prompt, the exact gcloud command lines that
+will run are printed, one argument per line. Digest lists are shown as
+`<N version digest(s)>` rather than expanded — printing 1000 sha256
+digests would bury the flags that determine what is destroyed. For
+packages needing more than two batches, the first two are shown
+followed by a note that the remaining batches are identical.
+
+You confirm once per package; batches then proceed without further
+prompting. After the batches finish, the package is re-queried to
+verify it is really gone. If versions remain, the count is reported
+and you are offered a retry. A batch that reports success without
+reducing the version count aborts that package rather than looping.
+
+Packages successfully deleted are pruned from the shared cache and the
+MRU history so the next picker does not offer them.
+
+OPTIONS
+  -n, --dry-run
+              Show the preview, the version counts, and the exact
+              commands for every selected package, but run no deletes
+              and ask no confirmations.
+
+  -h, --help  Print usage and exit.
+
+ENVIRONMENT
+  GAR_SEARCH_PROJECTS
+              Colon-separated list of GCP project IDs to browse.
+              Required; the function errors out if not set. Shared
+              with gar-open and gar-search.
+
+REQUIRES
+  gcloud, fzf, jq, curl, python3.
+
+SEE ALSO
+  gar-open    Browse the same package list and open a package in the
+              Artifact Registry console.
+  gar-search  Non-interactive substring search over the same packages.
+
+NOTE
+  OSC 8 hyperlinks in the preview pane require a terminal emulator
+  that supports them (Kitty, Ghostty, iTerm2, WezTerm). Inside tmux
+  also set: set -ga terminal-features "*:hyperlinks"

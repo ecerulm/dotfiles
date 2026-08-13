@@ -1,0 +1,392 @@
+emulate -L zsh
+set -o pipefail
+
+if [[ -z $GAR_SEARCH_PROJECTS ]]; then
+  print -u2 "gar-rm: GAR_SEARCH_PROJECTS is not set"
+  print -u2 "Add the following to ~/.zshrc.thismachine:"
+  print -u2 ""
+  print -u2 "  export GAR_SEARCH_PROJECTS=my-project-prod:my-project-dev"
+  return 1
+fi
+
+local -a projects
+projects=(${(u)${(s[:])GAR_SEARCH_PROJECTS}:#})
+
+for _cmd in gcloud fzf jq curl python3; do
+  if ! command -v "$_cmd" >/dev/null 2>&1; then
+    print -u2 "gar-rm: '$_cmd' not found in PATH"
+    return 1
+  fi
+done
+unset _cmd
+
+autoload -Uz _rlm-gar-cache _rlm-gar-pick-projects
+
+local dry_run=0
+while (( $# )); do
+  case $1 in
+    -n|--dry-run) dry_run=1; shift ;;
+    -h|--help)
+      print -r -- "Usage: gar-rm [-n|--dry-run]"
+      print -r -- ""
+      print -r -- "Pick GAR <repo>/<package> entries in an fzf picker (TAB to"
+      print -r -- "multi-select) and delete them. Confirms once per package,"
+      print -r -- "deletes versions in batches of 1000, then removes the"
+      print -r -- "package, and verifies the package is really gone."
+      return 0
+      ;;
+    *)
+      print -u2 "gar-rm: unexpected argument: $1"
+      return 2
+      ;;
+  esac
+done
+
+local cache_file history_file
+eval "$(_rlm-gar-cache paths "${projects[@]}")"
+
+if [[ ! -f $cache_file ]]; then
+  _rlm-gar-cache refresh gar-rm "$GAR_SEARCH_PROJECTS" "${projects[@]}" || return 1
+fi
+
+local cache_age
+cache_age=$(_rlm-gar-cache age "${projects[@]}")
+local refresh_sentinel="--- REFRESH CACHE (cached ${cache_age}) ---"
+
+local selection
+selection=$(
+  { print -r -- "$refresh_sentinel"; _rlm-gar-cache read "${projects[@]}"; } \
+  | fzf --prompt="DELETE GAR package> " --height=80% --reverse \
+        --multi \
+        --no-mouse --ansi \
+        --header='TAB multi • Enter delete • Shift/Alt-↑↓ scroll • Ctrl-P size • Ctrl-G abort' \
+        --preview="
+          line={}
+          if printf '%s' \"\$line\" | grep -q '^--- REFRESH CACHE'; then
+            echo 'Select to choose which projects to refresh and reopen the picker.'
+          else
+            \"\$HOME/bin/gar-rm-preview\" \"\$line\"
+          fi
+        " \
+        --preview-window=bottom:60%:wrap \
+        --bind='ctrl-p:change-preview-window(bottom:80%:wrap|bottom:60%:wrap|hidden)' \
+        --bind='shift-up:preview-up' --bind='shift-down:preview-down' \
+        --bind='alt-up:preview-half-page-up' --bind='alt-down:preview-half-page-down' \
+        --bind='ctrl-g:abort'
+) || return 130
+
+[[ -z $selection ]] && return 130
+
+if [[ $selection == "--- REFRESH CACHE"* ]]; then
+  local -a to_refresh
+  to_refresh=("${(@f)$(_rlm-gar-pick-projects "${projects[@]}")}")
+  to_refresh=("${(@)to_refresh:#}")
+  if (( ${#to_refresh} == 0 )); then
+    return 130
+  fi
+  _rlm-gar-cache refresh gar-rm "$GAR_SEARCH_PROJECTS" "${to_refresh[@]}" || return 1
+  rlm-gar-rm ${dry_run:+--dry-run}
+  return $?
+fi
+
+local -a targets
+targets=("${(@f)selection}")
+targets=("${(@)targets:#}")
+# The refresh sentinel can be TAB-selected alongside real entries; it is
+# not a package, so drop it rather than trying to delete it.
+targets=("${(@)targets:#--- REFRESH CACHE*}")
+
+if (( ${#targets} == 0 )); then
+  return 130
+fi
+
+# ---------------------------------------------------------------------------
+# Deletion
+# ---------------------------------------------------------------------------
+
+local red=$'\e[31m' green=$'\e[32m' yellow=$'\e[33m' bold=$'\e[1m' reset=$'\e[0m'
+
+_gar_rm_count_versions() {
+  # Emit the number of versions currently in the package, or the empty
+  # string when the package itself no longer exists (deleted, or never
+  # existed). An empty package and a missing package are different
+  # outcomes: the first still needs `packages delete`, the second is done.
+  local image=$1 proj=$2
+  local out
+  out=$(gcloud artifacts docker images list "$image" \
+          --format='value(version)' \
+          --project="$proj" 2>&1)
+  local rc=$?
+  if (( rc != 0 )); then
+    if print -r -- "$out" | grep -qiE 'not found|does not exist'; then
+      print -r -- ""
+      return 0
+    fi
+    print -u2 "gar-rm: failed to list versions for ${image}"
+    print -u2 "$out"
+    return 1
+  fi
+  # `value(version)` emits one digest per line; count non-empty lines.
+  print -r -- "$(print -r -- "$out" | grep -c '[^[:space:]]')"
+  return 0
+}
+
+_gar_rm_show_cmd() {
+  # Echo a command exactly as it will be run, one argument per line when
+  # it is long. Digest lists are elided: printing 1000 sha256 digests
+  # would bury the flags that actually determine what gets destroyed.
+  local label=$1; shift
+  print -r -- "  ${bold}${label}${reset}"
+  local part
+  for part in "$@"; do
+    print -r -- "    ${part}"
+  done
+}
+
+_gar_rm_versions_cmd_preview() {
+  # The versions-delete command line, with the digest list summarized.
+  local n=$1 pkg_path=$2 location_slug=$3 repo=$4 proj=$5
+  _gar_rm_show_cmd "gcloud artifacts versions delete \\" \
+    "<${n} version digest(s)> \\" \
+    "--package=${pkg_path} \\" \
+    "--location=${location_slug} \\" \
+    "--repository=${repo} \\" \
+    "--project=${proj} \\" \
+    "--delete-tags --quiet"
+}
+
+_gar_rm_package_cmd_preview() {
+  local pkg_path=$1 location_slug=$2 repo=$3 proj=$4
+  _gar_rm_show_cmd "gcloud artifacts packages delete \\" \
+    "${pkg_path} \\" \
+    "--location=${location_slug} \\" \
+    "--repository=${repo} \\" \
+    "--project=${proj} \\" \
+    "--quiet"
+}
+
+_gar_rm_delete_batches() {
+  # Delete every version of the package in batches of 1000 (the server
+  # rejects a single delete covering more), re-counting between batches.
+  # Returns 0 when the package is empty or gone, 1 on a failed batch,
+  # 2 when a batch reported success but the count did not decrease
+  # (no forward progress — retrying would spin forever).
+  local image=$1 proj=$2 location_slug=$3 repo=$4 pkg_path=$5
+  local remaining batch_no=0 prev_remaining=-1
+
+  while true; do
+    remaining=$(_gar_rm_count_versions "$image" "$proj") || return 1
+    if [[ -z $remaining ]]; then
+      return 0
+    fi
+    if (( remaining == 0 )); then
+      return 0
+    fi
+    if (( prev_remaining >= 0 && remaining >= prev_remaining )); then
+      print -u2 "gar-rm: no progress — ${remaining} version(s) still present after a batch"
+      return 2
+    fi
+    prev_remaining=$remaining
+
+    (( batch_no++ ))
+    # `value(name)` returns the fully qualified resource path
+    # (projects/…/packages/<pkg>/versions/sha256:…), but `versions delete`
+    # wants the bare version id when --package/--location/--repository are
+    # given. Strip everything up to the last /versions/ segment.
+    local -a digests
+    digests=(${(f)"$(gcloud artifacts versions list \
+                       --package="$pkg_path" \
+                       --location="$location_slug" \
+                       --repository="$repo" \
+                       --project="$proj" \
+                       --format='value(name)' \
+                       --limit=1000 2>/dev/null)"})
+    digests=("${(@)digests:#}")
+    digests=("${(@)digests##*/versions/}")
+    digests=("${(@)digests:#}")
+
+    if (( ${#digests} == 0 )); then
+      # versions list came back empty while images list still reports
+      # versions — treat as done rather than looping.
+      return 0
+    fi
+
+    print -r -- "  batch ${batch_no}: deleting ${#digests} version(s) (${remaining} remaining) …"
+    _gar_rm_versions_cmd_preview "${#digests}" "$pkg_path" "$location_slug" "$repo" "$proj"
+    if (( dry_run )); then
+      print -r -- "  ${yellow}[dry-run]${reset} not run"
+      return 0
+    fi
+
+    if ! gcloud artifacts versions delete "${digests[@]}" \
+           --package="$pkg_path" \
+           --location="$location_slug" \
+           --repository="$repo" \
+           --project="$proj" \
+           --delete-tags \
+           --quiet; then
+      print -u2 "gar-rm: batch ${batch_no} failed for ${image}"
+      return 1
+    fi
+  done
+}
+
+local target proj repo pkg_path loc_host location_slug
+local version_count reply_ans
+local -i deleted_ok=0 skipped=0 failed=0
+
+for target in "${targets[@]}"; do
+  loc_host=${target%%/*}
+  proj=$(printf '%s' "$target" | cut -d/ -f2)
+  repo=$(printf '%s' "$target" | cut -d/ -f3)
+  pkg_path=$(printf '%s' "$target" | cut -d/ -f4-)
+  location_slug=${loc_host%-docker.pkg.dev}
+
+  print -r -- ""
+  print -r -- "${bold}${target}${reset}"
+
+  version_count=$(_gar_rm_count_versions "$target" "$proj") || { (( failed++ )); continue }
+  if [[ -z $version_count ]]; then
+    print -r -- "  ${yellow}already gone${reset} (package not found)"
+    (( skipped++ ))
+    continue
+  fi
+
+  local -i batches=$(( (version_count + 999) / 1000 ))
+  print -r -- "  ${version_count} version(s)$( (( batches > 1 )) && print -rn -- ", ${batches} batches")"
+
+  print -r -- ""
+  print -r -- "  ${red}${bold}The following will run:${reset}"
+  local -i shown_batch=0
+  local -i remaining_preview=$version_count
+  while (( remaining_preview > 0 )); do
+    (( shown_batch++ ))
+    local -i this_batch=$(( remaining_preview > 1000 ? 1000 : remaining_preview ))
+    (( batches > 1 )) && print -r -- "  ${yellow}batch ${shown_batch}/${batches}:${reset}"
+    _gar_rm_versions_cmd_preview "$this_batch" "$pkg_path" "$location_slug" "$repo" "$proj"
+    (( remaining_preview -= this_batch ))
+    # Only enumerate the first two batches; the rest are identical
+    # modulo the digest list, and a 40-batch package would scroll the
+    # actual prompt off screen.
+    if (( shown_batch >= 2 && remaining_preview > 0 )); then
+      print -r -- "  ${yellow}… ${batches} batches total, same command per batch${reset}"
+      break
+    fi
+  done
+  _gar_rm_package_cmd_preview "$pkg_path" "$location_slug" "$repo" "$proj"
+  print -r -- ""
+
+  if (( dry_run )); then
+    print -r -- "  ${yellow}[dry-run]${reset} nothing was run"
+    (( skipped++ ))
+    continue
+  fi
+
+  print -rn -- "  ${red}Delete this package and all ${version_count} version(s)?${reset} [y/N] "
+  if ! read -r reply_ans; then
+    print -r -- ""
+    print -r -- "gar-rm: aborted"
+    break
+  fi
+  if [[ $reply_ans != [yY]* ]]; then
+    print -r -- "  skipped"
+    (( skipped++ ))
+    continue
+  fi
+
+  _gar_rm_delete_batches "$target" "$proj" "$location_slug" "$repo" "$pkg_path"
+  local batch_rc=$?
+
+  if (( batch_rc == 1 )); then
+    (( failed++ ))
+    version_count=$(_gar_rm_count_versions "$target" "$proj") || true
+    if [[ -n $version_count ]] && (( version_count > 0 )); then
+      print -rn -- "  ${yellow}${version_count} version(s) remain. Retry?${reset} [y/N] "
+      if read -r reply_ans && [[ $reply_ans == [yY]* ]]; then
+        _gar_rm_delete_batches "$target" "$proj" "$location_slug" "$repo" "$pkg_path"
+        batch_rc=$?
+        (( batch_rc == 0 )) && (( failed-- ))
+      fi
+    fi
+    (( batch_rc != 0 )) && continue
+  elif (( batch_rc == 2 )); then
+    (( failed++ ))
+    continue
+  fi
+
+  # Versions are gone; remove the package shell itself.
+  _gar_rm_package_cmd_preview "$pkg_path" "$location_slug" "$repo" "$proj"
+  if ! gcloud artifacts packages delete "$pkg_path" \
+         --location="$location_slug" \
+         --repository="$repo" \
+         --project="$proj" \
+         --quiet 2>/dev/null; then
+    # A package with no versions is auto-reaped by GAR, so a failure here
+    # is only real if the package is still listed.
+    :
+  fi
+
+  # Verify.
+  version_count=$(_gar_rm_count_versions "$target" "$proj") || true
+  if [[ -z $version_count ]]; then
+    print -r -- "  ${green}deleted${reset}"
+    (( deleted_ok++ ))
+  elif (( version_count == 0 )); then
+    print -r -- "  ${green}all versions deleted${reset} (empty package shell may linger briefly)"
+    (( deleted_ok++ ))
+  else
+    print -r -- "  ${yellow}${version_count} version(s) still present${reset}"
+    print -rn -- "  Retry deleting the remaining ${version_count} version(s)? [y/N] "
+    if read -r reply_ans && [[ $reply_ans == [yY]* ]]; then
+      if _gar_rm_delete_batches "$target" "$proj" "$location_slug" "$repo" "$pkg_path"; then
+        gcloud artifacts packages delete "$pkg_path" \
+          --location="$location_slug" --repository="$repo" \
+          --project="$proj" --quiet 2>/dev/null || true
+        print -r -- "  ${green}deleted${reset}"
+        (( deleted_ok++ ))
+      else
+        (( failed++ ))
+      fi
+    else
+      (( failed++ ))
+    fi
+  fi
+done
+
+# ---------------------------------------------------------------------------
+# Drop deleted entries from the cache so the next picker does not offer them
+# ---------------------------------------------------------------------------
+
+if (( deleted_ok > 0 && ! dry_run )); then
+  local tmp_cache
+  tmp_cache=$(mktemp) || tmp_cache=""
+  if [[ -n $tmp_cache ]]; then
+    local keep_line
+    while IFS= read -r keep_line; do
+      [[ -z $keep_line ]] && continue
+      if [[ -z ${targets[(r)$keep_line]} ]]; then
+        print -r -- "$keep_line"
+      fi
+    done < "$cache_file" >| "$tmp_cache"
+    mv -- "$tmp_cache" "$cache_file"
+  fi
+
+  if [[ -f $history_file ]]; then
+    local tmp_hist
+    tmp_hist=$(mktemp) || tmp_hist=""
+    if [[ -n $tmp_hist ]]; then
+      while IFS= read -r keep_line; do
+        [[ -z $keep_line ]] && continue
+        if [[ -z ${targets[(r)$keep_line]} ]]; then
+          print -r -- "$keep_line"
+        fi
+      done < "$history_file" >| "$tmp_hist"
+      mv -- "$tmp_hist" "$history_file"
+    fi
+  fi
+fi
+
+print -r -- ""
+print -r -- "gar-rm: ${deleted_ok} deleted, ${skipped} skipped, ${failed} failed"
+(( failed > 0 )) && return 1
+return 0

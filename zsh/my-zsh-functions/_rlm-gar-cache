@@ -1,0 +1,227 @@
+emulate -L zsh
+set -o pipefail
+
+# Shared GAR package-list cache for rlm-gar-open and rlm-gar-rm.
+#
+# One cache file per set of projects, under ~/.cache/gar-open/:
+#
+#   <md5>.txt        — one fully-qualified image path per line,
+#                      LOCATION-docker.pkg.dev/PROJECT/REPO/PACKAGE
+#   history.txt      — MRU history, shared across every gar-* picker,
+#                      never touched by a refresh.
+#
+# The md5 key is computed from the sorted, deduped project list, so
+# changing GAR_SEARCH_PROJECTS busts the cache.
+#
+# Both cache files live in ~/.cache/gar-open/ (not a per-command dir) so
+# rlm-gar-open and rlm-gar-rm share one fetched package list and one MRU
+# ordering — refreshing in either command benefits the other.
+#
+# Originally inline in rlm-gar-open (_gar_open_fetch / _gar_open_fetch_one
+# / _gar_open_sorted_list). Lifted here so rlm-gar-rm reuses the exact
+# same fetch, merge, and MRU-sort behaviour.
+#
+# Usage:
+#   _rlm-gar-cache paths <projects...>
+#       Emit `cache_file=<path>` and `history_file=<path>` for eval.
+#
+#   _rlm-gar-cache refresh <label> <all_projects_csv> <projects_to_refresh...>
+#       Re-fetch the listed projects and merge into the cache, preserving
+#       entries belonging to projects that were not refreshed.
+#       <label> is the calling command name, used in diagnostics.
+#       <all_projects_csv> is the colon-joined full project list, used
+#       only to derive the cache key.
+#
+#   _rlm-gar-cache read <projects...>
+#       Emit the cache contents MRU-sorted (history entries first, most
+#       recent first, deduped; then everything else in cache order).
+#
+#   _rlm-gar-cache age <projects...>
+#       Emit a humanized cache age ("42s ago", "3h ago", "2d ago"), or
+#       the empty string when no cache file exists.
+#
+# Returns 0 on success, 1 on failure (auth, no repos, nothing fetched).
+
+local action=$1
+shift
+
+_rlm_gar_cache_key() {
+  local -a projs
+  projs=("$@")
+  print -l -- "${(o)projs[@]}" | md5
+}
+
+_rlm_gar_cache_files() {
+  local -a projs
+  projs=("$@")
+  local dir="$HOME/.cache/gar-open"
+  mkdir -p "$dir"
+  local key
+  key=$(_rlm_gar_cache_key "${projs[@]}")
+  print -r -- "${dir}/${key}.txt"
+  print -r -- "${dir}/history.txt"
+}
+
+case $action in
+  paths)
+    local -a files
+    files=("${(@f)$(_rlm_gar_cache_files "$@")}")
+    print -r -- "cache_file=${(q)files[1]}"
+    print -r -- "history_file=${(q)files[2]}"
+    return 0
+    ;;
+
+  age)
+    local -a files
+    files=("${(@f)$(_rlm_gar_cache_files "$@")}")
+    local cf=${files[1]}
+    [[ -f $cf ]] || { print -r -- ""; return 0 }
+    local mtime now elapsed
+    mtime=$(stat -f %m "$cf" 2>/dev/null || stat -c %Y "$cf" 2>/dev/null)
+    now=$(date +%s)
+    elapsed=$(( now - mtime ))
+    if (( elapsed < 3600 )); then
+      print -r -- "${elapsed}s ago"
+    elif (( elapsed < 86400 )); then
+      print -r -- "$(( elapsed / 3600 ))h ago"
+    else
+      print -r -- "$(( elapsed / 86400 ))d ago"
+    fi
+    return 0
+    ;;
+
+  read)
+    local -a files
+    files=("${(@f)$(_rlm_gar_cache_files "$@")}")
+    local cf=${files[1]} hf=${files[2]}
+    [[ -f $cf ]] || return 1
+    if [[ -f $hf ]]; then
+      local entry
+      while IFS= read -r entry; do
+        [[ -n $entry ]] && grep -m1 -Fx -- "$entry" "$cf" 2>/dev/null
+      done < <(tac "$hf" | awk '!seen[$0]++')
+      grep -vFxf "$hf" "$cf" 2>/dev/null || true
+    else
+      cat "$cf"
+    fi
+    return 0
+    ;;
+
+  refresh)
+    local label=$1 all_csv=$2
+    shift 2
+    local -a refresh_projects all_projects
+    refresh_projects=("$@")
+    all_projects=(${(u)${(s[:])all_csv}:#})
+
+    local -a files
+    files=("${(@f)$(_rlm_gar_cache_files "${all_projects[@]}")}")
+    local cf=${files[1]}
+
+    local token
+    token=$(gcloud auth print-access-token 2>/dev/null)
+    if [[ -z $token ]]; then
+      print -u2 "${label}: failed to obtain gcloud access token"
+      return 1
+    fi
+
+    _rlm_gar_cache_status() {
+      printf '\r\e[2K  %s' "$1" >&2
+    }
+
+    _rlm_gar_cache_fetch_one() {
+      local proj=$1 tok=$2
+
+      _rlm_gar_cache_status "fetching repositories from ${proj} …"
+      local repos_json
+      repos_json=$(gcloud artifacts repositories list --project="$proj" \
+                     --filter="format=DOCKER" --format=json 2>/dev/null)
+      if [[ -z $repos_json || $repos_json == "[]" ]]; then
+        printf '\r\e[2K' >&2
+        print -u2 "${label}: no DOCKER repositories in $proj"
+        return 0
+      fi
+
+      local -a repo_paths
+      repo_paths=(${(f)"$(print -r -- "$repos_json" | jq -r '.[].name')"})
+
+      local repo_path loc repo_name parent body err_msg packages pkg
+      for repo_path in $repo_paths; do
+        loc=${${(s./.)repo_path}[4]}
+        repo_name=${${(s./.)repo_path}[6]}
+        parent="projects/${proj}/locations/${loc}/repositories/${repo_name}"
+
+        _rlm_gar_cache_status "${proj}/${loc}/${repo_name} …"
+        body=$(curl -sS -G \
+                -H "Authorization: Bearer ${tok}" \
+                "https://artifactregistry.googleapis.com/v1/${parent}/packages" \
+                --data-urlencode "pageSize=1000" 2>/dev/null)
+
+        [[ -z $body ]] && continue
+
+        if print -r -- "$body" | jq -e '.error' >/dev/null 2>&1; then
+          err_msg=$(print -r -- "$body" | jq -r '.error.message')
+          printf '\r\e[2K' >&2
+          print -u2 "${label}: ${proj}/${loc}/${repo_name}: ${err_msg}"
+          continue
+        fi
+
+        packages=$(print -r -- "$body" \
+          | jq -r --arg prefix "${parent}/packages/" \
+              '.packages // [] | .[].name | sub($prefix; "")' \
+          | python3 -c 'import sys, urllib.parse
+for l in sys.stdin:
+    print(urllib.parse.unquote(l.rstrip()))' 2>/dev/null)
+
+        [[ -z $packages ]] && continue
+
+        while IFS= read -r pkg; do
+          [[ -z $pkg ]] && continue
+          # GCR layer-cache pseudo-packages, not pullable images.
+          [[ $pkg == */cache ]] && continue
+          print -r -- "${loc}-docker.pkg.dev/${proj}/${repo_name}/${pkg}"
+        done <<< "$packages"
+      done
+    }
+
+    local -a fresh_lines
+    local proj lines
+    for proj in "${refresh_projects[@]}"; do
+      lines=$(_rlm_gar_cache_fetch_one "$proj" "$token") || true
+      [[ -n $lines ]] && fresh_lines+=(${(f)lines})
+    done
+    printf '\r\e[2K' >&2
+
+    # Preserve entries belonging to projects we did not refresh.
+    local -a kept
+    if [[ -f $cf ]]; then
+      local line entry_proj
+      local -A refreshed_set
+      for proj in "${refresh_projects[@]}"; do
+        refreshed_set[$proj]=1
+      done
+      while IFS= read -r line; do
+        [[ -z $line ]] && continue
+        entry_proj=${${line#*pkg.dev/}%%/*}
+        if [[ -z ${refreshed_set[$entry_proj]} ]]; then
+          kept+=("$line")
+        fi
+      done < "$cf"
+    fi
+
+    if (( ${#fresh_lines} == 0 && ${#kept} == 0 )); then
+      print -u2 "${label}: no images found in any project"
+      return 1
+    fi
+
+    { (( ${#kept} ))        && print -l -- "${kept[@]}";
+      (( ${#fresh_lines} )) && print -l -- "${fresh_lines[@]}";
+    } >| "$cf"
+    return 0
+    ;;
+
+  *)
+    print -u2 "_rlm-gar-cache: unknown action: ${action}"
+    return 2
+    ;;
+esac

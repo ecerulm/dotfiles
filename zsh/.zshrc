@@ -121,6 +121,7 @@ autoload -Uz rlm-gcloud-venv
 autoload -Uz rlm-gcp-project-open
 autoload -Uz rlm-glogin
 autoload -Uz rlm-gar-open
+autoload -Uz rlm-gar-rm
 autoload -Uz rlm-gar-search
 autoload -Uz rlm-pubsub-open
 autoload -Uz rlm-jira-open
@@ -227,6 +228,7 @@ alias gcloud-venv='rlm-gcloud-venv'
 alias gcp-project-open='rlm-gcp-project-open'
 alias glogin='rlm-glogin'
 alias gar-open='rlm-gar-open'
+alias gar-rm='rlm-gar-rm'
 alias gar-search='rlm-gar-search'
 alias pubsub-open='rlm-pubsub-open'
 alias jira-open='rlm-jira-open'

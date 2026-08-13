@@ -4,6 +4,26 @@ All notable changes to the zsh configuration are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2026-08-13]
+
+### Added
+
+- `rlm-gar-rm` (`gar-rm`): **multi-select fzf picker over GAR `<repo>/<package>` entries that deletes them.** Reuses `gar-open`'s package list, cache, and MRU history rather than building its own — same `~/.cache/gar-open/<md5>.txt`, same key, same `--- REFRESH CACHE ---` partial-refresh picker — so a refresh in either command benefits the other and the two can never disagree about what exists.
+
+- `rlm-gar-rm`: deletion runs in **two phases, because `gcloud artifacts packages delete` fails server-side above 1000 versions**. Versions go first in batches of ≤1000 via `versions delete --delete-tags`, re-counting between batches until none remain, then the empty package is removed. Confirmation is per package, not per batch: a 2500-version package is one keypress and three batches, not four prompts. After the batches, the package is re-queried to **verify** it is actually gone; if versions remain the count is reported and a retry offered. A batch that reports success without reducing the count aborts that package rather than spinning — the guard exists because "delete succeeded, nothing changed" is indistinguishable from progress if you only trust exit codes. Verified against a mock registry covering the 2500-version batching path and the stuck-delete path.
+
+- `rlm-gar-rm`: the exact `gcloud` command lines are printed before the confirmation prompt, one argument per line. Digest lists render as `<N version digest(s)>` rather than expanding — 1000 sha256 digests would bury the `--project`/`--repository` flags that actually determine what gets destroyed. Packages needing more than two batches show the first two and a note that the rest are identical.
+
+- `rlm-gar-rm`: `versions list --format='value(name)'` returns **fully qualified** resource paths, but `versions delete` wants the bare version id when `--package`/`--location`/`--repository` are given; ids are stripped to the last `/versions/` segment. Passing the qualified form is an `INVALID_ARGUMENT` that only appears against the real API, so the mock asserts against it.
+
+- `bin/gar-rm-preview`: deletion-oriented preview — version count, total size, newest/oldest version dates, tag count, package create/update time and annotations, the number of 1000-version batches required, and a sample of the newest tagged versions. Distinct from `bin/gar-preview`, which is browse-oriented and lists the 10 newest tags.
+
+- `bin/gar-rm-preview`: an auth or permission failure is reported **loudly** instead of being swallowed. The first draft discarded stderr from `docker images list` and rendered a failed call as `(no versions found)` — on a delete tool that reads as "this package is empty, safe to delete". Caught when an expired token and a missing `artifactregistry.packages.get` on prod both produced a reassuring empty preview. Exit status is now checked, stderr surfaced, and the pane says the version count is unknown.
+
+### Changed
+
+- `rlm-gar-open`: **288 → 118 lines.** The fetch, merge, cache-age, MRU-sort, and project-picker logic moved into the shared `_rlm-gar-cache` and `_rlm-gar-pick-projects` helpers so `gar-rm` reuses it instead of holding a second copy that would drift. The cache key is unchanged (md5 of the sorted, deduped project list), verified to match the previously inlined computation against the real `GAR_SEARCH_PROJECTS` — the existing 141-entry cache is reused, not orphaned.
+
 ## [2026-08-12]
 
 ### Added
