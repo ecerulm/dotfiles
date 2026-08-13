@@ -248,6 +248,68 @@ if (( ${#digests} == 0 )); then
   return 130
 fi
 
+# Order parents before their children. The registry refuses to delete a
+# manifest that a still-present index references, so a child sent ahead of its
+# parent fails.
+#
+# Picker order is nearly right — families render parent-first and contiguous —
+# but it breaks on a NESTED index (an index referencing another index). A
+# child is grouped by its immediate parent's timestamp, so an inner index P4
+# sorts inside P3's family while P4's own members sort by P4's timestamp. When
+# that is older, the grandchildren render as an earlier family and would be
+# deleted before P4 and P3. Reproduced against the row builder: P3(Aug) ->
+# P4(Jan) -> c4 lists c4 first.
+#
+# Sorting by depth fixes that and is also robust to the 1000-digest batching,
+# since any prefix of a parents-first list is itself parents-first.
+if [[ -s $child_map ]] && (( ${#digests} > 1 )); then
+  local ordered=''
+  ordered=$(printf '%s\n' "${digests[@]}" \
+    | GAR_VR_CHILDREN="$child_map" python3 -c '
+import sys, os
+
+sel = [l.strip() for l in sys.stdin if l.strip()]
+
+parent = {}
+cpath = os.environ.get("GAR_VR_CHILDREN") or ""
+if cpath and os.path.exists(cpath):
+    with open(cpath) as fh:
+        for raw in fh:
+            p = raw.rstrip("\n").split("\t")
+            if len(p) >= 2 and p[0]:
+                parent[p[0]] = p[1]
+
+# Depth from the root of the reference chain. Indexes are depth 0, their
+# members depth 1; nested indexes (an index referencing another index) get
+# deeper and still come out after whatever points at them. Only ancestors
+# inside the selection matter — a parent we are NOT deleting stays put and
+# blocks its child regardless of ordering, which the caller reports.
+def depth(d):
+    seen = set()
+    n = 0
+    cur = d
+    while cur in parent and cur not in seen:
+        seen.add(cur)
+        cur = parent[cur]
+        n += 1
+    return n
+
+# Stable sort: equal-depth entries keep the order the picker showed them in.
+for d in sorted(sel, key=depth):
+    print(d)
+')
+  if [[ -n $ordered ]]; then
+    local -a reordered=("${(@f)ordered}")
+    reordered=("${(@)reordered:#}")
+    # Only adopt the new order if nothing was lost in translation.
+    if (( ${#reordered} == ${#digests} )); then
+      digests=("${reordered[@]}")
+    else
+      print -u2 "gar-version-rm: could not order the selection; using picker order"
+    fi
+  fi
+fi
+
 # ---------------------------------------------------------------------------
 # Stage 3 — confirm and delete
 # ---------------------------------------------------------------------------
@@ -274,6 +336,46 @@ else
 fi
 
 print -r -- ""
+# A member whose index is NOT part of this selection cannot be deleted while
+# that index still references it. Ordering cannot help — say so before the
+# confirmation rather than letting the batch fail halfway through.
+if [[ -s $child_map ]]; then
+  local blocked=''
+  blocked=$(printf '%s\n' "${digests[@]}" \
+    | GAR_VR_CHILDREN="$child_map" python3 -c '
+import sys, os
+sel = set(l.strip() for l in sys.stdin if l.strip())
+parent = {}
+cpath = os.environ.get("GAR_VR_CHILDREN") or ""
+if cpath and os.path.exists(cpath):
+    with open(cpath) as fh:
+        for raw in fh:
+            p = raw.rstrip("\n").split("\t")
+            if len(p) >= 2 and p[0]:
+                parent[p[0]] = p[1]
+for d in sorted(sel):
+    par = parent.get(d)
+    if par and par not in sel:
+        print(f"{d}\t{par}")
+')
+  if [[ -n $blocked ]]; then
+    local -a blocked_rows=("${(@f)blocked}")
+    blocked_rows=("${(@)blocked_rows:#}")
+    print -r -- "  ${yellow}${bold}${#blocked_rows} selected version(s) are referenced by an index you are keeping.${reset}"
+    print -r -- "  ${yellow}The registry will refuse these while the index remains:${reset}"
+    local brow='' shown_b=0
+    for brow in "${blocked_rows[@]}"; do
+      (( shown_b >= 5 )) && { print -r -- "    ${dim}… and $(( ${#blocked_rows} - 5 )) more${reset}"; break }
+      local -a bf=("${(@s:	:)brow}")
+      print -r -- "    ${bf[1]}"
+      print -r -- "      ${dim}referenced by ${bf[2]}${reset}"
+      (( shown_b++ ))
+    done
+    print -r -- "  ${dim}Select the index too, or expect these to fail.${reset}"
+    print -r -- ""
+  fi
+fi
+
 print -r -- "  ${red}${bold}The following will run:${reset}"
 local -i shown=0 remaining_preview=$n
 while (( remaining_preview > 0 )); do

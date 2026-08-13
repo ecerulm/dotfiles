@@ -72,6 +72,23 @@ After a delete the listing is dropped and the removed digests are
 purged from the attribution, so the next run cannot show versions
 that no longer exist.
 
+DELETION ORDER
+
+The selection is reordered so that an index is always deleted before
+the versions it references: the registry refuses to remove a manifest
+while a live index still points at it. Picker order is nearly right
+already, since families render parent-first, but it breaks for a
+nested index — an index referencing another index — whose members can
+sort into an earlier family than their grandparent. Sorting by depth
+in the reference chain covers that, and also survives the 1000-digest
+batching, because any prefix of a parents-first list is itself
+parents-first.
+
+Members whose index is NOT part of the selection cannot be deleted at
+all while that index remains. Ordering cannot help there, so they are
+listed before the confirmation with the index that is blocking them,
+rather than being discovered when the batch fails.
+
 DELETION
 
 The exact gcloud command lines are printed before a single
