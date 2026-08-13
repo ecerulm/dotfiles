@@ -81,11 +81,26 @@ _gar_version_preview_main() {
     return 0
   fi
 
-  printf '%s' "$json" | GAR_VP_DIGEST=$digest python3 -c '
+  printf '%s' "$json" | GAR_VP_DIGEST=$digest \
+    GAR_VP_CHILDREN="${GAR_VERSION_CHILDREN:-}" python3 -c '
 import sys, json, os
 from datetime import datetime, timezone
 
 want = os.environ["GAR_VP_DIGEST"]
+
+# Multi-arch attribution, loaded from the shared cache the caller points at.
+# child -> (parent, platform, parent_tags);  parent -> [(child, platform)]
+child_of = {}
+kids_of = {}
+_cp = os.environ.get("GAR_VP_CHILDREN") or ""
+if _cp and os.path.exists(_cp):
+    with open(_cp) as _fh:
+        for _raw in _fh:
+            _p = _raw.rstrip("\n").split("\t")
+            if len(_p) >= 3 and _p[0]:
+                _tags = _p[3] if len(_p) > 3 else ""
+                child_of[_p[0]] = (_p[1], _p[2], _tags)
+                kids_of.setdefault(_p[1], []).append((_p[0], _p[2]))
 
 def human_size(b):
     if not b:
@@ -142,9 +157,36 @@ print(f"Tags:       {len(tags)}")
 if tags:
     for t in tags:
         print(f"  - {t}")
+elif want in child_of:
+    print("  (untagged — but see BELONGS TO below)")
 else:
     print("  (untagged)")
 print()
+
+# The relationship comes before the metadata: on a delete tool, "this is one
+# arch of a tagged image" is the single most decision-changing fact here.
+if want in child_of:
+    parent, platform, ptags = child_of[want]
+    owner = ptags.split(",")[0] if ptags else parent[:26] + "…"
+    print(f"BELONGS TO: {owner}")
+    plat_label = platform
+    if platform == "unknown":
+        plat_label = "attestation / provenance"
+    print(f"  platform: {plat_label}")
+    print(f"  index:    {parent}")
+    print("  This version is one member of a multi-arch image. Deleting it")
+    print("  leaves that image broken for this platform while the tag still")
+    print("  resolves — pull failures, not a clean absence.")
+    print()
+elif want in kids_of:
+    members = kids_of[want]
+    print(f"MULTI-ARCH INDEX: references {len(members)} version(s)")
+    for cd, plat in sorted(members, key=lambda x: x[1]):
+        label = plat if plat != "unknown" else "attestation"
+        print(f"  - {label:<24} {cd[:26]}…")
+    print("  Deleting this index does NOT delete the versions above; they")
+    print("  remain, untagged and unreferenced.")
+    print()
 
 size = meta.get("imageSizeBytes") or entry.get("imageSizeBytes")
 print(f"Size:       {human_size(size)}")

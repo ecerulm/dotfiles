@@ -1,0 +1,168 @@
+# _rlm-gar-index-children IMAGE JSON_FILE
+#
+# Map every child digest of every multi-arch index in a package back to the
+# index that references it.
+#
+#   IMAGE      LOCATION-docker.pkg.dev/PROJECT/REPO/PACKAGE
+#   JSON_FILE  file holding the `gcloud artifacts docker images list
+#              --include-tags --format=json` output for that package
+#
+# Emits one TSV line per child, no header:
+#
+#   <child_digest>\t<parent_digest>\t<platform>\t<parent_tags_csv>
+#
+# platform is `os/arch[/variant]` from the index entry, or `unknown` when the
+# index does not say (buildx attaches attestation manifests with
+# architecture=unknown — those are children too, and must not be mistaken for
+# orphans). parent_tags_csv is empty when the parent index is itself untagged.
+#
+# Returns 0 on success (including "no indexes in this package", which emits
+# nothing), 1 on a usage error or unreadable input, 2 when no access token is
+# available. A per-index fetch that fails is skipped, not fatal: partial
+# attribution is strictly better than none, and the caller renders anything
+# unresolved as an ordinary untagged version.
+#
+# WHY THIS EXISTS
+#   `docker images list` returns children as plain untagged versions with
+#   nothing pointing at their parent — the child manifest has no `subject` and
+#   no annotations either, so the link exists *only* inside the index body and
+#   the only way to recover it is to fetch every index. Measured on
+#   eu.gcr.io/catalogue_export: 46 untagged versions, of which 44 were children
+#   of a tagged index and just 2 were real orphans. Presented flat, all 46 look
+#   equally disposable, and deleting a child silently breaks the tagged
+#   multi-arch image that references it.
+#
+# COST
+#   One registry GET per index, fanned out 16-at-a-time: 11 indexes in ~0.6s.
+#   Paid once per package, before the picker opens — never inside the preview,
+#   which re-runs on every keystroke.
+emulate -L zsh
+setopt extended_glob
+unsetopt monitor notify
+set -o pipefail
+
+local image=$1 json_file=$2
+
+if [[ -z $image || -z $json_file ]]; then
+  print -u2 "_rlm-gar-index-children: usage: _rlm-gar-index-children IMAGE JSON_FILE"
+  return 1
+fi
+if [[ ! -s $json_file ]]; then
+  print -u2 "_rlm-gar-index-children: no such file or empty: ${json_file}"
+  return 1
+fi
+
+local loc_host proj repo pkg_path
+loc_host=${image%%/*}
+proj=${${(s:/:)image}[2]}
+repo=${${(s:/:)image}[3]}
+pkg_path=${(j:/:)${${(s:/:)image}[4,-1]}}
+
+if [[ -z $proj || -z $repo || -z $pkg_path ]]; then
+  print -u2 "_rlm-gar-index-children: cannot parse image path: ${image}"
+  return 1
+fi
+
+# Index digests, plus their tags, straight out of the listing we already have.
+local -a index_rows
+index_rows=("${(@f)$(jq -r '
+  .[]
+  | select((.metadata.mediaType // "") | test("index|list"))
+  | [.version, ((.tags // []) | join(","))]
+  | @tsv
+' "$json_file" 2>/dev/null)}")
+index_rows=("${(@)index_rows:#}")
+
+(( ${#index_rows} == 0 )) && return 0
+
+local token
+token=$(gcloud auth print-access-token 2>/dev/null)
+if [[ -z $token ]]; then
+  print -u2 "_rlm-gar-index-children: no gcloud access token; skipping attribution"
+  return 2
+fi
+
+local tmpdir
+tmpdir=$(mktemp -d) || {
+  print -u2 "_rlm-gar-index-children: failed to create temp dir"
+  return 1
+}
+
+local base="https://${loc_host}/v2/${proj}/${repo}/${pkg_path}/manifests"
+local accept='application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.list.v2+json'
+
+# Fan out, but bounded: a package with hundreds of indexes should not open
+# hundreds of sockets at once.
+local -i max_par=16 idx=0
+local row=''
+# Index the work first, so the subshell below only has to fetch.
+for row in "${index_rows[@]}"; do
+  local -a rf=()
+  rf=("${(@s:	:)row}")
+  local parent="${rf[1]}"
+  [[ -z $parent ]] && continue
+  (( idx++ ))
+  # Stash the parent and its tags next to where the body will land, so the
+  # reader needs no second pass.
+  print -r -- "${rf[2]}" >| "${tmpdir}/${idx}.tags"
+  print -r -- "$parent" >| "${tmpdir}/${idx}.parent"
+done
+
+# The fan-out runs inside a subshell: backgrounded jobs then live and are
+# reaped in the subshell's own job table, so an interactive parent never
+# prints "[8] - done curl …" for them. `unsetopt monitor notify` in this
+# function is not sufficient on its own — the reap happens as options are
+# being restored on return, and the report escapes anyway.
+(
+  unsetopt monitor notify
+  local -i j=1 running=0
+  while (( j <= idx )); do
+    local pd=''
+    pd=$(<"${tmpdir}/${j}.parent")
+    curl -sS --max-time 20 \
+         -H "Authorization: Bearer ${token}" \
+         -H "Accept: ${accept}" \
+         "${base}/${pd}" >| "${tmpdir}/${j}.json" 2>/dev/null &
+    (( running++ ))
+    if (( running >= max_par )); then
+      wait
+      running=0
+    fi
+    (( j++ ))
+  done
+  wait
+) 2>/dev/null
+
+local -i i=1
+while (( i <= idx )); do
+  local body="${tmpdir}/${i}.json"
+  if [[ -s $body ]]; then
+    local parent_digest='' parent_tags=''
+    parent_digest=$(<"${tmpdir}/${i}.parent")
+    [[ -s "${tmpdir}/${i}.tags" ]] && parent_tags=$(<"${tmpdir}/${i}.tags")
+    # A registry error is JSON too (`{"errors":[…]}`) — .manifests is then
+    # absent and jq emits nothing, which is the behaviour we want.
+    PARENT="$parent_digest" PTAGS="$parent_tags" jq -r '
+      (env.PARENT) as $p | (env.PTAGS) as $pt
+      | .manifests // []
+      | .[]
+      | select(.digest != null)
+      | [ .digest,
+          $p,
+          ( (.platform.os // "") as $os
+            | (.platform.architecture // "") as $arch
+            | if $os == "" or $arch == "" or ($os == "unknown" and $arch == "unknown")
+              then "unknown"
+              else ( $os + "/" + $arch
+                     + (if (.platform.variant // "") != ""
+                        then "/" + .platform.variant else "" end) )
+              end ),
+          $pt ]
+      | @tsv
+    ' "$body" 2>/dev/null
+  fi
+  (( i++ ))
+done
+
+rm -rf "$tmpdir"
+return 0

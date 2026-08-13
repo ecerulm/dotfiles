@@ -1,4 +1,4 @@
-rlm-gar-version-rm [-n|--dry-run]
+rlm-gar-version-rm [-n|--dry-run] [-r|--refresh]
 
 Delete individual versions inside a single Artifact Registry package.
 Two pickers: first choose one <repo>/<package>, then TAB-multi-select
@@ -12,16 +12,65 @@ The package picker is the shared gar-* picker: same cache, same MRU
 history, same --- REFRESH CACHE --- partial-refresh flow as gar-open
 and gar-rm.
 
-The version picker lists every version newest-first, showing date,
-size, short digest, and tags (untagged versions are dimmed). The
+The version picker lists every version oldest-first — the old builds
+are what a delete tool is for — showing date, size, short digest,
+and tags (untagged versions are dimmed). Versions whose date the API
+does not report sort first, ahead of the dated ones. The
 preview pane shows the image name, every tag on the digest, the full
 SHA, size, media type (flagging multi-arch indexes), upload/update/
 create/build times, platform, and any other scalar metadata the API
 returns. A digest carrying more than one tag is called out
 explicitly, since deleting it removes all of them.
 
-The whole version list is fetched once and handed to the preview as a
-cached file, so moving through the list costs no API calls.
+MULTI-ARCH IMAGES
+
+The per-architecture images behind a multi-arch tag appear in the
+registry listing as ordinary untagged versions, with nothing tying
+them to the index that references them — so a flat list makes them
+indistinguishable from genuine leftovers. They are not: deleting one
+breaks the tagged image for that platform, and the tag keeps
+resolving, so the result is pull failures rather than a clean
+absence.
+
+Each index is therefore resolved to its members, and the picker shows
+
+  2026-08-11    ?   sha256:f79f208bf156…  pr-3765 (index, 4 arch)
+  2026-08-11   58MB sha256:007830616219…  └─ linux/amd64 of pr-3765
+  2026-08-11   59MB sha256:5a19e04d38ec…  └─ linux/arm64 of pr-3765
+  2026-08-11   33KB sha256:5be1c2a52f50…  └─ attestation of pr-3765
+
+with members grouped directly under their index and each family kept
+contiguous and sorted by the age of the index, not of the member.
+Buildx attestation/provenance manifests report no platform and are
+labelled "attestation" — they are members too, not orphans. An index
+that carries no tag of its own is flagged "(untagged index, N arch)"
+rather than a bare "(untagged)", because deleting it strands the
+versions beneath it. The preview names the relationship in both
+directions: a member says what it BELONGS TO, an index lists the
+versions it references.
+
+Only a version that is neither tagged nor referenced by any index is
+shown as a plain "(untagged)".
+
+CACHING
+
+The listing and the index attribution are cached per package under
+~/.cache/gar-version/<hash>/. The listing carries a 10-minute TTL;
+the attribution is kept indefinitely, because a digest names an
+immutable manifest — what an index points at cannot change without
+the index itself getting a different digest. Only indexes pushed
+since the last run are fetched, so the per-run cost tracks new
+builds rather than package size. A cold 205-version package with 41
+indexes takes ~3s; reopening it takes ~0.2s. Moving through the
+picker costs no API calls at all.
+
+If children.tsv is truncated or pruned out of step with the record of
+which indexes have been resolved, the mismatch is detected and the
+affected indexes are re-fetched on the next run.
+
+After a delete the listing is dropped and the removed digests are
+purged from the attribution, so the next run cannot show versions
+that no longer exist.
 
 DELETION
 
@@ -49,6 +98,11 @@ OPTIONS
   -n, --dry-run
               Show both pickers, the selection summary, and the exact
               commands, but run no deletes and ask no confirmation.
+
+  -r, --refresh
+              Ignore the cached listing and refetch it, regardless of
+              the TTL. Already-resolved multi-arch indexes are still
+              reused — they cannot go stale.
 
   -h, --help  Print usage and exit.
 

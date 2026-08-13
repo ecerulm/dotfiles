@@ -2,19 +2,25 @@ emulate -L zsh
 set -o pipefail
 
 autoload -Uz _rlm-gar-preflight _rlm-gar-pick-package _rlm-gar-history \
-             _rlm-gar-cache _rlm-gar-show-cmd _rlm-gar-parse-image
+             _rlm-gar-cache _rlm-gar-show-cmd _rlm-gar-parse-image \
+             _rlm-gar-index-children _rlm-gar-version-cache
 
-local dry_run=0
+local dry_run=0 force_refresh=0
 while (( $# )); do
   case $1 in
     -n|--dry-run) dry_run=1; shift ;;
+    -r|--refresh) force_refresh=1; shift ;;
     -h|--help)
-      print -r -- "Usage: gar-version-rm [-n|--dry-run]"
+      print -r -- "Usage: gar-version-rm [-n|--dry-run] [-r|--refresh]"
       print -r -- ""
       print -r -- "Pick a GAR <repo>/<package> in an fzf picker, then"
       print -r -- "multi-select individual versions inside it to delete."
+      print -r -- "Versions list oldest first, with the per-arch members of a"
+      print -r -- "multi-arch image grouped under the index that owns them."
       print -r -- "Shows the exact gcloud command, confirms once, deletes in"
       print -r -- "batches of 1000, then verifies the versions are gone."
+      print -r -- ""
+      print -r -- "  -r, --refresh  bypass the cached listing and refetch"
       return 0
       ;;
     *)
@@ -50,46 +56,68 @@ eval "$(_rlm-gar-parse-image "$image")" || return 1
 local red=$'\e[31m' green=$'\e[32m' yellow=$'\e[33m' cyan=$'\e[36m'
 local dim=$'\e[2m' bold=$'\e[1m' reset=$'\e[0m'
 
-print -u2 "gar-version-rm: listing versions of ${pkg_path} …"
+# The listing and the index→child attribution both come from the on-disk
+# per-package cache. The attribution is the expensive half (one registry GET
+# per multi-arch index) and is permanently cacheable because a digest names an
+# immutable manifest — so only indexes pushed since the last open are fetched.
+local cache_dir versions_file children_file resolved_file
+local from_cache=0 new_indexes=0
+local -a load_args=()
+(( force_refresh )) && load_args+=(--force)
+eval "$(_rlm-gar-version-cache load "$image" "${load_args[@]}")" || return 1
 
-local versions_json err rc
-err=$(mktemp) || err=/dev/null
-versions_json=$(gcloud artifacts docker images list "$image" \
-                  --include-tags \
-                  --sort-by='~UPDATE_TIME' \
-                  --format=json \
-                  --project="$proj" 2>"$err")
-rc=$?
-if (( rc != 0 )); then
-  print -u2 "gar-version-rm: failed to list versions for ${image} (exit ${rc})"
-  [[ -s $err ]] && grep -v '^$' "$err" | head -8 >&2
-  [[ $err != /dev/null ]] && rm -f "$err"
+if [[ ! -s $versions_file ]]; then
+  print -u2 "gar-version-rm: ${image} has no versions"
   return 1
 fi
-[[ $err != /dev/null ]] && rm -f "$err"
 
+local versions_json
+versions_json=$(<"$versions_file")
 if [[ -z $versions_json || $versions_json == '[]' ]]; then
   print -u2 "gar-version-rm: ${image} has no versions"
   return 1
 fi
 
-# The preview re-runs on every keystroke, so hand it a cached copy of this
-# JSON instead of making it call the API per version.
-local version_cache
-version_cache=$(mktemp) || {
-  print -u2 "gar-version-rm: failed to create temp file"
-  return 1
-}
-print -r -- "$versions_json" >| "$version_cache"
+# The picker and preview read the cache files directly — no temp copies, so a
+# package with thousands of versions is not duplicated per invocation.
+local version_cache="$versions_file"
+local child_map="$children_file"
 
-# Rows are tab-separated: <sort_key>\t<colored display>\t<digest>
-# fzf renders only field 2 and hands field 3 to the preview and to us.
+local -i n_children=0
+[[ -s $child_map ]] && n_children=$(grep -c . "$child_map")
+
+local cache_age=''
+cache_age=$(_rlm-gar-version-cache age "$image")
+print -u2 "gar-version-rm: $(jq length "$versions_file" 2>/dev/null) version(s)${n_children:+, ${n_children} in a multi-arch index}${cache_age:+ (listing ${cache_age})}"
+
+# Rows are tab-separated, 6 fields:
+#   1 group_epoch  2 group_id  3 rank  4 tiebreak digest  -- sort keys, hidden
+#   5 colored display                       -- the only field fzf shows
+#   6 digest                                -- what we and the preview use
+# The sort fields are separate columns (not one glued string) so plain `sort`
+# can order them numerically without a custom key spec.
 local rows
-rows=$(print -r -- "$versions_json" | GAR_VR_COLORS="${cyan}|${dim}|${yellow}|${reset}" python3 -c '
+rows=$(print -r -- "$versions_json" \
+  | GAR_VR_COLORS="${cyan}|${dim}|${yellow}|${reset}|${green}" \
+    GAR_VR_CHILDREN="$child_map" python3 -c '
 import sys, json, os
 from datetime import datetime, timezone
 
-cyan, dim, yellow, reset = os.environ["GAR_VR_COLORS"].split("|")
+cyan, dim, yellow, reset, green = os.environ["GAR_VR_COLORS"].split("|")
+
+# child digest -> (parent digest, platform, parent tags)
+children = {}
+# parent digest -> number of children it owns
+child_count = {}
+cpath = os.environ.get("GAR_VR_CHILDREN") or ""
+if cpath and os.path.exists(cpath):
+    with open(cpath) as fh:
+        for raw in fh:
+            parts = raw.rstrip("\n").split("\t")
+            if len(parts) >= 3 and parts[0]:
+                tags = parts[3] if len(parts) > 3 else ""
+                children[parts[0]] = (parts[1], parts[2], tags)
+                child_count[parts[1]] = child_count.get(parts[1], 0) + 1
 
 def human_size(b):
     if not b:
@@ -112,6 +140,16 @@ def parse(ts):
 data = json.load(sys.stdin)
 now = datetime.now(timezone.utc)
 
+def entry_epoch(e):
+    dt = parse(e.get("updateTime") or e.get("uploadTime") or e.get("createTime"))
+    return int(dt.timestamp()) if dt else 0
+
+# Families sort as a unit and stay contiguous: a child takes the timestamp of
+# its parent as the primary key, so it can never drift away from the index it
+# belongs to. Secondary key puts the parent (0) above its children (1); the
+# digest breaks ties so the order is stable between runs.
+epoch_by_digest = {e.get("version"): entry_epoch(e) for e in data if e.get("version")}
+
 for e in data:
     digest = e.get("version") or ""
     if not digest:
@@ -119,15 +157,40 @@ for e in data:
     meta = e.get("metadata") or {}
     tags = e.get("tags") or []
     dt = parse(e.get("updateTime") or e.get("uploadTime") or e.get("createTime"))
-    sort_key = int(dt.timestamp()) if dt else 0
+    own_epoch = int(dt.timestamp()) if dt else 0
+    parent_of = children.get(digest, (None, None, None))[0]
+    if parent_of and parent_of in epoch_by_digest:
+        # Tiebreak on the digest of the *parent*, not our own: two indexes
+        # pushed in the same second otherwise interleave their children.
+        group_epoch, group_id, rank = epoch_by_digest[parent_of], parent_of, 1
+    else:
+        group_epoch, group_id, rank = own_epoch, digest, 0
+    sort_key = f"{group_epoch:012d}\t{group_id}\t{rank}\t{digest}"
     when = dt.strftime("%Y-%m-%d") if dt else "?"
     size = human_size(meta.get("imageSizeBytes") or e.get("imageSizeBytes"))
     short = digest[:19] if digest.startswith("sha256:") else digest[:19]
+    kids = child_count.get(digest, 0)
     if tags:
         tag_str = ", ".join(tags)
         if len(tag_str) > 46:
             tag_str = tag_str[:43] + "..."
         tag_disp = f"{cyan}{tag_str}{reset}"
+        if kids:
+            tag_disp += f" {dim}(index, {kids} arch){reset}"
+    elif kids:
+        # An untagged *index*: not a leftover, it owns the versions listed
+        # under it. Deleting it strands them.
+        tag_disp = f"{yellow}(untagged index, {kids} arch){reset}"
+    elif digest in children:
+        # Untagged, but referenced by an index: name the platform and whatever
+        # identifies the parent, so it is obvious this is part of something
+        # tagged rather than a leftover.
+        parent, platform, ptags = children[digest]
+        label = platform if platform != "unknown" else "attestation"
+        owner = ptags.split(",")[0] if ptags else f"{parent[7:19]}…"
+        if len(owner) > 28:
+            owner = owner[:25] + "..."
+        tag_disp = f"{green}└─ {label}{reset} {dim}of {owner}{reset}"
     else:
         tag_disp = f"{dim}(untagged){reset}"
     display = f"{when}  {size:>8}  {short}…  {tag_disp}"
@@ -136,12 +199,13 @@ for e in data:
 
 if [[ -z $rows ]]; then
   print -u2 "gar-version-rm: could not build the version list"
-  rm -f "$version_cache"
   return 1
 fi
 
+# Oldest first — this is a delete tool, and the stale versions are the point.
+# Undated rows sort to epoch 0 and lead: unknown age deserves a look.
 local -a picker_lines
-picker_lines=(${(f)"$(print -r -- "$rows" | sort -t$'\t' -k1,1nr)"})
+picker_lines=(${(f)"$(print -r -- "$rows" | sort -t$'\t' -k1,1n -k2,2 -k3,3n -k4,4)"})
 
 local total_versions=${#picker_lines}
 
@@ -153,9 +217,9 @@ selection=$(
       --multi \
       --height=80% --reverse \
       --no-mouse --ansi \
-      --delimiter=$'\t' --with-nth=2 \
+      --delimiter=$'\t' --with-nth=5 \
       --header='TAB multi • Enter delete • Shift/Alt-↑↓ scroll • Ctrl-P size • Ctrl-G abort' \
-      --preview="GAR_VERSION_CACHE=${(q)version_cache} \"\$HOME/bin/gar-version-preview\" ${(q)image} {3}" \
+      --preview="GAR_VERSION_CACHE=${(q)version_cache} GAR_VERSION_CHILDREN=${(q)child_map} \"\$HOME/bin/gar-version-preview\" ${(q)image} {6}" \
       --preview-window=bottom:60%:wrap \
       --bind='ctrl-p:change-preview-window(bottom:80%:wrap|bottom:60%:wrap|hidden)' \
       --bind='shift-up:preview-up' --bind='shift-down:preview-down' \
@@ -163,7 +227,8 @@ selection=$(
       --bind='ctrl-g:abort'
 )
 local fzf_rc=$?
-rm -f "$version_cache"
+# $version_cache / $child_map are the persistent cache files, not temp copies
+# — deleting them here would silently defeat the cache on every single run.
 (( fzf_rc != 0 )) && return 130
 [[ -z $selection ]] && return 130
 
@@ -176,7 +241,7 @@ for line in "${sel_lines[@]}"; do
   # `IFS=$'\t' read` would collapse it, shifting the digest out of place.
   local -a f=()
   f=("${(@s:	:)line}")
-  [[ -n ${f[3]} ]] && digests+=("${f[3]}")
+  [[ -n ${f[6]} ]] && digests+=("${f[6]}")
 done
 
 if (( ${#digests} == 0 )); then
@@ -277,6 +342,12 @@ done
 # ---------------------------------------------------------------------------
 # Stage 4 — verify the selected digests are actually gone
 # ---------------------------------------------------------------------------
+
+# The cached listing is now stale no matter how the verification turns out, so
+# drop it before the check rather than only on the success path. The child map
+# survives — those mappings are immutable — minus the digests just removed.
+_rlm-gar-version-cache invalidate "$image"
+_rlm-gar-version-cache forget "$image" "${digests[@]}"
 
 local after_json
 after_json=$(gcloud artifacts docker images list "$image" \
