@@ -62,6 +62,13 @@ ENVIRONMENT
               Required; the function errors out if not set. Shared
               with gar-open and gar-search.
 
+  GAR_SEARCH_LOCATIONS
+              Colon-separated Artifact Registry locations to scan
+              (default europe:europe-west1:us). Repositories are
+              listed per location — the API has no "all locations"
+              query — so a location missing from this list is
+              invisible to the picker.
+
 REQUIRES
   gcloud, fzf, jq, curl, python3.
 

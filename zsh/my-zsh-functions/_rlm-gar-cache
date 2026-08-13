@@ -1,5 +1,8 @@
 emulate -L zsh
 set -o pipefail
+# The per-location and per-repo fetches fan out with `&`; without this
+# an interactive shell prints "[4] 23959" / "[4] + done …" for each.
+setopt local_options no_monitor no_notify
 
 # Shared GAR package-list cache for rlm-gar-open and rlm-gar-rm.
 #
@@ -160,18 +163,84 @@ case $action in
     _rlm_gar_cache_fetch_one() {
       local proj=$1 tok=$2
 
-      _rlm_gar_cache_status "fetching repositories from ${proj} …"
-      local repos_json=''
-      repos_json=$(gcloud artifacts repositories list --project="$proj" \
-                     --filter="format=DOCKER" --format=json 2>/dev/null)
-      if [[ -z $repos_json || $repos_json == "[]" ]]; then
+      # Repositories are listed per LOCATION over REST, not via
+      # `gcloud artifacts repositories list`. Three reasons:
+      #
+      #  1. CORRECTNESS. The bare gcloud call returns only the repos in
+      #     its default location, silently omitting the rest — on this
+      #     setup it reported 5 repos for a project that has repos in
+      #     europe, europe-west1 and us, dropping the two
+      #     composer-images-*-gke repos (37 packages) from the cache
+      #     with no warning. There is no "all locations" mode:
+      #     `locations/-` is rejected with INVALID_ARGUMENT.
+      #  2. gcloud PROMPTS. When the Artifact Registry API is not enabled
+      #     on a project it asks "Would you like to enable and retry?
+      #     (y/N)". The call runs inside $(...) with stderr redirected,
+      #     so the question is invisible while gcloud blocks on stdin —
+      #     the picker just froze on "fetching repositories from <proj>"
+      #     until the user blindly hit Enter.
+      #  3. SPEED. Each gcloud invocation costs ~1.3-4s of python startup
+      #     and credential refresh to return a handful of names; a REST
+      #     call is ~0.3s, and the per-location calls run in parallel.
+      #
+      # Locations come from $GAR_SEARCH_LOCATIONS (colon-separated),
+      # defaulting to the set actually in use here. Enumerating all ~46
+      # GCP locations would cost 46 round-trips per project for nothing.
+      local -a locations
+      locations=(${(u)${(s[:])${GAR_SEARCH_LOCATIONS:-europe:europe-west1:us}}:#})
+
+      _rlm_gar_cache_status "fetching repositories from ${proj} (${#locations} locations) …"
+
+      local loc_tmpdir=''
+      loc_tmpdir=$(mktemp -d) || return 0
+
+      local l=''
+      for l in "${locations[@]}"; do
+        {
+          curl -sS -G \
+            -H "Authorization: Bearer ${tok}" \
+            "https://artifactregistry.googleapis.com/v1/projects/${proj}/locations/${l}/repositories" \
+            --data-urlencode "pageSize=1000" 2>/dev/null \
+            >| "${loc_tmpdir}/${l}.json"
+        } &
+      done
+      wait
+
+      local -a repo_paths=()
+      local -A seen_err=()
+      for l in "${locations[@]}"; do
+        local body_file="${loc_tmpdir}/${l}.json"
+        [[ -s $body_file ]] || continue
+        if jq -e '.error' "$body_file" >/dev/null 2>&1; then
+          # Report each distinct failure once per project rather than
+          # once per location: a disabled API fails identically in every
+          # location and would otherwise print N copies.
+          local api_status=''
+          api_status=$(jq -r '.error.status // "ERROR"' "$body_file" 2>/dev/null)
+          if [[ -z ${seen_err[$api_status]} ]]; then
+            seen_err[$api_status]=1
+            local api_msg=''
+            api_msg=$(jq -r '.error.message' "$body_file" 2>/dev/null | head -1 | cut -c1-140)
+            printf '\r\e[2K' >&2
+            print -u2 "${label}: ${proj}: ${api_status}"
+            print -u2 "  ${api_msg}"
+            if [[ $api_msg == *"has not been used in project"* ]]; then
+              print -u2 "  (the Artifact Registry API is not enabled on this project)"
+            fi
+          fi
+          continue
+        fi
+        local -a found=()
+        found=(${(f)"$(jq -r '.repositories // [] | .[] | select(.format == "DOCKER") | .name' "$body_file" 2>/dev/null)"})
+        repo_paths+=("${(@)found:#}")
+      done
+      rm -rf "$loc_tmpdir"
+
+      if (( ${#repo_paths} == 0 )); then
         printf '\r\e[2K' >&2
         print -u2 "${label}: no DOCKER repositories in $proj"
         return 0
       fi
-
-      local -a repo_paths
-      repo_paths=(${(f)"$(print -r -- "$repos_json" | jq -r '.[].name')"})
 
       local repo_path loc repo_name parent body err_msg packages pkg
       for repo_path in $repo_paths; do
