@@ -38,7 +38,14 @@ _gar_version_preview_main() {
   printf 'Image:      %s\n' "$image"
   printf 'Package:    %s\n' "$pkg_path"
   printf 'Project:    %s\n' "$proj"
-  printf 'Repository: %s/%s\n' "$location_slug" "$repo"
+  printf 'Repository: %s\n' "$repo"
+  # Location gets its own line: `europe` (multi-region) and `europe-west1`
+  # (single region) are different locations holding different repos, and
+  # the distinction is invisible when it is glued onto the repo name.
+  case $location_slug in
+    europe|us|asia) printf 'Location:   %s  (multi-region)\n' "$location_slug" ;;
+    *)              printf 'Location:   %s\n' "$location_slug" ;;
+  esac
   printf 'Digest:     %s\n' "$digest"
   printf 'Console:    '
   printf '\e]8;;%s\e\\Open in GCP console\e]8;;\e\\' "$console_url"; printf '\n'

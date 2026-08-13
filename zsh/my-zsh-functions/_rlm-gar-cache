@@ -187,7 +187,7 @@ case $action in
       # defaulting to the set actually in use here. Enumerating all ~46
       # GCP locations would cost 46 round-trips per project for nothing.
       local -a locations
-      locations=(${(u)${(s[:])${GAR_SEARCH_LOCATIONS:-europe:europe-west1:us}}:#})
+      locations=(${(u)${(s[:])${GAR_SEARCH_LOCATIONS:-europe:europe-west1}}:#})
 
       _rlm_gar_cache_status "fetching repositories from ${proj} (${#locations} locations) …"
 
