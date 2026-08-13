@@ -44,14 +44,19 @@ case $action in
     ;;
 
   versions-delete)
+    # Renders the REST call that actually runs, NOT a gcloud command.
+    # `gcloud artifacts versions delete` takes a single VERSION positional and
+    # dies with `unrecognized arguments:` on a list — there is no gcloud
+    # surface (GA, alpha or beta) for deleting a subset of versions in bulk,
+    # so this goes to versions:batchDelete, which caps at 75 per request.
+    # Showing a gcloud line here would be showing a command that cannot work.
     local n=$1 pkg_path=$2 location_slug=$3 repo=$4 proj=$5
-    _rlm_gar_show_cmd_raw "gcloud artifacts versions delete \\" \
-      "<${n} version digest(s)> \\" \
-      "--package=${pkg_path} \\" \
-      "--location=${location_slug} \\" \
-      "--repository=${repo} \\" \
-      "--project=${proj} \\" \
-      "--delete-tags --quiet"
+    local pkg_enc=${pkg_path//\//%2F}
+    _rlm_gar_show_cmd_raw "POST https://artifactregistry.googleapis.com/v1/ \\" \
+      "projects/${proj}/locations/${location_slug}/ \\" \
+      "repositories/${repo}/packages/${pkg_enc}/ \\" \
+      "versions:batchDelete \\" \
+      "{ \"names\": [<${n} version digest(s)>] }"
     ;;
 
   package-delete)

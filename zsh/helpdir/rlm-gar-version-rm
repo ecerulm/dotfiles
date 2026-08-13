@@ -80,8 +80,8 @@ while a live index still points at it. Picker order is nearly right
 already, since families render parent-first, but it breaks for a
 nested index — an index referencing another index — whose members can
 sort into an earlier family than their grandparent. Sorting by depth
-in the reference chain covers that, and also survives the 1000-digest
-batching, because any prefix of a parents-first list is itself
+in the reference chain covers that, and also survives the 75-name
+chunking, because any prefix of a parents-first list is itself
 parents-first.
 
 Members whose index is NOT part of the selection cannot be deleted at
@@ -91,19 +91,30 @@ rather than being discovered when the batch fails.
 
 DELETION
 
-The exact gcloud command lines are printed before a single
-confirmation covering the whole selection. Deletion then runs in
-batches of at most 1000 digests — the server rejects a larger single
-delete — via:
+The exact API call is printed before a single confirmation
+covering the whole selection. Deletion then runs via the Artifact
+Registry REST endpoint:
 
-  gcloud artifacts versions delete <digests…> --package=<pkg>
-    --location=<loc> --repository=<repo> --project=<proj>
-    --delete-tags --quiet
+  POST .../packages/<pkg>/versions:batchDelete
+  { "names": [ ".../versions/sha256:..." , ... ] }
 
-Version ids are taken from the picker rows, which carry the bare
-digest; `versions list --format='value(name)'` returns fully
-qualified resource paths that this subcommand rejects when
---package/--location/--repository are given.
+in chunks of at most 75 names, which is the server-enforced maximum
+(76 is rejected). Each chunk's long-running operation is polled to
+completion before the next is sent, so the verification below cannot
+race the server.
+
+There is no gcloud equivalent. `gcloud artifacts versions delete`
+takes a SINGLE version positional and fails with "unrecognized
+arguments: sha256:..." when handed a list; the same is true on the
+alpha and beta tracks, `docker images delete` takes one image, and
+gcloud exposes no generic REST caller. Deleting N versions through
+gcloud would mean N invocations at ~0.8s of process startup each —
+about 14 minutes for 1000 versions, against ~15s for batchDelete.
+
+A clean return from batchDelete is NOT proof of deletion: the API
+answers 200 and completes the operation without error for names that
+do not exist. That is why the result is verified against a fresh
+listing rather than trusted.
 
 Afterwards the package is re-listed and each selected digest checked
 against what remains. Any still present are reported and a single

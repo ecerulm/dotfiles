@@ -1,0 +1,164 @@
+emulate -L zsh
+setopt extended_glob
+unsetopt monitor notify
+set -o pipefail
+
+# Delete a set of Artifact Registry versions via the REST batchDelete endpoint.
+#
+#   _rlm-gar-versions-batch-delete [--validate-only] [--label L] \
+#       <proj> <location_slug> <repo> <pkg_path> <digest…>
+#
+# Emits progress to stderr and one `deleted=<n>` line to stdout.
+# Returns 0 on success, 1 on a failed chunk, 2 on a usage error.
+#
+# WHY NOT `gcloud artifacts versions delete`
+#   That command takes a **single** VERSION positional. Handing it a list dies
+#   with `unrecognized arguments: sha256:…` and deletes nothing — the same bug
+#   that made `rlm-gar-rm` a no-op before it switched to `packages delete`.
+#   There is no gcloud surface for deleting a subset of versions in bulk, so
+#   this goes straight to the API.
+#
+# THE 75 CAP IS REAL AND SERVER-ENFORCED
+#   `versions:batchDelete` rejects anything larger with
+#   "A maximum of 75 versions are allowed per request" (probed: 75 OK, 76 and
+#   100 both rejected). Do not raise this constant hoping for fewer
+#   round-trips.
+#
+# ASYNC BY DEFAULT
+#   batchDelete returns a long-running operation. Deleting without waiting
+#   makes the caller's post-delete verification race the server and report
+#   versions as "still present" that are merely still going. So each chunk is
+#   polled to completion before the next is issued.
+#
+# --validate-only runs the server-side checks and deletes nothing. Useful for
+# a dry run that still exercises auth, names, and the cap.
+#
+# A CLEAN RETURN IS NOT PROOF OF DELETION
+#   batchDelete answers HTTP 200 and completes the operation with no error for
+#   names that do not exist — probed against a bogus package, which reported
+#   done:true, error:null. So rc=0 here means "the request was accepted and
+#   the operation finished", not "those versions are gone". Callers must still
+#   re-list and check, which is what rlm-gar-version-rm's Stage 4 does.
+
+local validate_only=0 label='gar-versions-delete'
+while (( $# )); do
+  case $1 in
+    --validate-only) validate_only=1; shift ;;
+    --label) label=$2; shift 2 ;;
+    --) shift; break ;;
+    -*) print -u2 "${label}: unknown flag: $1"; return 2 ;;
+    *) break ;;
+  esac
+done
+
+local proj=$1 loc=$2 repo=$3 pkg=$4
+shift 4 2>/dev/null || { print -u2 "${label}: missing required arguments"; return 2 }
+local -a digests=("$@")
+
+if [[ -z $proj || -z $loc || -z $repo || -z $pkg ]] || (( ${#digests} == 0 )); then
+  print -u2 "${label}: usage: [--validate-only] <proj> <loc> <repo> <pkg> <digest…>"
+  return 2
+fi
+
+local token
+token=$(gcloud auth print-access-token 2>/dev/null)
+if [[ -z $token ]]; then
+  print -u2 "${label}: no gcloud access token; run: gcloud auth login"
+  return 1
+fi
+
+# The package path is a single path segment in the resource name, so a nested
+# package (`app/dbt-docs/ttl-18h`) has to be percent-encoded.
+local pkg_encoded=${pkg//\//%2F}
+local base="https://artifactregistry.googleapis.com/v1"
+local parent="projects/${proj}/locations/${loc}/repositories/${repo}/packages/${pkg_encoded}"
+local url="${base}/${parent}/versions:batchDelete"
+
+local -i cap=75
+local -i n=${#digests} deleted=0 chunk_no=0 idx=1
+local -i chunks=$(( (n + cap - 1) / cap ))
+
+local body_file resp_file
+body_file=$(mktemp) || return 1
+resp_file=$(mktemp) || { rm -f "$body_file"; return 1; }
+
+while (( idx <= n )); do
+  (( chunk_no++ ))
+  local -a chunk=()
+  local -i taken=0
+  while (( idx <= n && taken < cap )); do
+    chunk+=("${digests[idx]}")
+    (( idx++ ))
+    (( taken++ ))
+  done
+
+  # Version ids go in unencoded: the digest's `:` is legal inside the final
+  # segment, and encoding it makes the server report the version as missing.
+  printf '%s\n' "${chunk[@]}" \
+    | VO="$validate_only" PARENT="$parent" jq -R -s '
+        (env.PARENT) as $p
+        | { validateOnly: (env.VO == "1"),
+            names: (split("\n") | map(select(length > 0))
+                    | map($p + "/versions/" + .)) }
+      ' >| "$body_file"
+
+  if (( chunks > 1 )); then
+    print -u2 "  chunk ${chunk_no}/${chunks}: ${#chunk} version(s) …"
+  else
+    print -u2 "  deleting ${#chunk} version(s) …"
+  fi
+
+  local -i http=0
+  http=$(curl -sS -o "$resp_file" -w '%{http_code}' \
+           -X POST \
+           -H "Authorization: Bearer ${token}" \
+           -H 'Content-Type: application/json' \
+           --data @"$body_file" \
+           "$url" 2>/dev/null) || http=0
+
+  if (( http < 200 || http >= 300 )); then
+    print -u2 "${label}: chunk ${chunk_no} failed (HTTP ${http})"
+    local msg=''
+    msg=$(jq -r '.error.message // empty' "$resp_file" 2>/dev/null)
+    [[ -n $msg ]] && print -u2 "  ${msg}" || head -c 400 "$resp_file" >&2
+    print -r -- "deleted=${deleted}"
+    rm -f "$body_file" "$resp_file"
+    return 1
+  fi
+
+  local op=''
+  op=$(jq -r '.name // empty' "$resp_file" 2>/dev/null)
+
+  # Wait for the operation, so the caller's verification does not race it.
+  if [[ -n $op ]]; then
+    local -i waited=0
+    while (( waited < 300 )); do
+      local opresp=''
+      opresp=$(curl -sS -H "Authorization: Bearer ${token}" \
+                 "${base}/${op}" 2>/dev/null)
+      [[ -z $opresp ]] && break
+      if [[ $(print -r -- "$opresp" | jq -r '.done // false' 2>/dev/null) == true ]]; then
+        local operr=''
+        operr=$(print -r -- "$opresp" | jq -r '.error.message // empty' 2>/dev/null)
+        if [[ -n $operr ]]; then
+          print -u2 "${label}: chunk ${chunk_no} operation failed: ${operr}"
+          print -r -- "deleted=${deleted}"
+          rm -f "$body_file" "$resp_file"
+          return 1
+        fi
+        break
+      fi
+      sleep 1
+      (( waited++ ))
+    done
+    if (( waited >= 300 )); then
+      print -u2 "${label}: chunk ${chunk_no} still running after 300s; not waiting further"
+    fi
+  fi
+
+  (( deleted += ${#chunk} ))
+done
+
+rm -f "$body_file" "$resp_file"
+print -r -- "deleted=${deleted}"
+return 0

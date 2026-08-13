@@ -177,7 +177,10 @@ esac
 # load
 # ---------------------------------------------------------------------------
 
-local image='' ttl_minutes=10 force=0
+# 60 minutes, not 10: on a large package the relist alone is ~9s (1590
+# versions), and the cost of a slightly stale listing is low — Stage 4
+# re-lists from the API anyway, and -r/--refresh is there when it matters.
+local image='' ttl_minutes=60 force=0
 while (( $# )); do
   case $1 in
     --ttl-minutes) ttl_minutes=$2; shift 2 ;;

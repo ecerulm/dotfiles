@@ -3,7 +3,8 @@ set -o pipefail
 
 autoload -Uz _rlm-gar-preflight _rlm-gar-pick-package _rlm-gar-history \
              _rlm-gar-cache _rlm-gar-show-cmd _rlm-gar-parse-image \
-             _rlm-gar-index-children _rlm-gar-version-cache
+             _rlm-gar-index-children _rlm-gar-version-cache \
+             _rlm-gar-versions-batch-delete
 
 local dry_run=0 force_refresh=0
 while (( $# )); do
@@ -17,8 +18,8 @@ while (( $# )); do
       print -r -- "multi-select individual versions inside it to delete."
       print -r -- "Versions list oldest first, with the per-arch members of a"
       print -r -- "multi-arch image grouped under the index that owns them."
-      print -r -- "Shows the exact gcloud command, confirms once, deletes in"
-      print -r -- "batches of 1000, then verifies the versions are gone."
+      print -r -- "Shows the exact API call, confirms once, deletes in"
+      print -r -- "chunks of 75 (the API cap), then verifies they are gone."
       print -r -- ""
       print -r -- "  -r, --refresh  bypass the cached listing and refetch"
       return 0
@@ -260,7 +261,7 @@ fi
 # deleted before P4 and P3. Reproduced against the row builder: P3(Aug) ->
 # P4(Jan) -> c4 lists c4 first.
 #
-# Sorting by depth fixes that and is also robust to the 1000-digest batching,
+# Sorting by depth fixes that and is also robust to the 75-digest chunking,
 # since any prefix of a parents-first list is itself parents-first.
 if [[ -s $child_map ]] && (( ${#digests} > 1 )); then
   local ordered=''
@@ -315,7 +316,8 @@ fi
 # ---------------------------------------------------------------------------
 
 local -i n=${#digests}
-local -i batches=$(( (n + 999) / 1000 ))
+# versions:batchDelete caps at 75 per request; the helper chunks accordingly.
+local -i batches=$(( (n + 74) / 75 ))
 
 print -r -- ""
 print -r -- "${bold}${image}${reset}"
@@ -380,12 +382,12 @@ print -r -- "  ${red}${bold}The following will run:${reset}"
 local -i shown=0 remaining_preview=$n
 while (( remaining_preview > 0 )); do
   (( shown++ ))
-  local -i this_batch=$(( remaining_preview > 1000 ? 1000 : remaining_preview ))
+  local -i this_batch=$(( remaining_preview > 75 ? 75 : remaining_preview ))
   (( batches > 1 )) && print -r -- "  ${yellow}batch ${shown}/${batches}:${reset}"
   _rlm-gar-show-cmd versions-delete "$this_batch" "$pkg_path" "$location_slug" "$repo" "$proj"
   (( remaining_preview -= this_batch ))
   if (( shown >= 2 && remaining_preview > 0 )); then
-    print -r -- "  ${yellow}… ${batches} batches total, same command per batch${reset}"
+    print -r -- "  ${yellow}… ${batches} requests total, same call per request${reset}"
     break
   fi
 done
@@ -414,32 +416,20 @@ if [[ $reply_ans != [yY]* ]]; then
   return 130
 fi
 
-local -i deleted=0 batch_no=0 idx=1
-while (( idx <= n )); do
-  (( batch_no++ ))
-  local -a chunk=()
-  local -i taken=0
-  while (( idx <= n && taken < 1000 )); do
-    chunk+=("${digests[idx]}")
-    (( idx++ ))
-    (( taken++ ))
-  done
-
-  print -r -- "  batch ${batch_no}: deleting ${#chunk} version(s) …"
-  if ! gcloud artifacts versions delete "${chunk[@]}" \
-         --package="$pkg_path" \
-         --location="$location_slug" \
-         --repository="$repo" \
-         --project="$proj" \
-         --delete-tags \
-         --quiet; then
-    print -u2 "gar-version-rm: batch ${batch_no} failed"
-    print -r -- ""
-    print -r -- "gar-version-rm: ${deleted} deleted before the failure"
-    return 1
-  fi
-  (( deleted += ${#chunk} ))
-done
+local -i deleted=0
+local del_out='' del_rc=0
+del_out=$(_rlm-gar-versions-batch-delete --label gar-version-rm \
+            "$proj" "$location_slug" "$repo" "$pkg_path" "${digests[@]}")
+del_rc=$?
+deleted=${${(M)${(f)del_out}:#deleted=*}#deleted=}
+[[ -z $deleted ]] && deleted=0
+if (( del_rc != 0 )); then
+  print -r -- ""
+  print -r -- "gar-version-rm: ${deleted} deleted before the failure"
+  _rlm-gar-version-cache invalidate "$image"
+  (( deleted > 0 )) && _rlm-gar-version-cache forget "$image" "${digests[@]}"
+  return 1
+fi
 
 # ---------------------------------------------------------------------------
 # Stage 4 — verify the selected digests are actually gone
@@ -481,14 +471,11 @@ fi
 print -r -- "gar-version-rm: ${yellow}${#still_present} of ${n} version(s) still present${reset}"
 print -rn -- "  Retry deleting the remaining ${#still_present}? [y/N] "
 if read -r reply_ans && [[ $reply_ans == [yY]* ]]; then
-  if gcloud artifacts versions delete "${still_present[@]}" \
-       --package="$pkg_path" \
-       --location="$location_slug" \
-       --repository="$repo" \
-       --project="$proj" \
-       --delete-tags \
-       --quiet; then
+  if _rlm-gar-versions-batch-delete --label gar-version-rm \
+       "$proj" "$location_slug" "$repo" "$pkg_path" "${still_present[@]}" >/dev/null; then
     print -r -- "gar-version-rm: ${green}retry succeeded${reset}"
+    _rlm-gar-version-cache invalidate "$image"
+    _rlm-gar-version-cache forget "$image" "${still_present[@]}"
     _rlm-gar-history append "$image"
     return 0
   fi
