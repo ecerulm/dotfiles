@@ -55,6 +55,9 @@ case $action in
     ;;
 
   package-delete)
+    # Deletes the package and every version and tag in it, waiting for
+    # the operation (gcloud waits unless --async). Tops out near 1000
+    # versions per call — see rlm-gar-rm.
     local pkg_path=$1 location_slug=$2 repo=$3 proj=$4
     _rlm_gar_show_cmd_raw "gcloud artifacts packages delete \\" \
       "${pkg_path} \\" \

@@ -22,28 +22,27 @@ package, because "no versions" reads as "safe to delete".
 
 DELETION
 
-Deletion runs in two phases per package, because
-`gcloud artifacts packages delete` fails server-side on packages
-holding more than 1000 versions:
+A single `gcloud artifacts packages delete` removes the package and
+every version and tag in it, server-side, waiting for the operation to
+complete. The exact command is printed before the confirmation.
 
-  1. Versions are deleted in batches of at most 1000 via
-     `gcloud artifacts versions delete --delete-tags`, re-counting
-     between batches and continuing until none remain.
-  2. The now-empty package is removed with
-     `gcloud artifacts packages delete`.
+That call does not scale indefinitely. Measured on a 1159-version
+package: it ran about three minutes, deleted 999 versions, then failed
+with "Internal error encountered", leaving 160 versions and the package
+in place. Treat roughly 1000 versions as the practical ceiling per
+call; packages above that are flagged before you confirm.
 
-Before the confirmation prompt, the exact gcloud command lines that
-will run are printed, one argument per line. Digest lists are shown as
-`<N version digest(s)>` rather than expanded — printing 1000 sha256
-digests would bury the flags that determine what is destroyed. For
-packages needing more than two batches, the first two are shown
-followed by a note that the remaining batches are identical.
+On a partial delete, gar-rm reports how many versions were removed and
+how many remain, then asks whether to delete the rest. It does not
+retry on its own — each retry is another destructive call, so it is
+your decision. Answering no leaves the remainder in place and counts
+the package as failed. If an attempt deletes nothing at all (a
+permissions problem, say), gar-rm says so and stops rather than
+prompting for a retry that cannot help.
 
-You confirm once per package; batches then proceed without further
-prompting. After the batches finish, the package is re-queried to
-verify it is really gone. If versions remain, the count is reported
-and you are offered a retry. A batch that reports success without
-reducing the version count aborts that package rather than looping.
+Version counts are read over the REST API rather than gcloud: they are
+taken before and after every attempt, and gcloud costs over a second of
+startup per invocation.
 
 Packages successfully deleted are pruned from the shared cache and the
 MRU history so the next picker does not offer them.

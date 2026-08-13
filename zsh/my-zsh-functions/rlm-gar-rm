@@ -13,8 +13,8 @@ while (( $# )); do
       print -r -- ""
       print -r -- "Pick GAR <repo>/<package> entries in an fzf picker (TAB to"
       print -r -- "multi-select) and delete them. Confirms once per package,"
-      print -r -- "deletes versions in batches of 1000, then removes the"
-      print -r -- "package, and verifies the package is really gone."
+      print -r -- "then deletes the package and all its versions in a single"
+      print -r -- "API call, waiting until it is really gone."
       return 0
       ;;
     *)
@@ -49,92 +49,111 @@ fi
 
 local red=$'\e[31m' green=$'\e[32m' yellow=$'\e[33m' bold=$'\e[1m' reset=$'\e[0m'
 
-_gar_rm_count_versions() {
+# A token is still needed for the version counts, which go over REST:
+# `gcloud artifacts versions list` costs ~1.3s of startup per call and
+# this counts before and after every attempt.
+local token=''
+token=$(gcloud auth print-access-token 2>/dev/null)
+if [[ -z $token ]]; then
+  print -u2 "gar-rm: failed to obtain gcloud access token"
+  return 1
+fi
+
+_gar_rm_pkg_resource() {
+  local proj=$1 location_slug=$2 repo=$3 pkg_path=$4
+  print -r -- "projects/${proj}/locations/${location_slug}/repositories/${repo}/packages/${pkg_path//\//%2F}"
+}
+
+_gar_rm_version_count() {
   # Emit the number of versions currently in the package, or the empty
-  # string when the package itself no longer exists (deleted, or never
-  # existed). An empty package and a missing package are different
-  # outcomes: the first still needs `packages delete`, the second is done.
-  local image=$1 proj=$2
-  local out
-  out=$(gcloud artifacts docker images list "$image" \
-          --format='value(version)' \
-          --project="$proj" 2>&1)
-  local rc=$?
-  if (( rc != 0 )); then
-    if print -r -- "$out" | grep -qiE 'not found|does not exist'; then
-      print -r -- ""
-      return 0
-    fi
-    print -u2 "gar-rm: failed to list versions for ${image}"
-    print -u2 "$out"
-    return 1
+  # string when the package itself is gone. Empty package and missing
+  # package are different outcomes and the caller distinguishes them.
+  local resource=$1 tok=$2
+  local body=''
+  body=$(curl -sS -H "Authorization: Bearer ${tok}" \
+           "https://artifactregistry.googleapis.com/v1/${resource}" 2>/dev/null)
+  if print -r -- "$body" | jq -e '.error' >/dev/null 2>&1; then
+    print -r -- ""
+    return 0
   fi
-  # `value(version)` emits one digest per line; count non-empty lines.
-  print -r -- "$(print -r -- "$out" | grep -c '[^[:space:]]')"
+  curl -sS -G -H "Authorization: Bearer ${tok}" \
+    "https://artifactregistry.googleapis.com/v1/${resource}/versions" \
+    --data-urlencode "pageSize=1000" 2>/dev/null \
+    | jq -r '(.versions//[])|length' 2>/dev/null
   return 0
 }
 
-_gar_rm_delete_batches() {
-  # Delete every version of the package in batches of 1000 (the server
-  # rejects a single delete covering more), re-counting between batches.
-  # Returns 0 when the package is empty or gone, 1 on a failed batch,
-  # 2 when a batch reported success but the count did not decrease
-  # (no forward progress — retrying would spin forever).
-  local image=$1 proj=$2 location_slug=$3 repo=$4 pkg_path=$5
-  local remaining batch_no=0 prev_remaining=-1
+_gar_rm_delete_once() {
+  # One `gcloud artifacts packages delete`, which by default WAITS for
+  # the long-running operation to finish (--async opts out) and exits
+  # non-zero if it fails. That is why this uses gcloud rather than a
+  # hand-rolled DELETE + operation poll: gcloud already implements the
+  # polling, backoff and error surfacing correctly.
+  #
+  # The call is *supposed* to remove the package and every version in
+  # it, and for small packages it does. It does NOT reliably scale: on a
+  # 1159-version package it ran ~3min, deleted 999, then failed with
+  # `code 13 Internal error encountered.`, leaving 160 versions and the
+  # package in place. 999 is too close to 1000 to be coincidence — treat
+  # ~1000 as the practical ceiling per call. A second call finished the
+  # rest in ~40s.
+  #
+  # Returns 0 package gone, 1 the call failed (caller may retry).
+  local proj=$1 location_slug=$2 repo=$3 pkg_path=$4
+  local err='' rc=0
+  err=$(mktemp) || err=/dev/null
 
+  gcloud artifacts packages delete "$pkg_path" \
+    --location="$location_slug" \
+    --repository="$repo" \
+    --project="$proj" \
+    --quiet </dev/null >/dev/null 2>"$err"
+  rc=$?
+
+  if (( rc != 0 )); then
+    local first=''
+    [[ -s $err ]] && first=$(grep -v '^$' "$err" | head -1 | cut -c1-160)
+    [[ -n $first ]] && print -u2 "  ${first}"
+  fi
+  [[ $err != /dev/null ]] && rm -f "$err"
+  return $rc
+}
+
+_gar_rm_delete_package() {
+  # Delete the package, prompting the user between attempts when the
+  # server gives up partway (see _gar_rm_delete_once). A partial delete
+  # is not retried automatically: the caller is deleting things, and a
+  # loop that keeps firing destructive calls on its own is the wrong
+  # default even when every call targets the same doomed package. Say
+  # how many versions are left and let the user decide.
+  #
+  # Returns 0 gone, 1 user declined or no progress.
+  local proj=$1 location_slug=$2 repo=$3 pkg_path=$4 tok=$5
+  local resource=''
+  resource=$(_gar_rm_pkg_resource "$proj" "$location_slug" "$repo" "$pkg_path")
+
+  local before='' after='' answer=''
   while true; do
-    remaining=$(_gar_rm_count_versions "$image" "$proj") || return 1
-    if [[ -z $remaining ]]; then
-      return 0
-    fi
-    if (( remaining == 0 )); then
-      return 0
-    fi
-    if (( prev_remaining >= 0 && remaining >= prev_remaining )); then
-      print -u2 "gar-rm: no progress — ${remaining} version(s) still present after a batch"
-      return 2
-    fi
-    prev_remaining=$remaining
+    before=$(_gar_rm_version_count "$resource" "$tok")
+    [[ -z $before ]] && return 0
 
-    (( batch_no++ ))
-    # `value(name)` returns the fully qualified resource path
-    # (projects/…/packages/<pkg>/versions/sha256:…), but `versions delete`
-    # wants the bare version id when --package/--location/--repository are
-    # given. Strip everything up to the last /versions/ segment.
-    local -a digests
-    digests=(${(f)"$(gcloud artifacts versions list \
-                       --package="$pkg_path" \
-                       --location="$location_slug" \
-                       --repository="$repo" \
-                       --project="$proj" \
-                       --format='value(name)' \
-                       --limit=1000 2>/dev/null)"})
-    digests=("${(@)digests:#}")
-    digests=("${(@)digests##*/versions/}")
-    digests=("${(@)digests:#}")
+    print -r -- "  deleting ${before} version(s) — this can take minutes …"
+    _gar_rm_delete_once "$proj" "$location_slug" "$repo" "$pkg_path" && return 0
 
-    if (( ${#digests} == 0 )); then
-      # versions list came back empty while images list still reports
-      # versions — treat as done rather than looping.
-      return 0
+    after=$(_gar_rm_version_count "$resource" "$tok")
+    [[ -z $after ]] && return 0
+
+    if [[ $after == $before ]]; then
+      print -r -- "  ${yellow}${after} version(s) remain${reset} and the last attempt deleted none."
+      print -r -- "  Retrying is unlikely to help — check permissions or the GCP console."
+      return 1
     fi
 
-    print -r -- "  batch ${batch_no}: deleting ${#digests} version(s) (${remaining} remaining) …"
-    _rlm-gar-show-cmd versions-delete "${#digests}" "$pkg_path" "$location_slug" "$repo" "$proj"
-    if (( dry_run )); then
-      print -r -- "  ${yellow}[dry-run]${reset} not run"
-      return 0
-    fi
-
-    if ! gcloud artifacts versions delete "${digests[@]}" \
-           --package="$pkg_path" \
-           --location="$location_slug" \
-           --repository="$repo" \
-           --project="$proj" \
-           --delete-tags \
-           --quiet; then
-      print -u2 "gar-rm: batch ${batch_no} failed for ${image}"
+    print -r -- "  ${yellow}partial delete${reset}: $(( before - after )) removed, ${after} version(s) remain."
+    print -r -- "  A single delete call tops out around 1000 versions."
+    print -rn -- "  ${red}Delete the remaining ${after}?${reset} [y/N] "
+    if ! read -r answer || [[ $answer != [yY]* ]]; then
+      print -r -- "  stopped — ${after} version(s) left in place"
       return 1
     fi
   done
@@ -152,34 +171,22 @@ for target in "${targets[@]}"; do
   print -r -- ""
   print -r -- "${bold}${target}${reset}"
 
-  version_count=$(_gar_rm_count_versions "$target" "$proj") || { (( failed++ )); continue }
+  version_count=$(_gar_rm_version_count \
+    "$(_gar_rm_pkg_resource "$proj" "$location_slug" "$repo" "$pkg_path")" "$token")
   if [[ -z $version_count ]]; then
     print -r -- "  ${yellow}already gone${reset} (package not found)"
     (( skipped++ ))
     continue
   fi
 
-  local -i batches=$(( (version_count + 999) / 1000 ))
-  print -r -- "  ${version_count} version(s)$( (( batches > 1 )) && print -rn -- ", ${batches} batches")"
+  print -r -- "  ${version_count} version(s)"
+  # A single packages.delete tops out around 1000 versions, so warn up
+  # front that this will take more than one pass rather than surprising
+  # the user with a partial delete after three minutes of waiting.
+  (( version_count > 1000 )) && print -r -- "  ${yellow}more than 1000 — expect several passes${reset}"
 
   print -r -- ""
   print -r -- "  ${red}${bold}The following will run:${reset}"
-  local -i shown_batch=0
-  local -i remaining_preview=$version_count
-  while (( remaining_preview > 0 )); do
-    (( shown_batch++ ))
-    local -i this_batch=$(( remaining_preview > 1000 ? 1000 : remaining_preview ))
-    (( batches > 1 )) && print -r -- "  ${yellow}batch ${shown_batch}/${batches}:${reset}"
-    _rlm-gar-show-cmd versions-delete "$this_batch" "$pkg_path" "$location_slug" "$repo" "$proj"
-    (( remaining_preview -= this_batch ))
-    # Only enumerate the first two batches; the rest are identical
-    # modulo the digest list, and a 40-batch package would scroll the
-    # actual prompt off screen.
-    if (( shown_batch >= 2 && remaining_preview > 0 )); then
-      print -r -- "  ${yellow}… ${batches} batches total, same command per batch${reset}"
-      break
-    fi
-  done
   _rlm-gar-show-cmd package-delete "$pkg_path" "$location_slug" "$repo" "$proj"
   print -r -- ""
 
@@ -201,62 +208,11 @@ for target in "${targets[@]}"; do
     continue
   fi
 
-  _gar_rm_delete_batches "$target" "$proj" "$location_slug" "$repo" "$pkg_path"
-  local batch_rc=$?
-
-  if (( batch_rc == 1 )); then
-    (( failed++ ))
-    version_count=$(_gar_rm_count_versions "$target" "$proj") || true
-    if [[ -n $version_count ]] && (( version_count > 0 )); then
-      print -rn -- "  ${yellow}${version_count} version(s) remain. Retry?${reset} [y/N] "
-      if read -r reply_ans && [[ $reply_ans == [yY]* ]]; then
-        _gar_rm_delete_batches "$target" "$proj" "$location_slug" "$repo" "$pkg_path"
-        batch_rc=$?
-        (( batch_rc == 0 )) && (( failed-- ))
-      fi
-    fi
-    (( batch_rc != 0 )) && continue
-  elif (( batch_rc == 2 )); then
-    (( failed++ ))
-    continue
-  fi
-
-  # Versions are gone; remove the package shell itself.
-  _rlm-gar-show-cmd package-delete "$pkg_path" "$location_slug" "$repo" "$proj"
-  if ! gcloud artifacts packages delete "$pkg_path" \
-         --location="$location_slug" \
-         --repository="$repo" \
-         --project="$proj" \
-         --quiet 2>/dev/null; then
-    # A package with no versions is auto-reaped by GAR, so a failure here
-    # is only real if the package is still listed.
-    :
-  fi
-
-  # Verify.
-  version_count=$(_gar_rm_count_versions "$target" "$proj") || true
-  if [[ -z $version_count ]]; then
+  if _gar_rm_delete_package "$proj" "$location_slug" "$repo" "$pkg_path" "$token"; then
     print -r -- "  ${green}deleted${reset}"
     (( deleted_ok++ )); deleted_images+=("$target")
-  elif (( version_count == 0 )); then
-    print -r -- "  ${green}all versions deleted${reset} (empty package shell may linger briefly)"
-    (( deleted_ok++ )); deleted_images+=("$target")
   else
-    print -r -- "  ${yellow}${version_count} version(s) still present${reset}"
-    print -rn -- "  Retry deleting the remaining ${version_count} version(s)? [y/N] "
-    if read -r reply_ans && [[ $reply_ans == [yY]* ]]; then
-      if _gar_rm_delete_batches "$target" "$proj" "$location_slug" "$repo" "$pkg_path"; then
-        gcloud artifacts packages delete "$pkg_path" \
-          --location="$location_slug" --repository="$repo" \
-          --project="$proj" --quiet 2>/dev/null || true
-        print -r -- "  ${green}deleted${reset}"
-        (( deleted_ok++ )); deleted_images+=("$target")
-      else
-        (( failed++ ))
-      fi
-    else
-      (( failed++ ))
-    fi
+    (( failed++ ))
   fi
 done
 
