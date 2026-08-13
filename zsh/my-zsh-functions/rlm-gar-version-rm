@@ -1,0 +1,324 @@
+emulate -L zsh
+set -o pipefail
+
+autoload -Uz _rlm-gar-preflight _rlm-gar-pick-package _rlm-gar-history \
+             _rlm-gar-cache _rlm-gar-show-cmd _rlm-gar-parse-image
+
+local dry_run=0
+while (( $# )); do
+  case $1 in
+    -n|--dry-run) dry_run=1; shift ;;
+    -h|--help)
+      print -r -- "Usage: gar-version-rm [-n|--dry-run]"
+      print -r -- ""
+      print -r -- "Pick a GAR <repo>/<package> in an fzf picker, then"
+      print -r -- "multi-select individual versions inside it to delete."
+      print -r -- "Shows the exact gcloud command, confirms once, deletes in"
+      print -r -- "batches of 1000, then verifies the versions are gone."
+      return 0
+      ;;
+    *)
+      print -u2 "gar-version-rm: unexpected argument: $1"
+      return 2
+      ;;
+  esac
+done
+
+local -a projects
+projects=("${(@f)$(_rlm-gar-preflight gar-version-rm)}") || return 1
+projects=("${(@)projects:#}")
+(( ${#projects} == 0 )) && return 1
+
+# ---------------------------------------------------------------------------
+# Stage 1 — pick a single package
+# ---------------------------------------------------------------------------
+
+local image
+image=$(_rlm-gar-pick-package gar-version-rm "GAR package> " \
+          "$HOME/bin/gar-rm-preview" 0 "${projects[@]}")
+local pick_rc=$?
+(( pick_rc != 0 )) && return $pick_rc
+[[ -z $image ]] && return 130
+
+local loc_host proj repo pkg_path location_slug pkg_encoded console_url
+eval "$(_rlm-gar-parse-image "$image")" || return 1
+
+# ---------------------------------------------------------------------------
+# Stage 2 — fetch the version list once, reuse for picker rows and preview
+# ---------------------------------------------------------------------------
+
+local red=$'\e[31m' green=$'\e[32m' yellow=$'\e[33m' cyan=$'\e[36m'
+local dim=$'\e[2m' bold=$'\e[1m' reset=$'\e[0m'
+
+print -u2 "gar-version-rm: listing versions of ${pkg_path} …"
+
+local versions_json err rc
+err=$(mktemp) || err=/dev/null
+versions_json=$(gcloud artifacts docker images list "$image" \
+                  --include-tags \
+                  --sort-by='~UPDATE_TIME' \
+                  --format=json \
+                  --project="$proj" 2>"$err")
+rc=$?
+if (( rc != 0 )); then
+  print -u2 "gar-version-rm: failed to list versions for ${image} (exit ${rc})"
+  [[ -s $err ]] && grep -v '^$' "$err" | head -8 >&2
+  [[ $err != /dev/null ]] && rm -f "$err"
+  return 1
+fi
+[[ $err != /dev/null ]] && rm -f "$err"
+
+if [[ -z $versions_json || $versions_json == '[]' ]]; then
+  print -u2 "gar-version-rm: ${image} has no versions"
+  return 1
+fi
+
+# The preview re-runs on every keystroke, so hand it a cached copy of this
+# JSON instead of making it call the API per version.
+local version_cache
+version_cache=$(mktemp) || {
+  print -u2 "gar-version-rm: failed to create temp file"
+  return 1
+}
+print -r -- "$versions_json" >| "$version_cache"
+
+# Rows are tab-separated: <sort_key>\t<colored display>\t<digest>
+# fzf renders only field 2 and hands field 3 to the preview and to us.
+local rows
+rows=$(print -r -- "$versions_json" | GAR_VR_COLORS="${cyan}|${dim}|${yellow}|${reset}" python3 -c '
+import sys, json, os
+from datetime import datetime, timezone
+
+cyan, dim, yellow, reset = os.environ["GAR_VR_COLORS"].split("|")
+
+def human_size(b):
+    if not b:
+        return "?"
+    b = float(b)
+    for unit in ("B","KB","MB","GB"):
+        if b < 1024:
+            return f"{b:.0f}{unit}"
+        b /= 1024
+    return f"{b:.1f}TB"
+
+def parse(ts):
+    if not ts:
+        return None
+    try:
+        return datetime.fromisoformat(ts.replace("Z", "+00:00"))
+    except Exception:
+        return None
+
+data = json.load(sys.stdin)
+now = datetime.now(timezone.utc)
+
+for e in data:
+    digest = e.get("version") or ""
+    if not digest:
+        continue
+    meta = e.get("metadata") or {}
+    tags = e.get("tags") or []
+    dt = parse(e.get("updateTime") or e.get("uploadTime") or e.get("createTime"))
+    sort_key = int(dt.timestamp()) if dt else 0
+    when = dt.strftime("%Y-%m-%d") if dt else "?"
+    size = human_size(meta.get("imageSizeBytes") or e.get("imageSizeBytes"))
+    short = digest[:19] if digest.startswith("sha256:") else digest[:19]
+    if tags:
+        tag_str = ", ".join(tags)
+        if len(tag_str) > 46:
+            tag_str = tag_str[:43] + "..."
+        tag_disp = f"{cyan}{tag_str}{reset}"
+    else:
+        tag_disp = f"{dim}(untagged){reset}"
+    display = f"{when}  {size:>8}  {short}…  {tag_disp}"
+    print(f"{sort_key}\t{display}\t{digest}")
+')
+
+if [[ -z $rows ]]; then
+  print -u2 "gar-version-rm: could not build the version list"
+  rm -f "$version_cache"
+  return 1
+fi
+
+local -a picker_lines
+picker_lines=(${(f)"$(print -r -- "$rows" | sort -t$'\t' -k1,1nr)"})
+
+local total_versions=${#picker_lines}
+
+local selection
+selection=$(
+  printf '%s\n' "${picker_lines[@]}" \
+  | GAR_VERSION_CACHE="$version_cache" fzf \
+      --prompt="DELETE versions of ${pkg_path}> " \
+      --multi \
+      --height=80% --reverse \
+      --no-mouse --ansi \
+      --delimiter=$'\t' --with-nth=2 \
+      --header='TAB multi • Enter delete • Shift/Alt-↑↓ scroll • Ctrl-P size • Ctrl-G abort' \
+      --preview="GAR_VERSION_CACHE=${(q)version_cache} \"\$HOME/bin/gar-version-preview\" ${(q)image} {3}" \
+      --preview-window=bottom:60%:wrap \
+      --bind='ctrl-p:change-preview-window(bottom:80%:wrap|bottom:60%:wrap|hidden)' \
+      --bind='shift-up:preview-up' --bind='shift-down:preview-down' \
+      --bind='alt-up:preview-half-page-up' --bind='alt-down:preview-half-page-down' \
+      --bind='ctrl-g:abort'
+)
+local fzf_rc=$?
+rm -f "$version_cache"
+(( fzf_rc != 0 )) && return 130
+[[ -z $selection ]] && return 130
+
+local -a sel_lines digests
+sel_lines=("${(@f)selection}")
+sel_lines=("${(@)sel_lines:#}")
+local line
+for line in "${sel_lines[@]}"; do
+  # Split positionally: a display field can legitimately be blank-ish and
+  # `IFS=$'\t' read` would collapse it, shifting the digest out of place.
+  local -a f=()
+  f=("${(@s:	:)line}")
+  [[ -n ${f[3]} ]] && digests+=("${f[3]}")
+done
+
+if (( ${#digests} == 0 )); then
+  return 130
+fi
+
+# ---------------------------------------------------------------------------
+# Stage 3 — confirm and delete
+# ---------------------------------------------------------------------------
+
+local -i n=${#digests}
+local -i batches=$(( (n + 999) / 1000 ))
+
+print -r -- ""
+print -r -- "${bold}${image}${reset}"
+print -r -- "  ${n} of ${total_versions} version(s) selected$( (( batches > 1 )) && print -rn -- ", ${batches} batches")"
+
+if (( n <= 10 )); then
+  local d=''
+  for d in "${digests[@]}"; do
+    print -r -- "    ${d}"
+  done
+else
+  local -i i=1
+  while (( i <= 5 )); do
+    print -r -- "    ${digests[i]}"
+    (( i++ ))
+  done
+  print -r -- "    ${dim}… and $(( n - 5 )) more${reset}"
+fi
+
+print -r -- ""
+print -r -- "  ${red}${bold}The following will run:${reset}"
+local -i shown=0 remaining_preview=$n
+while (( remaining_preview > 0 )); do
+  (( shown++ ))
+  local -i this_batch=$(( remaining_preview > 1000 ? 1000 : remaining_preview ))
+  (( batches > 1 )) && print -r -- "  ${yellow}batch ${shown}/${batches}:${reset}"
+  _rlm-gar-show-cmd versions-delete "$this_batch" "$pkg_path" "$location_slug" "$repo" "$proj"
+  (( remaining_preview -= this_batch ))
+  if (( shown >= 2 && remaining_preview > 0 )); then
+    print -r -- "  ${yellow}… ${batches} batches total, same command per batch${reset}"
+    break
+  fi
+done
+print -r -- ""
+
+if (( dry_run )); then
+  print -r -- "  ${yellow}[dry-run]${reset} nothing was run"
+  return 0
+fi
+
+if (( n == total_versions )); then
+  print -r -- "  ${yellow}This is every version in the package.${reset} The package itself will"
+  print -r -- "  be left in place (empty); use gar-rm to remove the package too."
+  print -r -- ""
+fi
+
+local reply_ans
+print -rn -- "  ${red}Delete ${n} version(s) of ${pkg_path}?${reset} [y/N] "
+if ! read -r reply_ans; then
+  print -r -- ""
+  print -r -- "gar-version-rm: aborted"
+  return 130
+fi
+if [[ $reply_ans != [yY]* ]]; then
+  print -r -- "  skipped"
+  return 130
+fi
+
+local -i deleted=0 batch_no=0 idx=1
+while (( idx <= n )); do
+  (( batch_no++ ))
+  local -a chunk=()
+  local -i taken=0
+  while (( idx <= n && taken < 1000 )); do
+    chunk+=("${digests[idx]}")
+    (( idx++ ))
+    (( taken++ ))
+  done
+
+  print -r -- "  batch ${batch_no}: deleting ${#chunk} version(s) …"
+  if ! gcloud artifacts versions delete "${chunk[@]}" \
+         --package="$pkg_path" \
+         --location="$location_slug" \
+         --repository="$repo" \
+         --project="$proj" \
+         --delete-tags \
+         --quiet; then
+    print -u2 "gar-version-rm: batch ${batch_no} failed"
+    print -r -- ""
+    print -r -- "gar-version-rm: ${deleted} deleted before the failure"
+    return 1
+  fi
+  (( deleted += ${#chunk} ))
+done
+
+# ---------------------------------------------------------------------------
+# Stage 4 — verify the selected digests are actually gone
+# ---------------------------------------------------------------------------
+
+local after_json
+after_json=$(gcloud artifacts docker images list "$image" \
+               --format=json --project="$proj" 2>/dev/null)
+
+local -a still_present
+if [[ -n $after_json && $after_json != '[]' ]]; then
+  local remaining_list
+  remaining_list=$(print -r -- "$after_json" | jq -r '.[].version // empty' 2>/dev/null)
+  local d=''
+  for d in "${digests[@]}"; do
+    if print -r -- "$remaining_list" | grep -Fxq -- "$d"; then
+      still_present+=("$d")
+    fi
+  done
+fi
+
+print -r -- ""
+if (( ${#still_present} == 0 )); then
+  print -r -- "gar-version-rm: ${green}${deleted} version(s) deleted${reset}"
+  # The package is only gone from the picker when it has no versions left.
+  if [[ -z $after_json || $after_json == '[]' ]]; then
+    print -r -- "gar-version-rm: ${pkg_path} now has no versions — run gar-rm to remove the empty package"
+  fi
+  _rlm-gar-history append "$image"
+  return 0
+fi
+
+print -r -- "gar-version-rm: ${yellow}${#still_present} of ${n} version(s) still present${reset}"
+print -rn -- "  Retry deleting the remaining ${#still_present}? [y/N] "
+if read -r reply_ans && [[ $reply_ans == [yY]* ]]; then
+  if gcloud artifacts versions delete "${still_present[@]}" \
+       --package="$pkg_path" \
+       --location="$location_slug" \
+       --repository="$repo" \
+       --project="$proj" \
+       --delete-tags \
+       --quiet; then
+    print -r -- "gar-version-rm: ${green}retry succeeded${reset}"
+    _rlm-gar-history append "$image"
+    return 0
+  fi
+fi
+
+return 1

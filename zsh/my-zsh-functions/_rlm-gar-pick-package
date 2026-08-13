@@ -1,0 +1,111 @@
+emulate -L zsh
+set -o pipefail
+
+# Shared package picker for every rlm-gar-* command. Wraps the whole
+# cache-backed fzf flow the three commands had duplicated: initial fetch,
+# cache-age label, `--- REFRESH CACHE ---` sentinel, the partial-refresh
+# project sub-picker, and the MRU-sorted list.
+#
+# Usage:
+#   _rlm-gar-pick-package <label> <prompt> <preview_script> <multi> <projects…>
+#
+#   label           calling command name, used in diagnostics ("gar-rm")
+#   prompt          fzf prompt string ("DELETE GAR package> ")
+#   preview_script  absolute path to the preview helper invoked as
+#                   `<script> <image>`; empty disables the preview
+#   multi           1 to allow TAB multi-select, 0 for single-select
+#
+# Emits the selected image path(s), one per line, on stdout.
+#
+# Returns 0 with output, 130 when the user aborts or selects nothing, 1 on
+# a fetch failure. Selecting the refresh sentinel is handled internally —
+# the cache is refreshed and the picker reopens — so the caller never sees
+# the sentinel and does not need to re-enter itself.
+#
+# The MRU history is *not* recorded here: only the caller knows whether the
+# selection was actually acted on (a delete that the user then declines
+# should not reorder the picker). Callers append via _rlm-gar-history.
+
+local label=$1 prompt=$2 preview_script=$3 multi=$4
+shift 4
+local -a projects
+projects=("$@")
+
+autoload -Uz _rlm-gar-cache _rlm-gar-pick-projects
+
+local cache_file history_file
+eval "$(_rlm-gar-cache paths "${projects[@]}")"
+
+if [[ ! -f $cache_file ]]; then
+  _rlm-gar-cache refresh "$label" "${(j.:.)projects}" "${projects[@]}" || return 1
+fi
+
+while true; do
+  # Initializers are mandatory on every local in this loop body: a bare
+  # re-declaration of an already-declared name is `typeset` reporting mode
+  # and prints `name=<value>` to stdout, which lands in the caller's
+  # captured selection.
+  local cache_age=''
+  cache_age=$(_rlm-gar-cache age "${projects[@]}")
+  local refresh_sentinel="--- REFRESH CACHE (cached ${cache_age}) ---"
+
+  local -a fzf_args=()
+  fzf_args=(
+    --prompt="$prompt"
+    --height=80% --reverse
+    --no-mouse --ansi
+    --preview-window=bottom:60%:wrap
+    --bind='ctrl-p:change-preview-window(bottom:80%:wrap|bottom:60%:wrap|hidden)'
+    --bind='shift-up:preview-up' --bind='shift-down:preview-down'
+    --bind='alt-up:preview-half-page-up' --bind='alt-down:preview-half-page-down'
+    --bind='ctrl-g:abort'
+  )
+  if (( multi )); then
+    fzf_args+=(--multi)
+    fzf_args+=(--header='TAB multi • Enter confirm • Shift/Alt-↑↓ scroll • Ctrl-P size • Ctrl-G abort')
+  else
+    fzf_args+=(--header='Enter select • Shift/Alt-↑↓ scroll • Ctrl-P size • Ctrl-G abort')
+  fi
+  if [[ -n $preview_script ]]; then
+    fzf_args+=(--preview="
+      line={}
+      if printf '%s' \"\$line\" | grep -q '^--- REFRESH CACHE'; then
+        echo 'Select to choose which projects to refresh and reopen the picker.'
+      else
+        ${(q)preview_script} \"\$line\"
+      fi
+    ")
+  fi
+
+  local selection=''
+  selection=$(
+    { print -r -- "$refresh_sentinel"; _rlm-gar-cache read "${projects[@]}"; } \
+    | fzf "${fzf_args[@]}"
+  ) || return 130
+
+  [[ -z $selection ]] && return 130
+
+  if [[ $selection == "--- REFRESH CACHE"* ]]; then
+    local -a to_refresh=()
+    to_refresh=("${(@f)$(_rlm-gar-pick-projects "${projects[@]}")}")
+    to_refresh=("${(@)to_refresh:#}")
+    if (( ${#to_refresh} == 0 )); then
+      return 130
+    fi
+    _rlm-gar-cache refresh "$label" "${(j.:.)projects}" "${to_refresh[@]}" || return 1
+    continue
+  fi
+
+  # A multi-select can include the sentinel alongside real entries; it is
+  # not a package, so drop it rather than passing it downstream.
+  local -a picked=()
+  picked=("${(@f)selection}")
+  picked=("${(@)picked:#}")
+  picked=("${(@)picked:#--- REFRESH CACHE*}")
+  if (( ${#picked} == 0 )); then
+    return 130
+  fi
+
+  print -l -- "${picked[@]}"
+  return 0
+done

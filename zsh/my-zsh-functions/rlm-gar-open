@@ -2,113 +2,38 @@ emulate -L zsh
 set -o pipefail
 setopt local_options no_monitor no_notify
 
-if [[ -z $GAR_SEARCH_PROJECTS ]]; then
-  print -u2 "gar-open: GAR_SEARCH_PROJECTS is not set"
-  print -u2 "Add the following to ~/.zshrc.thismachine:"
-  print -u2 ""
-  print -u2 "  export GAR_SEARCH_PROJECTS=my-project-prod:my-project-dev"
-  return 1
-fi
+autoload -Uz _rlm-gar-preflight _rlm-gar-pick-package _rlm-gar-history \
+             _rlm-gar-parse-image
 
 local -a projects
-projects=(${(u)${(s[:])GAR_SEARCH_PROJECTS}:#})
-
-for _cmd in gcloud fzf jq curl python3; do
-  if ! command -v "$_cmd" >/dev/null 2>&1; then
-    print -u2 "gar-open: '$_cmd' not found in PATH"
-    return 1
-  fi
-done
-unset _cmd
-
-autoload -Uz _rlm-gar-cache _rlm-gar-pick-projects
-
-local cache_file history_file
-eval "$(_rlm-gar-cache paths "${projects[@]}")"
-
-# ---------------------------------------------------------------------------
-# Initial fetch if no cache
-# ---------------------------------------------------------------------------
-
-if [[ ! -f $cache_file ]]; then
-  _rlm-gar-cache refresh gar-open "$GAR_SEARCH_PROJECTS" "${projects[@]}" || return 1
-fi
-
-# ---------------------------------------------------------------------------
-# Cache age label
-# ---------------------------------------------------------------------------
-
-local cache_age
-cache_age=$(_rlm-gar-cache age "${projects[@]}")
-
-local refresh_sentinel="--- REFRESH CACHE (cached ${cache_age}) ---"
-
-# ---------------------------------------------------------------------------
-# fzf picker
-# ---------------------------------------------------------------------------
+projects=("${(@f)$(_rlm-gar-preflight gar-open)}") || return 1
+projects=("${(@)projects:#}")
+(( ${#projects} == 0 )) && return 1
 
 local selection
-selection=$(
-  { print -- "$refresh_sentinel"; _rlm-gar-cache read "${projects[@]}"; } \
-  | fzf --prompt="GAR image> " --height=80% --reverse \
-        --no-mouse --ansi \
-        --preview="
-          line={}
-          if printf '%s' \"\$line\" | grep -q '^--- REFRESH CACHE'; then
-            echo 'Select to choose which projects to refresh and reopen the picker.'
-          else
-            \"\$HOME/bin/gar-preview\" \"\$line\"
-          fi
-        " \
-        --preview-window=bottom:60%:wrap \
-        --bind='ctrl-p:change-preview-window(bottom:80%:wrap|bottom:60%:wrap|hidden)' \
-        --bind='ctrl-g:abort'
-) || return 130
-
+selection=$(_rlm-gar-pick-package gar-open "GAR image> " \
+              "$HOME/bin/gar-preview" 0 "${projects[@]}")
+local pick_rc=$?
+(( pick_rc != 0 )) && return $pick_rc
 [[ -z $selection ]] && return 130
 
-if [[ $selection == "--- REFRESH CACHE"* ]]; then
-  local -a to_refresh
-  to_refresh=("${(@f)$(_rlm-gar-pick-projects "${projects[@]}")}")
-  to_refresh=("${(@)to_refresh:#}")
-  if (( ${#to_refresh} == 0 )); then
-    return 130
-  fi
-  _rlm-gar-cache refresh gar-open "$GAR_SEARCH_PROJECTS" "${to_refresh[@]}" || return 1
-  rlm-gar-open
-  return $?
-fi
+_rlm-gar-history append "$selection"
 
-# Append selection to history
-print -r -- "$selection" >> "$history_file"
-local tmp_history
-tmp_history=$(tail -1000 "$history_file") && print -r -- "$tmp_history" >| "$history_file"
-
-# Build console URL
-# line: LOCATION-docker.pkg.dev/PROJECT/REPO/IMAGE[/sub/path]
-local loc_host proj repo_name pkg_path location_slug pkg_encoded console_url
-loc_host=${selection%%/*}
-proj=${${selection#*/}%%/*}
-repo_name=${${selection#*/}%%/*}
-# Extract the repo (field 3) and package path (field 4+)
-repo_name=$(printf '%s' "$selection" | cut -d/ -f3)
-pkg_path=$(printf '%s' "$selection" | cut -d/ -f4-)
-location_slug=${loc_host%-docker.pkg.dev}
-pkg_encoded=${pkg_path//\//%2F}
-console_url="https://console.cloud.google.com/artifacts/docker/${proj}/${location_slug}/${repo_name}/${pkg_encoded}?project=${proj}"
+local loc_host proj repo pkg_path location_slug pkg_encoded console_url
+eval "$(_rlm-gar-parse-image "$selection")" || return 1
 
 print -r -- "$selection"
 print -r -- "$console_url"
 
 if command -v pbcopy >/dev/null 2>&1; then
   print -n -- "$console_url" | pbcopy
-  print "gar-open: URL copied to clipboard" >&2
+  print -u2 "gar-open: URL copied to clipboard"
 elif command -v xclip >/dev/null 2>&1; then
   print -n -- "$console_url" | xclip -selection clipboard
-  print "gar-open: URL copied to clipboard" >&2
+  print -u2 "gar-open: URL copied to clipboard"
 elif command -v xsel >/dev/null 2>&1; then
   print -n -- "$console_url" | xsel --clipboard --input
-  print "gar-open: URL copied to clipboard" >&2
+  print -u2 "gar-open: URL copied to clipboard"
 fi
 
 if command -v open >/dev/null 2>&1; then

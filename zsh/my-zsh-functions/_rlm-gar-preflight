@@ -1,0 +1,45 @@
+emulate -L zsh
+set -o pipefail
+
+# Shared preconditions for every rlm-gar-* command: validate
+# GAR_SEARCH_PROJECTS and the required external tools, then emit the
+# parsed project list.
+#
+# Usage:
+#   projects=("${(@f)$(_rlm-gar-preflight <label> [extra_cmd…])}") || return 1
+#
+#   label       calling command name, used in diagnostics ("gar-rm")
+#   extra_cmd   additional commands to require beyond the gcloud/fzf/jq/
+#               curl/python3 baseline
+#
+# Emits one project id per line on stdout. Returns 1 with a diagnostic on
+# stderr when the env var is unset or a required command is missing.
+
+local label=$1
+shift
+
+if [[ -z $GAR_SEARCH_PROJECTS ]]; then
+  print -u2 "${label}: GAR_SEARCH_PROJECTS is not set"
+  print -u2 "Add the following to ~/.zshrc.thismachine:"
+  print -u2 ""
+  print -u2 "  export GAR_SEARCH_PROJECTS=my-project-prod:my-project-dev"
+  return 1
+fi
+
+local cmd
+for cmd in gcloud fzf jq curl python3 "$@"; do
+  if ! command -v "$cmd" >/dev/null 2>&1; then
+    print -u2 "${label}: '${cmd}' not found in PATH"
+    return 1
+  fi
+done
+
+local -a projects
+projects=(${(u)${(s[:])GAR_SEARCH_PROJECTS}:#})
+if (( ${#projects} == 0 )); then
+  print -u2 "${label}: GAR_SEARCH_PROJECTS contains no usable project ids"
+  return 1
+fi
+
+print -l -- "${projects[@]}"
+return 0

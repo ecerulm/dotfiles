@@ -123,6 +123,7 @@ autoload -Uz rlm-glogin
 autoload -Uz rlm-gar-open
 autoload -Uz rlm-gar-rm
 autoload -Uz rlm-gar-search
+autoload -Uz rlm-gar-version-rm
 autoload -Uz rlm-pubsub-open
 autoload -Uz rlm-jira-open
 autoload -Uz rlm-jira-pick
@@ -230,6 +231,7 @@ alias glogin='rlm-glogin'
 alias gar-open='rlm-gar-open'
 alias gar-rm='rlm-gar-rm'
 alias gar-search='rlm-gar-search'
+alias gar-version-rm='rlm-gar-version-rm'
 alias pubsub-open='rlm-pubsub-open'
 alias jira-open='rlm-jira-open'
 alias jira-pick='rlm-jira-pick'

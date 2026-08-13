@@ -144,7 +144,8 @@ def human_time(dt):
         rel = f"{diff // 86400}d ago"
     else:
         rel = f"{diff // 86400}d ago"
-    return f"{dt.strftime(\"%Y-%m-%d %H:%M\")} UTC  ({rel})"
+    stamp = dt.strftime("%Y-%m-%d %H:%M")
+    return f"{stamp} UTC  ({rel})"
 
 data = json.load(sys.stdin)
 
@@ -183,8 +184,11 @@ print()
 
 shown = [e for e in data if e.get("tags")][:10]
 if shown:
-    print(f"{\"NEWEST TAGGED VERSIONS\":<44}  {\"SIZE\":>10}  UPDATED")
-    print(f"{\"-\" * 44}  {\"-\" * 10}  {\"-\" * 16}")
+    hdr = "NEWEST TAGGED VERSIONS"
+    siz = "SIZE"
+    print(f"{hdr:<44}  {siz:>10}  UPDATED")
+    d44, d10, d16 = "-" * 44, "-" * 10, "-" * 16
+    print(f"{d44}  {d10}  {d16}")
     for e in shown:
         meta = e.get("metadata") or {}
         sb = meta.get("imageSizeBytes") or e.get("imageSizeBytes")

@@ -8,6 +8,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `rlm-gar-version-rm` (`gar-version-rm`): **delete individual versions inside one package**, where `gar-rm` deletes whole packages. Two pickers — the shared gar-\* package picker (single-select), then a TAB-multi-select list of the versions inside it, newest first, showing date, size, short digest and tags with untagged versions dimmed. The preview shows the image name, every tag on the digest, the full SHA, size, media type (flagging multi-arch indexes), upload/update/create/build times, platform, and any other scalar metadata, and warns when a digest carries several tags since deleting it removes all of them. The version list is fetched once and passed to the preview as a cached file — a per-version API call would make a preview that re-runs on every keystroke unusable.
+
+- `rlm-gar-version-rm`: prints the exact gcloud command lines, confirms once for the whole selection, deletes in batches of ≤1000 digests, then **re-lists the package and checks each selected digest against what remains**, offering a single retry for any still present. Verified against a mock registry covering the normal path, selecting every version, and a delete that reports success while changing nothing — the last is the case a bare exit-code check would call success.
+
+- `rlm-gar-version-rm`: selecting every version leaves an empty package behind (versions delete does not reap the package), which is called out before the confirmation with a pointer to `gar-rm` rather than silently leaving a shell in the picker.
+
+- `bin/gar-version-preview`: per-version detail pane for the above.
+
+### Changed
+
+- **All `rlm-gar-*` commands now share one implementation.** The three user-facing commands are thin — preflight → pick → act — with everything else in helpers, so a change to the cache, picker chrome, or command rendering lands in all of them at once. New: `_rlm-gar-preflight` (env + tool validation), `_rlm-gar-pick-package` (the entire cache-backed package picker including the refresh sentinel and its project sub-picker), `_rlm-gar-history` (shared MRU, `append`/`remove`), `_rlm-gar-parse-image` (image-path split), `_rlm-gar-show-cmd` (command rendering); `_rlm-gar-cache` gains `remove`. `rlm-gar-open` 118 → 43 lines, `rlm-gar-rm` 392 → 275.
+
+- `_rlm-gar-parse-image` splits **positionally** rather than with `cut -d/ -f4-`, so nested package paths (`app-engine-tmp/app/dbt-docs/ttl-18h`) survive intact. It also replaces a copy in `rlm-gar-open` that computed `repo_name` twice, the second time overwriting the first with the same value via a different method.
+
+### Fixed
+
+- `bin/gar-rm-preview`: **the preview crashed on Python 3.12+** — `f"{dt.strftime(\"%Y-%m-%d\")}"` uses escaped quotes inside an f-string, which is a `SyntaxError` here (`unexpected character after line continuation character`). Three occurrences; the expressions are now hoisted into locals. The bug shipped in the previous commit because the only live test hit an auth failure before reaching the Python block, so the crash was masked by the (correctly reported) credential error.
+
+- `rlm-gar-version-rm`: a second bare `local d` in the same function printed `d=sha256:…` to **stdout** on every call — the documented zsh "bare `local` in a loop re-declares and reports" trap, caught because the leak appeared in the delete summary. All loop-body locals across the gar helpers now carry explicit initializers.
+
+- `rlm-gar-rm`: the post-delete cache/history prune still referenced `$cache_file` and `$history_file`, which the shared-helper refactor had removed from scope — it would have silently pruned nothing. Now goes through `_rlm-gar-cache remove` and `_rlm-gar-history remove`, tracking the actually-deleted images rather than the originally-selected ones.
+
 - `rlm-gar-rm` (`gar-rm`): **multi-select fzf picker over GAR `<repo>/<package>` entries that deletes them.** Reuses `gar-open`'s package list, cache, and MRU history rather than building its own — same `~/.cache/gar-open/<md5>.txt`, same key, same `--- REFRESH CACHE ---` partial-refresh picker — so a refresh in either command benefits the other and the two can never disagree about what exists.
 
 - `rlm-gar-rm`: deletion runs in **two phases, because `gcloud artifacts packages delete` fails server-side above 1000 versions**. Versions go first in batches of ≤1000 via `versions delete --delete-tags`, re-counting between batches until none remain, then the empty package is removed. Confirmation is per package, not per batch: a 2500-version package is one keypress and three batches, not four prompts. After the batches, the package is re-queried to **verify** it is actually gone; if versions remain the count is reported and a retry offered. A batch that reports success without reducing the count aborts that package rather than spinning — the guard exists because "delete succeeded, nothing changed" is indistinguishable from progress if you only trust exit codes. Verified against a mock registry covering the 2500-version batching path and the stuck-delete path.

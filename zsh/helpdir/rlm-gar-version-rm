@@ -1,0 +1,71 @@
+rlm-gar-version-rm [-n|--dry-run]
+
+Delete individual versions inside a single Artifact Registry package.
+Two pickers: first choose one <repo>/<package>, then TAB-multi-select
+the versions (digests) inside it to delete.
+
+Where gar-rm removes a whole package, this prunes selected versions
+and leaves the package in place — the tool for dropping old builds
+while keeping the current ones.
+
+The package picker is the shared gar-* picker: same cache, same MRU
+history, same --- REFRESH CACHE --- partial-refresh flow as gar-open
+and gar-rm.
+
+The version picker lists every version newest-first, showing date,
+size, short digest, and tags (untagged versions are dimmed). The
+preview pane shows the image name, every tag on the digest, the full
+SHA, size, media type (flagging multi-arch indexes), upload/update/
+create/build times, platform, and any other scalar metadata the API
+returns. A digest carrying more than one tag is called out
+explicitly, since deleting it removes all of them.
+
+The whole version list is fetched once and handed to the preview as a
+cached file, so moving through the list costs no API calls.
+
+DELETION
+
+The exact gcloud command lines are printed before a single
+confirmation covering the whole selection. Deletion then runs in
+batches of at most 1000 digests — the server rejects a larger single
+delete — via:
+
+  gcloud artifacts versions delete <digests…> --package=<pkg>
+    --location=<loc> --repository=<repo> --project=<proj>
+    --delete-tags --quiet
+
+Version ids are taken from the picker rows, which carry the bare
+digest; `versions list --format='value(name)'` returns fully
+qualified resource paths that this subcommand rejects when
+--package/--location/--repository are given.
+
+Afterwards the package is re-listed and each selected digest checked
+against what remains. Any still present are reported and a single
+retry offered. Selecting every version in a package deletes the
+versions but leaves an empty package behind; that is called out
+before you confirm, with a pointer to gar-rm.
+
+OPTIONS
+  -n, --dry-run
+              Show both pickers, the selection summary, and the exact
+              commands, but run no deletes and ask no confirmation.
+
+  -h, --help  Print usage and exit.
+
+ENVIRONMENT
+  GAR_SEARCH_PROJECTS
+              Colon-separated list of GCP project IDs to browse.
+              Required; shared with gar-open, gar-search and gar-rm.
+
+REQUIRES
+  gcloud, fzf, jq, curl, python3.
+
+SEE ALSO
+  gar-rm      Delete whole packages (all versions plus the package).
+  gar-open    Browse packages and open one in the GCP console.
+  gar-search  Non-interactive substring search over packages.
+
+NOTE
+  OSC 8 hyperlinks in the preview pane require a terminal emulator
+  that supports them (Kitty, Ghostty, iTerm2, WezTerm). Inside tmux
+  also set: set -ga terminal-features "*:hyperlinks"

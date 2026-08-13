@@ -1,0 +1,72 @@
+emulate -L zsh
+
+# Shared "here is the exact gcloud command that will run" renderer for the
+# destructive rlm-gar-* commands (rlm-gar-rm, rlm-gar-version-rm).
+#
+# Prints a command one argument per line so the flags that determine what
+# gets destroyed (--project, --repository, --package) stay visible. Digest
+# lists are always summarized as `<N version digest(s)>` rather than
+# expanded: 1000 sha256 digests would push those flags off screen, which
+# defeats the point of showing the command at all.
+#
+# Usage:
+#   _rlm-gar-show-cmd raw <label> <arg…>
+#       Generic form: print <label> then each <arg> indented.
+#
+#   _rlm-gar-show-cmd versions-delete <n> <pkg_path> <location> <repo> <proj>
+#       The `gcloud artifacts versions delete` line with the digest list
+#       collapsed to <n>.
+#
+#   _rlm-gar-show-cmd package-delete <pkg_path> <location> <repo> <proj>
+#       The `gcloud artifacts packages delete` line.
+#
+# Colors are read from the caller's environment when set (bold/reset), so
+# the output matches the surrounding prompt styling.
+
+local action=$1
+shift
+
+local bold=${GAR_SHOW_CMD_BOLD-$'\e[1m'}
+local reset=${GAR_SHOW_CMD_RESET-$'\e[0m'}
+
+_rlm_gar_show_cmd_raw() {
+  local label=$1; shift
+  print -r -- "  ${bold}${label}${reset}"
+  local part=''
+  for part in "$@"; do
+    print -r -- "    ${part}"
+  done
+}
+
+case $action in
+  raw)
+    _rlm_gar_show_cmd_raw "$@"
+    ;;
+
+  versions-delete)
+    local n=$1 pkg_path=$2 location_slug=$3 repo=$4 proj=$5
+    _rlm_gar_show_cmd_raw "gcloud artifacts versions delete \\" \
+      "<${n} version digest(s)> \\" \
+      "--package=${pkg_path} \\" \
+      "--location=${location_slug} \\" \
+      "--repository=${repo} \\" \
+      "--project=${proj} \\" \
+      "--delete-tags --quiet"
+    ;;
+
+  package-delete)
+    local pkg_path=$1 location_slug=$2 repo=$3 proj=$4
+    _rlm_gar_show_cmd_raw "gcloud artifacts packages delete \\" \
+      "${pkg_path} \\" \
+      "--location=${location_slug} \\" \
+      "--repository=${repo} \\" \
+      "--project=${proj} \\" \
+      "--quiet"
+    ;;
+
+  *)
+    print -u2 "_rlm-gar-show-cmd: unknown action: ${action}"
+    return 2
+    ;;
+esac
+return 0

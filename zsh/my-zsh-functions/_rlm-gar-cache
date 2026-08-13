@@ -96,7 +96,7 @@ case $action in
     local cf=${files[1]} hf=${files[2]}
     [[ -f $cf ]] || return 1
     if [[ -f $hf ]]; then
-      local entry
+      local entry=''
       while IFS= read -r entry; do
         [[ -n $entry ]] && grep -m1 -Fx -- "$entry" "$cf" 2>/dev/null
       done < <(tac "$hf" | awk '!seen[$0]++')
@@ -104,6 +104,34 @@ case $action in
     else
       cat "$cf"
     fi
+    return 0
+    ;;
+
+  remove)
+    # `remove <projects_csv> <image…>` — drop deleted packages from the
+    # cache so the next picker does not offer them.
+    local all_csv=$1
+    shift
+    local -a all_projects drop
+    all_projects=(${(u)${(s[:])all_csv}:#})
+    drop=("$@")
+    (( ${#drop} == 0 )) && return 0
+
+    local -a files
+    files=("${(@f)$(_rlm_gar_cache_files "${all_projects[@]}")}")
+    local cf=${files[1]}
+    [[ -f $cf ]] || return 0
+
+    local tmp=''
+    tmp=$(mktemp) || return 1
+    local line=''
+    while IFS= read -r line; do
+      [[ -z $line ]] && continue
+      if [[ -z ${drop[(r)$line]} ]]; then
+        print -r -- "$line"
+      fi
+    done < "$cf" >| "$tmp"
+    mv -- "$tmp" "$cf"
     return 0
     ;;
 
@@ -133,7 +161,7 @@ case $action in
       local proj=$1 tok=$2
 
       _rlm_gar_cache_status "fetching repositories from ${proj} …"
-      local repos_json
+      local repos_json=''
       repos_json=$(gcloud artifacts repositories list --project="$proj" \
                      --filter="format=DOCKER" --format=json 2>/dev/null)
       if [[ -z $repos_json || $repos_json == "[]" ]]; then

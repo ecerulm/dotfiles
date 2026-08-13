@@ -1,0 +1,61 @@
+emulate -L zsh
+set -o pipefail
+
+# Shared MRU history for the rlm-gar-* pickers, ~/.cache/gar-open/history.txt
+# (one image path per line, most recent last, capped at 1000).
+#
+# Usage:
+#   _rlm-gar-history append <image…>   record image(s) as most-recently-used
+#   _rlm-gar-history remove <image…>   drop image(s) entirely (after a delete)
+#   _rlm-gar-history path              emit the history file path
+#
+# The file is shared by every gar-* command so ordering learned in one
+# picker carries into the others. `_rlm-gar-cache read` consumes it.
+
+local action=$1
+shift
+
+local dir="$HOME/.cache/gar-open"
+mkdir -p "$dir"
+local hf="${dir}/history.txt"
+
+case $action in
+  path)
+    print -r -- "$hf"
+    ;;
+
+  append)
+    local img=''
+    for img in "$@"; do
+      [[ -z $img ]] && continue
+      print -r -- "$img" >> "$hf"
+    done
+    if [[ -f $hf ]]; then
+      local trimmed=''
+      trimmed=$(tail -1000 "$hf") && print -r -- "$trimmed" >| "$hf"
+    fi
+    ;;
+
+  remove)
+    [[ -f $hf ]] || return 0
+    local -a drop
+    drop=("$@")
+    (( ${#drop} == 0 )) && return 0
+    local tmp=''
+    tmp=$(mktemp) || return 1
+    local line=''
+    while IFS= read -r line; do
+      [[ -z $line ]] && continue
+      if [[ -z ${drop[(r)$line]} ]]; then
+        print -r -- "$line"
+      fi
+    done < "$hf" >| "$tmp"
+    mv -- "$tmp" "$hf"
+    ;;
+
+  *)
+    print -u2 "_rlm-gar-history: unknown action: ${action}"
+    return 2
+    ;;
+esac
+return 0
