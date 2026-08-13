@@ -7,15 +7,23 @@ set -o pipefail
 # project sub-picker, and the MRU-sorted list.
 #
 # Usage:
-#   _rlm-gar-pick-package <label> <prompt> <preview_script> <multi> <projects…>
+#   _rlm-gar-pick-package [--by-age] <label> <prompt> <preview_script> <multi> <projects…>
 #
+#   --by-age        list least-recently-updated packages first (oldest
+#                   image push at the top) and show a LAST PUSH column,
+#                   instead of the default MRU ordering. Used by
+#                   rlm-gar-rm, where the packages worth deleting are the
+#                   ones nobody has pushed to in months; MRU is actively
+#                   unhelpful there, since a package you just picked is
+#                   the opposite of stale.
 #   label           calling command name, used in diagnostics ("gar-rm")
 #   prompt          fzf prompt string ("DELETE GAR package> ")
 #   preview_script  absolute path to the preview helper invoked as
 #                   `<script> <image>`; empty disables the preview
 #   multi           1 to allow TAB multi-select, 0 for single-select
 #
-# Emits the selected image path(s), one per line, on stdout.
+# Emits the selected image path(s), one per line, on stdout — bare paths
+# in every mode; the age column is display-only and stripped here.
 #
 # Returns 0 with output, 130 when the user aborts or selects nothing, 1 on
 # a fetch failure. Selecting the refresh sentinel is handled internally —
@@ -25,6 +33,12 @@ set -o pipefail
 # The MRU history is *not* recorded here: only the caller knows whether the
 # selection was actually acted on (a delete that the user then declines
 # should not reorder the picker). Callers append via _rlm-gar-history.
+
+local by_age=0
+if [[ $1 == --by-age ]]; then
+  by_age=1
+  shift
+fi
 
 local label=$1 prompt=$2 preview_script=$3 multi=$4
 shift 4
@@ -60,6 +74,11 @@ while true; do
     --bind='alt-up:preview-half-page-up' --bind='alt-down:preview-half-page-down'
     --bind='ctrl-g:abort'
   )
+  # Rows are `<display>\t<image>`: fzf renders and matches on field 1,
+  # and the raw image is read back from field 2. Note --with-nth only —
+  # adding --nth would match against the post-with-nth text and silently
+  # return zero results for every query.
+  fzf_args+=(--delimiter=$'\t' --with-nth=1)
   if (( multi )); then
     fzf_args+=(--multi)
     fzf_args+=(--header='TAB multi • Enter confirm • Shift/Alt-↑↓ scroll • Ctrl-P size • Ctrl-G abort')
@@ -67,20 +86,58 @@ while true; do
     fzf_args+=(--header='Enter select • Shift/Alt-↑↓ scroll • Ctrl-P size • Ctrl-G abort')
   fi
   if [[ -n $preview_script ]]; then
+    # {2} is the raw image path; {1} is the (possibly age-prefixed)
+    # display string, which the preview must not receive.
     fzf_args+=(--preview="
-      line={}
+      line={1}
+      img={2}
       if printf '%s' \"\$line\" | grep -q '^--- REFRESH CACHE'; then
         echo 'Select to choose which projects to refresh and reopen the picker.'
       else
-        ${(q)preview_script} \"\$line\"
+        ${(q)preview_script} \"\$img\"
       fi
     ")
   fi
 
+  # Build `<display>\t<image>` rows from the cache's `<epoch>\t<image>`.
+  # In --by-age mode the display gets a fixed-width relative-age column so
+  # the staleness is readable at a glance and the image paths stay aligned.
+  local -a read_args=()
+  (( by_age )) && read_args+=(--by-age)
+
+  local rows=''
+  rows=$(_rlm-gar-cache read "${read_args[@]}" "${projects[@]}" \
+    | awk -F'\t' -v show_age="$by_age" -v now="$(date +%s)" '
+      NF < 2 { next }
+      {
+        epoch = $1 + 0
+        img = $2
+        if (!show_age) { print img "\t" img; next }
+        if (epoch <= 0) {
+          age = "unknown"
+        } else {
+          d = int((now - epoch) / 86400)
+          # Compound y+d past a year: "1y20d" says "just over a year" at a
+          # glance, where a bare "384d" makes you do the division and a
+          # rounded "1.1y" hides how far past the boundary it is.
+          if (d < 1)        age = "today"
+          else if (d < 365) age = sprintf("%dd", d)
+          else {
+            y = int(d / 365)
+            rd = d - y * 365
+            age = (rd > 0) ? sprintf("%dy%dd", y, rd) : sprintf("%dy", y)
+          }
+        }
+        age = sprintf("%8s", age)
+        printf "%-9s %s\t%s\n", age, img, img
+      }
+    ')
+
   local selection=''
   selection=$(
-    { print -r -- "$refresh_sentinel"; _rlm-gar-cache read "${projects[@]}"; } \
-    | fzf "${fzf_args[@]}"
+    { print -r -- "${refresh_sentinel}	${refresh_sentinel}"
+      [[ -n $rows ]] && print -r -- "$rows"
+    } | fzf "${fzf_args[@]}"
   ) || return 130
 
   [[ -z $selection ]] && return 130
@@ -98,10 +155,20 @@ while true; do
 
   # A multi-select can include the sentinel alongside real entries; it is
   # not a package, so drop it rather than passing it downstream.
+  local -a picked_rows=()
+  picked_rows=("${(@f)selection}")
+  picked_rows=("${(@)picked_rows:#}")
+  picked_rows=("${(@)picked_rows:#--- REFRESH CACHE*}")
+
+  # Strip the display column back off, so callers get bare image paths
+  # regardless of which ordering mode was used.
   local -a picked=()
-  picked=("${(@f)selection}")
-  picked=("${(@)picked:#}")
-  picked=("${(@)picked:#--- REFRESH CACHE*}")
+  local row=''
+  for row in "${picked_rows[@]}"; do
+    [[ $row == *$'\t'* ]] || continue
+    picked+=("${row#*$'\t'}")
+  done
+
   if (( ${#picked} == 0 )); then
     return 130
   fi

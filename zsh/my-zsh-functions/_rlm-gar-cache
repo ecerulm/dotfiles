@@ -8,10 +8,20 @@ setopt local_options no_monitor no_notify
 #
 # One cache file per set of projects, under ~/.cache/gar-open/:
 #
-#   <md5>.txt        — one fully-qualified image path per line,
-#                      LOCATION-docker.pkg.dev/PROJECT/REPO/PACKAGE
+#   <md5>.txt        — one entry per line, tab-separated:
+#                        <updated_epoch>\tLOCATION-docker.pkg.dev/PROJECT/REPO/PACKAGE
+#                      <updated_epoch> is the updateTime of the package's
+#                      NEWEST VERSION — i.e. when an image was last pushed.
+#                      0 means unknown (no versions, or the lookup failed).
 #   history.txt      — MRU history, shared across every gar-* picker,
 #                      never touched by a refresh.
+#
+# LEGACY FORMAT: caches written before the timestamp column hold a bare
+# image path with no tab. Readers must tolerate that — a stale cache is
+# common (they are only rewritten on an explicit refresh) and forcing a
+# re-fetch on upgrade would mean every gar-* command blocking on a full
+# rescan the first time it runs. Untimestamped rows are treated as
+# unknown-age (epoch 0) and, in `read --by-age`, sort as oldest.
 #
 # The md5 key is computed from the sorted, deduped project list, so
 # changing GAR_SEARCH_PROJECTS busts the cache.
@@ -35,9 +45,14 @@ setopt local_options no_monitor no_notify
 #       <all_projects_csv> is the colon-joined full project list, used
 #       only to derive the cache key.
 #
-#   _rlm-gar-cache read <projects...>
-#       Emit the cache contents MRU-sorted (history entries first, most
-#       recent first, deduped; then everything else in cache order).
+#   _rlm-gar-cache read [--by-age] <projects...>
+#       Emit the cache contents, one `<updated_epoch>\t<image>` per line.
+#       Default order is MRU (history entries first, most recent first,
+#       deduped; then everything else in cache order).
+#       --by-age instead sorts strictly oldest-updated first and ignores
+#       the MRU history — for rlm-gar-rm, where the question is "what has
+#       nobody pushed to in a year", and a package you recently picked is
+#       by definition not stale.
 #
 #   _rlm-gar-cache age <projects...>
 #       Emit a humanized cache age ("42s ago", "3h ago", "2d ago"), or
@@ -94,19 +109,54 @@ case $action in
     ;;
 
   read)
+    local by_age=0
+    if [[ $1 == --by-age ]]; then
+      by_age=1
+      shift
+    fi
+
     local -a files
     files=("${(@f)$(_rlm_gar_cache_files "$@")}")
     local cf=${files[1]} hf=${files[2]}
     [[ -f $cf ]] || return 1
-    if [[ -f $hf ]]; then
+
+    # Normalize away the legacy format so downstream stages see exactly
+    # one shape. A row without a tab is a pre-timestamp entry; give it
+    # epoch 0 (unknown) rather than dropping it.
+    local norm=''
+    norm=$(mktemp) || return 1
+    local raw=''
+    while IFS= read -r raw; do
+      [[ -z $raw ]] && continue
+      if [[ $raw == *$'\t'* ]]; then
+        print -r -- "$raw"
+      else
+        print -r -- "0	${raw}"
+      fi
+    done < "$cf" >| "$norm"
+
+    if (( by_age )); then
+      # Strictly oldest-first. `sort -n` on the epoch column; unknown (0)
+      # rows lead, which is the safe end for a delete tool — an entry
+      # whose age could not be determined deserves a look, not a pass.
+      sort -t$'\t' -k1,1n -- "$norm"
+      rm -f "$norm"
+      return 0
+    fi
+
+    if [[ -f $hf && -s $hf ]]; then
+      # History holds bare image paths, so match on field 2 rather than
+      # the whole line.
       local entry=''
       while IFS= read -r entry; do
-        [[ -n $entry ]] && grep -m1 -Fx -- "$entry" "$cf" 2>/dev/null
+        [[ -n $entry ]] && awk -F'\t' -v img="$entry" \
+          '$2 == img { print; exit }' "$norm"
       done < <(tac "$hf" | awk '!seen[$0]++')
-      grep -vFxf "$hf" "$cf" 2>/dev/null || true
+      awk -F'\t' 'NR == FNR { seen[$0] = 1; next } !seen[$2]' "$hf" "$norm"
     else
-      cat "$cf"
+      cat "$norm"
     fi
+    rm -f "$norm"
     return 0
     ;;
 
@@ -127,10 +177,15 @@ case $action in
 
     local tmp=''
     tmp=$(mktemp) || return 1
-    local line=''
+    local line='' img=''
     while IFS= read -r line; do
       [[ -z $line ]] && continue
-      if [[ -z ${drop[(r)$line]} ]]; then
+      # Compare on the image path, not the whole line: rows carry a
+      # leading `<epoch>\t` and callers pass bare image paths. Legacy
+      # untimestamped rows have no tab, in which case the row *is* the
+      # image path.
+      img=${line#*$'\t'}
+      if [[ -z ${drop[(r)$img]} ]]; then
         print -r -- "$line"
       fi
     done < "$cf" >| "$tmp"
@@ -263,21 +318,98 @@ case $action in
           continue
         fi
 
+        # Names come from packages.list; the *timestamp* does not.
+        #
+        # `package.updateTime` is NOT the last image push. It tracks
+        # metadata writes too, and Artifact Registry touches it on its own
+        # (GC sweeps, repo-level operations) long after the last version
+        # was uploaded. Measured against this cache: 2 of 46 packages were
+        # wrong, one by 379 days —
+        # eu.gcr.io/airbyte-custom-connectort/storytel-google-directory
+        # reported "5d" while its newest version dates to 2025-07-24. On a
+        # delete tool that error points the wrong way: it makes a stale
+        # package look freshly used, so it sinks to the bottom of the
+        # --by-age list and never gets cleaned up.
+        #
+        # So the real key is the newest version's updateTime, one
+        # versions.list per package. `orderBy=update_time desc` +
+        # `pageSize=1` makes that a single row rather than a full version
+        # listing (~0.17s each), and the calls fan out in parallel: 46
+        # packages complete in ~1s. This is the query the older comment
+        # here warned against — it is the correct one, and it is cheap.
         packages=$(print -r -- "$body" \
           | jq -r --arg prefix "${parent}/packages/" \
-              '.packages // [] | .[].name | sub($prefix; "")' \
-          | python3 -c 'import sys, urllib.parse
-for l in sys.stdin:
-    print(urllib.parse.unquote(l.rstrip()))' 2>/dev/null)
+              '.packages // [] | .[] | .name | sub($prefix; "")')
 
         [[ -z $packages ]] && continue
 
+        # Collect the surviving (encoded, decoded) package names first, so
+        # the /cache filter runs before we spend a request on each.
+        local -a pkg_encoded_list=() pkg_name_list=()
+        local pkg_decoded=''
         while IFS= read -r pkg; do
           [[ -z $pkg ]] && continue
+          pkg_decoded=$(python3 -c 'import sys, urllib.parse
+print(urllib.parse.unquote(sys.argv[1]))' "$pkg" 2>/dev/null)
+          [[ -z $pkg_decoded ]] && continue
           # GCR layer-cache pseudo-packages, not pullable images.
-          [[ $pkg == */cache ]] && continue
-          print -r -- "${loc}-docker.pkg.dev/${proj}/${repo_name}/${pkg}"
+          [[ $pkg_decoded == */cache ]] && continue
+          pkg_encoded_list+=("$pkg")
+          pkg_name_list+=("$pkg_decoded")
         done <<< "$packages"
+
+        (( ${#pkg_name_list} == 0 )) && continue
+
+        _rlm_gar_cache_status "${proj}/${loc}/${repo_name} (${#pkg_name_list} packages) …"
+
+        # Fan out the newest-version lookups, capped so a big repo does not
+        # open hundreds of sockets at once. Each job writes one RFC-3339
+        # stamp (or nothing) to its own file, keyed by index.
+        local ver_tmpdir=''
+        ver_tmpdir=$(mktemp -d) || continue
+        local -i vi=0
+        for (( vi = 1; vi <= ${#pkg_encoded_list}; vi++ )); do
+          {
+            curl -sS -G --max-time 30 \
+              -H "Authorization: Bearer ${tok}" \
+              "https://artifactregistry.googleapis.com/v1/${parent}/packages/${pkg_encoded_list[vi]}/versions" \
+              --data-urlencode "orderBy=update_time desc" \
+              --data-urlencode "pageSize=1" 2>/dev/null \
+              | jq -r '.versions[0].updateTime // ""' 2>/dev/null \
+              >| "${ver_tmpdir}/${vi}"
+          } &
+          (( vi % 16 == 0 )) && wait
+        done
+        wait
+
+        # One python pass converts every RFC-3339 stamp to an epoch; an
+        # empty/absent file means the lookup failed or the package has no
+        # versions, and becomes 0 (unknown) — which sorts first under
+        # --by-age, the safe end for a delete tool.
+        local -a epochs=()
+        epochs=("${(@f)$(python3 -c 'import os, sys
+from datetime import datetime
+
+tmpdir, count = sys.argv[1], int(sys.argv[2])
+for i in range(1, count + 1):
+    ts = ""
+    try:
+        with open(os.path.join(tmpdir, str(i))) as fh:
+            ts = fh.read().strip()
+    except OSError:
+        pass
+    epoch = 0
+    if ts:
+        try:
+            epoch = int(datetime.fromisoformat(ts.replace("Z", "+00:00")).timestamp())
+        except ValueError:
+            epoch = 0
+    print(epoch)' "$ver_tmpdir" "${#pkg_encoded_list}" 2>/dev/null)}")
+        rm -rf "$ver_tmpdir"
+
+        for (( vi = 1; vi <= ${#pkg_name_list}; vi++ )); do
+          print -r -- "${epochs[vi]:-0}	${loc}-docker.pkg.dev/${proj}/${repo_name}/${pkg_name_list[vi]}"
+        done
       done
     }
 
@@ -299,6 +431,8 @@ for l in sys.stdin:
       done
       while IFS= read -r line; do
         [[ -z $line ]] && continue
+        # Works for both formats: the project is read relative to the
+        # `pkg.dev/` marker, so a leading `<epoch>\t` is irrelevant here.
         entry_proj=${${line#*pkg.dev/}%%/*}
         if [[ -z ${refreshed_set[$entry_proj]} ]]; then
           kept+=("$line")

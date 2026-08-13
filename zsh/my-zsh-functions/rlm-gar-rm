@@ -15,6 +15,12 @@ while (( $# )); do
       print -r -- "multi-select) and delete them. Confirms once per package,"
       print -r -- "then deletes the package and all its versions in a single"
       print -r -- "API call, waiting until it is really gone."
+      print -r -- ""
+      print -r -- "The picker lists least-recently-pushed packages first, with"
+      print -r -- "the time since the last image push in the left column, so"
+      print -r -- "stale packages surface at the top. Packages whose age is"
+      print -r -- "unknown (cached before ages were recorded) sort first; a"
+      print -r -- "cache refresh from the picker fills them in."
       return 0
       ;;
     *)
@@ -30,7 +36,10 @@ projects=("${(@)projects:#}")
 (( ${#projects} == 0 )) && return 1
 
 local selection
-selection=$(_rlm-gar-pick-package gar-rm "DELETE GAR package> " \
+# --by-age: least-recently-pushed packages first. What you are hunting for
+# in a delete tool is the repo nobody has published to in a year, and the
+# default MRU order buries exactly those at the bottom.
+selection=$(_rlm-gar-pick-package --by-age gar-rm "DELETE GAR package> " \
               "$HOME/bin/gar-rm-preview" 1 "${projects[@]}")
 local pick_rc=$?
 (( pick_rc != 0 )) && return $pick_rc

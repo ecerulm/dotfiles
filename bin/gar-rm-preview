@@ -143,14 +143,18 @@ def human_time(dt):
     if dt is None:
         return "?"
     diff = int((datetime.now(timezone.utc) - dt).total_seconds())
+    days = diff // 86400
     if diff < 3600:
         rel = f"{diff // 60}m ago"
     elif diff < 86400:
         rel = f"{diff // 3600}h ago"
-    elif diff < 86400 * 30:
-        rel = f"{diff // 86400}d ago"
+    elif days < 365:
+        rel = f"{days}d ago"
     else:
-        rel = f"{diff // 86400}d ago"
+        # Compound y+d past a year: "1y20d ago" reads as "just over a
+        # year" without mental arithmetic, where "384d ago" does not.
+        years, rem = divmod(days, 365)
+        rel = f"{years}y{rem}d ago" if rem else f"{years}y ago"
     stamp = dt.strftime("%Y-%m-%d %H:%M")
     return f"{stamp} UTC  ({rel})"
 

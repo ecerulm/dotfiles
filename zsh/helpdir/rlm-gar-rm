@@ -4,12 +4,36 @@ Delete Artifact Registry <repo>/<package> entries picked in an fzf
 picker. TAB multi-selects; every selected package is confirmed
 individually before anything is destroyed.
 
-The package list, its cache, and the MRU history are shared with
-gar-open — both commands read and refresh the same files under
-~/.cache/gar-open/, so a refresh in either benefits the other.
-Selecting --- REFRESH CACHE --- opens a secondary picker where you
-TAB-multi-select which projects to re-fetch; entries for un-picked
-projects are preserved.
+The package list and its cache are shared with gar-open — both
+commands read and refresh the same files under ~/.cache/gar-open/, so
+a refresh in either benefits the other. Selecting --- REFRESH CACHE ---
+opens a secondary picker where you TAB-multi-select which projects to
+re-fetch; entries for un-picked projects are preserved.
+
+ORDERING
+
+Packages are listed least-recently-pushed first, and the left column
+shows how long it has been since the last image push (today, 6d, 351d,
+1y19d). The stalest packages — the ones most likely to be deletable —
+therefore sit at the top.
+
+Unlike gar-open, gar-rm ignores the shared MRU history: a package you
+picked recently is the opposite of stale, so letting recency float
+entries to the top would work against the question this command exists
+to answer.
+
+The timestamp is the updateTime of the package's newest version, read
+from the versions API during a cache refresh. It is deliberately not
+the package-level updateTime that the package listing returns for
+free: that field also moves on metadata writes and on registry-side
+housekeeping, so a long-dead package can report a recent date. One
+package here showed "5d" while its newest image dated to 2025-07-24,
+a year out — and the error runs in the dangerous direction, hiding a
+stale package at the bottom of the list instead of surfacing it.
+
+Packages cached before ages were recorded show "unknown" and sort
+first, on the principle that an entry whose age cannot be determined
+deserves a look rather than a pass. Refresh the cache to fill them in.
 
 The preview pane is deletion-oriented rather than browse-oriented
 (that is gar-open's job): it reports the version count, total size on
