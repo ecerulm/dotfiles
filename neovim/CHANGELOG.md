@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-08-17
+
+- Add Zig support: `after/ftplugin/zig.lua` + `after/indent/zig.lua` (treesitter highlight, folds, indent) and add `zig` to the treesitter install list in `init.lua`, so `.zig` files get treesitter highlighting instead of falling back to `$VIMRUNTIME/syntax/zig.vim`
+
 ## 2026-07-14
 
 - Fix Python indent reset: drop `:` and `<:>` from `indentkeys` (set by `$VIMRUNTIME/indent/python.vim`) so typing a colon inside a string no longer triggers the treesitter `indentexpr` and clobbers the line indent to 0

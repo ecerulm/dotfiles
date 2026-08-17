@@ -87,6 +87,7 @@ require("nvim-treesitter").install({
 	"dart",
 	"git_config",
 	"gitignore",
+	"zig",
 }) -- languages to install https://github.com/nvim-treesitter/nvim-treesitter/blob/main/SUPPORTED_LANGUAGES.md
 
 -- format / formatting / formatter conform.nvim
