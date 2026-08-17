@@ -255,11 +255,16 @@ if [[ -z $candidates ]]; then
   return 0
 fi
 
+# Args, if any, prepopulate the fzf query so `fe foo` opens the picker
+# with "foo" already typed instead of an empty prompt.
+local initial_query="$*"
+
 local selection
 selection=$(
   print -r -- "$candidates" \
     | fzf \
       --prompt="Files> " \
+      --query="$initial_query" \
       --multi \
       --no-mouse \
       --ansi \

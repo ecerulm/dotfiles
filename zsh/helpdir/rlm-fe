@@ -23,6 +23,9 @@ Files are listed with fd, including hidden and gitignored files (the
 ("2 hours ago"); the second is the path relative to the current
 directory. The full absolute path is what the picker acts on.
 
+Any arguments are joined with spaces and used to prepopulate the
+fzf query, e.g. `fe foo` opens the picker with "foo" already typed.
+
 SORTING
 Entries form a single timeline, newest first, so the visible order
 always matches the visible age column. Each file's change time is:
