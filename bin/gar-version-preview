@@ -1,0 +1,238 @@
+#!/usr/bin/env zsh
+# Usage: gar-version-preview IMAGE_PATH DIGEST
+#
+#   IMAGE_PATH  LOCATION-docker.pkg.dev/PROJECT/REPO/PACKAGE
+#   DIGEST      sha256:...  (the version id)
+#
+# Per-version detail for the rlm-gar-version-rm picker: image name, every
+# tag on the digest, the full SHA, upload/build dates, size, media type,
+# platform, and whatever else the version metadata carries.
+#
+# Reads a cached JSON blob of the whole package's version list when the
+# caller provides one via $GAR_VERSION_CACHE — the preview re-runs on
+# every keystroke, so a per-version API call would make the picker crawl.
+# Falls back to a single-version REST lookup when no cache is present.
+emulate -L zsh
+set -o pipefail
+
+_gar_version_preview_main() {
+  local image=$1 digest=$2
+  if [[ -z $image || -z $digest ]]; then
+    print -u2 "gar-version-preview: usage: gar-version-preview IMAGE_PATH DIGEST"
+    return 1
+  fi
+
+  local loc_host proj repo pkg_path location_slug pkg_encoded console_url
+  loc_host=${image%%/*}
+  proj=$(printf '%s' "$image" | cut -d/ -f2)
+  repo=$(printf '%s' "$image" | cut -d/ -f3)
+  pkg_path=$(printf '%s' "$image" | cut -d/ -f4-)
+  location_slug=${loc_host%-docker.pkg.dev}
+  pkg_encoded=${pkg_path//\//%2F}
+  console_url="https://console.cloud.google.com/artifacts/docker/${proj}/${location_slug}/${repo}/${pkg_encoded}/${digest}?project=${proj}"
+
+  local red=$'\e[31m' yellow=$'\e[33m' bold=$'\e[1m' reset=$'\e[0m'
+
+  printf '%sWILL DELETE%s  %s\n' "$red$bold" "$reset" "${image}@${digest}"
+  printf '\n'
+  printf 'Image:      %s\n' "$image"
+  printf 'Package:    %s\n' "$pkg_path"
+  printf 'Project:    %s\n' "$proj"
+  printf 'Repository: %s\n' "$repo"
+  # Location gets its own line: `europe` (multi-region) and `europe-west1`
+  # (single region) are different locations holding different repos, and
+  # the distinction is invisible when it is glued onto the repo name.
+  case $location_slug in
+    europe|us|asia) printf 'Location:   %s  (multi-region)\n' "$location_slug" ;;
+    *)              printf 'Location:   %s\n' "$location_slug" ;;
+  esac
+  printf 'Digest:     %s\n' "$digest"
+  printf 'Console:    '
+  printf '\e]8;;%s\e\\Open in GCP console\e]8;;\e\\' "$console_url"; printf '\n'
+  printf '\n'
+
+  local json=""
+  if [[ -n $GAR_VERSION_CACHE && -s $GAR_VERSION_CACHE ]]; then
+    json=$(cat "$GAR_VERSION_CACHE")
+  else
+    local token
+    token=$(gcloud auth print-access-token 2>/dev/null)
+    if [[ -z $token ]]; then
+      printf '%sCANNOT INSPECT%s  no gcloud access token\n' "$red$bold" "$reset"
+      printf 'Run: gcloud auth login\n'
+      return 0
+    fi
+    local err rc
+    err=$(mktemp) || err=/dev/null
+    json=$(gcloud artifacts docker images list "$image" \
+             --include-tags --format=json --project="$proj" 2>"$err")
+    rc=$?
+    if (( rc != 0 )); then
+      printf '%sCANNOT READ VERSION METADATA%s  (exit %d)\n' "$red$bold" "$reset" "$rc"
+      [[ -s $err ]] && grep -v '^$' "$err" | head -5 | sed 's/^/  /'
+      [[ $err != /dev/null ]] && rm -f "$err"
+      return 0
+    fi
+    [[ $err != /dev/null ]] && rm -f "$err"
+  fi
+
+  if [[ -z $json || $json == '[]' ]]; then
+    printf '(no metadata available for this version)\n'
+    return 0
+  fi
+
+  printf '%s' "$json" | GAR_VP_DIGEST=$digest \
+    GAR_VP_CHILDREN="${GAR_VERSION_CHILDREN:-}" python3 -c '
+import sys, json, os
+from datetime import datetime, timezone
+
+want = os.environ["GAR_VP_DIGEST"]
+
+# Multi-arch attribution, loaded from the shared cache the caller points at.
+# child -> (parent, platform, parent_tags);  parent -> [(child, platform)]
+child_of = {}
+kids_of = {}
+_cp = os.environ.get("GAR_VP_CHILDREN") or ""
+if _cp and os.path.exists(_cp):
+    with open(_cp) as _fh:
+        for _raw in _fh:
+            _p = _raw.rstrip("\n").split("\t")
+            if len(_p) >= 3 and _p[0]:
+                _tags = _p[3] if len(_p) > 3 else ""
+                child_of[_p[0]] = (_p[1], _p[2], _tags)
+                kids_of.setdefault(_p[1], []).append((_p[0], _p[2]))
+
+def human_size(b):
+    if not b:
+        return "?"
+    b = float(b)
+    for unit in ("B","KB","MB","GB"):
+        if b < 1024:
+            return f"{b:.0f} {unit}"
+        b /= 1024
+    return f"{b:.1f} TB"
+
+def parse(ts):
+    if not ts:
+        return None
+    try:
+        return datetime.fromisoformat(ts.replace("Z", "+00:00"))
+    except Exception:
+        return None
+
+def fmt(dt):
+    if dt is None:
+        return None
+    diff = int((datetime.now(timezone.utc) - dt).total_seconds())
+    if diff < 3600:
+        rel = f"{diff // 60}m ago"
+    elif diff < 86400:
+        rel = f"{diff // 3600}h ago"
+    else:
+        rel = f"{diff // 86400}d ago"
+    stamp = dt.strftime("%Y-%m-%d %H:%M")
+    return f"{stamp} UTC  ({rel})"
+
+try:
+    data = json.load(sys.stdin)
+except Exception:
+    print("(could not parse version metadata)")
+    sys.exit(0)
+
+entry = None
+for e in data:
+    if e.get("version") == want:
+        entry = e
+        break
+
+if entry is None:
+    print(f"(version {want[:19]}… not found in the current listing)")
+    print("It may have been deleted since the list was fetched.")
+    sys.exit(0)
+
+tags = entry.get("tags") or []
+meta = entry.get("metadata") or {}
+
+print(f"Tags:       {len(tags)}")
+if tags:
+    for t in tags:
+        print(f"  - {t}")
+elif want in child_of:
+    print("  (untagged — but see BELONGS TO below)")
+else:
+    print("  (untagged)")
+print()
+
+# The relationship comes before the metadata: on a delete tool, "this is one
+# arch of a tagged image" is the single most decision-changing fact here.
+if want in child_of:
+    parent, platform, ptags = child_of[want]
+    owner = ptags.split(",")[0] if ptags else parent[:26] + "…"
+    print(f"BELONGS TO: {owner}")
+    plat_label = platform
+    if platform == "unknown":
+        plat_label = "attestation / provenance"
+    print(f"  platform: {plat_label}")
+    print(f"  index:    {parent}")
+    print("  This version is one member of a multi-arch image. Deleting it")
+    print("  leaves that image broken for this platform while the tag still")
+    print("  resolves — pull failures, not a clean absence.")
+    print()
+elif want in kids_of:
+    members = kids_of[want]
+    print(f"MULTI-ARCH INDEX: references {len(members)} version(s)")
+    for cd, plat in sorted(members, key=lambda x: x[1]):
+        label = plat if plat != "unknown" else "attestation"
+        print(f"  - {label:<24} {cd[:26]}…")
+    print("  Deleting this index does NOT delete the versions above; they")
+    print("  remain, untagged and unreferenced.")
+    print()
+
+size = meta.get("imageSizeBytes") or entry.get("imageSizeBytes")
+print(f"Size:       {human_size(size)}")
+
+media = meta.get("mediaType") or ""
+if media:
+    kind = "multi-arch index" if "index" in media or "list" in media else "image manifest"
+    print(f"Media type: {media}")
+    print(f"            ({kind})")
+
+for label, key in (("Uploaded", "uploadTime"), ("Updated", "updateTime"),
+                   ("Created", "createTime"), ("Built", "buildTime")):
+    v = fmt(parse(entry.get(key) or meta.get(key)))
+    if v:
+        key = label + ":"
+        print(f"{key:<12}{v}")
+
+plat = []
+for k in ("architecture", "os", "variant"):
+    v = meta.get(k) or entry.get(k)
+    if v:
+        plat.append(str(v))
+if plat:
+    plat_str = "/".join(plat)
+    print(f"Platform:   {plat_str}")
+
+known = {"version","tags","metadata","imageSizeBytes","uploadTime","updateTime",
+         "createTime","buildTime","package","architecture","os","variant"}
+extra = {k: v for k, v in entry.items()
+         if k not in known and not isinstance(v, (dict, list))}
+extra.update({k: v for k, v in meta.items()
+              if k not in known and k not in ("imageSizeBytes","mediaType")
+              and not isinstance(v, (dict, list))})
+if extra:
+    print()
+    print("Other metadata:")
+    for k, v in sorted(extra.items()):
+        s = str(v)
+        if len(s) > 60:
+            s = s[:57] + "..."
+        print(f"  {k}: {s}")
+
+if len(tags) > 1:
+    print()
+    print(f"NOTE: this digest carries {len(tags)} tags — deleting it removes all of them.")
+'
+}
+
+_gar_version_preview_main "$@"

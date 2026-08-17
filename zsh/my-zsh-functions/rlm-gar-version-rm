@@ -1,0 +1,484 @@
+emulate -L zsh
+set -o pipefail
+
+autoload -Uz _rlm-gar-preflight _rlm-gar-pick-package _rlm-gar-history \
+             _rlm-gar-cache _rlm-gar-show-cmd _rlm-gar-parse-image \
+             _rlm-gar-index-children _rlm-gar-version-cache \
+             _rlm-gar-versions-batch-delete
+
+local dry_run=0 force_refresh=0
+while (( $# )); do
+  case $1 in
+    -n|--dry-run) dry_run=1; shift ;;
+    -r|--refresh) force_refresh=1; shift ;;
+    -h|--help)
+      print -r -- "Usage: gar-version-rm [-n|--dry-run] [-r|--refresh]"
+      print -r -- ""
+      print -r -- "Pick a GAR <repo>/<package> in an fzf picker, then"
+      print -r -- "multi-select individual versions inside it to delete."
+      print -r -- "Versions list oldest first, with the per-arch members of a"
+      print -r -- "multi-arch image grouped under the index that owns them."
+      print -r -- "Shows the exact API call, confirms once, deletes in"
+      print -r -- "chunks of 75 (the API cap), then verifies they are gone."
+      print -r -- ""
+      print -r -- "  -r, --refresh  bypass the cached listing and refetch"
+      return 0
+      ;;
+    *)
+      print -u2 "gar-version-rm: unexpected argument: $1"
+      return 2
+      ;;
+  esac
+done
+
+local -a projects
+projects=("${(@f)$(_rlm-gar-preflight gar-version-rm)}") || return 1
+projects=("${(@)projects:#}")
+(( ${#projects} == 0 )) && return 1
+
+# ---------------------------------------------------------------------------
+# Stage 1 — pick a single package
+# ---------------------------------------------------------------------------
+
+local image
+image=$(_rlm-gar-pick-package gar-version-rm "GAR package> " \
+          "$HOME/bin/gar-rm-preview" 0 "${projects[@]}")
+local pick_rc=$?
+(( pick_rc != 0 )) && return $pick_rc
+[[ -z $image ]] && return 130
+
+local loc_host proj repo pkg_path location_slug pkg_encoded console_url
+eval "$(_rlm-gar-parse-image "$image")" || return 1
+
+# ---------------------------------------------------------------------------
+# Stage 2 — fetch the version list once, reuse for picker rows and preview
+# ---------------------------------------------------------------------------
+
+local red=$'\e[31m' green=$'\e[32m' yellow=$'\e[33m' cyan=$'\e[36m'
+local dim=$'\e[2m' bold=$'\e[1m' reset=$'\e[0m'
+
+# The listing and the index→child attribution both come from the on-disk
+# per-package cache. The attribution is the expensive half (one registry GET
+# per multi-arch index) and is permanently cacheable because a digest names an
+# immutable manifest — so only indexes pushed since the last open are fetched.
+local cache_dir versions_file children_file resolved_file
+local from_cache=0 new_indexes=0
+local -a load_args=()
+(( force_refresh )) && load_args+=(--force)
+eval "$(_rlm-gar-version-cache load "$image" "${load_args[@]}")" || return 1
+
+if [[ ! -s $versions_file ]]; then
+  print -u2 "gar-version-rm: ${image} has no versions"
+  return 1
+fi
+
+local versions_json
+versions_json=$(<"$versions_file")
+if [[ -z $versions_json || $versions_json == '[]' ]]; then
+  print -u2 "gar-version-rm: ${image} has no versions"
+  return 1
+fi
+
+# The picker and preview read the cache files directly — no temp copies, so a
+# package with thousands of versions is not duplicated per invocation.
+local version_cache="$versions_file"
+local child_map="$children_file"
+
+local -i n_children=0
+[[ -s $child_map ]] && n_children=$(grep -c . "$child_map")
+
+local cache_age=''
+cache_age=$(_rlm-gar-version-cache age "$image")
+print -u2 "gar-version-rm: $(jq length "$versions_file" 2>/dev/null) version(s)${n_children:+, ${n_children} in a multi-arch index}${cache_age:+ (listing ${cache_age})}"
+
+# Rows are tab-separated, 6 fields:
+#   1 group_epoch  2 group_id  3 rank  4 tiebreak digest  -- sort keys, hidden
+#   5 colored display                       -- the only field fzf shows
+#   6 digest                                -- what we and the preview use
+# The sort fields are separate columns (not one glued string) so plain `sort`
+# can order them numerically without a custom key spec.
+local rows
+rows=$(print -r -- "$versions_json" \
+  | GAR_VR_COLORS="${cyan}|${dim}|${yellow}|${reset}|${green}" \
+    GAR_VR_CHILDREN="$child_map" python3 -c '
+import sys, json, os
+from datetime import datetime, timezone
+
+cyan, dim, yellow, reset, green = os.environ["GAR_VR_COLORS"].split("|")
+
+# child digest -> (parent digest, platform, parent tags)
+children = {}
+# parent digest -> number of children it owns
+child_count = {}
+cpath = os.environ.get("GAR_VR_CHILDREN") or ""
+if cpath and os.path.exists(cpath):
+    with open(cpath) as fh:
+        for raw in fh:
+            parts = raw.rstrip("\n").split("\t")
+            if len(parts) >= 3 and parts[0]:
+                tags = parts[3] if len(parts) > 3 else ""
+                children[parts[0]] = (parts[1], parts[2], tags)
+                child_count[parts[1]] = child_count.get(parts[1], 0) + 1
+
+def human_size(b):
+    if not b:
+        return "?"
+    b = float(b)
+    for unit in ("B","KB","MB","GB"):
+        if b < 1024:
+            return f"{b:.0f}{unit}"
+        b /= 1024
+    return f"{b:.1f}TB"
+
+def parse(ts):
+    if not ts:
+        return None
+    try:
+        return datetime.fromisoformat(ts.replace("Z", "+00:00"))
+    except Exception:
+        return None
+
+data = json.load(sys.stdin)
+now = datetime.now(timezone.utc)
+
+def entry_epoch(e):
+    dt = parse(e.get("updateTime") or e.get("uploadTime") or e.get("createTime"))
+    return int(dt.timestamp()) if dt else 0
+
+# Families sort as a unit and stay contiguous: a child takes the timestamp of
+# its parent as the primary key, so it can never drift away from the index it
+# belongs to. Secondary key puts the parent (0) above its children (1); the
+# digest breaks ties so the order is stable between runs.
+epoch_by_digest = {e.get("version"): entry_epoch(e) for e in data if e.get("version")}
+
+for e in data:
+    digest = e.get("version") or ""
+    if not digest:
+        continue
+    meta = e.get("metadata") or {}
+    tags = e.get("tags") or []
+    dt = parse(e.get("updateTime") or e.get("uploadTime") or e.get("createTime"))
+    own_epoch = int(dt.timestamp()) if dt else 0
+    parent_of = children.get(digest, (None, None, None))[0]
+    if parent_of and parent_of in epoch_by_digest:
+        # Tiebreak on the digest of the *parent*, not our own: two indexes
+        # pushed in the same second otherwise interleave their children.
+        group_epoch, group_id, rank = epoch_by_digest[parent_of], parent_of, 1
+    else:
+        group_epoch, group_id, rank = own_epoch, digest, 0
+    sort_key = f"{group_epoch:012d}\t{group_id}\t{rank}\t{digest}"
+    when = dt.strftime("%Y-%m-%d") if dt else "?"
+    size = human_size(meta.get("imageSizeBytes") or e.get("imageSizeBytes"))
+    short = digest[:19] if digest.startswith("sha256:") else digest[:19]
+    kids = child_count.get(digest, 0)
+    if tags:
+        tag_str = ", ".join(tags)
+        if len(tag_str) > 46:
+            tag_str = tag_str[:43] + "..."
+        tag_disp = f"{cyan}{tag_str}{reset}"
+        if kids:
+            tag_disp += f" {dim}(index, {kids} arch){reset}"
+    elif kids:
+        # An untagged *index*: not a leftover, it owns the versions listed
+        # under it. Deleting it strands them.
+        tag_disp = f"{yellow}(untagged index, {kids} arch){reset}"
+    elif digest in children:
+        # Untagged, but referenced by an index: name the platform and whatever
+        # identifies the parent, so it is obvious this is part of something
+        # tagged rather than a leftover.
+        parent, platform, ptags = children[digest]
+        label = platform if platform != "unknown" else "attestation"
+        owner = ptags.split(",")[0] if ptags else f"{parent[7:19]}…"
+        if len(owner) > 28:
+            owner = owner[:25] + "..."
+        tag_disp = f"{green}└─ {label}{reset} {dim}of {owner}{reset}"
+    else:
+        tag_disp = f"{dim}(untagged){reset}"
+    display = f"{when}  {size:>8}  {short}…  {tag_disp}"
+    print(f"{sort_key}\t{display}\t{digest}")
+')
+
+if [[ -z $rows ]]; then
+  print -u2 "gar-version-rm: could not build the version list"
+  return 1
+fi
+
+# Oldest first — this is a delete tool, and the stale versions are the point.
+# Undated rows sort to epoch 0 and lead: unknown age deserves a look.
+local -a picker_lines
+picker_lines=(${(f)"$(print -r -- "$rows" | sort -t$'\t' -k1,1n -k2,2 -k3,3n -k4,4)"})
+
+local total_versions=${#picker_lines}
+
+local selection
+selection=$(
+  printf '%s\n' "${picker_lines[@]}" \
+  | GAR_VERSION_CACHE="$version_cache" fzf \
+      --prompt="DELETE versions of ${pkg_path}> " \
+      --multi \
+      --height=80% --reverse \
+      --no-mouse --ansi \
+      --delimiter=$'\t' --with-nth=5 \
+      --header='TAB multi • Enter delete • Shift/Alt-↑↓ scroll • Ctrl-P size • Ctrl-G abort' \
+      --preview="GAR_VERSION_CACHE=${(q)version_cache} GAR_VERSION_CHILDREN=${(q)child_map} \"\$HOME/bin/gar-version-preview\" ${(q)image} {6}" \
+      --preview-window=bottom:60%:wrap \
+      --bind='ctrl-p:change-preview-window(bottom:80%:wrap|bottom:60%:wrap|hidden)' \
+      --bind='shift-up:preview-up' --bind='shift-down:preview-down' \
+      --bind='alt-up:preview-half-page-up' --bind='alt-down:preview-half-page-down' \
+      --bind='ctrl-g:abort'
+)
+local fzf_rc=$?
+# $version_cache / $child_map are the persistent cache files, not temp copies
+# — deleting them here would silently defeat the cache on every single run.
+(( fzf_rc != 0 )) && return 130
+[[ -z $selection ]] && return 130
+
+local -a sel_lines digests
+sel_lines=("${(@f)selection}")
+sel_lines=("${(@)sel_lines:#}")
+local line
+for line in "${sel_lines[@]}"; do
+  # Split positionally: a display field can legitimately be blank-ish and
+  # `IFS=$'\t' read` would collapse it, shifting the digest out of place.
+  local -a f=()
+  f=("${(@s:	:)line}")
+  [[ -n ${f[6]} ]] && digests+=("${f[6]}")
+done
+
+if (( ${#digests} == 0 )); then
+  return 130
+fi
+
+# Order parents before their children. The registry refuses to delete a
+# manifest that a still-present index references, so a child sent ahead of its
+# parent fails.
+#
+# Picker order is nearly right — families render parent-first and contiguous —
+# but it breaks on a NESTED index (an index referencing another index). A
+# child is grouped by its immediate parent's timestamp, so an inner index P4
+# sorts inside P3's family while P4's own members sort by P4's timestamp. When
+# that is older, the grandchildren render as an earlier family and would be
+# deleted before P4 and P3. Reproduced against the row builder: P3(Aug) ->
+# P4(Jan) -> c4 lists c4 first.
+#
+# Sorting by depth fixes that and is also robust to the 75-digest chunking,
+# since any prefix of a parents-first list is itself parents-first.
+if [[ -s $child_map ]] && (( ${#digests} > 1 )); then
+  local ordered=''
+  ordered=$(printf '%s\n' "${digests[@]}" \
+    | GAR_VR_CHILDREN="$child_map" python3 -c '
+import sys, os
+
+sel = [l.strip() for l in sys.stdin if l.strip()]
+
+parent = {}
+cpath = os.environ.get("GAR_VR_CHILDREN") or ""
+if cpath and os.path.exists(cpath):
+    with open(cpath) as fh:
+        for raw in fh:
+            p = raw.rstrip("\n").split("\t")
+            if len(p) >= 2 and p[0]:
+                parent[p[0]] = p[1]
+
+# Depth from the root of the reference chain. Indexes are depth 0, their
+# members depth 1; nested indexes (an index referencing another index) get
+# deeper and still come out after whatever points at them. Only ancestors
+# inside the selection matter — a parent we are NOT deleting stays put and
+# blocks its child regardless of ordering, which the caller reports.
+def depth(d):
+    seen = set()
+    n = 0
+    cur = d
+    while cur in parent and cur not in seen:
+        seen.add(cur)
+        cur = parent[cur]
+        n += 1
+    return n
+
+# Stable sort: equal-depth entries keep the order the picker showed them in.
+for d in sorted(sel, key=depth):
+    print(d)
+')
+  if [[ -n $ordered ]]; then
+    local -a reordered=("${(@f)ordered}")
+    reordered=("${(@)reordered:#}")
+    # Only adopt the new order if nothing was lost in translation.
+    if (( ${#reordered} == ${#digests} )); then
+      digests=("${reordered[@]}")
+    else
+      print -u2 "gar-version-rm: could not order the selection; using picker order"
+    fi
+  fi
+fi
+
+# ---------------------------------------------------------------------------
+# Stage 3 — confirm and delete
+# ---------------------------------------------------------------------------
+
+local -i n=${#digests}
+# versions:batchDelete caps at 75 per request; the helper chunks accordingly.
+local -i batches=$(( (n + 74) / 75 ))
+
+print -r -- ""
+print -r -- "${bold}${image}${reset}"
+print -r -- "  ${n} of ${total_versions} version(s) selected$( (( batches > 1 )) && print -rn -- ", ${batches} batches")"
+
+if (( n <= 10 )); then
+  local d=''
+  for d in "${digests[@]}"; do
+    print -r -- "    ${d}"
+  done
+else
+  local -i i=1
+  while (( i <= 5 )); do
+    print -r -- "    ${digests[i]}"
+    (( i++ ))
+  done
+  print -r -- "    ${dim}… and $(( n - 5 )) more${reset}"
+fi
+
+print -r -- ""
+# A member whose index is NOT part of this selection cannot be deleted while
+# that index still references it. Ordering cannot help — say so before the
+# confirmation rather than letting the batch fail halfway through.
+if [[ -s $child_map ]]; then
+  local blocked=''
+  blocked=$(printf '%s\n' "${digests[@]}" \
+    | GAR_VR_CHILDREN="$child_map" python3 -c '
+import sys, os
+sel = set(l.strip() for l in sys.stdin if l.strip())
+parent = {}
+cpath = os.environ.get("GAR_VR_CHILDREN") or ""
+if cpath and os.path.exists(cpath):
+    with open(cpath) as fh:
+        for raw in fh:
+            p = raw.rstrip("\n").split("\t")
+            if len(p) >= 2 and p[0]:
+                parent[p[0]] = p[1]
+for d in sorted(sel):
+    par = parent.get(d)
+    if par and par not in sel:
+        print(f"{d}\t{par}")
+')
+  if [[ -n $blocked ]]; then
+    local -a blocked_rows=("${(@f)blocked}")
+    blocked_rows=("${(@)blocked_rows:#}")
+    print -r -- "  ${yellow}${bold}${#blocked_rows} selected version(s) are referenced by an index you are keeping.${reset}"
+    print -r -- "  ${yellow}The registry will refuse these while the index remains:${reset}"
+    local brow='' shown_b=0
+    for brow in "${blocked_rows[@]}"; do
+      (( shown_b >= 5 )) && { print -r -- "    ${dim}… and $(( ${#blocked_rows} - 5 )) more${reset}"; break }
+      local -a bf=("${(@s:	:)brow}")
+      print -r -- "    ${bf[1]}"
+      print -r -- "      ${dim}referenced by ${bf[2]}${reset}"
+      (( shown_b++ ))
+    done
+    print -r -- "  ${dim}Select the index too, or expect these to fail.${reset}"
+    print -r -- ""
+  fi
+fi
+
+print -r -- "  ${red}${bold}The following will run:${reset}"
+local -i shown=0 remaining_preview=$n
+while (( remaining_preview > 0 )); do
+  (( shown++ ))
+  local -i this_batch=$(( remaining_preview > 75 ? 75 : remaining_preview ))
+  (( batches > 1 )) && print -r -- "  ${yellow}batch ${shown}/${batches}:${reset}"
+  _rlm-gar-show-cmd versions-delete "$this_batch" "$pkg_path" "$location_slug" "$repo" "$proj"
+  (( remaining_preview -= this_batch ))
+  if (( shown >= 2 && remaining_preview > 0 )); then
+    print -r -- "  ${yellow}… ${batches} requests total, same call per request${reset}"
+    break
+  fi
+done
+print -r -- ""
+
+if (( dry_run )); then
+  print -r -- "  ${yellow}[dry-run]${reset} nothing was run"
+  return 0
+fi
+
+if (( n == total_versions )); then
+  print -r -- "  ${yellow}This is every version in the package.${reset} The package itself will"
+  print -r -- "  be left in place (empty); use gar-rm to remove the package too."
+  print -r -- ""
+fi
+
+local reply_ans
+print -rn -- "  ${red}Delete ${n} version(s) of ${pkg_path}?${reset} [y/N] "
+if ! read -r reply_ans; then
+  print -r -- ""
+  print -r -- "gar-version-rm: aborted"
+  return 130
+fi
+if [[ $reply_ans != [yY]* ]]; then
+  print -r -- "  skipped"
+  return 130
+fi
+
+local -i deleted=0
+local del_out='' del_rc=0
+del_out=$(_rlm-gar-versions-batch-delete --label gar-version-rm \
+            "$proj" "$location_slug" "$repo" "$pkg_path" "${digests[@]}")
+del_rc=$?
+deleted=${${(M)${(f)del_out}:#deleted=*}#deleted=}
+[[ -z $deleted ]] && deleted=0
+if (( del_rc != 0 )); then
+  print -r -- ""
+  print -r -- "gar-version-rm: ${deleted} deleted before the failure"
+  _rlm-gar-version-cache invalidate "$image"
+  (( deleted > 0 )) && _rlm-gar-version-cache forget "$image" "${digests[@]}"
+  return 1
+fi
+
+# ---------------------------------------------------------------------------
+# Stage 4 — verify the selected digests are actually gone
+# ---------------------------------------------------------------------------
+
+# The cached listing is now stale no matter how the verification turns out, so
+# drop it before the check rather than only on the success path. The child map
+# survives — those mappings are immutable — minus the digests just removed.
+_rlm-gar-version-cache invalidate "$image"
+_rlm-gar-version-cache forget "$image" "${digests[@]}"
+
+local after_json
+after_json=$(gcloud artifacts docker images list "$image" \
+               --format=json --project="$proj" 2>/dev/null)
+
+local -a still_present
+if [[ -n $after_json && $after_json != '[]' ]]; then
+  local remaining_list
+  remaining_list=$(print -r -- "$after_json" | jq -r '.[].version // empty' 2>/dev/null)
+  local d=''
+  for d in "${digests[@]}"; do
+    if print -r -- "$remaining_list" | grep -Fxq -- "$d"; then
+      still_present+=("$d")
+    fi
+  done
+fi
+
+print -r -- ""
+if (( ${#still_present} == 0 )); then
+  print -r -- "gar-version-rm: ${green}${deleted} version(s) deleted${reset}"
+  # The package is only gone from the picker when it has no versions left.
+  if [[ -z $after_json || $after_json == '[]' ]]; then
+    print -r -- "gar-version-rm: ${pkg_path} now has no versions — run gar-rm to remove the empty package"
+  fi
+  _rlm-gar-history append "$image"
+  return 0
+fi
+
+print -r -- "gar-version-rm: ${yellow}${#still_present} of ${n} version(s) still present${reset}"
+print -rn -- "  Retry deleting the remaining ${#still_present}? [y/N] "
+if read -r reply_ans && [[ $reply_ans == [yY]* ]]; then
+  if _rlm-gar-versions-batch-delete --label gar-version-rm \
+       "$proj" "$location_slug" "$repo" "$pkg_path" "${still_present[@]}" >/dev/null; then
+    print -r -- "gar-version-rm: ${green}retry succeeded${reset}"
+    _rlm-gar-version-cache invalidate "$image"
+    _rlm-gar-version-cache forget "$image" "${still_present[@]}"
+    _rlm-gar-history append "$image"
+    return 0
+  fi
+fi
+
+return 1

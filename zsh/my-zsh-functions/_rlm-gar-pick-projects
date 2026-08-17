@@ -1,0 +1,49 @@
+emulate -L zsh
+set -o pipefail
+
+# Secondary fzf picker used by the gar-* commands' "--- REFRESH CACHE ---"
+# sentinel: choose which projects to re-fetch. Entries for un-picked
+# projects are preserved by _rlm-gar-cache refresh.
+#
+# Usage:
+#   _rlm-gar-pick-projects <projects...>
+#
+# Emits the chosen project ids, one per line. Selecting the
+# `*** ALL PROJECTS ***` sentinel emits the full list.
+#
+# Returns 0 with output on success, 1 when the user aborts or picks
+# nothing. A single configured project skips the picker entirely.
+
+local -a projects
+projects=("$@")
+
+if (( ${#projects} == 0 )); then
+  return 1
+fi
+
+if (( ${#projects} == 1 )); then
+  print -r -- "${projects[1]}"
+  return 0
+fi
+
+local sentinel='*** ALL PROJECTS ***'
+local selection
+selection=$(
+  { print -r -- "$sentinel"; print -l -- "${projects[@]}"; } \
+  | fzf --prompt="Refresh projects (TAB to multi-select)> " \
+        --multi \
+        --height=80% --reverse \
+        --no-mouse --ansi \
+        --header="TAB multi • Enter confirm • Ctrl-G abort" \
+        --preview-window=hidden \
+        --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)' \
+        --bind='ctrl-g:abort'
+) || return 1
+[[ -z $selection ]] && return 1
+
+if print -r -- "$selection" | grep -Fxq -- "$sentinel"; then
+  print -l -- "${projects[@]}"
+else
+  print -r -- "$selection"
+fi
+return 0

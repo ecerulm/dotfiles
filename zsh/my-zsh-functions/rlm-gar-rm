@@ -1,0 +1,240 @@
+emulate -L zsh
+set -o pipefail
+
+autoload -Uz _rlm-gar-preflight _rlm-gar-pick-package _rlm-gar-history \
+             _rlm-gar-cache _rlm-gar-show-cmd _rlm-gar-parse-image
+
+local dry_run=0
+while (( $# )); do
+  case $1 in
+    -n|--dry-run) dry_run=1; shift ;;
+    -h|--help)
+      print -r -- "Usage: gar-rm [-n|--dry-run]"
+      print -r -- ""
+      print -r -- "Pick GAR <repo>/<package> entries in an fzf picker (TAB to"
+      print -r -- "multi-select) and delete them. Confirms once per package,"
+      print -r -- "then deletes the package and all its versions in a single"
+      print -r -- "API call, waiting until it is really gone."
+      print -r -- ""
+      print -r -- "The picker lists least-recently-pushed packages first, with"
+      print -r -- "the time since the last image push in the left column, so"
+      print -r -- "stale packages surface at the top. Packages whose age is"
+      print -r -- "unknown (cached before ages were recorded) sort first; a"
+      print -r -- "cache refresh from the picker fills them in."
+      return 0
+      ;;
+    *)
+      print -u2 "gar-rm: unexpected argument: $1"
+      return 2
+      ;;
+  esac
+done
+
+local -a projects
+projects=("${(@f)$(_rlm-gar-preflight gar-rm)}") || return 1
+projects=("${(@)projects:#}")
+(( ${#projects} == 0 )) && return 1
+
+local selection
+# --by-age: least-recently-pushed packages first. What you are hunting for
+# in a delete tool is the repo nobody has published to in a year, and the
+# default MRU order buries exactly those at the bottom.
+selection=$(_rlm-gar-pick-package --by-age gar-rm "DELETE GAR package> " \
+              "$HOME/bin/gar-rm-preview" 1 "${projects[@]}")
+local pick_rc=$?
+(( pick_rc != 0 )) && return $pick_rc
+
+local -a targets
+targets=("${(@f)selection}")
+targets=("${(@)targets:#}")
+
+if (( ${#targets} == 0 )); then
+  return 130
+fi
+
+# ---------------------------------------------------------------------------
+# Deletion
+# ---------------------------------------------------------------------------
+
+local red=$'\e[31m' green=$'\e[32m' yellow=$'\e[33m' bold=$'\e[1m' reset=$'\e[0m'
+
+# A token is still needed for the version counts, which go over REST:
+# `gcloud artifacts versions list` costs ~1.3s of startup per call and
+# this counts before and after every attempt.
+local token=''
+token=$(gcloud auth print-access-token 2>/dev/null)
+if [[ -z $token ]]; then
+  print -u2 "gar-rm: failed to obtain gcloud access token"
+  return 1
+fi
+
+_gar_rm_pkg_resource() {
+  local proj=$1 location_slug=$2 repo=$3 pkg_path=$4
+  print -r -- "projects/${proj}/locations/${location_slug}/repositories/${repo}/packages/${pkg_path//\//%2F}"
+}
+
+_gar_rm_version_count() {
+  # Emit the number of versions currently in the package, or the empty
+  # string when the package itself is gone. Empty package and missing
+  # package are different outcomes and the caller distinguishes them.
+  local resource=$1 tok=$2
+  local body=''
+  body=$(curl -sS -H "Authorization: Bearer ${tok}" \
+           "https://artifactregistry.googleapis.com/v1/${resource}" 2>/dev/null)
+  if print -r -- "$body" | jq -e '.error' >/dev/null 2>&1; then
+    print -r -- ""
+    return 0
+  fi
+  curl -sS -G -H "Authorization: Bearer ${tok}" \
+    "https://artifactregistry.googleapis.com/v1/${resource}/versions" \
+    --data-urlencode "pageSize=1000" 2>/dev/null \
+    | jq -r '(.versions//[])|length' 2>/dev/null
+  return 0
+}
+
+_gar_rm_delete_once() {
+  # One `gcloud artifacts packages delete`, which by default WAITS for
+  # the long-running operation to finish (--async opts out) and exits
+  # non-zero if it fails. That is why this uses gcloud rather than a
+  # hand-rolled DELETE + operation poll: gcloud already implements the
+  # polling, backoff and error surfacing correctly.
+  #
+  # The call is *supposed* to remove the package and every version in
+  # it, and for small packages it does. It does NOT reliably scale: on a
+  # 1159-version package it ran ~3min, deleted 999, then failed with
+  # `code 13 Internal error encountered.`, leaving 160 versions and the
+  # package in place. 999 is too close to 1000 to be coincidence — treat
+  # ~1000 as the practical ceiling per call. A second call finished the
+  # rest in ~40s.
+  #
+  # Returns 0 package gone, 1 the call failed (caller may retry).
+  local proj=$1 location_slug=$2 repo=$3 pkg_path=$4
+  local err='' rc=0
+  err=$(mktemp) || err=/dev/null
+
+  gcloud artifacts packages delete "$pkg_path" \
+    --location="$location_slug" \
+    --repository="$repo" \
+    --project="$proj" \
+    --quiet </dev/null >/dev/null 2>"$err"
+  rc=$?
+
+  if (( rc != 0 )); then
+    local first=''
+    [[ -s $err ]] && first=$(grep -v '^$' "$err" | head -1 | cut -c1-160)
+    [[ -n $first ]] && print -u2 "  ${first}"
+  fi
+  [[ $err != /dev/null ]] && rm -f "$err"
+  return $rc
+}
+
+_gar_rm_delete_package() {
+  # Delete the package, prompting the user between attempts when the
+  # server gives up partway (see _gar_rm_delete_once). A partial delete
+  # is not retried automatically: the caller is deleting things, and a
+  # loop that keeps firing destructive calls on its own is the wrong
+  # default even when every call targets the same doomed package. Say
+  # how many versions are left and let the user decide.
+  #
+  # Returns 0 gone, 1 user declined or no progress.
+  local proj=$1 location_slug=$2 repo=$3 pkg_path=$4 tok=$5
+  local resource=''
+  resource=$(_gar_rm_pkg_resource "$proj" "$location_slug" "$repo" "$pkg_path")
+
+  local before='' after='' answer=''
+  while true; do
+    before=$(_gar_rm_version_count "$resource" "$tok")
+    [[ -z $before ]] && return 0
+
+    print -r -- "  deleting ${before} version(s) — this can take minutes …"
+    _gar_rm_delete_once "$proj" "$location_slug" "$repo" "$pkg_path" && return 0
+
+    after=$(_gar_rm_version_count "$resource" "$tok")
+    [[ -z $after ]] && return 0
+
+    if [[ $after == $before ]]; then
+      print -r -- "  ${yellow}${after} version(s) remain${reset} and the last attempt deleted none."
+      print -r -- "  Retrying is unlikely to help — check permissions or the GCP console."
+      return 1
+    fi
+
+    print -r -- "  ${yellow}partial delete${reset}: $(( before - after )) removed, ${after} version(s) remain."
+    print -r -- "  A single delete call tops out around 1000 versions."
+    print -rn -- "  ${red}Delete the remaining ${after}?${reset} [y/N] "
+    if ! read -r answer || [[ $answer != [yY]* ]]; then
+      print -r -- "  stopped — ${after} version(s) left in place"
+      return 1
+    fi
+  done
+}
+
+local target
+local loc_host proj repo pkg_path location_slug pkg_encoded console_url
+local version_count reply_ans
+local -i deleted_ok=0 skipped=0 failed=0
+local -a deleted_images=()
+
+for target in "${targets[@]}"; do
+  eval "$(_rlm-gar-parse-image "$target")" || { (( failed++ )); continue }
+
+  print -r -- ""
+  print -r -- "${bold}${target}${reset}"
+
+  version_count=$(_gar_rm_version_count \
+    "$(_gar_rm_pkg_resource "$proj" "$location_slug" "$repo" "$pkg_path")" "$token")
+  if [[ -z $version_count ]]; then
+    print -r -- "  ${yellow}already gone${reset} (package not found)"
+    (( skipped++ ))
+    continue
+  fi
+
+  print -r -- "  ${version_count} version(s)"
+  # A single packages.delete tops out around 1000 versions, so warn up
+  # front that this will take more than one pass rather than surprising
+  # the user with a partial delete after three minutes of waiting.
+  (( version_count > 1000 )) && print -r -- "  ${yellow}more than 1000 — expect several passes${reset}"
+
+  print -r -- ""
+  print -r -- "  ${red}${bold}The following will run:${reset}"
+  _rlm-gar-show-cmd package-delete "$pkg_path" "$location_slug" "$repo" "$proj"
+  print -r -- ""
+
+  if (( dry_run )); then
+    print -r -- "  ${yellow}[dry-run]${reset} nothing was run"
+    (( skipped++ ))
+    continue
+  fi
+
+  print -rn -- "  ${red}Delete this package and all ${version_count} version(s)?${reset} [y/N] "
+  if ! read -r reply_ans; then
+    print -r -- ""
+    print -r -- "gar-rm: aborted"
+    break
+  fi
+  if [[ $reply_ans != [yY]* ]]; then
+    print -r -- "  skipped"
+    (( skipped++ ))
+    continue
+  fi
+
+  if _gar_rm_delete_package "$proj" "$location_slug" "$repo" "$pkg_path" "$token"; then
+    print -r -- "  ${green}deleted${reset}"
+    (( deleted_ok++ )); deleted_images+=("$target")
+  else
+    (( failed++ ))
+  fi
+done
+
+# ---------------------------------------------------------------------------
+# Drop deleted entries from the cache so the next picker does not offer them
+# ---------------------------------------------------------------------------
+
+if (( ${#deleted_images} > 0 && ! dry_run )); then
+  _rlm-gar-cache remove "${(j.:.)projects}" "${deleted_images[@]}"
+  _rlm-gar-history remove "${deleted_images[@]}"
+fi
+
+print -r -- ""
+print -r -- "gar-rm: ${deleted_ok} deleted, ${skipped} skipped, ${failed} failed"
+(( failed > 0 )) && return 1
+return 0

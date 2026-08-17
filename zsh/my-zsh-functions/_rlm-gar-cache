@@ -1,0 +1,458 @@
+emulate -L zsh
+set -o pipefail
+# The per-location and per-repo fetches fan out with `&`; without this
+# an interactive shell prints "[4] 23959" / "[4] + done …" for each.
+setopt local_options no_monitor no_notify
+
+# Shared GAR package-list cache for rlm-gar-open and rlm-gar-rm.
+#
+# One cache file per set of projects, under ~/.cache/gar-open/:
+#
+#   <md5>.txt        — one entry per line, tab-separated:
+#                        <updated_epoch>\tLOCATION-docker.pkg.dev/PROJECT/REPO/PACKAGE
+#                      <updated_epoch> is the updateTime of the package's
+#                      NEWEST VERSION — i.e. when an image was last pushed.
+#                      0 means unknown (no versions, or the lookup failed).
+#   history.txt      — MRU history, shared across every gar-* picker,
+#                      never touched by a refresh.
+#
+# LEGACY FORMAT: caches written before the timestamp column hold a bare
+# image path with no tab. Readers must tolerate that — a stale cache is
+# common (they are only rewritten on an explicit refresh) and forcing a
+# re-fetch on upgrade would mean every gar-* command blocking on a full
+# rescan the first time it runs. Untimestamped rows are treated as
+# unknown-age (epoch 0) and, in `read --by-age`, sort as oldest.
+#
+# The md5 key is computed from the sorted, deduped project list, so
+# changing GAR_SEARCH_PROJECTS busts the cache.
+#
+# Both cache files live in ~/.cache/gar-open/ (not a per-command dir) so
+# rlm-gar-open and rlm-gar-rm share one fetched package list and one MRU
+# ordering — refreshing in either command benefits the other.
+#
+# Originally inline in rlm-gar-open (_gar_open_fetch / _gar_open_fetch_one
+# / _gar_open_sorted_list). Lifted here so rlm-gar-rm reuses the exact
+# same fetch, merge, and MRU-sort behaviour.
+#
+# Usage:
+#   _rlm-gar-cache paths <projects...>
+#       Emit `cache_file=<path>` and `history_file=<path>` for eval.
+#
+#   _rlm-gar-cache refresh <label> <all_projects_csv> <projects_to_refresh...>
+#       Re-fetch the listed projects and merge into the cache, preserving
+#       entries belonging to projects that were not refreshed.
+#       <label> is the calling command name, used in diagnostics.
+#       <all_projects_csv> is the colon-joined full project list, used
+#       only to derive the cache key.
+#
+#   _rlm-gar-cache read [--by-age] <projects...>
+#       Emit the cache contents, one `<updated_epoch>\t<image>` per line.
+#       Default order is MRU (history entries first, most recent first,
+#       deduped; then everything else in cache order).
+#       --by-age instead sorts strictly oldest-updated first and ignores
+#       the MRU history — for rlm-gar-rm, where the question is "what has
+#       nobody pushed to in a year", and a package you recently picked is
+#       by definition not stale.
+#
+#   _rlm-gar-cache age <projects...>
+#       Emit a humanized cache age ("42s ago", "3h ago", "2d ago"), or
+#       the empty string when no cache file exists.
+#
+# Returns 0 on success, 1 on failure (auth, no repos, nothing fetched).
+
+local action=$1
+shift
+
+_rlm_gar_cache_key() {
+  local -a projs
+  projs=("$@")
+  print -l -- "${(o)projs[@]}" | md5
+}
+
+_rlm_gar_cache_files() {
+  local -a projs
+  projs=("$@")
+  local dir="$HOME/.cache/gar-open"
+  mkdir -p "$dir"
+  local key
+  key=$(_rlm_gar_cache_key "${projs[@]}")
+  print -r -- "${dir}/${key}.txt"
+  print -r -- "${dir}/history.txt"
+}
+
+case $action in
+  paths)
+    local -a files
+    files=("${(@f)$(_rlm_gar_cache_files "$@")}")
+    print -r -- "cache_file=${(q)files[1]}"
+    print -r -- "history_file=${(q)files[2]}"
+    return 0
+    ;;
+
+  age)
+    local -a files
+    files=("${(@f)$(_rlm_gar_cache_files "$@")}")
+    local cf=${files[1]}
+    [[ -f $cf ]] || { print -r -- ""; return 0 }
+    local mtime now elapsed
+    mtime=$(stat -f %m "$cf" 2>/dev/null || stat -c %Y "$cf" 2>/dev/null)
+    now=$(date +%s)
+    elapsed=$(( now - mtime ))
+    if (( elapsed < 3600 )); then
+      print -r -- "${elapsed}s ago"
+    elif (( elapsed < 86400 )); then
+      print -r -- "$(( elapsed / 3600 ))h ago"
+    else
+      print -r -- "$(( elapsed / 86400 ))d ago"
+    fi
+    return 0
+    ;;
+
+  read)
+    local by_age=0
+    if [[ $1 == --by-age ]]; then
+      by_age=1
+      shift
+    fi
+
+    local -a files
+    files=("${(@f)$(_rlm_gar_cache_files "$@")}")
+    local cf=${files[1]} hf=${files[2]}
+    [[ -f $cf ]] || return 1
+
+    # Normalize away the legacy format so downstream stages see exactly
+    # one shape. A row without a tab is a pre-timestamp entry; give it
+    # epoch 0 (unknown) rather than dropping it.
+    local norm=''
+    norm=$(mktemp) || return 1
+    local raw=''
+    while IFS= read -r raw; do
+      [[ -z $raw ]] && continue
+      if [[ $raw == *$'\t'* ]]; then
+        print -r -- "$raw"
+      else
+        print -r -- "0	${raw}"
+      fi
+    done < "$cf" >| "$norm"
+
+    if (( by_age )); then
+      # Strictly oldest-first. `sort -n` on the epoch column; unknown (0)
+      # rows lead, which is the safe end for a delete tool — an entry
+      # whose age could not be determined deserves a look, not a pass.
+      sort -t$'\t' -k1,1n -- "$norm"
+      rm -f "$norm"
+      return 0
+    fi
+
+    if [[ -f $hf && -s $hf ]]; then
+      # History holds bare image paths, so match on field 2 rather than
+      # the whole line.
+      local entry=''
+      while IFS= read -r entry; do
+        [[ -n $entry ]] && awk -F'\t' -v img="$entry" \
+          '$2 == img { print; exit }' "$norm"
+      done < <(tac "$hf" | awk '!seen[$0]++')
+      awk -F'\t' 'NR == FNR { seen[$0] = 1; next } !seen[$2]' "$hf" "$norm"
+    else
+      cat "$norm"
+    fi
+    rm -f "$norm"
+    return 0
+    ;;
+
+  remove)
+    # `remove <projects_csv> <image…>` — drop deleted packages from the
+    # cache so the next picker does not offer them.
+    local all_csv=$1
+    shift
+    local -a all_projects drop
+    all_projects=(${(u)${(s[:])all_csv}:#})
+    drop=("$@")
+    (( ${#drop} == 0 )) && return 0
+
+    local -a files
+    files=("${(@f)$(_rlm_gar_cache_files "${all_projects[@]}")}")
+    local cf=${files[1]}
+    [[ -f $cf ]] || return 0
+
+    local tmp=''
+    tmp=$(mktemp) || return 1
+    local line='' img=''
+    while IFS= read -r line; do
+      [[ -z $line ]] && continue
+      # Compare on the image path, not the whole line: rows carry a
+      # leading `<epoch>\t` and callers pass bare image paths. Legacy
+      # untimestamped rows have no tab, in which case the row *is* the
+      # image path.
+      img=${line#*$'\t'}
+      if [[ -z ${drop[(r)$img]} ]]; then
+        print -r -- "$line"
+      fi
+    done < "$cf" >| "$tmp"
+    mv -- "$tmp" "$cf"
+    return 0
+    ;;
+
+  refresh)
+    local label=$1 all_csv=$2
+    shift 2
+    local -a refresh_projects all_projects
+    refresh_projects=("$@")
+    all_projects=(${(u)${(s[:])all_csv}:#})
+
+    local -a files
+    files=("${(@f)$(_rlm_gar_cache_files "${all_projects[@]}")}")
+    local cf=${files[1]}
+
+    local token
+    token=$(gcloud auth print-access-token 2>/dev/null)
+    if [[ -z $token ]]; then
+      print -u2 "${label}: failed to obtain gcloud access token"
+      return 1
+    fi
+
+    _rlm_gar_cache_status() {
+      printf '\r\e[2K  %s' "$1" >&2
+    }
+
+    _rlm_gar_cache_fetch_one() {
+      local proj=$1 tok=$2
+
+      # Repositories are listed per LOCATION over REST, not via
+      # `gcloud artifacts repositories list`. Three reasons:
+      #
+      #  1. CORRECTNESS. The bare gcloud call returns only the repos in
+      #     its default location, silently omitting the rest — on this
+      #     setup it reported 5 repos for a project that has repos in
+      #     europe, europe-west1 and us, dropping the two
+      #     composer-images-*-gke repos (37 packages) from the cache
+      #     with no warning. There is no "all locations" mode:
+      #     `locations/-` is rejected with INVALID_ARGUMENT.
+      #  2. gcloud PROMPTS. When the Artifact Registry API is not enabled
+      #     on a project it asks "Would you like to enable and retry?
+      #     (y/N)". The call runs inside $(...) with stderr redirected,
+      #     so the question is invisible while gcloud blocks on stdin —
+      #     the picker just froze on "fetching repositories from <proj>"
+      #     until the user blindly hit Enter.
+      #  3. SPEED. Each gcloud invocation costs ~1.3-4s of python startup
+      #     and credential refresh to return a handful of names; a REST
+      #     call is ~0.3s, and the per-location calls run in parallel.
+      #
+      # Locations come from $GAR_SEARCH_LOCATIONS (colon-separated),
+      # defaulting to the set actually in use here. Enumerating all ~46
+      # GCP locations would cost 46 round-trips per project for nothing.
+      local -a locations
+      locations=(${(u)${(s[:])${GAR_SEARCH_LOCATIONS:-europe:europe-west1}}:#})
+
+      _rlm_gar_cache_status "fetching repositories from ${proj} (${#locations} locations) …"
+
+      local loc_tmpdir=''
+      loc_tmpdir=$(mktemp -d) || return 0
+
+      local l=''
+      for l in "${locations[@]}"; do
+        {
+          curl -sS -G \
+            -H "Authorization: Bearer ${tok}" \
+            "https://artifactregistry.googleapis.com/v1/projects/${proj}/locations/${l}/repositories" \
+            --data-urlencode "pageSize=1000" 2>/dev/null \
+            >| "${loc_tmpdir}/${l}.json"
+        } &
+      done
+      wait
+
+      local -a repo_paths=()
+      local -A seen_err=()
+      for l in "${locations[@]}"; do
+        local body_file="${loc_tmpdir}/${l}.json"
+        [[ -s $body_file ]] || continue
+        if jq -e '.error' "$body_file" >/dev/null 2>&1; then
+          # Report each distinct failure once per project rather than
+          # once per location: a disabled API fails identically in every
+          # location and would otherwise print N copies.
+          local api_status=''
+          api_status=$(jq -r '.error.status // "ERROR"' "$body_file" 2>/dev/null)
+          if [[ -z ${seen_err[$api_status]} ]]; then
+            seen_err[$api_status]=1
+            local api_msg=''
+            api_msg=$(jq -r '.error.message' "$body_file" 2>/dev/null | head -1 | cut -c1-140)
+            printf '\r\e[2K' >&2
+            print -u2 "${label}: ${proj}: ${api_status}"
+            print -u2 "  ${api_msg}"
+            if [[ $api_msg == *"has not been used in project"* ]]; then
+              print -u2 "  (the Artifact Registry API is not enabled on this project)"
+            fi
+          fi
+          continue
+        fi
+        local -a found=()
+        found=(${(f)"$(jq -r '.repositories // [] | .[] | select(.format == "DOCKER") | .name' "$body_file" 2>/dev/null)"})
+        repo_paths+=("${(@)found:#}")
+      done
+      rm -rf "$loc_tmpdir"
+
+      if (( ${#repo_paths} == 0 )); then
+        printf '\r\e[2K' >&2
+        print -u2 "${label}: no DOCKER repositories in $proj"
+        return 0
+      fi
+
+      local repo_path loc repo_name parent body err_msg packages pkg
+      for repo_path in $repo_paths; do
+        loc=${${(s./.)repo_path}[4]}
+        repo_name=${${(s./.)repo_path}[6]}
+        parent="projects/${proj}/locations/${loc}/repositories/${repo_name}"
+
+        _rlm_gar_cache_status "${proj}/${loc}/${repo_name} …"
+        body=$(curl -sS -G \
+                -H "Authorization: Bearer ${tok}" \
+                "https://artifactregistry.googleapis.com/v1/${parent}/packages" \
+                --data-urlencode "pageSize=1000" 2>/dev/null)
+
+        [[ -z $body ]] && continue
+
+        if print -r -- "$body" | jq -e '.error' >/dev/null 2>&1; then
+          err_msg=$(print -r -- "$body" | jq -r '.error.message')
+          printf '\r\e[2K' >&2
+          print -u2 "${label}: ${proj}/${loc}/${repo_name}: ${err_msg}"
+          continue
+        fi
+
+        # Names come from packages.list; the *timestamp* does not.
+        #
+        # `package.updateTime` is NOT the last image push. It tracks
+        # metadata writes too, and Artifact Registry touches it on its own
+        # (GC sweeps, repo-level operations) long after the last version
+        # was uploaded. Measured against this cache: 2 of 46 packages were
+        # wrong, one by 379 days —
+        # eu.gcr.io/airbyte-custom-connectort/storytel-google-directory
+        # reported "5d" while its newest version dates to 2025-07-24. On a
+        # delete tool that error points the wrong way: it makes a stale
+        # package look freshly used, so it sinks to the bottom of the
+        # --by-age list and never gets cleaned up.
+        #
+        # So the real key is the newest version's updateTime, one
+        # versions.list per package. `orderBy=update_time desc` +
+        # `pageSize=1` makes that a single row rather than a full version
+        # listing (~0.17s each), and the calls fan out in parallel: 46
+        # packages complete in ~1s. This is the query the older comment
+        # here warned against — it is the correct one, and it is cheap.
+        packages=$(print -r -- "$body" \
+          | jq -r --arg prefix "${parent}/packages/" \
+              '.packages // [] | .[] | .name | sub($prefix; "")')
+
+        [[ -z $packages ]] && continue
+
+        # Collect the surviving (encoded, decoded) package names first, so
+        # the /cache filter runs before we spend a request on each.
+        local -a pkg_encoded_list=() pkg_name_list=()
+        local pkg_decoded=''
+        while IFS= read -r pkg; do
+          [[ -z $pkg ]] && continue
+          pkg_decoded=$(python3 -c 'import sys, urllib.parse
+print(urllib.parse.unquote(sys.argv[1]))' "$pkg" 2>/dev/null)
+          [[ -z $pkg_decoded ]] && continue
+          # GCR layer-cache pseudo-packages, not pullable images.
+          [[ $pkg_decoded == */cache ]] && continue
+          pkg_encoded_list+=("$pkg")
+          pkg_name_list+=("$pkg_decoded")
+        done <<< "$packages"
+
+        (( ${#pkg_name_list} == 0 )) && continue
+
+        _rlm_gar_cache_status "${proj}/${loc}/${repo_name} (${#pkg_name_list} packages) …"
+
+        # Fan out the newest-version lookups, capped so a big repo does not
+        # open hundreds of sockets at once. Each job writes one RFC-3339
+        # stamp (or nothing) to its own file, keyed by index.
+        local ver_tmpdir=''
+        ver_tmpdir=$(mktemp -d) || continue
+        local -i vi=0
+        for (( vi = 1; vi <= ${#pkg_encoded_list}; vi++ )); do
+          {
+            curl -sS -G --max-time 30 \
+              -H "Authorization: Bearer ${tok}" \
+              "https://artifactregistry.googleapis.com/v1/${parent}/packages/${pkg_encoded_list[vi]}/versions" \
+              --data-urlencode "orderBy=update_time desc" \
+              --data-urlencode "pageSize=1" 2>/dev/null \
+              | jq -r '.versions[0].updateTime // ""' 2>/dev/null \
+              >| "${ver_tmpdir}/${vi}"
+          } &
+          (( vi % 16 == 0 )) && wait
+        done
+        wait
+
+        # One python pass converts every RFC-3339 stamp to an epoch; an
+        # empty/absent file means the lookup failed or the package has no
+        # versions, and becomes 0 (unknown) — which sorts first under
+        # --by-age, the safe end for a delete tool.
+        local -a epochs=()
+        epochs=("${(@f)$(python3 -c 'import os, sys
+from datetime import datetime
+
+tmpdir, count = sys.argv[1], int(sys.argv[2])
+for i in range(1, count + 1):
+    ts = ""
+    try:
+        with open(os.path.join(tmpdir, str(i))) as fh:
+            ts = fh.read().strip()
+    except OSError:
+        pass
+    epoch = 0
+    if ts:
+        try:
+            epoch = int(datetime.fromisoformat(ts.replace("Z", "+00:00")).timestamp())
+        except ValueError:
+            epoch = 0
+    print(epoch)' "$ver_tmpdir" "${#pkg_encoded_list}" 2>/dev/null)}")
+        rm -rf "$ver_tmpdir"
+
+        for (( vi = 1; vi <= ${#pkg_name_list}; vi++ )); do
+          print -r -- "${epochs[vi]:-0}	${loc}-docker.pkg.dev/${proj}/${repo_name}/${pkg_name_list[vi]}"
+        done
+      done
+    }
+
+    local -a fresh_lines
+    local proj lines
+    for proj in "${refresh_projects[@]}"; do
+      lines=$(_rlm_gar_cache_fetch_one "$proj" "$token") || true
+      [[ -n $lines ]] && fresh_lines+=(${(f)lines})
+    done
+    printf '\r\e[2K' >&2
+
+    # Preserve entries belonging to projects we did not refresh.
+    local -a kept
+    if [[ -f $cf ]]; then
+      local line entry_proj
+      local -A refreshed_set
+      for proj in "${refresh_projects[@]}"; do
+        refreshed_set[$proj]=1
+      done
+      while IFS= read -r line; do
+        [[ -z $line ]] && continue
+        # Works for both formats: the project is read relative to the
+        # `pkg.dev/` marker, so a leading `<epoch>\t` is irrelevant here.
+        entry_proj=${${line#*pkg.dev/}%%/*}
+        if [[ -z ${refreshed_set[$entry_proj]} ]]; then
+          kept+=("$line")
+        fi
+      done < "$cf"
+    fi
+
+    if (( ${#fresh_lines} == 0 && ${#kept} == 0 )); then
+      print -u2 "${label}: no images found in any project"
+      return 1
+    fi
+
+    { (( ${#kept} ))        && print -l -- "${kept[@]}";
+      (( ${#fresh_lines} )) && print -l -- "${fresh_lines[@]}";
+    } >| "$cf"
+    return 0
+    ;;
+
+  *)
+    print -u2 "_rlm-gar-cache: unknown action: ${action}"
+    return 2
+    ;;
+esac

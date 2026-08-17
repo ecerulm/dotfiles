@@ -1,0 +1,106 @@
+rlm-gar-rm [-n|--dry-run]
+
+Delete Artifact Registry <repo>/<package> entries picked in an fzf
+picker. TAB multi-selects; every selected package is confirmed
+individually before anything is destroyed.
+
+The package list and its cache are shared with gar-open — both
+commands read and refresh the same files under ~/.cache/gar-open/, so
+a refresh in either benefits the other. Selecting --- REFRESH CACHE ---
+opens a secondary picker where you TAB-multi-select which projects to
+re-fetch; entries for un-picked projects are preserved.
+
+ORDERING
+
+Packages are listed least-recently-pushed first, and the left column
+shows how long it has been since the last image push (today, 6d, 351d,
+1y19d). The stalest packages — the ones most likely to be deletable —
+therefore sit at the top.
+
+Unlike gar-open, gar-rm ignores the shared MRU history: a package you
+picked recently is the opposite of stale, so letting recency float
+entries to the top would work against the question this command exists
+to answer.
+
+The timestamp is the updateTime of the package's newest version, read
+from the versions API during a cache refresh. It is deliberately not
+the package-level updateTime that the package listing returns for
+free: that field also moves on metadata writes and on registry-side
+housekeeping, so a long-dead package can report a recent date. One
+package here showed "5d" while its newest image dated to 2025-07-24,
+a year out — and the error runs in the dangerous direction, hiding a
+stale package at the bottom of the list instead of surfacing it.
+
+Packages cached before ages were recorded show "unknown" and sort
+first, on the principle that an entry whose age cannot be determined
+deserves a look rather than a pass. Refresh the cache to fill them in.
+
+The preview pane is deletion-oriented rather than browse-oriented
+(that is gar-open's job): it reports the version count, total size on
+disk, newest and oldest version timestamps, tag count, package
+create/update time and annotations, the number of 1000-version delete
+batches required, and a sample of the newest tagged versions. If the
+version count cannot be determined — expired credentials, missing IAM
+permission — the preview says so loudly instead of rendering an empty
+package, because "no versions" reads as "safe to delete".
+
+DELETION
+
+A single `gcloud artifacts packages delete` removes the package and
+every version and tag in it, server-side, waiting for the operation to
+complete. The exact command is printed before the confirmation.
+
+That call does not scale indefinitely. Measured on a 1159-version
+package: it ran about three minutes, deleted 999 versions, then failed
+with "Internal error encountered", leaving 160 versions and the package
+in place. Treat roughly 1000 versions as the practical ceiling per
+call; packages above that are flagged before you confirm.
+
+On a partial delete, gar-rm reports how many versions were removed and
+how many remain, then asks whether to delete the rest. It does not
+retry on its own — each retry is another destructive call, so it is
+your decision. Answering no leaves the remainder in place and counts
+the package as failed. If an attempt deletes nothing at all (a
+permissions problem, say), gar-rm says so and stops rather than
+prompting for a retry that cannot help.
+
+Version counts are read over the REST API rather than gcloud: they are
+taken before and after every attempt, and gcloud costs over a second of
+startup per invocation.
+
+Packages successfully deleted are pruned from the shared cache and the
+MRU history so the next picker does not offer them.
+
+OPTIONS
+  -n, --dry-run
+              Show the preview, the version counts, and the exact
+              commands for every selected package, but run no deletes
+              and ask no confirmations.
+
+  -h, --help  Print usage and exit.
+
+ENVIRONMENT
+  GAR_SEARCH_PROJECTS
+              Colon-separated list of GCP project IDs to browse.
+              Required; the function errors out if not set. Shared
+              with gar-open and gar-search.
+
+  GAR_SEARCH_LOCATIONS
+              Colon-separated Artifact Registry locations to scan
+              (default europe:europe-west1). Repositories are
+              listed per location — the API has no "all locations"
+              query — so a location missing from this list is
+              invisible to the picker.
+
+REQUIRES
+  gcloud, fzf, jq, curl, python3.
+
+SEE ALSO
+  gar-open    Browse the same package list and open a package in the
+              Artifact Registry console.
+  gar-search  Non-interactive substring search over the same packages.
+
+NOTE
+  OSC 8 hyperlinks in the preview pane require a terminal emulator
+  that supports them (Kitty, Ghostty, iTerm2, WezTerm). Inside tmux
+  also set: set -ga terminal-features "*:hyperlinks"

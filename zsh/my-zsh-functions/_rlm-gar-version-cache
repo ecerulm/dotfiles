@@ -1,0 +1,363 @@
+emulate -L zsh
+setopt extended_glob
+# MONITOR/NOTIFY are interactive-shell state that `emulate -L zsh` does not
+# touch. They must be off here as well as in _rlm-gar-index-children: the
+# callee restores options on return, so its own unsetopt does not cover the
+# jobs its curl fan-out leaves being reaped in this frame — which showed up
+# as stray "[8] - done curl …" lines in an interactive shell.
+unsetopt monitor notify
+set -o pipefail
+
+# Per-package version cache for rlm-gar-version-rm.
+#
+# Two files per package, under ~/.cache/gar-version/<md5 of image path>/:
+#
+#   versions.json   — verbatim `gcloud artifacts docker images list
+#                     --include-tags --format=json` output for the package.
+#                     Refetched whenever it is older than the TTL.
+#   children.tsv    — resolved index→child attribution, one child per line:
+#                       <child>\t<parent>\t<platform>\t<parent_tags_csv>
+#                     Accumulates across runs and is never invalidated by
+#                     time; see IMMUTABILITY below.
+#   resolved.txt    — every index we have already fetched a manifest for,
+#                     one per line, as either
+#                       <digest>            (it had children)
+#                       <digest>\tempty     (it genuinely had none)
+#                     The explicit empty-marker is what keeps a childless
+#                     index from being refetched on every open while still
+#                     letting a *drifted* children.tsv be detected: an index
+#                     with neither rows nor a marker is treated as unresolved
+#                     and fetched again. Inferring "childless" as
+#                     resolved-minus-seen instead makes the resolved set equal
+#                     resolved.txt by construction, and drift becomes
+#                     undetectable — that bug shipped briefly and is why the
+#                     marker exists.
+#
+# IMMUTABILITY — why children.tsv is never expired
+#   A digest is a content hash. `sha256:abc…` names exactly one manifest
+#   body, forever: the registry cannot change what an index points at
+#   without the index getting a different digest. So a resolved
+#   parent→children mapping can be cached permanently and only *new*
+#   indexes ever need fetching. This is what makes the thousands-of-
+#   versions case work — the per-open cost becomes proportional to the
+#   number of indexes pushed since the last open, not to package size.
+#
+#   The listing (versions.json) is NOT immutable — tags move, versions are
+#   added and deleted — so it carries a TTL. Deleted versions are also
+#   pruned from children.tsv on refresh so the file cannot grow without
+#   bound across the lifetime of a long-lived package.
+#
+# SIZE
+#   At 4 children per index, 2000 versions is ~1600 children ≈ 250 KB of
+#   TSV and ~1.4 MB of JSON — fine to read whole. Lookup is done by the
+#   consumer building a dict once, not by scanning per row.
+#
+# Usage:
+#   _rlm-gar-version-cache paths <image>
+#       Emit `versions_file=…`, `children_file=…`, `resolved_file=…`,
+#       `cache_dir=…` for eval.
+#
+#   _rlm-gar-version-cache age <image>
+#       Humanized mtime of versions.json ("4m ago"); empty when absent.
+#
+#   _rlm-gar-version-cache load <image> [--ttl-minutes N] [--force]
+#       The main entry point. Ensures versions.json is present and fresh
+#       (refetching when older than the TTL, default 10 minutes, or when
+#       --force), then resolves any indexes not already in resolved.txt and
+#       appends them to children.tsv. Emits the same key=value lines as
+#       `paths`, plus `from_cache=0|1` and `new_indexes=<n>`.
+#       Returns 1 if the package could not be listed and no cache exists.
+#
+#   _rlm-gar-version-cache invalidate <image>
+#       Drop versions.json so the next load refetches. Used after a delete.
+#       Leaves children.tsv alone — those mappings stay valid.
+#
+#   _rlm-gar-version-cache forget <image> <digest…>
+#       Remove digests from children.tsv/resolved.txt after they are
+#       deleted, so a later index reusing nothing stale.
+
+local action=$1
+shift 2>/dev/null
+
+local cache_root="$HOME/.cache/gar-version"
+
+_gvc_dir() {
+  local img=$1 key=''
+  key=$(print -rn -- "$img" | md5 2>/dev/null) || key=$(print -rn -- "$img" | md5sum | cut -d' ' -f1)
+  print -r -- "${cache_root}/${key}"
+}
+
+_gvc_age_label() {
+  local f=$1
+  [[ -f $f ]] || return 1
+  local -i mt=0 now_s=0 diff=0
+  mt=$(stat -f %m "$f" 2>/dev/null || stat -c %Y "$f" 2>/dev/null) || return 1
+  now_s=$(date +%s)
+  diff=$(( now_s - mt ))
+  (( diff < 0 )) && diff=0
+  if (( diff < 60 )); then
+    print -r -- "${diff}s ago"
+  elif (( diff < 3600 )); then
+    print -r -- "$(( diff / 60 ))m ago"
+  elif (( diff < 86400 )); then
+    print -r -- "$(( diff / 3600 ))h ago"
+  else
+    print -r -- "$(( diff / 86400 ))d ago"
+  fi
+}
+
+case $action in
+  paths)
+    local image=$1
+    [[ -z $image ]] && { print -u2 "_rlm-gar-version-cache: paths needs an image"; return 1; }
+    local d=''
+    d=$(_gvc_dir "$image")
+    print -r -- "cache_dir=${(q)d}"
+    print -r -- "versions_file=${(q)d}/versions.json"
+    print -r -- "children_file=${(q)d}/children.tsv"
+    print -r -- "resolved_file=${(q)d}/resolved.txt"
+    return 0
+    ;;
+
+  age)
+    local image=$1
+    [[ -z $image ]] && return 1
+    local d=''
+    d=$(_gvc_dir "$image")
+    _gvc_age_label "${d}/versions.json" || print -rn -- ''
+    return 0
+    ;;
+
+  invalidate)
+    local image=$1
+    [[ -z $image ]] && return 1
+    local d=''
+    d=$(_gvc_dir "$image")
+    rm -f "${d}/versions.json"
+    return 0
+    ;;
+
+  forget)
+    local image=$1
+    shift
+    (( $# == 0 )) && return 0
+    local d=''
+    d=$(_gvc_dir "$image")
+    local cf="${d}/children.tsv" rf="${d}/resolved.txt"
+    local drop=''
+    drop=$(mktemp) || return 1
+    printf '%s\n' "$@" >| "$drop"
+    if [[ -s $cf ]]; then
+      local tmp=''
+      tmp=$(mktemp) || { rm -f "$drop"; return 1; }
+      # Drop a row when either the child or its parent is gone.
+      awk -F'\t' 'NR==FNR{gone[$0]=1;next} !( ($1 in gone) || ($2 in gone) )' \
+        "$drop" "$cf" >| "$tmp" && mv -f "$tmp" "$cf"
+    fi
+    if [[ -s $rf ]]; then
+      local tmp2=''
+      tmp2=$(mktemp) || { rm -f "$drop"; return 1; }
+      # resolved.txt rows are `<digest>` or `<digest>\tempty`; match on the
+      # digest column so the tagged form is dropped too.
+      awk -F'\t' 'NR==FNR{gone[$0]=1;next} !($1 in gone)' "$drop" "$rf" >| "$tmp2" \
+        && mv -f "$tmp2" "$rf"
+    fi
+    rm -f "$drop"
+    return 0
+    ;;
+
+  load) ;;
+  *)
+    print -u2 "_rlm-gar-version-cache: unknown action: ${action}"
+    return 1
+    ;;
+esac
+
+# ---------------------------------------------------------------------------
+# load
+# ---------------------------------------------------------------------------
+
+# 60 minutes, not 10: on a large package the relist alone is ~9s (1590
+# versions), and the cost of a slightly stale listing is low — Stage 4
+# re-lists from the API anyway, and -r/--refresh is there when it matters.
+local image='' ttl_minutes=60 force=0
+while (( $# )); do
+  case $1 in
+    --ttl-minutes) ttl_minutes=$2; shift 2 ;;
+    --force) force=1; shift ;;
+    -*) print -u2 "_rlm-gar-version-cache: unknown flag: $1"; return 1 ;;
+    *) image=$1; shift ;;
+  esac
+done
+
+[[ -z $image ]] && { print -u2 "_rlm-gar-version-cache: load needs an image"; return 1; }
+
+local proj=''
+proj=${${(s:/:)image}[2]}
+[[ -z $proj ]] && { print -u2 "_rlm-gar-version-cache: cannot parse project from ${image}"; return 1; }
+
+local cache_dir=''
+cache_dir=$(_gvc_dir "$image")
+mkdir -p "$cache_dir" 2>/dev/null || {
+  print -u2 "_rlm-gar-version-cache: cannot create ${cache_dir}"
+  return 1
+}
+
+local versions_file="${cache_dir}/versions.json"
+local children_file="${cache_dir}/children.tsv"
+local resolved_file="${cache_dir}/resolved.txt"
+
+local -i need_fetch=0
+if (( force )); then
+  need_fetch=1
+elif [[ ! -s $versions_file ]]; then
+  need_fetch=1
+else
+  local -i mt=0 now_s=0
+  mt=$(stat -f %m "$versions_file" 2>/dev/null || stat -c %Y "$versions_file" 2>/dev/null) || mt=0
+  now_s=$(date +%s)
+  (( (now_s - mt) > (ttl_minutes * 60) )) && need_fetch=1
+fi
+
+local -i from_cache=1
+if (( need_fetch )); then
+  from_cache=0
+  print -u2 "gar-version-cache: listing versions of ${image##*/} …"
+  local err='' rc=0 fetched=''
+  err=$(mktemp) || err=/dev/null
+  fetched=$(gcloud artifacts docker images list "$image" \
+              --include-tags \
+              --sort-by='UPDATE_TIME' \
+              --format=json \
+              --project="$proj" 2>"$err")
+  rc=$?
+  if (( rc != 0 )) || [[ -z $fetched ]]; then
+    [[ -s $err ]] && grep -v '^$' "$err" | head -5 >&2
+    [[ $err != /dev/null ]] && rm -f "$err"
+    if [[ -s $versions_file ]]; then
+      # A refresh failure must not throw away a usable cache: fall back to
+      # what we have and say so, rather than turning a transient API error
+      # into "this package has no versions".
+      print -u2 "gar-version-cache: refresh failed; using cached listing ($(_gvc_age_label "$versions_file"))"
+      from_cache=1
+    else
+      print -u2 "gar-version-cache: failed to list ${image} (exit ${rc})"
+      return 1
+    fi
+  else
+    [[ $err != /dev/null ]] && rm -f "$err"
+    print -r -- "$fetched" >| "$versions_file"
+    # Prune attribution rows for versions that no longer exist, so the file
+    # tracks the package rather than growing forever.
+    if [[ -s $children_file ]]; then
+      local live='' tmp=''
+      live=$(mktemp) && tmp=$(mktemp) || live=''
+      if [[ -n $live ]]; then
+        jq -r '.[].version // empty' "$versions_file" 2>/dev/null | sort -u >| "$live"
+        if [[ -s $live ]]; then
+          awk -F'\t' 'NR==FNR{ok[$0]=1;next} ($1 in ok)' "$live" "$children_file" >| "$tmp" \
+            && mv -f "$tmp" "$children_file"
+        fi
+        rm -f "$live" "$tmp"
+      fi
+    fi
+  fi
+fi
+
+# --- resolve indexes we have not seen before -------------------------------
+
+touch "$children_file" "$resolved_file" 2>/dev/null
+
+local all_idx='' todo=''
+all_idx=$(mktemp) || return 1
+todo=$(mktemp) || { rm -f "$all_idx"; return 1; }
+
+jq -r '
+  .[]
+  | select((.metadata.mediaType // "") | test("index|list"))
+  | .version
+' "$versions_file" 2>/dev/null | sort -u >| "$all_idx"
+
+if [[ -s $all_idx ]]; then
+  if [[ -s $resolved_file ]]; then
+    # An index counts as resolved only if it is in resolved.txt AND either
+    # children.tsv still has its rows or it genuinely has none. The two files
+    # can drift — `forget` prunes children.tsv, a partial write or a manual
+    # `rm` can empty it — and trusting resolved.txt alone then permanently
+    # hides those children: they are never re-fetched and every member of the
+    # family renders as an orphan. Re-deriving the resolved set from the rows
+    # we can actually see costs one pass and makes the cache self-healing.
+    local effective=''
+    effective=$(mktemp) || { rm -f "$all_idx" "$todo"; return 1; }
+    # Effective resolved set = indexes we can still see evidence for:
+    #   - parents that actually have rows in children.tsv, plus
+    #   - indexes explicitly recorded as childless (resolved.txt rows tagged
+    #     with a trailing \tempty marker).
+    # An index listed in resolved.txt with neither rows nor an empty-marker
+    # has drifted (children.tsv pruned or truncated) and is re-fetched. The
+    # marker has to be explicit: inferring "childless" as resolved-minus-seen
+    # makes the effective set equal resolved.txt by construction, so drift can
+    # never be detected — which is exactly the bug this replaced.
+    {
+      cut -f2 "$children_file" 2>/dev/null
+      grep $'\tempty$' "$resolved_file" 2>/dev/null | cut -f1
+    } | sort -u >| "$effective"
+    comm -23 "$all_idx" "$effective" >| "$todo"
+    rm -f "$effective"
+  else
+    cp "$all_idx" "$todo"
+  fi
+fi
+
+local -i new_indexes=0
+[[ -s $todo ]] && new_indexes=$(grep -c . "$todo")
+
+if (( new_indexes > 0 )); then
+  print -u2 "gar-version-cache: resolving ${new_indexes} new multi-arch index(es) …"
+  autoload -Uz _rlm-gar-index-children
+  local sub='' subout=''
+  sub=$(mktemp) || { rm -f "$all_idx" "$todo"; return 1; }
+  subout=$(mktemp) || { rm -f "$all_idx" "$todo" "$sub"; return 1; }
+  # Feed the resolver a listing narrowed to just the unresolved indexes, so it
+  # fetches only those manifests and not every index in the package.
+  jq --slurpfile want <(jq -R -s 'split("\n") | map(select(length>0))' "$todo") '
+    ($want[0]) as $w | [ .[] | select(.version as $v | $w | index($v)) ]
+  ' "$versions_file" >| "$sub" 2>/dev/null
+
+  if [[ -s $sub ]]; then
+    if _rlm-gar-index-children "$image" "$sub" >| "$subout" 2>/dev/null; then
+      [[ -s $subout ]] && cat "$subout" >> "$children_file"
+      # Record every attempted index, tagging the ones that yielded no
+      # children so they are not refetched on every open — and so drift in
+      # children.tsv stays distinguishable from a genuinely childless index.
+      local got=''
+      got=$(mktemp) || got=''
+      if [[ -n $got ]]; then
+        cut -f2 "$subout" 2>/dev/null | sort -u >| "$got"
+        local ln=''
+        while IFS= read -r ln; do
+          [[ -z $ln ]] && continue
+          if grep -Fxq -- "$ln" "$got" 2>/dev/null; then
+            printf '%s\n' "$ln"
+          else
+            printf '%s\tempty\n' "$ln"
+          fi
+        done < "$todo" >> "$resolved_file"
+        rm -f "$got"
+      else
+        cat "$todo" >> "$resolved_file"
+      fi
+    fi
+  fi
+  rm -f "$sub" "$subout"
+fi
+
+rm -f "$all_idx" "$todo"
+
+print -r -- "cache_dir=${(q)cache_dir}"
+print -r -- "versions_file=${(q)versions_file}"
+print -r -- "children_file=${(q)children_file}"
+print -r -- "resolved_file=${(q)resolved_file}"
+print -r -- "from_cache=${from_cache}"
+print -r -- "new_indexes=${new_indexes}"
+return 0

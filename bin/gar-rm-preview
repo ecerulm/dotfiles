@@ -1,0 +1,220 @@
+#!/usr/bin/env zsh
+# Usage: gar-rm-preview LOCATION-docker.pkg.dev/PROJECT/REPO/IMAGE[/subpath]
+#
+# Deletion-oriented Artifact Registry package summary for fzf preview
+# panes. Unlike bin/gar-preview (which is browse-oriented and lists the
+# 10 newest tags), this answers "what exactly am I about to destroy?":
+#
+#   version count, total size on disk, newest/oldest version dates,
+#   tag count, package metadata (create/update time, annotations),
+#   and a sample of the newest tagged versions.
+#
+# The version count matters twice over: it is the blast radius, and it
+# decides how many 1000-version delete batches rlm-gar-rm will need.
+emulate -L zsh
+set -o pipefail
+
+_gar_rm_preview_main() {
+  local image=$1
+  if [[ -z $image ]]; then
+    print -u2 "gar-rm-preview: usage: gar-rm-preview IMAGE_PATH"
+    return 1
+  fi
+
+  local loc_host proj repo pkg_path location_slug pkg_encoded console_url
+  loc_host=${image%%/*}
+  proj=$(printf '%s' "$image" | cut -d/ -f2)
+  repo=$(printf '%s' "$image" | cut -d/ -f3)
+  pkg_path=$(printf '%s' "$image" | cut -d/ -f4-)
+  location_slug=${loc_host%-docker.pkg.dev}
+  pkg_encoded=${pkg_path//\//%2F}
+  console_url="https://console.cloud.google.com/artifacts/docker/${proj}/${location_slug}/${repo}/${pkg_encoded}?project=${proj}"
+
+  local red=$'\e[31m' yellow=$'\e[33m' bold=$'\e[1m' reset=$'\e[0m'
+
+  printf '%sWILL DELETE%s  %s\n' "$red$bold" "$reset" "$image"
+  printf '\n'
+  printf 'Package:    %s\n' "$pkg_path"
+  printf 'Project:    %s\n' "$proj"
+  printf 'Repository: %s\n' "$repo"
+  # Location gets its own line: `europe` (multi-region) and `europe-west1`
+  # (single region) are different locations holding different repos, and
+  # the distinction is invisible when it is glued onto the repo name.
+  case $location_slug in
+    europe|us|asia) printf 'Location:   %s  (multi-region)\n' "$location_slug" ;;
+    *)              printf 'Location:   %s\n' "$location_slug" ;;
+  esac
+  printf 'Console:    '
+  printf '\e]8;;%s\e\\Open in GCP console\e]8;;\e\\' "$console_url"; printf '\n'
+  printf '\n'
+
+  local token
+  token=$(gcloud auth print-access-token 2>/dev/null)
+  if [[ -z $token ]]; then
+    printf '%sCANNOT INSPECT%s  no gcloud access token\n' "$red$bold" "$reset"
+    printf 'Run: gcloud auth login\n'
+    return 0
+  fi
+
+  # Package-level metadata (createTime/updateTime/annotations) comes from
+  # the packages.get REST endpoint; `gcloud artifacts packages describe`
+  # does not expose annotations. A permission error here is reported
+  # rather than skipped — on a delete tool, a silently-missing metadata
+  # block is indistinguishable from a package that genuinely has none.
+  local pkg_api_encoded pkg_json
+  pkg_api_encoded=${pkg_path//\//%2F}
+  pkg_json=$(curl -sS \
+    -H "Authorization: Bearer ${token}" \
+    "https://artifactregistry.googleapis.com/v1/projects/${proj}/locations/${location_slug}/repositories/${repo}/packages/${pkg_api_encoded}" \
+    2>/dev/null)
+  if [[ -n $pkg_json ]] && printf '%s' "$pkg_json" | jq -e '.error' >/dev/null 2>&1; then
+    local api_status api_msg
+    api_status=$(printf '%s' "$pkg_json" | jq -r '.error.status // "ERROR"')
+    api_msg=$(printf '%s' "$pkg_json" | jq -r '.error.message' | cut -c1-160)
+    printf '%sMetadata:   %s%s\n' "$yellow" "$api_status" "$reset"
+    printf '            %s\n' "$api_msg"
+    printf '\n'
+  elif [[ -n $pkg_json ]] && printf '%s' "$pkg_json" | jq -e '.name' >/dev/null 2>&1; then
+    printf '%s' "$pkg_json" | jq -r '
+      (if .createTime then "Created:    " + (.createTime | sub("\\..*";"") | sub("T";" ")) + " UTC" else empty end),
+      (if .updateTime then "Updated:    " + (.updateTime | sub("\\..*";"") | sub("T";" ")) + " UTC" else empty end),
+      (if (.annotations // {} | length) > 0 then
+         "Annotations:", (.annotations | to_entries[] | "  " + .key + " = " + (.value | tostring))
+       else empty end)
+    ' 2>/dev/null
+    printf '\n'
+  fi
+
+  # Full version list. --limit is deliberately absent: the count is the
+  # headline number here and an undercount would understate the blast
+  # radius (and the number of delete batches needed).
+  #
+  # stderr is captured, not discarded: an auth or permission failure must
+  # never render as "no versions found", which reads as "this package is
+  # empty, safe to delete".
+  local json err rc
+  err=$(mktemp) || err=/dev/null
+  json=$(gcloud artifacts docker images list "$image" \
+           --include-tags \
+           --sort-by='~UPDATE_TIME' \
+           --format=json \
+           --project="$proj" 2>"$err")
+  rc=$?
+
+  if (( rc != 0 )); then
+    printf '%sCANNOT LIST VERSIONS%s  (exit %d)\n' "$red$bold" "$reset" "$rc"
+    if [[ -s $err ]]; then
+      grep -v '^$' "$err" | head -6 | sed 's/^/  /'
+    fi
+    printf '\n%sVersion count unknown — do not assume this package is empty.%s\n' "$yellow" "$reset"
+    [[ $err != /dev/null ]] && rm -f "$err"
+    return 0
+  fi
+  [[ $err != /dev/null ]] && rm -f "$err"
+
+  if [[ -z $json || $json == '[]' ]]; then
+    printf '(no versions found — package is empty or already deleted)\n'
+    return 0
+  fi
+
+  printf '%s' "$json" | python3 -c '
+import sys, json
+from datetime import datetime, timezone
+
+def human_size(b):
+    if not b:
+        return "0 B"
+    b = float(b)
+    for unit in ("B","KB","MB","GB"):
+        if b < 1024:
+            return f"{b:.0f} {unit}"
+        b /= 1024
+    return f"{b:.1f} TB"
+
+def parse(ts):
+    if not ts:
+        return None
+    try:
+        return datetime.fromisoformat(ts.replace("Z", "+00:00"))
+    except Exception:
+        return None
+
+def human_time(dt):
+    if dt is None:
+        return "?"
+    diff = int((datetime.now(timezone.utc) - dt).total_seconds())
+    days = diff // 86400
+    if diff < 3600:
+        rel = f"{diff // 60}m ago"
+    elif diff < 86400:
+        rel = f"{diff // 3600}h ago"
+    elif days < 365:
+        rel = f"{days}d ago"
+    else:
+        # Compound y+d past a year: "1y20d ago" reads as "just over a
+        # year" without mental arithmetic, where "384d ago" does not.
+        years, rem = divmod(days, 365)
+        rel = f"{years}y{rem}d ago" if rem else f"{years}y ago"
+    stamp = dt.strftime("%Y-%m-%d %H:%M")
+    return f"{stamp} UTC  ({rel})"
+
+data = json.load(sys.stdin)
+
+total_bytes = 0
+tag_total = 0
+tagged = 0
+times = []
+for e in data:
+    meta = e.get("metadata") or {}
+    sb = meta.get("imageSizeBytes") or e.get("imageSizeBytes")
+    # Multi-arch index entries report the sum of their children under a
+    # separate digest, so summing every entry double-counts nothing here:
+    # child manifests are listed as their own entries by images list.
+    if sb:
+        total_bytes += int(sb)
+    tags = e.get("tags") or []
+    tag_total += len(tags)
+    if tags:
+        tagged += 1
+    dt = parse(e.get("updateTime") or e.get("uploadTime") or e.get("createTime"))
+    if dt:
+        times.append(dt)
+
+n = len(data)
+batches = (n + 999) // 1000
+
+print(f"Versions:   {n}   ({tagged} tagged, {n - tagged} untagged)")
+print(f"Tags:       {tag_total}")
+print(f"Total size: {human_size(total_bytes)}")
+if times:
+    print(f"Newest:     {human_time(max(times))}")
+    print(f"Oldest:     {human_time(min(times))}")
+if batches > 1:
+    print(f"Batches:    {batches}  (1000-version delete cap)")
+print()
+
+shown = [e for e in data if e.get("tags")][:10]
+if shown:
+    hdr = "NEWEST TAGGED VERSIONS"
+    siz = "SIZE"
+    print(f"{hdr:<44}  {siz:>10}  UPDATED")
+    d44, d10, d16 = "-" * 44, "-" * 10, "-" * 16
+    print(f"{d44}  {d10}  {d16}")
+    for e in shown:
+        meta = e.get("metadata") or {}
+        sb = meta.get("imageSizeBytes") or e.get("imageSizeBytes")
+        tag_str = ", ".join(e.get("tags") or [])
+        if len(tag_str) > 42:
+            tag_str = tag_str[:39] + "..."
+        dt = parse(e.get("updateTime") or e.get("uploadTime"))
+        when = dt.strftime("%Y-%m-%d %H:%M") if dt else "?"
+        print(f"{tag_str:<44}  {human_size(sb):>10}  {when}")
+    remaining = tagged - len(shown)
+    if remaining > 0:
+        print(f"... and {remaining} more tagged version(s)")
+else:
+    print("(all versions are untagged)")
+'
+}
+
+_gar_rm_preview_main "$@"

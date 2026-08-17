@@ -1,0 +1,49 @@
+emulate -L zsh
+
+# Parse a fully-qualified GAR image path into its components and emit
+# `key=value` lines for `eval`. Every rlm-gar-* command needs this split
+# and each had its own copy, including one that computed repo_name twice.
+#
+# Usage:
+#   local loc_host proj repo pkg_path location_slug pkg_encoded console_url
+#   eval "$(_rlm-gar-parse-image "$image")"
+#
+# Input:  LOCATION-docker.pkg.dev/PROJECT/REPO/PACKAGE[/sub/path]
+# Emits:  loc_host, proj, repo, pkg_path, location_slug, pkg_encoded,
+#         console_url
+#
+# `pkg_encoded` percent-encodes `/` in the package path (the console wants
+# cloud-builders%2Fprotoc); `console_url` is the Artifact Registry console
+# page for the package.
+#
+# Returns 2 when the path has too few components to be a valid image.
+
+local image=$1
+if [[ -z $image ]]; then
+  print -u2 "_rlm-gar-parse-image: no image path given"
+  return 2
+fi
+
+local -a parts
+parts=("${(@s:/:)image}")
+if (( ${#parts} < 4 )); then
+  print -u2 "_rlm-gar-parse-image: not a valid image path: ${image}"
+  return 2
+fi
+
+local loc_host=${parts[1]}
+local proj=${parts[2]}
+local repo=${parts[3]}
+local pkg_path=${(j:/:)parts[4,-1]}
+local location_slug=${loc_host%-docker.pkg.dev}
+local pkg_encoded=${pkg_path//\//%2F}
+local console_url="https://console.cloud.google.com/artifacts/docker/${proj}/${location_slug}/${repo}/${pkg_encoded}?project=${proj}"
+
+print -r -- "loc_host=${(q)loc_host}"
+print -r -- "proj=${(q)proj}"
+print -r -- "repo=${(q)repo}"
+print -r -- "pkg_path=${(q)pkg_path}"
+print -r -- "location_slug=${(q)location_slug}"
+print -r -- "pkg_encoded=${(q)pkg_encoded}"
+print -r -- "console_url=${(q)console_url}"
+return 0
