@@ -40,7 +40,7 @@ _gar_preview_main() {
   printf '\n'
 
   local token
-  token=$(gcloud auth print-access-token 2>/dev/null)
+  token=$("$HOME/bin/gcloud-token-cached" 2>/dev/null)
 
   local json
   json=$(gcloud artifacts docker images list "$image" \

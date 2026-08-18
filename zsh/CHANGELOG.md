@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [2026-08-18]
 
+### Changed
+
+- **The `gar-rm` package preview no longer makes network calls on the hot path — ~2.8s per keystroke down to ~0.49s.** An fzf preview re-runs on every keystroke, so its cost is multiplied by typing speed; the tagged/untagged breakdown added earlier made that worse by depending on a full version listing. Three things were cached, each for a different reason:
+
+  - **The version listing** (~1.4s) now comes from `~/.cache/gar-version/<md5>/versions.json`, the file `rlm-gar-version-rm` already maintains — verified field-by-field to be identical to what the live call returns. The preview also *writes* it when no cache exists, which is what makes browsing the package picker usable rather than just re-visiting packages: the version picker then reads it (`from_cache=1`) instead of refetching. That write is only reachable when the file was absent, so a preview can never overwrite a fresher listing. It deliberately never writes `children.tsv`/`resolved.txt` — resolving index attribution is one registry GET per index and stays with the picker.
+  - **The access token** (~0.63s — `gcloud auth print-access-token` is Python startup, not a network call) via a new `bin/gcloud-token-cached`, 120s TTL, mode 600. Shared by all three `gar-*` previews.
+  - **Package metadata** (~0.2-0.5s) per package for 1h; only a response carrying `.name` is cached, so a transient 403 is not pinned for an hour.
+
+  The listing's age is printed next to the version count (`Versions: 86 (listing 53m ago)`). Serving a delete tool's blast-radius number from cache without saying how old it is would be worse than the latency it fixes.
+
 ### Fixed
 
 - **`rlm-gar-version-rm` reported "nothing blocked" for a version that the registry then refused to delete.** The pre-flight check that warns about deleting an index member without its index kept a child→parent *dict*, so a child referenced by more than one index retained only whichever parent was read last. Selecting that child plus that one parent passed the check and the delete was refused with a precondition error. This is not a corner case: 48 children in the `ingress-dbt` cache have multiple parents, and the OCI rule is that an artifact is deletable only once *nothing* references it. The check now tracks the full parent set and names every index still holding a reference. Reproduced against the real cache before and after.

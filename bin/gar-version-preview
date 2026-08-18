@@ -56,7 +56,7 @@ _gar_version_preview_main() {
     json=$(cat "$GAR_VERSION_CACHE")
   else
     local token
-    token=$(gcloud auth print-access-token 2>/dev/null)
+    token=$("$HOME/bin/gcloud-token-cached" 2>/dev/null)
     if [[ -z $token ]]; then
       printf '%sCANNOT INSPECT%s  no gcloud access token\n' "$red$bold" "$reset"
       printf 'Run: gcloud auth login\n'

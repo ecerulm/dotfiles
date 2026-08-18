@@ -1,0 +1,48 @@
+#!/bin/sh
+# Usage: gcloud-token-cached
+#
+# Print a gcloud access token, cached on disk for a few minutes.
+#
+# WHY
+#   `gcloud auth print-access-token` costs ~0.63s — it is a Python process
+#   start, not a network call. The gar-* fzf previews each need a token and
+#   re-run on EVERY keystroke, so that fixed cost dominates the pane: with
+#   the version listing served from cache, the token was the single largest
+#   remaining item in gar-rm-preview's runtime.
+#
+#   gcloud already caches the credential itself; what it does not amortize
+#   is its own startup. This does.
+#
+# TTL
+#   120s, deliberately far below the token's real lifetime (~1h issued,
+#   observed with ~438s remaining mid-session). The cost of being wrong is
+#   asymmetric: a stale token makes a preview render an auth error, while a
+#   slightly-too-fresh fetch costs only the 0.63s we already used to pay
+#   every time. Short TTL, no expiry parsing, no clock-skew handling.
+#
+# The cache file is mode 600 and lives beside the other gar-* caches. It
+# holds a bearer token: treat it like one.
+CACHE="${HOME}/.cache/gar-version/.access-token"
+TTL=120
+
+if [ -s "$CACHE" ]; then
+  now=$(date +%s)
+  # BSD stat (macOS) first, GNU stat second.
+  mt=$(stat -f %m "$CACHE" 2>/dev/null || stat -c %Y "$CACHE" 2>/dev/null || echo 0)
+  if [ "$mt" -gt 0 ] && [ $((now - mt)) -lt "$TTL" ]; then
+    cat "$CACHE"
+    exit 0
+  fi
+fi
+
+tok=$(gcloud auth print-access-token 2>/dev/null) || exit 1
+[ -z "$tok" ] && exit 1
+
+mkdir -p "$(dirname "$CACHE")" 2>/dev/null
+# Write via a private temp file so the token is never briefly world-readable.
+tmp="${CACHE}.$$"
+(umask 077; printf '%s\n' "$tok" > "$tmp") 2>/dev/null \
+  && mv -f "$tmp" "$CACHE" 2>/dev/null
+rm -f "$tmp" 2>/dev/null
+
+printf '%s\n' "$tok"

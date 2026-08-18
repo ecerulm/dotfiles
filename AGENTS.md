@@ -41,6 +41,6 @@ Add a language: (1) `after/indent/<ft>.lua`, (2) `after/ftplugin/<ft>.lua` (fold
 
 - `.gitconfig` — 80+ aliases, GPG signing, diff-so-fancy pager; platform config via `[include] ~/.gitconfig_platform_specific`
 - `ghostty.conf` — `shell-integration-features = no-title` (stops OSC 2 tab-title rewrites)
-- `bin/` — utility scripts → `~/bin/` (`git-churn`, `git-overwritten`, `cljrepl`, `bq-preview`, `wt-preview`, `fe-preview`, `gar-rm-preview`, …)
+- `bin/` — utility scripts → `~/bin/` (`git-churn`, `git-overwritten`, `cljrepl`, `bq-preview`, `wt-preview`, `fe-preview`, `gar-rm-preview`, `gcloud-token-cached`, …)
 - `karabiner/` — Karabiner removes symlinks (see `create_links_mac.sh` comment)
 - `tmux.conf` + `tmux.conf.{macosx,linux}`; legacy: `emacs.d/`, `vim/`, `vimrc`, `neovim_old/`

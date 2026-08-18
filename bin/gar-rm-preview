@@ -57,7 +57,7 @@ _gar_rm_preview_main() {
   printf '\n'
 
   local token
-  token=$(gcloud auth print-access-token 2>/dev/null)
+  token=$("$HOME/bin/gcloud-token-cached" 2>/dev/null)
   if [[ -z $token ]]; then
     printf '%sCANNOT INSPECT%s  no gcloud access token\n' "$red$bold" "$reset"
     printf 'Run: gcloud auth login\n'
@@ -69,12 +69,42 @@ _gar_rm_preview_main() {
   # does not expose annotations. A permission error here is reported
   # rather than skipped — on a delete tool, a silently-missing metadata
   # block is indistinguishable from a package that genuinely has none.
-  local pkg_api_encoded pkg_json
+  # Shared with rlm-gar-version-rm; key is a plain md5 of the image path
+  # (owned by _rlm-gar-version-cache).
+  local cache_dir='' cache_key=''
+  cache_key=$(printf '%s' "$image" | md5 2>/dev/null) \
+    || cache_key=$(printf '%s' "$image" | md5sum 2>/dev/null | cut -d' ' -f1)
+  [[ -n $cache_key ]] && cache_dir="$HOME/.cache/gar-version/${cache_key}"
+
+  local pkg_api_encoded pkg_json=''
   pkg_api_encoded=${pkg_path//\//%2F}
-  pkg_json=$(curl -sS \
-    -H "Authorization: Bearer ${token}" \
-    "https://artifactregistry.googleapis.com/v1/projects/${proj}/locations/${location_slug}/repositories/${repo}/packages/${pkg_api_encoded}" \
-    2>/dev/null)
+
+  # Package metadata (createTime/updateTime/annotations) is three cosmetic
+  # lines, but the call is ~0.2-0.5s of network latency and this pane
+  # re-runs on every keystroke. Cache it per package, 1h — these fields
+  # change only when something is pushed, and the version count above
+  # already carries its own freshness label.
+  local pkg_meta_cache="${cache_dir:+${cache_dir}/package.json}"
+  if [[ -n $pkg_meta_cache && -s $pkg_meta_cache ]]; then
+    local -i pmt=0 pnow=0
+    pmt=$(stat -f %m "$pkg_meta_cache" 2>/dev/null || stat -c %Y "$pkg_meta_cache" 2>/dev/null) || pmt=0
+    pnow=$(date +%s)
+    (( pmt > 0 && (pnow - pmt) < 3600 )) && pkg_json=$(cat "$pkg_meta_cache" 2>/dev/null)
+  fi
+
+  if [[ -z $pkg_json ]]; then
+    pkg_json=$(curl -sS \
+      -H "Authorization: Bearer ${token}" \
+      "https://artifactregistry.googleapis.com/v1/projects/${proj}/locations/${location_slug}/repositories/${repo}/packages/${pkg_api_encoded}" \
+      2>/dev/null)
+    # Only a good response is cached: caching an error would pin a
+    # transient 403 for an hour.
+    if [[ -n $pkg_meta_cache && -n $pkg_json ]] \
+       && printf '%s' "$pkg_json" | jq -e '.name' >/dev/null 2>&1; then
+      mkdir -p "$cache_dir" 2>/dev/null \
+        && printf '%s' "$pkg_json" >| "$pkg_meta_cache" 2>/dev/null
+    fi
+  fi
   if [[ -n $pkg_json ]] && printf '%s' "$pkg_json" | jq -e '.error' >/dev/null 2>&1; then
     local api_status api_msg
     api_status=$(printf '%s' "$pkg_json" | jq -r '.error.status // "ERROR"')
@@ -100,25 +130,80 @@ _gar_rm_preview_main() {
   # stderr is captured, not discarded: an auth or permission failure must
   # never render as "no versions found", which reads as "this package is
   # empty, safe to delete".
-  local json err rc
-  err=$(mktemp) || err=/dev/null
-  json=$(gcloud artifacts docker images list "$image" \
-           --include-tags \
-           --sort-by='~UPDATE_TIME' \
-           --format=json \
-           --project="$proj" 2>"$err")
-  rc=$?
+  local json='' err='' rc=0 listing_age=''
+  local cached_listing="${cache_dir:+${cache_dir}/versions.json}"
 
-  if (( rc != 0 )); then
-    printf '%sCANNOT LIST VERSIONS%s  (exit %d)\n' "$red$bold" "$reset" "$rc"
-    if [[ -s $err ]]; then
-      grep -v '^$' "$err" | head -6 | sed 's/^/  /'
+  # Prefer the cached listing. `docker images list` is ~1.4s (plus gcloud
+  # startup, ~2.8s end to end) and this pane re-runs on EVERY keystroke in
+  # the picker, so calling it live makes moving through the list crawl.
+  # The file is byte-identical to what the live call returns for every
+  # field used here — verified field-by-field on the intersection — so
+  # reading it costs ~10ms and loses nothing but freshness.
+  #
+  # Deliberately a plain read, NOT `_rlm-gar-version-cache load`: load
+  # refetches past its TTL and resolves newly-pushed indexes (one registry
+  # GET each), which is exactly the multi-second work that must never
+  # happen inside a preview. Freshness is the picker's job — it calls load
+  # before opening the version list — so a stale age is labelled here
+  # rather than fixed.
+  if [[ -n $cached_listing && -s $cached_listing ]]; then
+    json=$(cat "$cached_listing" 2>/dev/null)
+    local -i mt=0 now_s=0 diff_s=0
+    mt=$(stat -f %m "$cached_listing" 2>/dev/null || stat -c %Y "$cached_listing" 2>/dev/null) || mt=0
+    now_s=$(date +%s)
+    if (( mt > 0 )); then
+      diff_s=$(( now_s - mt ))
+      (( diff_s < 0 )) && diff_s=0
+      if   (( diff_s < 60 ));    then listing_age="${diff_s}s ago"
+      elif (( diff_s < 3600 ));  then listing_age="$(( diff_s / 60 ))m ago"
+      elif (( diff_s < 86400 )); then listing_age="$(( diff_s / 3600 ))h ago"
+      else                            listing_age="$(( diff_s / 86400 ))d ago"
+      fi
     fi
-    printf '\n%sVersion count unknown — do not assume this package is empty.%s\n' "$yellow" "$reset"
-    [[ $err != /dev/null ]] && rm -f "$err"
-    return 0
   fi
-  [[ $err != /dev/null ]] && rm -f "$err"
+
+  if [[ -z $json ]]; then
+    # No cache for this package yet — fall back to the live call.
+    #
+    # stderr is captured, not discarded: an auth or permission failure must
+    # never render as "no versions found", which reads as "this package is
+    # empty, safe to delete".
+    err=$(mktemp) || err=/dev/null
+    json=$(gcloud artifacts docker images list "$image" \
+             --include-tags \
+             --sort-by='~UPDATE_TIME' \
+             --format=json \
+             --project="$proj" 2>"$err")
+    rc=$?
+
+    if (( rc != 0 )); then
+      printf '%sCANNOT LIST VERSIONS%s  (exit %d)\n' "$red$bold" "$reset" "$rc"
+      if [[ -s $err ]]; then
+        grep -v '^$' "$err" | head -6 | sed 's/^/  /'
+      fi
+      printf '\n%sVersion count unknown — do not assume this package is empty.%s\n' "$yellow" "$reset"
+      [[ $err != /dev/null ]] && rm -f "$err"
+      return 0
+    fi
+    [[ $err != /dev/null ]] && rm -f "$err"
+
+    # Seed the shared cache so the next keystroke does not repeat this.
+    # Same file rlm-gar-version-rm reads and writes, and the flags match
+    # (--include-tags; only the sort direction differs, which no consumer
+    # depends on). Writing it here is what makes browsing the package
+    # picker usable: without it every keystroke pays the ~1.4s relist for
+    # any package the version picker has not been opened on.
+    #
+    # Only the listing is written — never children.tsv/resolved.txt. Index
+    # attribution costs one registry GET per index and belongs to the
+    # picker, not to a pane that re-runs on every keystroke.
+    if [[ -n $cache_dir && -n $json && $json != '[]' ]] \
+       && printf '%s' "$json" | jq -e 'type == "array"' >/dev/null 2>&1; then
+      mkdir -p "$cache_dir" 2>/dev/null \
+        && printf '%s' "$json" >| "${cache_dir}/versions.json" 2>/dev/null
+      listing_age='just now'
+    fi
+  fi
 
   if [[ -z $json || $json == '[]' ]]; then
     printf '(no versions found — package is empty or already deleted)\n'
@@ -136,17 +221,15 @@ _gar_rm_preview_main() {
   #
   # Cache layout and key are owned by _rlm-gar-version-cache; the key is a
   # plain md5 of the image path.
-  local child_map='' resolved_map='' cache_key='' cache_dir=''
-  cache_key=$(printf '%s' "$image" | md5 2>/dev/null) \
-    || cache_key=$(printf '%s' "$image" | md5sum 2>/dev/null | cut -d' ' -f1)
-  if [[ -n $cache_key ]]; then
-    cache_dir="$HOME/.cache/gar-version/${cache_key}"
+  local child_map='' resolved_map=''
+  if [[ -n $cache_dir ]]; then
     [[ -s "${cache_dir}/children.tsv" ]] && child_map="${cache_dir}/children.tsv"
     [[ -s "${cache_dir}/resolved.txt" ]] && resolved_map="${cache_dir}/resolved.txt"
   fi
 
   printf '%s' "$json" \
-    | GAR_RM_CHILDREN="$child_map" GAR_RM_RESOLVED="$resolved_map" python3 -c '
+    | GAR_RM_CHILDREN="$child_map" GAR_RM_RESOLVED="$resolved_map" \
+      GAR_RM_LISTING_AGE="$listing_age" python3 -c '
 import sys, json, os, re
 from datetime import datetime, timezone
 
@@ -266,7 +349,12 @@ unresolved_indexes = listing_indexes - resolved
 # orphan count is both certain and most useful.
 have_attribution = not unresolved_indexes and (bool(children) or not listing_indexes)
 
-print(f"Versions:   {n}")
+# Say when the numbers are from. A cached listing is what makes this pane
+# usable at all (see the read above), but an unlabelled count from an hour
+# ago reads as current — and on a delete tool the gap between "what the
+# registry holds" and "what this says" is the whole risk.
+age = os.environ.get("GAR_RM_LISTING_AGE") or ""
+print(f"Versions:   {n}" + (f"   (listing {age})" if age else ""))
 print(f"  tagged:            {tagged}")
 if untagged_index:
     print(f"  untagged index:    {untagged_index}   (owns members below)")
