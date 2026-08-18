@@ -5,12 +5,20 @@
 # panes. Unlike bin/gar-preview (which is browse-oriented and lists the
 # 10 newest tags), this answers "what exactly am I about to destroy?":
 #
-#   version count, total size on disk, newest/oldest version dates,
-#   tag count, package metadata (create/update time, annotations),
-#   and a sample of the newest tagged versions.
+#   version count broken down by deletability, total size on disk,
+#   newest/oldest version dates, tag count, package metadata
+#   (create/update time, annotations), and a sample of the newest
+#   tagged versions.
 #
 # The version count matters twice over: it is the blast radius, and it
 # decides how many 1000-version delete batches rlm-gar-rm will need.
+#
+# The breakdown splits untagged versions into the per-arch members of a
+# multi-arch index and true orphans, because only the latter are safe to
+# remove — deleting a member breaks the tagged image that references it.
+# That attribution is expensive (one registry GET per index) so it is only
+# ever READ from the cache rlm-gar-version-rm maintains, never fetched
+# here; see the GAR_RM_CHILDREN/GAR_RM_RESOLVED handling below.
 emulate -L zsh
 set -o pipefail
 
@@ -117,8 +125,29 @@ _gar_rm_preview_main() {
     return 0
   fi
 
-  printf '%s' "$json" | python3 -c '
-import sys, json
+  # Index->child attribution, when rlm-gar-version-rm has already resolved
+  # it for this package. Splitting "untagged" into orphans vs members needs
+  # one registry GET per multi-arch index (see _rlm-gar-index-children), so
+  # it is never fetched here: this preview re-runs on every keystroke, and a
+  # package can hold hundreds of indexes. We read the cache if it exists and
+  # otherwise report the untagged versions as unclassified — an honest
+  # "unresolved" is the only safe rendering on a delete tool, since guessing
+  # members are orphans invites deleting them.
+  #
+  # Cache layout and key are owned by _rlm-gar-version-cache; the key is a
+  # plain md5 of the image path.
+  local child_map='' resolved_map='' cache_key='' cache_dir=''
+  cache_key=$(printf '%s' "$image" | md5 2>/dev/null) \
+    || cache_key=$(printf '%s' "$image" | md5sum 2>/dev/null | cut -d' ' -f1)
+  if [[ -n $cache_key ]]; then
+    cache_dir="$HOME/.cache/gar-version/${cache_key}"
+    [[ -s "${cache_dir}/children.tsv" ]] && child_map="${cache_dir}/children.tsv"
+    [[ -s "${cache_dir}/resolved.txt" ]] && resolved_map="${cache_dir}/resolved.txt"
+  fi
+
+  printf '%s' "$json" \
+    | GAR_RM_CHILDREN="$child_map" GAR_RM_RESOLVED="$resolved_map" python3 -c '
+import sys, json, os, re
 from datetime import datetime, timezone
 
 def human_size(b):
@@ -160,9 +189,35 @@ def human_time(dt):
 
 data = json.load(sys.stdin)
 
+# child digest -> parent digest, as resolved by rlm-gar-version-rm. Absent
+# when this package has not been opened in the version picker yet.
+children = set()
+cpath = os.environ.get("GAR_RM_CHILDREN") or ""
+if cpath and os.path.exists(cpath):
+    with open(cpath) as fh:
+        for raw in fh:
+            parts = raw.rstrip("\n").split("\t")
+            if len(parts) >= 2 and parts[0]:
+                children.add(parts[0])
+
+# Indexes whose manifest has already been fetched. Rows are `<digest>` or
+# `<digest>\tempty` (the childless marker) — match on the digest column.
+resolved = set()
+rpath = os.environ.get("GAR_RM_RESOLVED") or ""
+if rpath and os.path.exists(rpath):
+    with open(rpath) as fh:
+        for raw in fh:
+            d = raw.rstrip("\n").split("\t")[0]
+            if d:
+                resolved.add(d)
+
+listing_indexes = set()
 total_bytes = 0
 tag_total = 0
 tagged = 0
+untagged_index = 0
+referenced = 0
+orphan = 0
 times = []
 for e in data:
     meta = e.get("metadata") or {}
@@ -174,16 +229,64 @@ for e in data:
         total_bytes += int(sb)
     tags = e.get("tags") or []
     tag_total += len(tags)
+    digest = e.get("version") or ""
+    is_index = bool(re.search("index|list", meta.get("mediaType") or ""))
+    if is_index and digest:
+        listing_indexes.add(digest)
     if tags:
         tagged += 1
+    elif is_index:
+        # An untagged index is not a leftover: it owns the members listed
+        # under it, and deleting it strands them.
+        untagged_index += 1
+    elif digest in children:
+        referenced += 1
+    else:
+        orphan += 1
     dt = parse(e.get("updateTime") or e.get("uploadTime") or e.get("createTime"))
     if dt:
         times.append(dt)
 
 n = len(data)
 batches = (n + 999) // 1000
+untagged = n - tagged
 
-print(f"Versions:   {n}   ({tagged} tagged, {n - tagged} untagged)")
+# The orphan count is only trustworthy when EVERY index in the current
+# listing has been resolved. A cache resolved before newer indexes were
+# pushed still returns rows, so a bare "children.tsv exists" test reports
+# their members as unreferenced — measured at 24 false orphans out of 68
+# members on catalogue_export. On a delete tool that is the dangerous
+# direction: a live member of a tagged multi-arch image rendered as safe
+# to remove. Partial coverage therefore degrades to "unresolved".
+unresolved_indexes = listing_indexes - resolved
+# A package with no indexes at all needs no attribution: every untagged
+# version is necessarily an orphan, so the split is known without any
+# cache. Requiring a non-empty children.tsv here would leave those
+# packages permanently reporting "unresolved" — the exact case where the
+# orphan count is both certain and most useful.
+have_attribution = not unresolved_indexes and (bool(children) or not listing_indexes)
+
+print(f"Versions:   {n}")
+print(f"  tagged:            {tagged}")
+if untagged_index:
+    print(f"  untagged index:    {untagged_index}   (owns members below)")
+if have_attribution:
+    # In a package with no multi-arch images at all, "index members: 0" is
+    # noise — every untagged version is simply untagged.
+    if listing_indexes:
+        print(f"  index members:     {referenced}   (untagged, referenced by an index)")
+        print(f"  unreferenced:      {orphan}   (untagged, nothing points at them)")
+    elif orphan:
+        print(f"  untagged:          {orphan}   (nothing points at them)")
+elif untagged - untagged_index > 0:
+    # Never guess: without full attribution these could be members of a
+    # tagged multi-arch image, and deleting one silently breaks it.
+    if unresolved_indexes and children:
+        why = f"{len(unresolved_indexes)} index(es) not yet resolved"
+    else:
+        why = "not yet resolved"
+    print(f"  untagged:          {untagged - untagged_index}   "
+          f"(members vs orphans {why} — open in gar-version-rm)")
 print(f"Tags:       {tag_total}")
 print(f"Total size: {human_size(total_bytes)}")
 if times:

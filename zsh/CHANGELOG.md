@@ -6,7 +6,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [2026-08-18]
 
+### Fixed
+
+- **`rlm-gar-version-rm` reported "nothing blocked" for a version that the registry then refused to delete.** The pre-flight check that warns about deleting an index member without its index kept a child→parent *dict*, so a child referenced by more than one index retained only whichever parent was read last. Selecting that child plus that one parent passed the check and the delete was refused with a precondition error. This is not a corner case: 48 children in the `ingress-dbt` cache have multiple parents, and the OCI rule is that an artifact is deletable only once *nothing* references it. The check now tracks the full parent set and names every index still holding a reference. Reproduced against the real cache before and after.
+
 ### Changed
+
+- **`rlm-gar-version-rm` now warns about every way the registry can refuse a delete, not just one.** Previously only "this member's index is not in the selection" was reported. Added, alongside the multi-parent fix above:
+
+  - **Immutable tags.** A Docker repository configured with `immutableTags` refuses to delete a *tagged* version — its tags "cannot be modified, moved or deleted". The repo config is fetched once per package (one call, ~1.2s) and, when the flag is on, the pane says how many of the selected versions are tagged. Untagged versions are unaffected, so this is a warning rather than a hard stop.
+  - **Remote and virtual repositories.** These serve artifacts from an upstream and own nothing deletable; the mode is reported before the confirmation.
+
+  Tagged versions are otherwise fine to delete — deleting by digest takes the tags with it. A search result claimed `batchDelete` needs `force: true` for tagged versions; the [API reference](https://docs.cloud.google.com/artifact-registry/docs/reference/rest/v1/projects.locations.repositories.packages.versions/batchDelete) documents only `names[]` and `validateOnly`, and a probe deleted a tagged version cleanly. The `--delete-tags` flag that does exist belongs to `gcloud artifacts docker images delete` and applies to deleting by *tag*. Left in as a warning would have been a lie about the tool's own behaviour.
+
+  Note that `validateOnly` is **not** a usable pre-flight for any of this: probed against a known-refused index member, it returned success. The checks have to be computed locally.
+
+- **`rlm-gar-version-rm` returns to the package picker after each package** instead of exiting, so several packages can be pruned in one sitting. Aborting the *package* picker is what exits; aborting the version picker or declining the confirmation goes back one step. The per-package flow was extracted into an inner function so its ~15 `return` points keep meaning "this round is over" rather than needing a rewrite into loop control. `--refresh` is now one-shot — left sticky it would re-resolve every index of every package opened later, ~18s each on the 508-index package here.
+
+- **`bin/gar-rm-preview` now breaks the version count down by what is actually safe to delete.** The pane reported `Versions: 86 (12 tagged, 74 untagged)`, which is the number you cannot act on: most of those "untagged" versions are the per-arch members of a tagged multi-arch image, and deleting one silently breaks the tag that references it. Measured on `catalogue_export`, 68 of the 74 untagged versions were members and **0** were genuine orphans — the flat count suggested 74 disposable versions where there were none. The breakdown is now four lines: `tagged`, `untagged index` (owns members, deleting it strands them), `index members`, and `unreferenced` — the last being the only number that answers "what can I remove".
+
+  - **The attribution is read from cache, never fetched.** Splitting members from orphans needs one registry GET per multi-arch index (see `_rlm-gar-index-children`); at ~0.57s each and 508 indexes on the largest package here, that is ~18s — impossible in a preview that re-runs on every keystroke. The pane reuses the per-package cache `rlm-gar-version-rm` already maintains (`~/.cache/gar-version/<md5 of image>/`), so the split costs ~13ms when present and nothing when absent.
+  - **Partial coverage degrades to "unresolved" rather than guessing.** A cache resolved before newer indexes were pushed still returns rows, so a bare "does `children.tsv` exist" test attributes only what it knows and reports the rest as orphans — reproduced at **24 false orphans** on `catalogue_export` before the guard. Since the dangerous direction on a delete tool is a live member rendering as safe to remove, the orphan count is only shown when every index in the *current* listing appears in `resolved.txt`; otherwise the pane says how many indexes are unresolved and points at `gar-version-rm`. A package with no indexes at all needs no cache — every untagged version is necessarily an orphan — and is reported precisely.
 
 - **`rlm-git-status`'s PR column now reports the PR's state and activity, not just its number.** It rendered a bare `#407` colored by state, which meant the one thing you had to squint at the color to learn — merged? still open? — was the thing the column existed to tell you, and color is unavailable the moment the output is piped or pasted. The cell is now `#407 open ✓ 3c 2d`: number (still an OSC 8 link), state as a word, review decision, comment count, and time since the last activity. Color is retained but demoted to reinforcement.
 

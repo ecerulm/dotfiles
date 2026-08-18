@@ -84,10 +84,34 @@ in the reference chain covers that, and also survives the 75-name
 chunking, because any prefix of a parents-first list is itself
 parents-first.
 
+WHAT THE REGISTRY WILL REFUSE
+
+Some selections cannot succeed no matter how they are ordered. These
+are reported before the confirmation, with the reason, rather than
+being discovered when a batch fails halfway through.
+
 Members whose index is NOT part of the selection cannot be deleted at
-all while that index remains. Ordering cannot help there, so they are
-listed before the confirmation with the index that is blocking them,
-rather than being discovered when the batch fails.
+all while that index remains. EVERY referencing index has to go, not
+just one: a digest can be a member of several indexes at once (common
+where successive builds share an identical layer set), and the rule
+is that an artifact becomes deletable only once nothing points at it.
+Each blocking index is named.
+
+Repository-level conditions are reported too, since they apply
+whatever was picked:
+
+  - a repository with immutable tags refuses to delete any TAGGED
+    version, because its tags cannot be modified, moved or deleted;
+    untagged versions are unaffected, so the count of tagged versions
+    in the selection is shown.
+
+  - a REMOTE or VIRTUAL repository serves its artifacts from an
+    upstream and cannot delete them at all.
+
+Tagged versions are otherwise deletable: deleting by digest removes
+the digest and its tags together. (The --delete-tags flag some gcloud
+commands need applies to deleting by TAG, not to the batchDelete call
+used here, which takes only names and validateOnly.)
 
 DELETION
 
@@ -121,6 +145,12 @@ against what remains. Any still present are reported and a single
 retry offered. Selecting every version in a package deletes the
 versions but leaves an empty package behind; that is called out
 before you confirm, with a pointer to gar-rm.
+
+The package picker then reopens, so several packages can be pruned in
+one sitting. Aborting the PACKAGE picker (Ctrl-G, Esc) is what exits;
+aborting the version picker or declining the confirmation just goes
+back a step. --refresh applies only to the first package opened, so
+later rounds still use the cache.
 
 OPTIONS
   -n, --dry-run
