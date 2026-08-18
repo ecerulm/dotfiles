@@ -4,6 +4,21 @@ All notable changes to the zsh configuration are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2026-08-18]
+
+### Changed
+
+- **`rlm-git-status`'s PR column now reports the PR's state and activity, not just its number.** It rendered a bare `#407` colored by state, which meant the one thing you had to squint at the color to learn — merged? still open? — was the thing the column existed to tell you, and color is unavailable the moment the output is piped or pasted. The cell is now `#407 open ✓ 3c 2d`: number (still an OSC 8 link), state as a word, review decision, comment count, and time since the last activity. Color is retained but demoted to reinforcement.
+
+  - **State** is `open` / `draft` / `merged` / `closed`. A draft renders as `draft` rather than `open` — nobody is reviewing it, and calling it open overstates how far along the change is.
+  - **Review decision** (`✓` approved, `✗` changes requested, `·` review required) is shown for open PRs only. On a merged or closed PR the decision is history rather than something to act on, so it is dropped rather than left to imply an outstanding request.
+  - **Comment count** (`3c`) counts issue comments plus reviews that carry a body. Bare approve/reject reviews are excluded: they carry no text to go read, and the `✓`/`✗` already reports them. Measured on `data-platform-dbt#3782`, 3 reviews reduced to 1 comment. Omitted at zero so a quiet PR reads `#407 open 2d` rather than `#407 open 0c 2d`.
+  - **Activity age** is `max(updatedAt, newest comment, newest review)`, not `updatedAt` alone. `updatedAt` does move on a comment, but it also moves on a push, a label edit, an assignee change and a base-branch retarget — on its own it cannot distinguish "someone replied" from "I rebased". Taking the max keeps it correct while the comment count beside it says which kind of activity it was.
+
+  The extra fields cost no extra latency: `comments` returns full bodies (an atlantis plan comment is tens of KB), but it rides the same request, measured at the same ~0.8s against `Storytel/infra-gcp` with and without them. jq reduces to counts and a max timestamp inside the parallel job, so nothing large crosses the TSV boundary, and the ISO-8601 → epoch conversion happens there too rather than forking a `date` per rendered row.
+
+  The PR column width is now measured over the rendered cells instead of being a fixed 7 — the cell went from always `#NNNN` to anything between `-` and `#12345 open ✓ 12c 1y20d`, and a fixed width would have pushed the JIRA column out of alignment.
+
 ## [2026-08-13]
 
 ### Added

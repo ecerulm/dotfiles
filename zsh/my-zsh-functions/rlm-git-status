@@ -24,7 +24,11 @@ set -o pipefail
 #                 pushed. "unpushed" = no upstream at all, "gone" = the
 #                 upstream ref was deleted.
 #   LOCAL         uncommitted work: staged / unstaged / untracked / conflicts.
-#   PR            pull request for the branch, as an OSC 8 link.
+#   PR            pull request for the branch: number (OSC 8 link), state,
+#                 review decision, comment count, and time since the last
+#                 activity — "#407 open ✓ 3c 2d". The state is the point:
+#                 a bare number told you a PR existed but not whether it
+#                 was merged, waiting on review, or sitting stale.
 #   JIRA          issue key from the branch (or the collection dirname).
 #
 # These are independent — a repo can be any combination of them, and
@@ -40,7 +44,10 @@ set -o pipefail
 # also usable as a plain `git status` summary from inside a worktree.
 #
 # PR lookups are the slow part (one `gh pr list` per repo, ~300-800ms each),
-# so repos are probed in parallel and PRs can be skipped with --no-pr.
+# so repos are probed in parallel and PRs can be skipped with --no-pr. The
+# per-PR payload grew when the activity fields were added (comment bodies
+# come along whether or not you want them), but the latency did not — it is
+# one round-trip either way.
 # JIRA summaries come from the same ~/.cache/wts-jira/<KEY>.summary cache
 # that wt-preview and wt-collection-preview use, on the same 3-day TTL.
 #
@@ -192,9 +199,10 @@ fi
 # of file) so the fan-out does not print "[4] + done ..." pairs in an
 # interactive shell.
 #
-# Row format (13 fields, any of which may be empty):
+# Row format (17 fields, any of which may be empty):
 #   name \t branch \t base \t ahead \t behind \t local_summary \t dirty_flag
 #     \t pr_num \t pr_state \t pr_url \t push_state \t up_ahead \t up_behind
+#     \t pr_draft \t pr_review \t pr_comments \t pr_activity_epoch
 # ---------------------------------------------------------------------------
 
 local tmpdir
@@ -327,21 +335,52 @@ for m in "${members[@]}"; do
     local -i dirty=0
     (( ${#bits} )) && dirty=1
 
-    local pr_num='' pr_state='' pr_url=''
+    # PR lookup. Beyond number/state/url we pull the activity fields so the
+    # table can answer "is anything waiting on me?" without opening the PR:
+    #   isDraft         a draft is not really "open" — nobody is reviewing it.
+    #   reviewDecision  APPROVED / CHANGES_REQUESTED / REVIEW_REQUIRED.
+    #   comments        issue-comment count and their timestamps.
+    #   reviews         review bodies count as comments too; a review with an
+    #                   empty body is a bare approve/reject, already covered
+    #                   by reviewDecision, so only bodied ones are counted.
+    #
+    # `comments` returns full bodies (an atlantis plan comment is tens of KB),
+    # but the cost is bytes over an already-open connection, not another
+    # round-trip: measured against Storytel/infra-gcp the request takes the
+    # same ~0.8s with or without them. jq reduces to counts and a max
+    # timestamp immediately so nothing large crosses the TSV boundary.
+    local pr_num='' pr_state='' pr_url='' pr_draft='' pr_review='' pr_comments='' pr_activity=''
     if (( want_pr )) && [[ $branch != '(detached'* ]]; then
       local pr_json=''
       pr_json=$(cd "$repo" 2>/dev/null && gh pr list --state all --head "$branch" --limit 1 \
-                  --json number,url,state 2>/dev/null)
+                  --json number,url,state,isDraft,updatedAt,comments,reviews,reviewDecision \
+                  2>/dev/null)
       if [[ -n $pr_json && $pr_json != '[]' ]]; then
         # Parenthesize before `as`: jq binds `as` looser than `//`, so
         # `.[0] // {} as $pr | …` short-circuits and emits the raw input
         # whenever .[0] is truthy. See zsh/AGENTS.md.
+        #
+        # The activity timestamp is max(updatedAt, newest comment, newest
+        # review) rather than updatedAt alone: updatedAt does track comments,
+        # but it also advances on label/assignee/base-branch edits and on
+        # pushes, so on its own it cannot distinguish "someone replied" from
+        # "I rebased". Taking the max keeps it correct while letting the
+        # comment count next to it say which kind of activity it was.
         local pr_line=''
         pr_line=$(print -r -- "$pr_json" \
                   | jq -r '(.[0] // {}) as $pr
+                           | (($pr.comments // []) | map(.createdAt)) as $ct
+                           | (($pr.reviews  // []) | map(select((.body // "") != ""))) as $rv
                            | [($pr.number // "" | tostring),
                               ($pr.state  // ""),
-                              ($pr.url    // "")]
+                              ($pr.url    // ""),
+                              (if $pr.isDraft then "1" else "" end),
+                              ($pr.reviewDecision // ""),
+                              (($ct | length) + ($rv | length) | tostring),
+                              ([($pr.updatedAt // ""),
+                                ($ct | max // ""),
+                                ($rv | map(.submittedAt // "") | max // "")]
+                               | map(select(. != null and . != "")) | max // "")]
                            | @tsv' 2>/dev/null)
         if [[ -n $pr_line ]]; then
           local -a pf=()
@@ -349,13 +388,24 @@ for m in "${members[@]}"; do
           pr_num=${pf[1]}
           pr_state=${pf[2]}
           pr_url=${pf[3]}
+          pr_draft=${pf[4]:-}
+          pr_review=${pf[5]:-}
+          pr_comments=${pf[6]:-}
+          # Convert ISO-8601 to epoch here, in the parallel job, so the
+          # render loop does not fork a `date` per row.
+          local pr_iso=${pf[7]:-}
+          if [[ -n $pr_iso ]]; then
+            pr_activity=$(date -j -f '%Y-%m-%dT%H:%M:%SZ' "$pr_iso" '+%s' 2>/dev/null) \
+              || pr_activity=$(date -d "$pr_iso" '+%s' 2>/dev/null) || pr_activity=''
+          fi
         fi
       fi
     fi
 
-    printf '%s\t%s\t%s\t%s\t%s\t%s\t%d\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
       "$name" "$branch" "$base" "$ahead" "$behind" "$local_summary" "$dirty" \
       "$pr_num" "$pr_state" "$pr_url" "$push_state" "$up_ahead" "$up_behind" \
+      "$pr_draft" "$pr_review" "$pr_comments" "$pr_activity" \
       >"$tmpdir/$n"
   } &
 done
@@ -690,9 +740,152 @@ for row in "${render_rows[@]}"; do
   fi
 done
 
-# PR is the last column when JIRA is hidden, so it only needs padding when
-# something follows it.
-local -i w_pr=7
+# ---------------------------------------------------------------------------
+# PR cell
+#
+# Rendered as "#407 open ✓ 3c 2d": number, state, review signal, comment
+# count, and how long since the last activity. Each piece answers a
+# different question, and the whole point of the column is that you should
+# not have to open the PR to learn any of them:
+#
+#   state    open / draft / merged / closed. "draft" replaces "open" rather
+#            than annotating it — a draft is not waiting on a reviewer, so
+#            treating it as open overstates how far along the change is.
+#   review   ✓ approved, ✗ changes requested, · review required. Dropped for
+#            merged/closed PRs, where the decision is no longer actionable.
+#   Nc       comment count (issue comments plus reviews that carry a body).
+#            Bare approve/reject reviews are excluded — they carry no text
+#            to read, and the review signal already reports them.
+#   age      time since the newest of updatedAt / last comment / last review.
+#
+# Empty pieces collapse rather than padding, so a PR with no comments reads
+# "#407 open 2d" and not "#407 open   0c 2d".
+#
+# _gs_pr_age formats a compact age: "3h", "2d", "1y20d". Compact rather
+# than "3 hours ago" because this is a table column — the prose form is
+# three times as wide and the header already establishes what the number
+# means. Matches the format the gar pickers use.
+# ---------------------------------------------------------------------------
+
+# Nested helpers. zsh has no local functions, so these land in the global
+# namespace on first call — the _gs_ prefix keeps them out of the way, same
+# convention as _fe_* in rlm-fe and _prl_* in rlm-pr-list.
+_gs_pr_age() {
+  local epoch=$1
+  [[ -n $epoch ]] || { print -r -- ''; return 0 }
+  # EPOCHSECONDS lives in zsh/datetime and is empty without it, which would
+  # make every age read as a huge negative and clamp to "0m".
+  zmodload -F zsh/datetime b:strftime p:EPOCHSECONDS 2>/dev/null
+  local -i secs=$(( EPOCHSECONDS - epoch ))
+  (( secs < 0 )) && secs=0
+  if   (( secs < 3600  )); then print -r -- "$(( secs / 60 ))m"
+  elif (( secs < 86400 )); then print -r -- "$(( secs / 3600 ))h"
+  else
+    local -i d=$(( secs / 86400 ))
+    if (( d < 365 )); then
+      print -r -- "${d}d"
+    else
+      # Compound y+d past a year, like the gar picker: "1y20d" reads as
+      # "just over a year" where a bare "384d" makes you do the division.
+      local -i y=$(( d / 365 )) rd=$(( d - (d / 365) * 365 ))
+      (( rd > 0 )) && print -r -- "${y}y${rd}d" || print -r -- "${y}y"
+    fi
+  fi
+}
+
+# Build the PR cell for one row. Emits "<plain>\t<colored>" so the caller
+# can pad against the visible width — printf counts escape bytes, so the
+# colored form cannot be measured directly.
+_gs_pr_cell() {
+  local n=$1 st=$2 url=$3 draft=$4 review=$5 comments=$6 activity=$7
+  local dim=$8 green=$9 cyan=${10} red=${11} yellow=${12} reset=${13} tty=${14}
+  local bold=${15}
+
+  if [[ -z $n ]]; then
+    printf '%s\t%s%s%s\n' '-' "$dim" '-' "$reset"
+    return 0
+  fi
+
+  local -a plain=() colored=()
+
+  # Number, as an OSC 8 hyperlink so the click target is short and cannot
+  # wrap. A bare URL here would wrap and silently open a truncated page —
+  # see the OSC 8 rule in zsh/AGENTS.md.
+  local num_plain="#${n}"
+  if [[ -n $url && $tty == 1 ]]; then
+    colored+=("$(printf '\e]8;;%s\e\\%s%s%s\e]8;;\e\\' "$url" "$bold" "$num_plain" "$reset")")
+  else
+    colored+=("${bold}${num_plain}${reset}")
+  fi
+  plain+=("$num_plain")
+
+  # State word. Colored the way the number used to be: green open, cyan
+  # merged, red closed, dim draft.
+  local st_word='' st_color=$dim
+  case ${(L)st} in
+    open)   if [[ -n $draft ]]; then st_word='draft'; st_color=$dim
+            else st_word='open'; st_color=$green; fi ;;
+    merged) st_word='merged'; st_color=$cyan ;;
+    closed) st_word='closed'; st_color=$red ;;
+    *)      st_word=${(L)st} ;;
+  esac
+  if [[ -n $st_word ]]; then
+    plain+=("$st_word")
+    colored+=("${st_color}${st_word}${reset}")
+  fi
+
+  # Review decision, open PRs only — on a merged or closed PR the decision
+  # is history, not something to act on.
+  if [[ ${(L)st} == open ]]; then
+    local rv_plain='' rv_color=$dim
+    case $review in
+      APPROVED)          rv_plain='✓'; rv_color=$green ;;
+      CHANGES_REQUESTED) rv_plain='✗'; rv_color=$red ;;
+      REVIEW_REQUIRED)   rv_plain='·'; rv_color=$yellow ;;
+    esac
+    if [[ -n $rv_plain ]]; then
+      plain+=("$rv_plain")
+      colored+=("${rv_color}${rv_plain}${reset}")
+    fi
+  fi
+
+  # Comment count, omitted at zero so a quiet PR does not carry a "0c".
+  if [[ -n $comments ]] && (( comments > 0 )); then
+    plain+=("${comments}c")
+    colored+=("${yellow}${comments}c${reset}")
+  fi
+
+  local age=''
+  age=$(_gs_pr_age "$activity")
+  if [[ -n $age ]]; then
+    plain+=("$age")
+    colored+=("${dim}${age}${reset}")
+  fi
+
+  printf '%s\t%s\n' "${(j: :)plain}" "${(j: :)colored}"
+}
+
+# PR column width, measured over the rendered cells. Unlike the old fixed
+# width this varies a lot ("-" to "#12345 open ✓ 12c 3mo"), so it has to be
+# measured or the JIRA column would not line up.
+local pr_label='PR'
+local -i w_pr=${#pr_label}
+local -A pr_plain_of=() pr_cell_of=()
+local -i is_tty=0
+[[ -t 1 ]] && is_tty=1
+for row in "${render_rows[@]}"; do
+  local -a wrf=()
+  wrf=("${(@s:	:)row}")
+  local built=''
+  built=$(_gs_pr_cell "${wrf[8]}" "${wrf[9]}" "${wrf[10]}" \
+            "${wrf[14]:-}" "${wrf[15]:-}" "${wrf[16]:-}" "${wrf[17]:-}" \
+            "$dim" "$green" "$cyan" "$red" "$yellow" "$reset" "$is_tty" "$bold")
+  local -a bf=()
+  bf=("${(@s:	:)built}")
+  pr_plain_of[${wrf[1]}]=${bf[1]}
+  pr_cell_of[${wrf[1]}]=${bf[2]}
+  (( ${#bf[1]} > w_pr )) && w_pr=${#bf[1]}
+done
 
 printf '%s%-*s  ' "$bold" "$w_name" "REPO"
 (( show_branch )) && printf '%-*s  ' "$w_branch" "BRANCH"
@@ -700,9 +893,9 @@ printf '%-*s  ' "$w_div" "$divergence_label"
 (( show_push )) && printf '%-*s  ' "$w_push" "$push_label"
 printf '%-*s  ' "$w_local" "LOCAL"
 if (( show_jira )); then
-  printf '%-*s  %s' "$w_pr" "PR" "JIRA"
+  printf '%-*s  %s' "$w_pr" "$pr_label" "JIRA"
 else
-  printf '%s' "PR"
+  printf '%s' "$pr_label"
 fi
 printf '%s\n' "$reset"
 
@@ -815,28 +1008,9 @@ for row in "${render_rows[@]}"; do
   local -i pad_local=$(( w_local - ${#local_plain} ))
   (( pad_local < 0 )) && pad_local=0
 
-  # PR cell. The number is an OSC 8 hyperlink so the click target is short
-  # and cannot wrap; state colors it (open green, merged cyan, closed red).
-  # A bare URL here would wrap and silently open a truncated page — see the
-  # OSC 8 rule in zsh/AGENTS.md.
-  local pr_cell='' pr_plain=''
-  if [[ -n $r_pr ]]; then
-    pr_plain="#${r_pr}"
-    local pr_color=$dim
-    case ${(L)r_state} in
-      open)   pr_color=$green ;;
-      merged) pr_color=$cyan ;;
-      closed) pr_color=$red ;;
-    esac
-    if [[ -n $r_url && -t 1 ]]; then
-      pr_cell=$(printf '\e]8;;%s\e\\%s%s%s\e]8;;\e\\' "$r_url" "$pr_color" "$pr_plain" "$reset")
-    else
-      pr_cell="${pr_color}${pr_plain}${reset}"
-    fi
-  else
-    pr_plain='-'
-    pr_cell="${dim}-${reset}"
-  fi
+  # PR cell was built during the width pass above (it has to be, to measure
+  # the column), so this is just a lookup.
+  local pr_cell=${pr_cell_of[$r_name]:-} pr_plain=${pr_plain_of[$r_name]:-'-'}
   local -i pad_pr=$(( w_pr - ${#pr_plain} ))
   (( pad_pr < 0 )) && pad_pr=0
 

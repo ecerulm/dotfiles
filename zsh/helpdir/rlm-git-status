@@ -48,9 +48,29 @@ COLUMNS
             on it; flagging those would mark every repo changed.
   LOCAL     Uncommitted work, broken down as conflict / staged /
             unstaged / untracked counts, or "clean".
-  PR        Pull request number for the branch, as an OSC 8 hyperlink
-            to the PR. Colored by state: green open, cyan merged, red
-            closed. "-" when the branch has no PR.
+  PR        Pull request for the branch, rendered as
+            "#407 open ✓ 3c 2d":
+
+              #407    Number, as an OSC 8 hyperlink to the PR.
+              open    State: open, draft, merged or closed. Colored
+                      green open, cyan merged, red closed, dim draft.
+                      A draft reads as "draft" rather than "open" —
+                      nobody is reviewing it yet.
+              ✓       Review decision, open PRs only: ✓ approved,
+                      ✗ changes requested, · review required. Dropped
+                      once the PR is merged or closed, where the
+                      decision is history rather than an action.
+              3c      Comment count — issue comments plus reviews
+                      that carry a body. Bare approve/reject reviews
+                      are excluded; the ✓/✗ already reports those.
+                      Omitted at zero.
+              2d      Time since the last activity, taken as the
+                      newest of the PR's updatedAt, its last comment
+                      and its last review. updatedAt alone would also
+                      move on a push or a label edit, so it cannot
+                      tell "someone replied" from "I rebased".
+
+            "-" when the branch has no PR.
   JIRA      Issue key parsed from the branch name (falling back to a
             key embedded in the collection dirname), as an OSC 8
             hyperlink, followed by the cached "(Status) Summary" when
