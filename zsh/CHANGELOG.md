@@ -6,6 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [2026-08-20]
 
+### Added
+
+- `rlm-pr-find` (`pr-find`): **scan a whole directory tree for git checkouts, find the PR for each one's *current* branch, and `cd` to the one you pick.** Where `rlm-pr-list` covers one repo or one collection dir and prints a table, this walks a tree: run from `~/git/work` it finds every repo root *and* every linked worktree (~100 checkouts) and lists the ~26 that have a PR. Rows are `REPO #NUM STATE TITLE` with the state color-coded (open/draft/merged/closed); the preview is `gh pr view`, ENTER cds there.
+
+  Checkouts with **no** PR are not stored at all. The picker is a "jump to a PR" tool, so a repo without one is not a destination — which also keeps the cache at ~26 rows rather than ~100.
+
+  A bare basename is ambiguous in a collection dir (one `data-platform-dbt` per active ticket, each on a different branch), so repeated basenames are prefixed with their parent while unique top-level repos stay bare. The parent is boilerplate-heavy (`StorytelDataPlatform_20260814_DATA-2813-dbt-package`) and only its tail distinguishes one collection from another, so it is elided from the left to the last two underscore-separated chunks — the full string would push the PR number and title off screen.
+
+  Defined **inline** in `.zshrc` because it must `cd` the calling shell, per the convention it shares with `rlm-wts`; the scan and cache live in the `_rlm-pr-find-cache` helper.
+
+- `_rlm-pr-find-cache`: per-scan-root PR cache `~/.cache/rlm-pr-find/<md5 of root>.tsv` plus a shared MRU `history.txt`. Actions `paths`/`refresh`/`read`/`age`/`append`. The scan issues one `gh` per checkout fanned out 16-at-a-time (~7s for 100), far too slow to pay on every picker open, so results are cached and later runs open instantly; the first picker row is a `--- REFRESH SCAN (scanned 12m ago) ---` sentinel that rescans and reopens. Keying on the scan root rather than globally means `~/git/work` and `~/git/personal` keep independent caches instead of thrashing one. Rows are ordered most-recently-picked first, then by newest PR update.
+
+  The MRU stores the **relative path only**, never the whole row, so a refresh that changes a PR's title or state cannot orphan its history entry. The 7-field row keeps `title` last, so a tab embedded in a title cannot shift the parse.
+
+  The picker **loops** rather than recursing after a refresh — recursing would nest a second fzf inside the first.
+
 ### Fixed
 
 - **`rlm-pr-worktree-rm-merged-closed` reported merged worktrees as `[has-work]` — the more finished a PR was, the more likely it was flagged as unfinished.** Both PR-lookup paths were gated on `refs/remotes/origin/<branch>` existing locally: the batched `gh pr list --search "head:…"` only included branches with a remote-tracking ref, and the per-branch `gh pr view` fallback repeated the same test. The gate's stated rationale — "a branch that was never pushed cannot have a PR" — is true but does not identify the set it was testing for: a branch whose PR was **merged and whose remote branch was then deleted** has no remote-tracking ref either, and that is the single most common state for a worktree this tool exists to clean up. With both lookups skipped, such a branch fell through to the commits-ahead check, and since a merge-commit landing leaves the branch N commits ahead of `main`, it came back `[has-work]` — the one flag that is neither deletable nor sorted to the top.
