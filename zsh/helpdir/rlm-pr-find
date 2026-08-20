@@ -1,0 +1,51 @@
+rlm-pr-find [DIR] [-r|--refresh] [-d|--depth N]
+
+Recursively find every git checkout under DIR (default: the current
+directory), look up the GitHub PR whose head branch is that checkout's
+CURRENT branch, and cd to the one you pick from an fzf picker.
+
+Where rlm-pr-list covers a single repo or one collection dir and prints
+a table, rlm-pr-find scans a whole tree. Run from ~/git/work it walks
+every repo root AND every linked worktree — around 100 checkouts, of
+which roughly a quarter have a PR.
+
+Only checkouts that HAVE a PR are listed; this is a "jump to the repo
+behind a PR" tool, so a repo without one is not a destination. Rows
+show the repo, the PR number, its state (open / draft / merged /
+closed, color-coded) and the PR title. The preview pane runs
+`gh pr view` for the focused row, and ENTER cds to that checkout.
+
+A repo basename alone is ambiguous — a collection dir holds one
+worktree per repo, so data-platform-dbt occurs once per active ticket.
+Basenames that repeat are prefixed with their parent dir, elided from
+the left to keep the column narrow; unique top-level repos stay bare.
+
+Because the scan issues one `gh` call per checkout (fanned out 16 at a
+time, about 7s for 100 checkouts) results are CACHED per scan root, so
+later runs open instantly. The first row of the picker is a
+"--- REFRESH SCAN (scanned 12m ago) ---" sentinel that rescans and
+reopens the picker. Rows are ordered most-recently-picked first, then
+by newest PR update; the MRU history survives a refresh.
+
+ARGUMENTS
+  DIR              Directory to scan. Defaults to the current directory.
+  -r, --refresh    Rescan before opening the picker, ignoring the cache.
+  -d, --depth N    Max search depth for the checkout scan (default 4).
+                   Depth 3 is needed for collection dirs; raise it only
+                   if your checkouts nest deeper.
+  -h, --help       Print a usage line.
+
+FILES
+  ~/.cache/rlm-pr-find/<md5 of scan root>.tsv   cached scan result
+  ~/.cache/rlm-pr-find/history.txt              MRU picks, all roots
+
+KEYS
+  TAB          multi-select
+  Enter        cd to the selected checkout
+  Shift-up/dn  scroll the preview
+  Alt-up/dn    half-page scroll the preview
+  Ctrl-P       cycle preview size (70% / 40% / hidden)
+  Ctrl-G       abort
+
+REQUIRES
+  gh, git, jq, fd, fzf

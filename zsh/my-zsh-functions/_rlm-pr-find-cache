@@ -1,0 +1,304 @@
+emulate -L zsh
+setopt local_options no_monitor no_notify
+
+# Shared PR-scan cache for rlm-pr-find.
+#
+# rlm-pr-find scans a directory tree for every git checkout and asks
+# GitHub for the PR whose head branch is that checkout's CURRENT branch.
+# Over ~/git/work that is ~100 checkouts (repo roots AND linked
+# worktrees), which costs ~7s even fanned out 16-at-a-time — far too
+# slow to pay on every picker open. This helper owns the cache that
+# makes the picker instant, plus the MRU history that orders it.
+#
+# The cache is keyed on the SCAN ROOT (md5 of its absolute path), so
+# running rlm-pr-find from ~/git/work and from ~/git/personal keeps two
+# independent caches rather than one that thrashes between them.
+#
+#   ~/.cache/rlm-pr-find/<md5 of root>.tsv   the scan result
+#   ~/.cache/rlm-pr-find/history.txt         MRU, shared across roots
+#
+# Cache row format (7 tab-separated fields, one per checkout WITH a PR):
+#
+#   <rel_path>\t<repo>\t<branch>\t<number>\t<state>\t<updated_epoch>\t<title>
+#
+#   rel_path       checkout path relative to the scan root. Doubles as
+#                  the MRU key and, joined to the root, as the cd target.
+#   repo           the display label (see rlm-pr-find's disambiguation).
+#   branch         the checked-out branch the PR was matched on.
+#   number         PR number, bare (no leading '#').
+#   state          open / draft / merged / closed.
+#   updated_epoch  PR updatedAt as epoch seconds; '0' when unparseable.
+#   title          PR title. Last field, so embedded tabs cannot shift
+#                  the parse (GitHub strips tabs from titles anyway).
+#
+# Checkouts with NO PR for their branch are NOT stored. The picker is a
+# "jump to a PR" tool; a repo without one is not a destination. That
+# also keeps the cache to ~26 rows instead of ~100.
+#
+# MRU history is stored as rel_path only (not the whole row), so a
+# refresh that changes a PR's title or state does not orphan its
+# history entry.
+#
+# Usage:
+#   _rlm-pr-find-cache paths <root>
+#       → emits 'cache_file=…' / 'history_file=…' lines for `eval`.
+#   _rlm-pr-find-cache refresh <root> [max_depth]
+#       → rescan <root> and rewrite its cache. Default depth 4.
+#   _rlm-pr-find-cache read <root>
+#       → cache rows, MRU first, then the rest by newest PR update.
+#   _rlm-pr-find-cache age <root>
+#       → humanized cache mtime ("12m ago"); empty when no cache.
+#   _rlm-pr-find-cache append <root> <rel_path>
+#       → record a pick in the MRU.
+#
+# Return codes:
+#   0 — success.
+#   1 — scan/IO failure, or `read`/`age` with no cache.
+#   2 — usage error.
+
+local action=$1
+[[ -z $action ]] && { print -u2 "_rlm-pr-find-cache: missing action"; return 2 }
+shift
+
+local root=$1
+[[ -z $root ]] && { print -u2 "_rlm-pr-find-cache: missing root"; return 2 }
+shift
+root=${root:A}
+
+local cache_dir="$HOME/.cache/rlm-pr-find"
+local key
+key=$(print -rn -- "$root" | md5 2>/dev/null || print -rn -- "$root" | md5sum 2>/dev/null | cut -d' ' -f1)
+[[ -z $key ]] && { print -u2 "_rlm-pr-find-cache: failed to hash root"; return 1 }
+local cache_file="${cache_dir}/${key}.tsv"
+local history_file="${cache_dir}/history.txt"
+local history_cap=1000
+
+case $action in
+  paths)
+    print -r -- "cache_file=${(q)cache_file}"
+    print -r -- "history_file=${(q)history_file}"
+    return 0
+    ;;
+
+  age)
+    [[ -f $cache_file ]] || { print -r -- ""; return 1 }
+    local mtime now elapsed
+    mtime=$(stat -f %m "$cache_file" 2>/dev/null || stat -c %Y "$cache_file" 2>/dev/null)
+    [[ -z $mtime ]] && { print -r -- ""; return 1 }
+    now=$EPOCHSECONDS
+    [[ -z $now ]] && now=$(date '+%s')
+    elapsed=$(( now - mtime ))
+    (( elapsed < 0 )) && elapsed=0
+    if   (( elapsed < 60    )); then print -r -- "${elapsed}s ago"
+    elif (( elapsed < 3600  )); then print -r -- "$(( elapsed / 60 ))m ago"
+    elif (( elapsed < 86400 )); then print -r -- "$(( elapsed / 3600 ))h ago"
+    else                             print -r -- "$(( elapsed / 86400 ))d ago"
+    fi
+    return 0
+    ;;
+
+  append)
+    local rel=$1
+    [[ -z $rel ]] && { print -u2 "_rlm-pr-find-cache: append needs a path"; return 2 }
+    mkdir -p "$cache_dir" 2>/dev/null || return 1
+    print -r -- "$rel" >> "$history_file" 2>/dev/null || return 1
+    local trimmed
+    trimmed=$(tail -n "$history_cap" "$history_file" 2>/dev/null) \
+      && print -r -- "$trimmed" >| "$history_file"
+    return 0
+    ;;
+
+  read)
+    [[ -f $cache_file ]] || return 1
+    # MRU first (newest pick wins, deduped), then everything else by
+    # newest PR update. Both passes are keyed on field 1 (rel_path).
+    #
+    # Anchored to '^<rel><TAB>' so a checkout whose path is a prefix of
+    # another ("foo" vs "foo-bar") cannot match the wrong row. The tab
+    # inside the patterns below is a LITERAL tab — macOS grep does not
+    # expand \t.
+    local -a seen_keys=()
+    if [[ -s $history_file ]]; then
+      local hkey
+      while IFS= read -r hkey; do
+        [[ -z $hkey ]] && continue
+        grep -m1 -- "^${hkey}	" "$cache_file" 2>/dev/null && seen_keys+=("$hkey")
+      done < <(tail -r "$history_file" 2>/dev/null | awk '!s[$0]++')
+    fi
+    if (( ${#seen_keys} )); then
+      # Exclude the rows already emitted: match field 1 exactly by
+      # appending a tab to each key before the fixed-string compare.
+      print -rl -- "${seen_keys[@]}" \
+        | sed 's/$/	/' \
+        | grep -vFf - -- "$cache_file" 2>/dev/null \
+        | sort -t$'\t' -k6,6nr
+    else
+      sort -t$'\t' -k6,6nr -- "$cache_file" 2>/dev/null
+    fi
+    return 0
+    ;;
+
+  refresh) ;;
+  *)
+    print -u2 "_rlm-pr-find-cache: unknown action: $action"
+    return 2
+    ;;
+esac
+
+# ---------------------------------------------------------------------------
+# refresh
+# ---------------------------------------------------------------------------
+
+local max_depth=${1:-4}
+
+[[ -d $root ]] || { print -u2 "pr-find: not a directory: $root"; return 1 }
+mkdir -p "$cache_dir" 2>/dev/null || {
+  print -u2 "pr-find: cannot create $cache_dir"
+  return 1
+}
+
+# Discover every checkout under $root. `.git` is a DIRECTORY in a normal
+# clone and a FILE in a linked worktree — both must be found, hence no
+# -t filter. fd needs -H because .git is hidden.
+local -a checkouts=()
+checkouts=(${(f)"$(fd -H -d "$max_depth" '^\.git$' "$root" 2>/dev/null \
+  | sed 's|/\.git/*$||')"})
+
+if (( ${#checkouts} == 0 )); then
+  print -u2 "pr-find: no git checkouts found under $root"
+  return 1
+fi
+
+print -u2 "pr-find: scanning ${#checkouts} checkout(s) under ${root/#$HOME/~} …"
+
+local tmpdir
+tmpdir=$(mktemp -d "${TMPDIR:-/tmp}/pr-find.XXXXXX") || {
+  print -u2 "pr-find: failed to create temp dir"
+  return 1
+}
+
+# One `gh` per checkout, fanned out 16-at-a-time. Unbounded would spawn
+# ~100 concurrent gh processes (each a Go binary doing TLS); 16 keeps the
+# wall time at ~7s without hammering the API or the machine.
+#
+# `gh pr list --head <branch>` matches the PR for the branch we actually
+# have checked out, which is the whole point — `gh pr view` alone would
+# also work but returns nothing parseable when there is no PR.
+local -r jq_prog='
+  (.[0] // {}) as $pr
+  | if $pr.number == null then ""
+    else [ ($pr.number|tostring),
+           (if ($pr.isDraft == true and ($pr.state|ascii_downcase) == "open")
+            then "draft" else ($pr.state|ascii_downcase) end),
+           ($pr.updatedAt // ""),
+           ($pr.title // "") ] | @tsv
+    end
+'
+
+local co
+local -i idx=0
+for co in "${checkouts[@]}"; do
+  (( idx++ ))
+  {
+    local -i n=$idx
+    local branch='' payload=''
+    branch=$(git -C "$co" branch --show-current 2>/dev/null)
+    # Empty on a detached HEAD — there is no branch for a PR to point at,
+    # so skip rather than querying with an empty --head (which would
+    # return the repo's most recent PR and mislabel it).
+    if [[ -n $branch ]]; then
+      payload=$(cd -- "$co" 2>/dev/null \
+        && gh pr list --head "$branch" --state all --limit 1 \
+             --json number,state,isDraft,updatedAt,title 2>/dev/null \
+        | jq -r "$jq_prog" 2>/dev/null) || payload=''
+      [[ -n $payload ]] \
+        && printf '%s\t%s\t%s\n' "$co" "$branch" "$payload" > "$tmpdir/$n"
+    fi
+  } &
+  (( idx % 16 == 0 )) && wait
+done
+wait
+
+# ----- disambiguate display labels ----------------------------------------
+# A bare basename is ambiguous: `data-platform-dbt` exists once per
+# collection dir, each on a different branch. Count basenames first, then
+# prefix the parent dir only for the ones that repeat — top-level repos
+# stay short.
+local -A base_count=()
+local -a raw_rows=()
+local f line
+for f in "$tmpdir"/*(N); do
+  line=$(< "$f")
+  [[ -z $line ]] && continue
+  raw_rows+=("$line")
+  local abs=${line%%$'\t'*}
+  base_count[${abs:t}]=$(( ${base_count[${abs:t}]:-0} + 1 ))
+done
+
+local tmp_out="${cache_file}.$$"
+: >| "$tmp_out" || { rm -rf -- "$tmpdir"; return 1 }
+
+local -i written=0
+for line in "${raw_rows[@]}"; do
+  # Positional split: a PR title can be empty, and `IFS=$'\t' read`
+  # collapses runs of tabs, shifting every later field left.
+  local -a rf=()
+  rf=("${(@s:	:)line}")
+  local abs=${rf[1]} branch=${rf[2]} num=${rf[3]} state=${rf[4]}
+  local updated=${rf[5]} title=${rf[6]:-}
+
+  [[ -z $num ]] && continue
+
+  local rel=${abs#$root/}
+  [[ $rel == "$abs" ]] && rel=${abs:t}
+
+  # Disambiguate only the basenames that repeat: a collection dir holds
+  # one worktree per repo, so `data-platform-dbt` occurs once per active
+  # ticket. Top-level repos keep a bare, short label.
+  #
+  # The parent dir name is boilerplate-heavy
+  # ("StorytelDataPlatform_20260814_DATA-2813-dbt-package"); only its
+  # tail distinguishes one collection from another, and the full string
+  # is wide enough to push the PR number and title off screen. Keep the
+  # last two underscore-separated chunks and mark the elision with a
+  # leading ellipsis.
+  local label=${abs:t}
+  if (( ${base_count[${abs:t}]:-0} > 1 )); then
+    local parent=${${abs:h}:t}
+    if [[ -n $parent && $parent != "${root:t}" ]]; then
+      # Hard budget rather than "keep the last N underscore chunks": the
+      # chunks are not uniformly short ("replace-cloud-function-with-
+      # cloud-run" is one chunk), so a chunk count does not bound the
+      # width. Keep the LAST 24 chars — the tail carries the ticket id
+      # and slug that actually distinguish one collection from another,
+      # while the "StorytelDataPlatform_<date>_" head is identical
+      # across all of them.
+      local short=$parent
+      (( ${#parent} > 24 )) && short="…${parent[-24,-1]}"
+      label="${short}/${label}"
+    fi
+  fi
+
+  local epoch=''
+  if [[ -n $updated ]]; then
+    epoch=$(TZ=UTC date -j -f '%Y-%m-%dT%H:%M:%SZ' "$updated" '+%s' 2>/dev/null) \
+      || epoch=$(date -d "$updated" '+%s' 2>/dev/null) \
+      || epoch=''
+  fi
+  [[ -z $epoch ]] && epoch=0
+
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+    "$rel" "$label" "$branch" "$num" "$state" "$epoch" "$title" >> "$tmp_out"
+  (( written++ ))
+done
+
+rm -rf -- "$tmpdir"
+
+mv -f -- "$tmp_out" "$cache_file" || {
+  print -u2 "pr-find: failed to write $cache_file"
+  rm -f -- "$tmp_out"
+  return 1
+}
+
+print -u2 "pr-find: ${written} checkout(s) with a PR"
+return 0
