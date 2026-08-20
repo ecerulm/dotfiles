@@ -255,8 +255,18 @@ _prwtrmc_collect_repo() {
   # that fallback was also skipped. Measured on data-platform-dbt (19
   # worktrees): ~6.8s of gh time before, ~0.8s after, same 13 PRs resolved.
   #
-  # Only branches with an upstream ref are worth asking about — a branch that
-  # was never pushed cannot have a PR, so it is answered locally for free.
+  # EVERY worktree branch is queried, including ones with no
+  # refs/remotes/origin/<branch>. An earlier version filtered those out on the
+  # theory that "a branch that was never pushed cannot have a PR" — true, but a
+  # branch whose PR was MERGED and whose remote branch was then deleted looks
+  # identical locally, and that is the single most common state for a worktree
+  # this tool is meant to clean up. The filter therefore hid exactly the PRs it
+  # exists to find: the merged ones fell through to the commits-ahead check and
+  # came back "[has-work]" (a merge-commit landing renders the branch N ahead of
+  # main), so the more finished a PR was, the more likely it was flagged as
+  # unfinished. Measured on data-platform-dbt: 8 of 11 worktree branches were
+  # being skipped. The filter also saved nothing — it is one batched call either
+  # way: 3 branches 0.82s / 7 PRs vs 11 branches 0.89s / 11 PRs.
   local -a wt_branches
   local b_line
   while IFS= read -r b_line; do
@@ -264,12 +274,7 @@ _prwtrmc_collect_repo() {
   done < <(git -C "$repo_root" worktree list --porcelain \
     | awk '/^branch refs\/heads\//{sub("branch refs/heads/","");print}')
 
-  local -a query_branches
-  local qb
-  for qb in "${wt_branches[@]}"; do
-    git -C "$repo_root" show-ref --verify --quiet "refs/remotes/origin/${qb}" \
-      && query_branches+=("$qb")
-  done
+  local -a query_branches=("${wt_branches[@]}")
 
   local -A pr_state
   if (( ${#query_branches} )); then
@@ -328,16 +333,27 @@ _prwtrmc_collect_repo() {
       flag="[detached]"                                  # detached HEAD: not deletable here
     else
       local entry=${pr_state[$branch]:-}
-      if [[ -z $entry ]] \
-        && git -C "$repo_root" show-ref --verify --quiet "refs/remotes/origin/${branch}"; then
-        # The targeted search above already asked about every pushed branch, so
-        # reaching here means it found nothing — normally because there really
-        # is no PR. Confirm with a single `gh pr view` rather than trusting a
-        # negative from a search index that can lag just-opened PRs.
-        #
-        # Gated on having an upstream: an unpushed branch cannot have a PR, and
-        # this round trip used to run for every such branch (6 of 19 in
-        # data-platform-dbt) only ever to come back empty.
+      # The batch search above asked about every worktree branch, so reaching
+      # here usually means there really is no PR. Confirm with a single
+      # `gh pr view` rather than trusting a negative from a search index that
+      # can lag just-opened PRs.
+      #
+      # Gated on the branch having commits the default branch does not, which
+      # is the only state where a wrong answer changes the verdict: with 0
+      # ahead the row is "[no-pr/no-diff]" and already deletable, so a PR we
+      # failed to find would not move it. Branches that ARE ahead are the ones
+      # that get mislabelled "[has-work]" when a lookup is skipped, so those
+      # are worth a round trip.
+      #
+      # Do NOT gate this on refs/remotes/origin/<branch> existing. A merged
+      # branch whose remote was deleted has no such ref, and is precisely the
+      # case that must resolve — see the batch-search comment above.
+      local ahead_probe=''
+      if [[ -z $entry ]]; then
+        ahead_probe=$(git -C "$repo_root" rev-list --count \
+          "origin/${def_branch}..${branch}" 2>/dev/null) || ahead_probe=''
+      fi
+      if [[ -z $entry ]] && (( ${ahead_probe:-0} > 0 )); then
         local pr_check
         pr_check=$(cd -- "$repo_root" 2>/dev/null \
           && gh pr view "$branch" --json number,state 2>/dev/null) \

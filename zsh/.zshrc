@@ -871,6 +871,158 @@ rlm-wts() {
 }
 alias wts='rlm-wts'
 
+# Recursively find every git checkout under a directory (default: the cwd),
+# look up the PR for each one's CURRENT branch, and cd to the one you pick.
+#
+# Unlike rlm-pr-list — which covers a single repo or one collection dir and
+# prints a table — this scans a whole TREE. From ~/git/work that is ~100
+# checkouts (repo roots and linked worktrees alike), of which ~26 have a PR.
+#
+# Defined INLINE rather than in my-zsh-functions/ because it must cd the
+# CALLING shell; an autoloaded function runs in the caller's shell too, but
+# the repo convention is to keep cd-ing functions inline next to rlm-wts.
+# The scan/cache work lives in _rlm-pr-find-cache.
+#
+# The scan costs ~7s, so results are cached per scan-root and the picker
+# opens instantly on later runs; a "--- REFRESH SCAN ---" row at the top
+# rescans on demand. Rows are ordered most-recently-picked first, then by
+# newest PR update.
+#
+# Usage: rlm-pr-find [dir] [-r|--refresh] [-d|--depth N]    alias: pr-find
+rlm-pr-find() {
+	emulate -L zsh
+	setopt local_options no_monitor no_notify
+
+	local root='' depth=4 force_refresh=0
+	while (( $# )); do
+		case $1 in
+			-r | --refresh) force_refresh=1; shift ;;
+			-d | --depth)
+				[[ -z $2 ]] && { print -u2 "pr-find: --depth needs a value"; return 1 }
+				depth=$2; shift 2
+				;;
+			-h | --help)
+				print -r -- "usage: pr-find [dir] [-r|--refresh] [-d|--depth N]"
+				return 0
+				;;
+			-*) print -u2 "pr-find: unknown flag: $1"; return 1 ;;
+			*)
+				[[ -n $root ]] && { print -u2 "pr-find: too many arguments"; return 1 }
+				root=$1; shift
+				;;
+		esac
+	done
+	[[ -z $root ]] && root=$PWD
+	if [[ ! -d $root ]]; then
+		print -u2 "pr-find: not a directory: $root"
+		return 1
+	fi
+	root=${root:A}
+
+	local cmd
+	for cmd in gh git jq fd fzf; do
+		if ! command -v "$cmd" >/dev/null 2>&1; then
+			print -u2 "pr-find: '$cmd' not found in PATH"
+			return 1
+		fi
+	done
+
+	autoload -Uz _rlm-pr-find-cache
+	local cache_file='' history_file=''
+	eval "$(_rlm-pr-find-cache paths "$root")" || return 1
+
+	if (( force_refresh )) || [[ ! -f $cache_file ]]; then
+		_rlm-pr-find-cache refresh "$root" "$depth" || return 1
+	fi
+
+	# The picker is re-entered after a refresh, so it loops rather than
+	# recursing — recursion would nest a second fzf inside the first.
+	local -a rows
+	local selection sel_rel sel_abs
+	while :; do
+		rows=(${(f)"$(_rlm-pr-find-cache read "$root")"})
+		if (( ${#rows} == 0 )); then
+			print -u2 "pr-find: no checkout under ${root/#$HOME/~} has a PR for its current branch"
+			return 1
+		fi
+
+		local -A state_color=(
+			open   $'\e[32m'
+			draft  $'\e[90m'
+			merged $'\e[35m'
+			closed $'\e[31m'
+		)
+		local reset=$'\e[0m'
+
+		# Width the label and PR columns to the data so the titles line up.
+		local -i w_label=4 w_num=3
+		local row=''
+		local -a rf=()
+		for row in "${rows[@]}"; do
+			rf=("${(@s:	:)row}")
+			(( ${#rf[2]} > w_label )) && w_label=${#rf[2]}
+			(( ${#rf[4]} + 1 > w_num )) && w_num=$(( ${#rf[4]} + 1 ))
+		done
+		(( w_label > 52 )) && w_label=52
+
+		local age=''
+		age=$(_rlm-pr-find-cache age "$root")
+		local refresh_row="--- REFRESH SCAN${age:+ (scanned $age)} ---"
+
+		# Line: <display>\t<rel_path>\t<abs_path>. fzf renders field 1 only;
+		# field 3 feeds the preview, field 2 is the MRU key. Do NOT add --nth
+		# alongside --with-nth — fzf applies --nth to the post---with-nth text,
+		# so the query would match a field that no longer exists and every
+		# search would return 0 rows.
+		local -a lines=("$(printf '%s\t\t' "$refresh_row")")
+		for row in "${rows[@]}"; do
+			rf=("${(@s:	:)row}")
+			local rel=${rf[1]} label=${rf[2]} branch=${rf[3]}
+			local num=${rf[4]} state=${rf[5]} title=${rf[7]:-}
+			local disp=''
+			disp=$(printf '%-*s  %-*s  %-6s  %s' \
+				$w_label "$label" $w_num "#$num" "$state" "$title")
+			local c=${state_color[$state]:-}
+			[[ -n $c ]] && disp="${c}${disp}${reset}"
+			lines+=("$(printf '%s\t%s\t%s' "$disp" "$rel" "$root/$rel")")
+		done
+
+		selection=$(print -rl -- "${lines[@]}" | fzf \
+			--no-mouse \
+			--ansi \
+			--delimiter=$'\t' --with-nth=1 \
+			--prompt="pr> " \
+			--height=80% --reverse \
+			--header='TAB multi • Enter cd • Shift/Alt-↑↓ scroll • Ctrl-P size • Ctrl-G abort' \
+			--preview='[ -n "{3}" ] && cd "{3}" 2>/dev/null && gh pr view 2>&1 || echo "select a repo"' \
+			--preview-window=bottom:40%:wrap \
+			--bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)' \
+			--bind='shift-up:preview-up' --bind='shift-down:preview-down' \
+			--bind='alt-up:preview-half-page-up' --bind='alt-down:preview-half-page-down' \
+			--bind='ctrl-g:abort') || return 130
+		[[ -z $selection ]] && return 130
+
+		if [[ $selection == '--- REFRESH SCAN'* ]]; then
+			_rlm-pr-find-cache refresh "$root" "$depth" || return 1
+			continue
+		fi
+
+		local -a sf=("${(@s:	:)selection}")
+		sel_rel=${sf[2]:-}
+		sel_abs=${sf[3]:-}
+		break
+	done
+
+	if [[ -z $sel_abs || ! -d $sel_abs ]]; then
+		print -u2 "pr-find: selected checkout no longer exists: ${sel_abs:-?}"
+		return 1
+	fi
+
+	_rlm-pr-find-cache append "$root" "$sel_rel"
+	cd -- "$sel_abs"
+}
+alias pr-find='rlm-pr-find'
+
 # Run pre-commit on files changed in the current branch since its fork point from the base
 # branch (default: main). Usage: rlm-pre-commit-pr [base-branch]    alias: pcpr
 rlm-pre-commit-pr() {

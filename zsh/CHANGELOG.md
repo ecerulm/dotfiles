@@ -4,6 +4,18 @@ All notable changes to the zsh configuration are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2026-08-20]
+
+### Fixed
+
+- **`rlm-pr-worktree-rm-merged-closed` reported merged worktrees as `[has-work]` — the more finished a PR was, the more likely it was flagged as unfinished.** Both PR-lookup paths were gated on `refs/remotes/origin/<branch>` existing locally: the batched `gh pr list --search "head:…"` only included branches with a remote-tracking ref, and the per-branch `gh pr view` fallback repeated the same test. The gate's stated rationale — "a branch that was never pushed cannot have a PR" — is true but does not identify the set it was testing for: a branch whose PR was **merged and whose remote branch was then deleted** has no remote-tracking ref either, and that is the single most common state for a worktree this tool exists to clean up. With both lookups skipped, such a branch fell through to the commits-ahead check, and since a merge-commit landing leaves the branch N commits ahead of `main`, it came back `[has-work]` — the one flag that is neither deletable nor sorted to the top.
+
+  Measured on `~/git/work/StorytelDataPlatform`: 8 of 11 worktree branches in `data-platform-dbt` were being skipped, and across the whole tree the tool detected **0** merged PRs and offered 5 deletable worktrees. It now detects 13 and offers 46. The reported collection went from `[7 wt: 4 no-pr/no-diff, 3 has-work]` to `[7 wt: 3 merged, 4 no-pr/no-diff]`, which also makes the aggregate row deletable (all members are).
+
+  The filter was not buying anything: it is one batched call either way — 3 branches / 0.82s / 7 PRs versus all 11 / 0.89s / 11 PRs. It is gone, and every worktree branch is now queried.
+
+  The `gh pr view` fallback (which exists to catch a search index that lags just-opened PRs) is now gated on the branch being **ahead of the default branch** instead. That is the only state where a missed PR changes the verdict: at 0 ahead the row is already `[no-pr/no-diff]` and already deletable, so a PR that failed to resolve would not move it; branches that *are* ahead are exactly the ones that get mislabelled `[has-work]` when a lookup is skipped. `branch.<name>.merge` was evaluated as an alternative discriminator and rejected — `rlm-pr-worktree` sets tracking config on every worktree it creates, so it is set on never-pushed branches too (verified on `data-platform-infra`, which has no PR).
+
 ## [2026-08-18]
 
 ### Changed
