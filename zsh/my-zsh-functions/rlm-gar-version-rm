@@ -85,13 +85,21 @@ _gvrm_round() {
   local cache_dir versions_file children_file resolved_file
   local from_cache=0 new_indexes=0
   local -a load_args=()
+  # Selecting the in-picker REFRESH sentinel comes back here to reload the
+  # listing for the SAME package. A loop, not recursion: re-entering the
+  # round would nest a second fzf inside the first and re-run Stage 1.
+  local refresh_requested=0
+  while :; do
+  from_cache=0 new_indexes=0
+  load_args=()
   # --refresh is a one-shot: it means "the cache I am about to open is
   # stale", not "bypass the cache for the rest of this session". Left
   # sticky it would re-resolve every index of every package picked in
   # later rounds, which on a 508-index package is ~18s of needless work.
-  if (( force_refresh )); then
+  if (( force_refresh || refresh_requested )); then
     load_args+=(--force)
     force_refresh=0
+    refresh_requested=0
   fi
   eval "$(_rlm-gar-version-cache load "$image" "${load_args[@]}")" || return 1
 
@@ -100,7 +108,7 @@ _gvrm_round() {
     return 1
   fi
 
-  local versions_json
+  local versions_json=''
   versions_json=$(<"$versions_file")
   if [[ -z $versions_json || $versions_json == '[]' ]]; then
     print -u2 "gar-version-rm: ${image} has no versions"
@@ -151,7 +159,7 @@ _gvrm_round() {
   #   6 digest                                -- what we and the preview use
   # The sort fields are separate columns (not one glued string) so plain `sort`
   # can order them numerically without a custom key spec.
-  local rows
+  local rows=''
   rows=$(print -r -- "$versions_json" \
     | GAR_VR_COLORS="${cyan}|${dim}|${yellow}|${reset}|${green}" \
       GAR_VR_CHILDREN="$child_map" python3 -c '
@@ -259,12 +267,20 @@ _gvrm_round() {
 
   # Oldest first — this is a delete tool, and the stale versions are the point.
   # Undated rows sort to epoch 0 and lead: unknown age deserves a look.
-  local -a picker_lines
+  local -a picker_lines=()
   picker_lines=(${(f)"$(print -r -- "$rows" | sort -t$'\t' -k1,1n -k2,2 -k3,3n -k4,4)"})
 
   local total_versions=${#picker_lines}
 
-  local selection
+  # Cache-invalidation affordance, matching the --- REFRESH CACHE --- row the
+  # package picker already offers. Six fields so it parses like any other row;
+  # field 6 is the marker both this function and the preview match on.
+  local vcache_age=''
+  vcache_age=$(_rlm-gar-version-cache age "$image" 2>/dev/null)
+  local sentinel_display="--- REFRESH VERSIONS${vcache_age:+ (cached ${vcache_age})} ---"
+  picker_lines=( $'\t\t\t\t'"${sentinel_display}"$'\t__REFRESH__' "${picker_lines[@]}" )
+
+  local selection=''
   selection=$(
     printf '%s\n' "${picker_lines[@]}" \
     | GAR_VERSION_CACHE="$version_cache" fzf \
@@ -288,6 +304,16 @@ _gvrm_round() {
   # — deleting them here would silently defeat the cache on every single run.
   (( fzf_rc != 0 )) && return 130
   [[ -z $selection ]] && return 130
+
+  # Selecting the sentinel (even alongside real rows) means "reload, then let
+  # me pick again" — loop back to Stage 2 rather than deleting anything.
+  if [[ $selection == *$'\t__REFRESH__'* ]]; then
+    refresh_requested=1
+    continue
+  fi
+
+  break
+  done
 
   local -a sel_lines digests
   sel_lines=("${(@f)selection}")

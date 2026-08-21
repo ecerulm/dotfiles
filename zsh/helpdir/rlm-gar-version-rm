@@ -85,6 +85,16 @@ builds rather than package size. A cold 205-version package with 41
 indexes takes ~3s; reopening it takes ~0.2s. Moving through the
 picker costs no API calls at all.
 
+The first row of the version picker is a refresh sentinel:
+
+  --- REFRESH VERSIONS (cached 8m ago) ---
+
+Selecting it reloads the listing for the same package and reopens
+the picker, so a stale list can be refreshed without aborting and
+re-running with --refresh. Indexes already resolved are reused.
+Selecting it together with real versions (Ctrl-A selects it too)
+refreshes rather than deleting.
+
 If children.tsv is truncated or pruned out of step with the record of
 which indexes have been resolved, the mismatch is detected and the
 affected indexes are re-fetched on the next run.

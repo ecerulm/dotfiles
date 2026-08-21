@@ -22,6 +22,18 @@ _gar_version_preview_main() {
     return 1
   fi
 
+  # The picker's REFRESH sentinel is not a version. Must return before the
+  # WILL DELETE banner — rendering that for a refresh row reads as a pending
+  # deletion on a tool whose whole job is deleting.
+  if [[ $digest == __REFRESH__ ]]; then
+    printf 'Reload the version listing for this package from the registry.\n'
+    printf '\n'
+    printf 'Refetches the listing and resolves any multi-arch indexes pushed\n'
+    printf 'since the last open. Already-resolved indexes are reused: a digest\n'
+    printf 'names an immutable manifest, so its members cannot change.\n'
+    return 0
+  fi
+
   local loc_host proj repo pkg_path location_slug pkg_encoded console_url
   loc_host=${image%%/*}
   proj=$(printf '%s' "$image" | cut -d/ -f2)

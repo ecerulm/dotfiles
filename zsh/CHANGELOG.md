@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `rlm-gar-version-rm`: `--- REFRESH VERSIONS (cached <age>) ---` sentinel as the first row of the version picker.
+
+  The listing was already cached (`~/.cache/gar-version/<hash>/versions.json`, 10-minute TTL) but the only way to invalidate it was the `-r`/`--refresh` flag — which you have to decide on *before* opening the picker, and which means aborting and re-running once you are already looking at a stale list. Every other picker here exposes this as a row you select; this was the gap.
+
+  Selecting it reloads **that same package** and reopens, via a loop around Stages 2-3 rather than recursion — re-entering the round would nest a second fzf inside the first and re-run the package pick. It refetches the listing and resolves only indexes pushed since the last open; `children.tsv` is deliberately untouched, since a digest names an immutable manifest and re-resolving 41 indexes would turn a ~0.2s reopen into ~3s for no gain.
+
+  Wrapping those stages in a loop put five `local` declarations inside a loop body, where a bare `local x` re-declares and **prints `x=<value>` to stdout** on every later iteration — and `$selection` is captured from a `$(...)`, so this would have corrupted the picker result on the first refresh. All five got explicit initializers.
+
+  The sentinel branch in `bin/gar-version-preview` runs **before** the header: placed after it, the refresh row rendered a red `WILL DELETE eu.gcr.io/…@__REFRESH__` banner, which on a delete tool reads as a pending deletion. `Ctrl-A` (select-all) also tags the sentinel; the match is on the whole selection, so that refreshes instead of deleting — it fails safe.
+
 - `rlm-gar-version-rm`: select-all/none (`Ctrl-A`/`Ctrl-D`) and jump-to-first/last (`Ctrl-T`/`Ctrl-E`) in the version picker.
 
   fzf's built-in `Alt-<`/`Alt->` are unusable here. `ghostty.conf` sets `macos-option-as-alt = left`, so right-Option sends no Alt at all and the terminal emits a bare `Escape` followed by `>`; fzf reads the lone `Escape` as **abort**, the picker returns 130, and 130 is the code that deliberately reopens the *package* picker — so reaching for "jump to end" silently threw away the whole selection and bounced a level up. `Ctrl-T`/`Ctrl-E` avoid the Alt encoding entirely, matching the reason `ctrl-g:abort` is already mandatory.
