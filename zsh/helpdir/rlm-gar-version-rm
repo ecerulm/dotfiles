@@ -34,6 +34,10 @@ VERSION PICKER KEYS
   Shift-Up/Down, Alt-Up/Down
               Scroll the preview (line / half page).
   Ctrl-P      Cycle preview size.
+  ?           Show this key list in the preview pane; move the
+              cursor or press Esc to bring the version preview
+              back. Bound because the header has room for only the
+              common keys.
   Ctrl-G      Abort — goes back to the package picker.
 
 fzf's own Alt-< and Alt-> do not work here. With Option mapped to Alt

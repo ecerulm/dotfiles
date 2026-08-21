@@ -280,23 +280,38 @@ _gvrm_round() {
   local sentinel_display="--- REFRESH VERSIONS${vcache_age:+ (cached ${vcache_age})} ---"
   picker_lines=( $'\t\t\t\t'"${sentinel_display}"$'\t__REFRESH__' "${picker_lines[@]}" )
 
+  # Hoisted: the '?' overlay has to restore this exact command, and two
+  # copies of it would drift.
+  local preview_cmd=''
+  preview_cmd="GAR_VERSION_CACHE=${(q)version_cache} GAR_VERSION_CHILDREN=${(q)child_map} \"\$HOME/bin/gar-version-preview\" ${(q)image} {6}"
+
+  # '?' shows the full key list in the preview pane; moving the cursor (or
+  # Esc) restores the version preview. Safe to steal from the query line —
+  # a Docker tag cannot contain '?' and a digest is hex.
+  local keys_help=''
+  keys_help=$'KEYS\n\n  TAB          toggle one version\n  Ctrl-A       select all matched rows\n  Ctrl-D       deselect all\n  Ctrl-T       first row\n  Ctrl-E       last row\n  Enter        delete the selection\n  Ctrl-G       abort (back to the package picker)\n\n  Shift-Up/Dn  scroll preview by a line\n  Alt-Up/Dn    scroll preview by half a page\n  Ctrl-P       cycle preview size\n  ?            this list (move the cursor or Esc to restore)\n\nRow 1 reloads the cached version listing for this package.\nCtrl-A tags that row too; selecting it refreshes instead of deleting.'
+
   local selection=''
   selection=$(
     printf '%s\n' "${picker_lines[@]}" \
-    | GAR_VERSION_CACHE="$version_cache" fzf \
+    | GAR_VERSION_CACHE="$version_cache" GAR_VR_KEYS="$keys_help" fzf \
         --prompt="DELETE versions of ${pkg_path}> " \
         --multi \
         --height=80% --reverse \
         --no-mouse --ansi \
         --delimiter=$'\t' --with-nth=5 \
-        --header='^A/^D all/none • ^T/^E first/last • Shift/Alt-↑↓ scroll • ^P size • ^G abort' \
-        --preview="GAR_VERSION_CACHE=${(q)version_cache} GAR_VERSION_CHILDREN=${(q)child_map} \"\$HOME/bin/gar-version-preview\" ${(q)image} {6}" \
+        --header='TAB pick • Enter delete • ^A/^D all/none • ^G abort • ? keys' \
+        --preview="$preview_cmd" \
         --preview-window=bottom:60%:wrap \
         --bind='ctrl-p:change-preview-window(bottom:80%:wrap|bottom:60%:wrap|hidden)' \
         --bind='shift-up:preview-up' --bind='shift-down:preview-down' \
         --bind='alt-up:preview-half-page-up' --bind='alt-down:preview-half-page-down' \
         --bind='ctrl-a:select-all' --bind='ctrl-d:deselect-all' \
         --bind='ctrl-t:first' --bind='ctrl-e:last' \
+        --bind='?:preview(printf %s "$GAR_VR_KEYS")' \
+        --bind='up:up+refresh-preview' --bind='down:down+refresh-preview' \
+        --bind='ctrl-k:up+refresh-preview' --bind='ctrl-j:down+refresh-preview' \
+        --bind='esc:refresh-preview' \
         --bind='ctrl-g:abort'
   )
   local fzf_rc=$?

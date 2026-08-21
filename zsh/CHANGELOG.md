@@ -8,6 +8,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `rlm-gar-version-rm`: `?` shows the full key list in the preview pane.
+
+  The header had grown to 76 of its 80 display columns while still omitting `TAB` and `Enter`, and each new binding made the trade worse — every key that fits crowds out the next one. `?` moves the complete list into the preview pane, which lets the header shrink to the five keys worth advertising (`TAB pick • Enter delete • ^A/^D all/none • ^G abort • ? keys`, 60 columns) without hiding anything.
+
+  Moving the cursor restores the version preview (`up`/`down`/`ctrl-j`/`ctrl-k` chain `+refresh-preview`), as does Esc. Esc alone would be a poor restore key — it is the one this repo already treats as unreliable, which is why `ctrl-g:abort` exists — so it is the fallback, not the mechanism.
+
+  Stealing `?` from the query line costs nothing here: a Docker tag cannot contain it and a digest is hex. The preview command is hoisted into `$preview_cmd` so the overlay and the normal preview cannot drift apart.
+
 - `rlm-gar-version-rm`: `--- REFRESH VERSIONS (cached <age>) ---` sentinel as the first row of the version picker.
 
   The listing was already cached (`~/.cache/gar-version/<hash>/versions.json`, 10-minute TTL) but the only way to invalidate it was the `-r`/`--refresh` flag — which you have to decide on *before* opening the picker, and which means aborting and re-running once you are already looking at a stale list. Every other picker here exposes this as a row you select; this was the gap.
