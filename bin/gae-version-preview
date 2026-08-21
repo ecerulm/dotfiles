@@ -1,0 +1,98 @@
+#!/usr/bin/env zsh
+# Usage: gae-version-preview PROJECT SERVICE VERSION
+#
+# Per-version detail for the rlm-gae-version-rm picker: serving status,
+# traffic split, runtime, creation time, deployer, and the live URL.
+#
+# One `app versions describe` call per keystroke would make the picker
+# crawl, so responses are cached per (project,service,version) for 1h.
+# A version's metadata is effectively immutable apart from traffic split
+# and serving status, and both are re-read from the picker's own listing
+# on every reopen.
+emulate -L zsh
+set -o pipefail
+
+_gae_version_preview_main() {
+  local proj=$1 svc=$2 ver=$3
+  if [[ -z $proj || -z $svc || -z $ver ]]; then
+    print -u2 "gae-version-preview: usage: gae-version-preview PROJECT SERVICE VERSION"
+    return 1
+  fi
+
+  local red=$'\e[31m' yellow=$'\e[33m' cyan=$'\e[36m'
+  local dim=$'\e[2m' bold=$'\e[1m' reset=$'\e[0m'
+
+  printf '%sWILL DELETE%s  %s/%s/%s\n' "$red$bold" "$reset" "$proj" "$svc" "$ver"
+  printf '\n'
+
+  local cache_dir="$HOME/.cache/gae-version-preview"
+  mkdir -p "$cache_dir" 2>/dev/null
+  local key
+  key=$(printf '%s/%s/%s' "$proj" "$svc" "$ver" | md5 2>/dev/null \
+        || printf '%s/%s/%s' "$proj" "$svc" "$ver" | md5sum | cut -d' ' -f1)
+  local cache_file="${cache_dir}/${key}.json"
+
+  local json=''
+  if [[ -f $cache_file ]]; then
+    local mtime now
+    mtime=$(stat -f %m "$cache_file" 2>/dev/null || stat -c %Y "$cache_file" 2>/dev/null)
+    now=$(date +%s)
+    if (( now - mtime < 3600 )); then
+      json=$(<"$cache_file")
+    fi
+  fi
+
+  if [[ -z $json ]]; then
+    json=$(gcloud app versions describe "$ver" --service="$svc" \
+             --project="$proj" --format=json 2>/dev/null)
+    # Only cache a response that parsed: a transient auth failure should
+    # not be pinned for an hour.
+    [[ -n $json ]] && printf '%s' "$json" | jq -e . >/dev/null 2>&1 \
+      && printf '%s' "$json" >| "$cache_file"
+  fi
+
+  if [[ -z $json ]]; then
+    printf '%sCould not describe this version.%s\n' "$yellow" "$reset"
+    printf '\n'
+    printf 'Project:  %s\n' "$proj"
+    printf 'Service:  %s\n' "$svc"
+    printf 'Version:  %s\n' "$ver"
+    return 0
+  fi
+
+  printf '%s' "$json" | jq -r --arg dim "$dim" --arg reset "$reset" '
+    "Project:    \($ARGS.named.proj)",
+    "Service:    \($ARGS.named.svc)",
+    "Version:    \(.id // "-")",
+    "Status:     \(.servingStatus // "-")",
+    "Runtime:    \(.runtime // "-")   env: \(.env // "-")",
+    "Instance:   \(.instanceClass // "-")",
+    "Created:    \(.createTime // "-")",
+    "By:         \(.createdBy // "-")",
+    "URL:        \(.versionUrl // "-")"
+  ' --arg proj "$proj" --arg svc "$svc" 2>/dev/null
+
+  printf '\n'
+
+  # App Engine standard does not report the backing GAR image
+  # (deployment.container is null), so there is nothing to show here and
+  # nothing this tool could delete on the registry side. Say so, rather
+  # than leaving a blank the reader has to interpret.
+  local has_container
+  has_container=$(printf '%s' "$json" | jq -r '.deployment.container.image // empty' 2>/dev/null)
+  if [[ -n $has_container ]]; then
+    printf '%sImage:%s      %s\n' "$bold" "$reset" "$has_container"
+  else
+    printf '%sNo container image is reported for this version (App Engine\n' "$dim"
+    printf 'standard). Its GAR image becomes reclaimable once the version\n'
+    printf 'is gone — sweep the repo separately with gar-version-rm.%s\n' "$reset"
+  fi
+
+  local nfiles
+  nfiles=$(printf '%s' "$json" | jq -r '(.deployment.files // {}) | length' 2>/dev/null)
+  [[ -n $nfiles && $nfiles != 0 ]] && printf '\n%sDeployed files: %s%s\n' "$dim" "$nfiles" "$reset"
+
+  return 0
+}
+
+_gae_version_preview_main "$@"

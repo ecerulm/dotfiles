@@ -8,6 +8,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `rlm-gae-version-rm` (+ `_rlm-gae-pick-versions`, `bin/gae-version-preview`): multi-select App Engine versions across projects and delete them.
+
+  Written instead of the GAR reconcile it looks like. App Engine *standard* does not publish the Artifact Registry image backing a version — `gcloud app versions describe` returns `deployment.container = null` and only ever fills `deployment.files`, verified across services and dates on a live project. A "delete GAR images no live version references" tool therefore cannot be built: the mapping is not exposed, and same-day timestamp correlation is ambiguous (one sampled version had 10 same-day candidate images). Guessing deletes the image behind a serving version and only fails later, at rollback. Google's documented cleanup runs the other way — delete the **version**, and its artifacts become reclaimable; sweep afterwards with `gar-version-rm` or a repo cleanup policy.
+
+  Versions serving traffic are filtered out of the picker. The API does refuse them, but it refuses at the *end*, after the confirmation and after deleting the rest of the batch — filtering turns a partial failure into something that cannot be chosen. `-f`/`--force` re-admits them for when traffic has been migrated but the picker data is stale.
+
+  Versions list oldest first (the stale ones are the point), grouped by project and service, with traffic split and age. `-n`/`--dry-run` shows the command without deleting; `-p` limits to a project, defaulting to `$GAE_SEARCH_PROJECTS`.
+
 - `rlm-pr-recent`: always list open PRs, sort by recency, and show real names.
 
   Three changes to the same picker.

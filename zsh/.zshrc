@@ -120,6 +120,7 @@ autoload -Uz rlm-bq-rm-tables
 autoload -Uz rlm-gcloud-venv
 autoload -Uz rlm-gcp-project-open
 autoload -Uz rlm-glogin
+autoload -Uz rlm-gae-version-rm
 autoload -Uz rlm-gar-open
 autoload -Uz rlm-gar-rm
 autoload -Uz rlm-gar-search
@@ -228,6 +229,7 @@ alias bq-rm-tables='rlm-bq-rm-tables'
 alias gcloud-venv='rlm-gcloud-venv'
 alias gcp-project-open='rlm-gcp-project-open'
 alias glogin='rlm-glogin'
+alias gae-version-rm='rlm-gae-version-rm'
 alias gar-open='rlm-gar-open'
 alias gar-rm='rlm-gar-rm'
 alias gar-search='rlm-gar-search'

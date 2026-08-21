@@ -1,0 +1,246 @@
+emulate -L zsh
+set -o pipefail
+setopt local_options no_monitor no_notify
+
+# Multi-select App Engine versions in an fzf picker and delete them.
+#
+# WHY THIS EXISTS RATHER THAN A GAR RECONCILE
+#   App Engine *standard* does not publish the Artifact Registry image
+#   backing a version: `gcloud app versions describe` returns
+#   deployment.container = null and only ever fills deployment.files
+#   (verified across services and dates on a live project). So the
+#   "delete GAR images no live version references" tool cannot be built —
+#   the mapping is not exposed, and same-day timestamp correlation is
+#   ambiguous (one sampled version had 10 same-day candidate images).
+#   Guessing there deletes the image behind a serving version and only
+#   fails later, at rollback.
+#
+#   Google's documented cleanup path runs the other way: delete the
+#   VERSION, and its artifacts become reclaimable. That is what this does.
+#   Sweep GAR afterwards with gar-version-rm / a repo cleanup policy.
+#
+# SERVING VERSIONS ARE UNSELECTABLE
+#   The API refuses to delete a version receiving traffic, but it refuses
+#   at the end, after the confirmation, having already deleted the rest of
+#   the batch. Filtering them out of the picker turns a partial failure
+#   into something that cannot be chosen. -f/--force re-admits them for
+#   the case where traffic has been migrated but the picker data is stale.
+
+autoload -Uz _rlm-gae-pick-versions _rlm-gar-show-cmd
+
+local dry_run=0 allow_serving=0
+local -a want_projects=()
+while (( $# )); do
+  case $1 in
+    -n|--dry-run) dry_run=1; shift ;;
+    -f|--force) allow_serving=1; shift ;;
+    -p|--project) want_projects+=("$2"); shift 2 ;;
+    -h|--help)
+      print -r -- "Usage: gae-version-rm [-n|--dry-run] [-f|--force] [-p PROJECT]…"
+      print -r -- ""
+      print -r -- "Multi-select App Engine versions across projects and delete"
+      print -r -- "them. Versions list oldest first — the stale ones are the"
+      print -r -- "point — grouped by project and service, with traffic split"
+      print -r -- "and age shown. Deleting a version makes its Artifact"
+      print -r -- "Registry image reclaimable; sweep those with gar-version-rm."
+      print -r -- ""
+      print -r -- "  -n, --dry-run  show what would run, delete nothing"
+      print -r -- "  -f, --force    also offer versions serving traffic"
+      print -r -- "  -p, --project  limit to this project (repeatable);"
+      print -r -- "                 defaults to \$GAE_SEARCH_PROJECTS"
+      return 0
+      ;;
+    -*) print -u2 "gae-version-rm: unknown flag: $1"; return 2 ;;
+    *)  print -u2 "gae-version-rm: unexpected argument: $1"; return 2 ;;
+  esac
+done
+
+local cmd
+for cmd in gcloud fzf jq python3; do
+  if ! command -v "$cmd" >/dev/null 2>&1; then
+    print -u2 "gae-version-rm: '${cmd}' not found in PATH"
+    return 1
+  fi
+done
+
+local -a projects
+if (( ${#want_projects} )); then
+  projects=(${(u)want_projects:#})
+else
+  # Falls back to GAR_SEARCH_PROJECTS so a machine that already configured
+  # the gar-* family gets this for free; App Engine and its registry repo
+  # live in the same projects.
+  local raw=${GAE_SEARCH_PROJECTS:-$GAR_SEARCH_PROJECTS}
+  if [[ -z $raw ]]; then
+    print -u2 "gae-version-rm: neither GAE_SEARCH_PROJECTS nor GAR_SEARCH_PROJECTS is set"
+    print -u2 "Add the following to ~/.zshrc.thismachine:"
+    print -u2 ""
+    print -u2 "  export GAE_SEARCH_PROJECTS=my-project-prod:my-project-dev"
+    print -u2 ""
+    print -u2 "Or pass -p PROJECT."
+    return 1
+  fi
+  projects=(${(u)${(s[:])raw}:#})
+fi
+(( ${#projects} == 0 )) && { print -u2 "gae-version-rm: no usable project ids"; return 1 }
+
+local red=$'\e[31m' green=$'\e[32m' yellow=$'\e[33m' cyan=$'\e[36m'
+local dim=$'\e[2m' bold=$'\e[1m' reset=$'\e[0m'
+
+# One round = pick versions, delete them, return here. A function so its
+# many `return` points mean "this round is over"; the return code doubles
+# as the loop signal (3 = leave, everything else = reopen the picker).
+_gaevrm_round() {
+  local selection
+  selection=$(_rlm-gae-pick-versions "$allow_serving" "${projects[@]}")
+  local pick_rc=$?
+  # 130 = user aborted; 1 = nothing listable. Both end the command. Only a
+  # successful round loops back, so an empty project cannot spin forever.
+  (( pick_rc == 130 )) && return 3
+  (( pick_rc != 0 )) && return 3
+  [[ -z $selection ]] && return 3
+
+  # Rows are <sort>\t<display>\t<project>\t<service>\t<version>\t<split>.
+  # Read the id fields back positionally rather than re-parsing the
+  # display column, which carries ANSI and human-facing padding.
+  local -a rows=("${(@f)selection}")
+  rows=("${(@)rows:#}")
+  (( ${#rows} == 0 )) && return 130
+
+  local -a projs=() svcs=() vers=() splits=()
+  local row=''
+  for row in "${rows[@]}"; do
+    local -a f=("${(@s:	:)row}")
+    (( ${#f} < 6 )) && continue
+    projs+=("${f[3]}"); svcs+=("${f[4]}"); vers+=("${f[5]}"); splits+=("${f[6]}")
+  done
+  local -i n=${#vers}
+  (( n == 0 )) && return 130
+
+  print -r -- ""
+  print -r -- "  ${bold}${n} version(s) selected:${reset}"
+  local -i i=1 shown=0
+  for (( i = 1; i <= n; i++ )); do
+    if (( shown >= 12 )); then
+      print -r -- "    ${dim}… and $(( n - 12 )) more${reset}"
+      break
+    fi
+    local split_note=''
+    # A non-zero split here can only appear under --force; the plain
+    # picker filters these out.
+    [[ ${splits[i]} != 0 && ${splits[i]} != 0.00 ]] \
+      && split_note=" ${red}${bold}serving ${splits[i]}${reset}"
+    print -r -- "    ${cyan}${projs[i]}${reset} ${svcs[i]}/${vers[i]}${split_note}"
+    (( shown++ ))
+  done
+  print -r -- ""
+
+  # Group into one delete call per (project, service): the positional list
+  # is per-service, and a version id is only unique within its service.
+  local -A groups=()
+  for (( i = 1; i <= n; i++ )); do
+    local key="${projs[i]}	${svcs[i]}"
+    groups[$key]="${groups[$key]} ${vers[i]}"
+  done
+
+  print -r -- "  ${red}${bold}The following will run:${reset}"
+  local key=''
+  for key in "${(@k)groups}"; do
+    local -a kf=("${(@s:	:)key}")
+    local -a gv=(${=groups[$key]})
+    _rlm-gar-show-cmd raw "gcloud app versions delete \\" \
+      "${gv[*]} \\" \
+      "--service=${kf[2]} \\" \
+      "--project=${kf[1]} \\" \
+      "--quiet"
+  done
+  print -r -- ""
+
+  if (( dry_run )); then
+    print -r -- "  ${yellow}[dry-run]${reset} nothing was run"
+    return 0
+  fi
+
+  # Deleting every version of a service leaves it undeployable until the
+  # next deploy, which is a bigger blast radius than the row count shows.
+  local -a emptied=()
+  for key in "${(@k)groups}"; do
+    local -a kf=("${(@s:	:)key}")
+    local -a gv=(${=groups[$key]})
+    local -i live=0
+    live=$(gcloud app versions list --service="${kf[2]}" --project="${kf[1]}" \
+             --format='value(id)' 2>/dev/null | grep -c . )
+    (( live > 0 && ${#gv} >= live )) && emptied+=("${kf[1]}/${kf[2]}")
+  done
+  if (( ${#emptied} )); then
+    print -r -- "  ${yellow}${bold}This removes every version of:${reset}"
+    local e=''
+    for e in "${emptied[@]}"; do print -r -- "    ${yellow}${e}${reset}"; done
+    print -r -- "  ${dim}The service will not serve until it is deployed again.${reset}"
+    print -r -- ""
+  fi
+
+  local reply_ans
+  print -rn -- "  ${red}Delete ${n} App Engine version(s)?${reset} [y/N] "
+  if ! read -r reply_ans; then
+    print -r -- ""
+    print -r -- "gae-version-rm: aborted"
+    return 130
+  fi
+  if [[ $reply_ans != [yY]* ]]; then
+    print -r -- "  skipped"
+    return 130
+  fi
+
+  local -i failed=0
+  for key in "${(@k)groups}"; do
+    local -a kf=("${(@s:	:)key}")
+    local -a gv=(${=groups[$key]})
+    print -u2 "  deleting ${#gv} version(s) of ${kf[1]}/${kf[2]} …"
+    if ! gcloud app versions delete "${gv[@]}" \
+           --service="${kf[2]}" --project="${kf[1]}" --quiet 2>&1 \
+         | sed 's/^/    /'; then
+      failed=1
+    fi
+  done
+
+  # Re-list and check: gcloud reports per-version outcomes on stderr in a
+  # format that is not worth parsing, and a clean exit is not proof.
+  print -r -- ""
+  local -a still=()
+  for key in "${(@k)groups}"; do
+    local -a kf=("${(@s:	:)key}")
+    local -a gv=(${=groups[$key]})
+    local remaining=''
+    remaining=$(gcloud app versions list --service="${kf[2]}" \
+                  --project="${kf[1]}" --format='value(id)' 2>/dev/null)
+    local v=''
+    for v in "${gv[@]}"; do
+      print -r -- "$remaining" | grep -Fxq -- "$v" && still+=("${kf[1]}/${kf[2]}/${v}")
+    done
+  done
+
+  if (( ${#still} == 0 )); then
+    print -r -- "gae-version-rm: ${green}${n} version(s) deleted${reset}"
+    print -r -- "gae-version-rm: ${dim}their GAR images are now reclaimable — sweep with gar-version-rm${reset}"
+    return 0
+  fi
+
+  print -r -- "gae-version-rm: ${yellow}${#still} of ${n} version(s) still present${reset}"
+  local s=''
+  for s in "${still[@]}"; do print -r -- "    ${dim}${s}${reset}"; done
+  return 1
+}
+
+local -i round_rc=0
+while true; do
+  _gaevrm_round
+  round_rc=$?
+  # 3 is "user aborted the picker" — the only way out. A declined
+  # confirmation (130) or a failed delete reopens it, since cleaning up
+  # several projects in one sitting is the normal case.
+  (( round_rc == 3 )) && break
+  print -r -- ""
+done
+
+return 0

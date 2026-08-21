@@ -1,0 +1,139 @@
+emulate -L zsh
+set -o pipefail
+unsetopt monitor notify
+
+# Multi-select fzf picker over App Engine versions across projects.
+#
+#   _rlm-gae-pick-versions <allow_serving> <project…>
+#
+# Emits the selected rows verbatim, one per line:
+#   <sort>\t<display>\t<project>\t<service>\t<version>\t<traffic_split>
+# The caller reads the id fields positionally; <display> carries ANSI and
+# is rendered alone via --with-nth=2.
+#
+# Returns 130 on abort/empty selection, 1 when nothing could be listed.
+#
+# NOT CACHED, DELIBERATELY
+#   The gar-* pickers cache because listing packages is many API calls. One
+#   `app versions list` per project is a single call each, fanned out — it
+#   is ~1s for a handful of projects. A cache here would instead invite the
+#   real hazard: acting on a stale traffic split and offering a version
+#   that started serving since the cache was written.
+
+local allow_serving=$1
+shift
+local -a projects=("$@")
+(( ${#projects} == 0 )) && return 1
+
+local -a tmpfiles=() pids=()
+local p='' tf=''
+for p in "${projects[@]}"; do
+  tf=$(mktemp) || return 1
+  tmpfiles+=("$tf")
+  # servingStatus is fetched so STOPPED versions can be flagged: they hold
+  # a GAR image and cost nothing to run, so they are prime cleanup targets
+  # and worth surfacing rather than hiding.
+  gcloud app versions list --project="$p" \
+    --format='value(service,id,traffic_split,version.createTime,version.servingStatus)' \
+    >| "$tf" 2>/dev/null &
+  pids+=($!)
+done
+wait "${pids[@]}" 2>/dev/null
+
+local red=$'\e[31m' yellow=$'\e[33m' cyan=$'\e[36m'
+local dim=$'\e[2m' bold=$'\e[1m' reset=$'\e[0m'
+
+local -a rows=() f=()
+local proj='' line=''
+local svc='' ver='' split='' created='' serving_status=''
+local age_label='' display='' flag='' colour=''
+local -i serving=0 created_epoch=0 age_days=0
+local -i idx=1
+local now_epoch
+now_epoch=$(date +%s)
+
+for (( idx = 1; idx <= ${#projects}; idx++ )); do
+  proj=${projects[idx]}; tf=${tmpfiles[idx]}
+  [[ -s $tf ]] || continue
+  while IFS= read -r line; do
+    [[ -z $line ]] && continue
+    f=("${(@s:	:)line}")
+    (( ${#f} < 3 )) && continue
+    svc=${f[1]} ver=${f[2]} split=${f[3]} created=${f[4]:-} serving_status=${f[5]:-}
+
+    serving=0
+    [[ $split != 0 && $split != 0.00 && $split != 0.0 && -n $split ]] && serving=1
+    (( serving && ! allow_serving )) && continue
+
+    created_epoch=0; age_days=0
+    if [[ -n $created ]]; then
+      created_epoch=$(python3 -c '
+import sys,datetime
+s=sys.argv[1].replace("Z","+00:00")
+try: print(int(datetime.datetime.fromisoformat(s).timestamp()))
+except Exception: print(0)
+' "$created" 2>/dev/null) || created_epoch=0
+    fi
+    (( created_epoch > 0 )) && age_days=$(( (now_epoch - created_epoch) / 86400 ))
+
+    age_label='unknown'
+    (( created_epoch > 0 )) && age_label="${age_days}d"
+
+    flag=''; colour=$dim
+    if (( serving )); then
+      flag=" ${red}${bold}[SERVING ${split}]${reset}"
+      colour=$red
+    elif [[ $serving_status == STOPPED ]]; then
+      flag=" ${dim}[stopped]${reset}"
+    fi
+
+    # Oldest first: a cleanup tool exists for the stale end of the list,
+    # and newest-first buries it. Epoch 0 (unparseable) sorts first, which
+    # is right — an unknown age should be looked at, not skipped.
+    display=$(printf '%s%-9s%s  %s%-34s%s %s/%s%s' \
+      "$colour" "$age_label" "$reset" \
+      "$cyan" "$proj" "$reset" \
+      "$svc" "$ver" "$flag")
+
+    rows+=("$(printf '%012d\t%s\t%s\t%s\t%s\t%s' \
+      "$created_epoch" "$display" "$proj" "$svc" "$ver" "${split:-0}")")
+  done < "$tf"
+done
+
+rm -f "${tmpfiles[@]}"
+
+if (( ${#rows} == 0 )); then
+  if (( allow_serving )); then
+    print -u2 "gae-version-rm: no App Engine versions found in: ${projects[*]}"
+  else
+    print -u2 "gae-version-rm: no deletable versions found (all serving traffic?)"
+    print -u2 "  pass -f to include versions receiving traffic"
+  fi
+  return 1
+fi
+
+local header
+header="TAB multi • Enter confirm • Ctrl-G abort • Ctrl-P preview size"
+(( allow_serving )) && header="${header} • SERVING rows included (-f)"
+
+local selection
+selection=$(
+  printf '%s\n' "${rows[@]}" \
+  | sort -t$'\t' -k1,1n \
+  | fzf --multi \
+        --no-mouse --ansi \
+        --delimiter=$'\t' \
+        --with-nth=2 \
+        --nth=2 \
+        --prompt="GAE version> " \
+        --height=80% --reverse \
+        --header="$header" \
+        --preview='gae-version-preview {3} {4} {5}' \
+        --preview-window=bottom:40%:wrap \
+        --bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)' \
+        --bind='ctrl-g:abort'
+) || return 130
+[[ -z $selection ]] && return 130
+
+print -r -- "$selection"
+return 0

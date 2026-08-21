@@ -1,0 +1,53 @@
+rlm-gae-version-rm [-n|--dry-run] [-f|--force] [-p PROJECT]...
+
+Multi-select App Engine versions in an fzf picker and delete them.
+Versions are listed oldest first across every configured project,
+annotated with age, project, service, traffic split and serving
+status. Deleting a version is what makes its Artifact Registry image
+reclaimable, so this is the first half of a registry cleanup; sweep
+the images afterwards with gar-version-rm or a repository cleanup
+policy.
+
+Versions receiving traffic are hidden by default. The API refuses to
+delete them, but it refuses at the end of the batch, after everything
+else is already gone -- filtering them out turns a partial failure
+into something that cannot be selected. Pass -f to re-admit them, for
+the case where traffic has been migrated and the listing is stale.
+
+Before deleting, the exact gcloud command is printed one argument per
+line, one call per (project, service) group. Selecting every version
+of a service is called out separately, since that service will not
+serve again until it is redeployed. After the delete, each service is
+re-listed and the selected ids are checked: a clean exit code is not
+treated as proof.
+
+The picker reopens after each successful round so several projects
+can be cleaned up in one sitting. Ctrl-G exits.
+
+WHY THIS IS NOT A REGISTRY RECONCILE
+
+App Engine standard does not publish the Artifact Registry image
+backing a version: gcloud app versions describe returns
+deployment.container as null and fills only deployment.files. There
+is therefore no supported way to compute which GAR images no live
+version still references, and correlating by timestamp is ambiguous
+(one sampled version had ten same-day candidate images). Deleting on
+that guess destroys the image behind a serving version and only
+surfaces at rollback. Google's documented order is the reverse:
+delete the version, then reclaim the artifacts.
+
+ARGUMENTS
+  -n, --dry-run  Show the commands that would run; delete nothing.
+  -f, --force    Also offer versions currently receiving traffic.
+  -p, --project  Limit to this project. Repeatable. Overrides the
+                 environment variables below.
+
+ENVIRONMENT
+  GAE_SEARCH_PROJECTS  Colon-separated project ids to scan
+                       (optional; falls back to the variable below).
+  GAR_SEARCH_PROJECTS  Used when GAE_SEARCH_PROJECTS is unset, since
+                       App Engine and its registry repository live in
+                       the same projects.
+
+REQUIRES
+  gcloud, fzf, jq, python3
