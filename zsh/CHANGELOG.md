@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `_rlm-gar-version-cache`: prune `resolved.txt` and `children.tsv` against the listing on every refresh.
+
+  `forget` only prunes digests this tool deleted, but versions also vanish on their own — the repo's cleanup policy deletes untagged versions on a timer. Nothing pruned those, so the attribution files accumulated rows for versions that no longer exist: `ingress-dbt`'s `resolved.txt` held 25 rows of which **24 named deleted versions**, against 3 live ones.
+
+  A refresh now drops resolved rows (marked or not) whose digest is absent from the new listing. The existing `children.tsv` prune was also only checking the **child** column, so a row whose *parent* had been deleted survived and kept rendering its child as a member of a family that no longer exists; it now requires both ends to be live.
+
+  Pruning runs only against a **non-empty** listing — an empty one means the fetch or the jq failed, and would otherwise erase the whole cache. Verified on the real package: 25 rows → 1, `new_indexes=0` before and after, so nothing is refetched and the surviving index, its two members and the live listing agree exactly.
+
+  Not a correctness bug — the effective-resolved set is already intersected with the current listing, so dead rows could not cause a wrong answer. It was misleading to read, which is how it got mistaken for one.
+
 - `rlm-gar-version-rm`: versions tagged `*latest*` are excluded from the selection unless `--force`.
 
   A floating release tag is what a deployment resolves, so deleting one breaks whatever pulls it. Any version carrying a tag **containing** `latest` is now marked `[protected]` in the picker and dropped from the selection with a note naming the refs. Matching on *contains* rather than the `latest` prefix is deliberate: this repo's own `keep-tagged` policy protects `latest`, `dbt-1.11-latest`, `dbt-1.12-latest` and `dbt-2.0-latest`, and three of those only end in it — a prefix test would guard one tag out of four.

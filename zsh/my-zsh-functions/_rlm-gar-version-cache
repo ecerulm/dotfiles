@@ -33,6 +33,17 @@ set -o pipefail
 #                     undetectable — that bug shipped briefly and is why the
 #                     marker exists.
 #
+# PRUNING — why both files are filtered on every refresh
+#   Versions disappear without this tool's involvement: a repository
+#   cleanup policy deletes on a timer, so `forget` (which only knows the
+#   digests WE deleted) cannot keep the cache honest on its own. Every
+#   refresh therefore drops rows for versions absent from the new
+#   listing — child rows where EITHER end is gone, and resolved.txt rows
+#   (marked or not) whose digest is gone. Measured on ingress-dbt:
+#   resolved.txt held 25 rows of which 24 named deleted versions.
+#   Only ever pruned against a NON-EMPTY listing — an empty one means
+#   the fetch or the jq failed, and would otherwise erase everything.
+#
 # IMMUTABILITY — why children.tsv is never expired
 #   A digest is a content hash. `sha256:abc…` names exactly one manifest
 #   body, forever: the registry cannot change what an index points at
@@ -247,16 +258,34 @@ if (( need_fetch )); then
   else
     [[ $err != /dev/null ]] && rm -f "$err"
     print -r -- "$fetched" >| "$versions_file"
-    # Prune attribution rows for versions that no longer exist, so the file
-    # tracks the package rather than growing forever.
-    if [[ -s $children_file ]]; then
+    # Prune attribution for versions that no longer exist, so both files track
+    # the package rather than growing forever. Versions vanish without this
+    # tool's involvement — a repository cleanup policy deletes on a timer — so
+    # `forget` (which only knows about digests WE deleted) is not enough.
+    if [[ -s $children_file || -s $resolved_file ]]; then
       local live='' tmp=''
       live=$(mktemp) && tmp=$(mktemp) || live=''
       if [[ -n $live ]]; then
         jq -r '.[].version // empty' "$versions_file" 2>/dev/null | sort -u >| "$live"
+        # Only prune against a listing we actually got. An empty $live here
+        # would mean "delete everything", and a package can legitimately be
+        # mid-refresh or the jq can fail.
         if [[ -s $live ]]; then
-          awk -F'\t' 'NR==FNR{ok[$0]=1;next} ($1 in ok)' "$live" "$children_file" >| "$tmp" \
-            && mv -f "$tmp" "$children_file"
+          # Drop a child row when EITHER end is gone: a surviving row whose
+          # parent no longer exists would keep rendering its child as a
+          # member of a family that is not there any more.
+          if [[ -s $children_file ]]; then
+            awk -F'\t' 'NR==FNR{ok[$0]=1;next} (($1 in ok) && ($2 in ok))' \
+              "$live" "$children_file" >| "$tmp" \
+              && mv -f "$tmp" "$children_file"
+          fi
+          # resolved.txt rows are `<digest>` or `<digest>\tempty`; match on
+          # the digest column so the marked form is pruned too.
+          if [[ -s $resolved_file ]]; then
+            awk -F'\t' 'NR==FNR{ok[$0]=1;next} ($1 in ok)' \
+              "$live" "$resolved_file" >| "$tmp" \
+              && mv -f "$tmp" "$resolved_file"
+          fi
         fi
         rm -f "$live" "$tmp"
       fi
