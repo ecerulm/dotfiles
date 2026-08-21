@@ -227,13 +227,12 @@ ______________________________________________________________________
 
 ### Navigation
 
-| Alias | Expands to |
-|---|---|
-| `cd` | `z` (zoxide, if installed) |
+`cd` is the zsh builtin — zoxide is initialised but does not shadow it. Jump with
+zoxide's own commands: `z <query>` and the interactive picker `zi`.
 
-zoxide's interactive picker (`zi`) is configured via `_ZO_FZF_OPTS` in `.zshrc` so it
-matches the other fzf pickers here — `--no-mouse` (terminal keeps selection/copy and
-clickable links), `--ansi`, and `Ctrl-G` to abort.
+`zi` is configured via `_ZO_FZF_OPTS` in `.zshrc` so it matches the other fzf pickers
+here — `--no-mouse` (terminal keeps selection/copy and clickable links), `--ansi`, and
+`Ctrl-G` to abort.
 
 ### Terraform
 

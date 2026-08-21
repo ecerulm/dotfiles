@@ -70,6 +70,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
   `AGENTS.md` gains two fzf-convention bullets (list navigation, select-all), since the Alt-key finding applies to every picker in the repo and would otherwise be rediscovered.
 
+### Changed
+
+- `.zshrc`: `cd` is the zsh builtin again — the `alias cd=z` that pointed it at zoxide is removed.
+
+  zoxide is still initialised, so `z <query>` and the interactive `zi` picker are unchanged; only the `cd` name reverts. Shadowing `cd` means a plain `cd some/dir` goes through zoxide's frecency matching rather than resolving the literal path, which diverges from `cd` everywhere else — in scripts, in other shells, and in muscle memory.
+
+  `rlm-cd-sub` calls `cd` internally and now gets the builtin, which is what it wanted anyway: it already hands `cd` a literal path from `fd`.
+
 ## [2026-08-20]
 
 ### Added
