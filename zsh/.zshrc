@@ -1022,6 +1022,369 @@ rlm-pr-find() {
 }
 alias pr-find='rlm-pr-find'
 
+# List every PR in the CURRENT repo updated in the last N weeks (default 3) —
+# all states (open/draft/merged/closed) and all authors — and jump to the one
+# you pick.
+#
+# Where the neighbours differ:
+#   * pr-list  — one repo (or one collection dir), the PR for the branch
+#                CURRENTLY checked out. A table, not a jump.
+#   * pr-find  — a whole directory TREE, matching each existing checkout's
+#                current branch to a PR. Destinations are checkouts that
+#                already exist.
+#   * pr-recent — this one. Starts from the REPO'S PRs, not from what happens
+#                to be checked out, so it reaches a PR whose branch is not on
+#                disk anywhere.
+#
+# The list is every OPEN PR — however old — plus every other PR (merged,
+# closed) updated in the last N weeks, default 4. Open PRs are deliberately
+# exempt from the date cutoff: one that has gone quiet for months is still
+# unfinished work, and it is the one you are most likely to have forgotten.
+#
+# Selecting a PR does one of two things, decided per-PR:
+#
+#   1. Its head branch is already checked out in some worktree of this repo
+#      -> cd there. This is the common case for work in flight, and it is
+#      also the only correct one: git refuses the same branch in two
+#      worktrees, so checking it out here would fail anyway.
+#   2. No worktree holds it -> `gh pr checkout <N>` in the CURRENT worktree,
+#      switching this checkout to the PR's branch. gh sets up tracking
+#      correctly for fork PRs too, which a plain `git checkout` does not.
+#
+# Case 2 REFUSES on a dirty working tree rather than carrying the changes
+# across (git would happily do that, silently mixing them into the PR's
+# branch) or discarding them. Commit/stash, or use `pr-worktree` to get a
+# clean worktree for the PR.
+#
+# Fetched live on every call (~1s for ~80 PRs), deliberately uncached: the
+# state column is the reason to run this, and a cached "open" for a PR that
+# merged an hour ago is worse than a one-second wait. MRU history is still
+# kept, so the PRs you jump to most float to the top.
+#
+# Defined INLINE because it must cd/checkout in the CALLING shell.
+#
+# Usage: rlm-pr-recent [-w|--weeks N] [-a|--author LOGIN]    alias: pr-recent
+rlm-pr-recent() {
+	emulate -L zsh
+	setopt local_options no_monitor no_notify extended_glob
+
+	local weeks=4 author=''
+	while (( $# )); do
+		case $1 in
+			-w | --weeks)
+				[[ -z $2 ]] && { print -u2 "pr-recent: --weeks needs a value"; return 1 }
+				weeks=$2; shift 2
+				;;
+			-a | --author)
+				[[ -z $2 ]] && { print -u2 "pr-recent: --author needs a value"; return 1 }
+				author=$2; shift 2
+				;;
+			-h | --help)
+				print -r -- "usage: pr-recent [-w|--weeks N] [-a|--author LOGIN]"
+				print -r -- "  Lists every OPEN PR regardless of age, plus all"
+				print -r -- "  other PRs updated in the last N weeks (default 4)."
+				return 0
+				;;
+			*) print -u2 "pr-recent: unknown arg: $1"; return 1 ;;
+		esac
+	done
+
+	if [[ $weeks != <-> || $weeks -lt 1 ]]; then
+		print -u2 "pr-recent: --weeks must be a positive integer (got '$weeks')"
+		return 1
+	fi
+
+	local cmd
+	for cmd in gh git jq fzf; do
+		if ! command -v "$cmd" >/dev/null 2>&1; then
+			print -u2 "pr-recent: '$cmd' not found in PATH"
+			return 1
+		fi
+	done
+
+	local repo_root
+	repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || {
+		print -u2 "pr-recent: not inside a git repository"
+		return 1
+	}
+
+	local since
+	since=$(date -v-${weeks}w '+%Y-%m-%d' 2>/dev/null) \
+		|| since=$(date -d "${weeks} weeks ago" '+%Y-%m-%d' 2>/dev/null) || {
+		print -u2 "pr-recent: failed to compute the cutoff date"
+		return 1
+	}
+
+	local search="updated:>=${since}"
+	[[ -n $author ]] && search="${search} author:${author}"
+
+	print -u2 "pr-recent: fetching open PRs + everything updated since ${since} …"
+
+	# Two queries, not one. An OPEN PR belongs in this list however long it
+	# has sat — it is still work in flight — but an `updated:>=` search drops
+	# it the moment it goes quiet, which is exactly when you have forgotten
+	# it and most need to be reminded. The date filter is therefore only for
+	# the closed/merged tail. Keeping them separate also stops a busy repo's
+	# recent traffic from crowding open PRs out of the 200-row cap.
+	local -r pr_fields='number,state,isDraft,updatedAt,title,headRefName,author'
+	local -a open_args=(--state open --limit 200)
+	[[ -n $author ]] && open_args+=(--search "author:${author}")
+
+	local open_payload recent_payload
+	open_payload=$(gh pr list "${open_args[@]}" --json "$pr_fields" 2>&1) || {
+		print -u2 "pr-recent: gh pr list (open) failed:"
+		print -u2 -- "$open_payload"
+		return 1
+	}
+	recent_payload=$(gh pr list --state all --limit 200 --search "$search" \
+		--json "$pr_fields" 2>&1) || {
+		print -u2 "pr-recent: gh pr list (recent) failed:"
+		print -u2 -- "$recent_payload"
+		return 1
+	}
+
+	# unique_by reorders by number; harmless, the rows get re-sorted below.
+	local payload
+	payload=$(jq -s 'add | unique_by(.number)' \
+		<(print -r -- "$open_payload") <(print -r -- "$recent_payload") 2>&1) || {
+		print -u2 "pr-recent: failed to merge the PR lists:"
+		print -u2 -- "$payload"
+		return 1
+	}
+
+	# Rows: <number>\t<state>\t<updated_epoch>\t<branch>\t<login>\t<name>\t<title>
+	# isDraft collapses into state so the display has one status column.
+	# `fromdateiso8601` avoids a per-row `date` fork (BSD/GNU divergence too).
+	local -r jq_prog='
+	  .[] | [ (.number|tostring),
+	          (if (.isDraft == true and (.state|ascii_downcase) == "open")
+	           then "draft" else (.state|ascii_downcase) end),
+	          ((.updatedAt // "") | if . == "" then 0
+	           else (fromdateiso8601? // 0) end | tostring),
+	          (.headRefName // ""),
+	          (.author.login // "?"),
+	          ((.author.name // "") | gsub("[\t\n]"; " ")),
+	          ((.title // "") | gsub("[\t\n]"; " ")) ] | @tsv
+	'
+	local -a rows
+	rows=(${(f)"$(print -r -- "$payload" | jq -r "$jq_prog" 2>/dev/null)"})
+	if (( ${#rows} == 0 )); then
+		print -u2 "pr-recent: no open PRs in ${repo_root:t}, and none updated since ${since}"
+		return 1
+	fi
+
+	# Map every branch that some worktree of this repo has checked out to
+	# that worktree's path, so the picker can mark the reachable ones and
+	# the action can cd instead of attempting a doomed checkout.
+	# `worktree list --porcelain` emits a `worktree <path>` line followed by
+	# a `branch refs/heads/<name>` line for each attached HEAD.
+	local -A wt_for_branch=()
+	local wt_line wt_cur=''
+	while IFS= read -r wt_line; do
+		case $wt_line in
+			'worktree '*) wt_cur=${wt_line#worktree } ;;
+			'branch refs/heads/'*) wt_for_branch[${wt_line#branch refs/heads/}]=$wt_cur ;;
+		esac
+	done < <(git -C "$repo_root" worktree list --porcelain 2>/dev/null)
+
+	# Canonical email per author name, read from the mailmap (`mailmap.file`,
+	# falling back to the repo's own .mailmap). The PR author is a GitHub
+	# LOGIN and the mailmap keys on git identities, so the two only meet
+	# through the name gh already returns — hence a name -> email map rather
+	# than `git check-mailmap`, which cannot resolve a bare login.
+	#
+	# The email is never displayed; it is folded into the fzf search field so
+	# an ascii spelling still finds a name carrying diacritics (`siudzinski`
+	# -> Marcin Siudziński). Coverage is partial by nature — not every author
+	# is in the mailmap — so this only ever adds a search term.
+	local -A email_for_name=()
+	local mailmap_file
+	mailmap_file=$(git -C "$repo_root" config mailmap.file 2>/dev/null)
+	mailmap_file=${mailmap_file/#\~/$HOME}
+	[[ -z $mailmap_file || ! -r $mailmap_file ]] && mailmap_file="$repo_root/.mailmap"
+	if [[ -r $mailmap_file ]]; then
+		local mm_line mm_name mm_email
+		while IFS= read -r mm_line; do
+			# Canonical form is "Name <email>" possibly followed by aliases;
+			# take the first name/email pair and keep the first spelling seen.
+			[[ $mm_line == '#'* || -z ${mm_line// } ]] && continue
+			[[ $mm_line != *'<'*'>'* ]] && continue
+			mm_name=${mm_line%%<*}
+			mm_name=${mm_name%%[[:space:]]#}
+			mm_email=${mm_line#*<}
+			mm_email=${mm_email%%>*}
+			[[ -z $mm_name || -z $mm_email ]] && continue
+			[[ -n ${email_for_name[$mm_name]} ]] && continue
+			email_for_name[$mm_name]=$mm_email
+		done < "$mailmap_file"
+	fi
+
+	local this_wt
+	this_wt=$(git rev-parse --show-toplevel 2>/dev/null)
+	local cur_branch
+	cur_branch=$(git branch --show-current 2>/dev/null)
+
+	local history_file="$HOME/.cache/rlm-pr-recent/history.txt"
+	mkdir -p "${history_file:h}" 2>/dev/null
+
+	# History key is "<repo>:<number>" so two repos' PR #12 stay distinct.
+	# Still recorded on selection, but deliberately NOT used for ordering:
+	# the list is sorted purely by recency, so the top row is always the
+	# PR with the newest activity rather than whatever was picked last.
+	local repo_key=${repo_root:t}
+
+	local -i w_num=3 w_state=6 w_author=6
+	local row who_full
+	local -a rf=()
+	for row in "${rows[@]}"; do
+		rf=("${(@s:	:)row}")
+		(( ${#rf[1]} + 1 > w_num ))  && w_num=$(( ${#rf[1]} + 1 ))
+		(( ${#rf[2]} > w_state ))    && w_state=${#rf[2]}
+		who_full=${rf[5]}
+		[[ -n ${rf[6]} ]] && who_full="${rf[5]} (${rf[6]})"
+		(( ${#who_full} > w_author )) && w_author=${#who_full}
+	done
+	# "login (Real Name)" runs to ~45 chars; cap it so the title keeps room
+	# on an 80-column terminal. The full identity stays fuzzy-searchable.
+	(( w_author > 34 )) && w_author=34
+
+	local -A state_color=(
+		open   $'\e[32m'
+		draft  $'\e[90m'
+		merged $'\e[35m'
+		closed $'\e[31m'
+	)
+	local reset=$'\e[0m' bold=$'\e[1m'
+	local now=$EPOCHSECONDS
+	[[ -z $now ]] && now=$(date '+%s')
+
+	# Sort key: newest activity first. updatedAt already advances on every
+	# comment (verified against the API: it matches the last comment's
+	# timestamp), so one negated-epoch key covers "updated or commented on".
+	# Numeric and hidden from the display via --with-nth.
+	local -a sortable=()
+	for row in "${rows[@]}"; do
+		rf=("${(@s:	:)row}")
+		local num=${rf[1]} state=${rf[2]} epoch=${rf[3]:-0}
+		local branch=${rf[4]} who=${rf[5]} who_name=${rf[6]:-} title=${rf[7]:-}
+
+		local wt=${wt_for_branch[$branch]:-}
+		local mark='  '
+		if [[ -n $wt && $wt == $this_wt ]]; then
+			mark='* '
+		elif [[ -n $wt ]]; then
+			mark='> '
+		fi
+
+		local age='-'
+		if (( epoch > 0 )); then
+			local -i secs=$(( now - epoch ))
+			(( secs < 0 )) && secs=0
+			if   (( secs < 3600    )); then age="$(( secs / 60 ))m"
+			elif (( secs < 86400   )); then age="$(( secs / 3600 ))h"
+			else                            age="$(( secs / 86400 ))d"
+			fi
+		fi
+
+		# Display "login (Real Name)"; the email is search-only (below).
+		local who_disp=$who
+		[[ -n $who_name ]] && who_disp="$who ($who_name)"
+		(( ${#who_disp} > w_author )) && who_disp="${who_disp[1,w_author-1]}…"
+
+		# Everything worth typing to find this author, in one field fzf can
+		# match but the eye never sees: login, real name, and the mailmap
+		# email — the email is what makes an ascii query hit a name with
+		# diacritics. Padded so it renders past the right edge of the pane.
+		local who_email=${email_for_name[$who_name]:-}
+		local search_blob="$who $who_name $who_email"
+
+		local disp=''
+		disp=$(printf '%s%-*s  %-*s  %-*s  %4s  %s' \
+			"$mark" $w_num "#$num" $w_state "$state" \
+			$w_author "$who_disp" "$age" "$title")
+		local c=${state_color[$state]:-}
+		[[ -n $c ]] && disp="${c}${disp}${reset}"
+		[[ $mark == '* ' ]] && disp="${bold}${disp}${reset}"
+
+		# <-epoch>\t<display>\t<search>\t<number>\t<branch>\t<worktree>
+		sortable+=("$(printf '%d\t%s\t%200s%s\t%s\t%s\t%s' \
+			"$(( -epoch ))" "$disp" '' "$search_blob" \
+			"$num" "$branch" "$wt")")
+	done
+
+	local -a lines
+	lines=(${(f)"$(print -rl -- "${sortable[@]}" | sort -t$'\t' -k1,1n)"})
+
+	# Preview runs in a plain sh subshell with no zsh $PATH/functions, and
+	# `gh` resolves the repo from its cwd — hence the explicit cd.
+	local preview_cmd
+	preview_cmd="cd ${(q)repo_root} 2>/dev/null && gh pr view {4} 2>&1"
+
+	local selection
+	selection=$(print -rl -- "${lines[@]}" | fzf \
+		--no-mouse \
+		--ansi \
+		--delimiter=$'\t' --with-nth=2..3 --accept-nth=4,5,6 \
+		--prompt="pr> " \
+		--height=80% --reverse \
+		--header='* here • > worktree • Enter jump • Shift/Alt-↑↓ scroll • Ctrl-P size • Ctrl-G abort' \
+		--preview="$preview_cmd" \
+		--preview-window=bottom:40%:wrap \
+		--bind='ctrl-p:change-preview-window(bottom:70%:wrap|bottom:40%:wrap|hidden)' \
+		--bind='shift-up:preview-up' --bind='shift-down:preview-down' \
+		--bind='alt-up:preview-half-page-up' --bind='alt-down:preview-half-page-down' \
+		--bind='ctrl-t:first' --bind='ctrl-e:last' \
+		--bind='ctrl-g:abort') || return 130
+	[[ -z $selection ]] && return 130
+
+	# --accept-nth hands back exactly <number>\t<branch>\t<worktree>.
+	local -a sf=("${(@s:	:)selection}")
+	local sel_num=${sf[1]:-} sel_branch=${sf[2]:-} sel_wt=${sf[3]:-}
+	if [[ -z $sel_num ]]; then
+		print -u2 "pr-recent: could not parse the selection"
+		return 1
+	fi
+
+	print -r -- "$repo_key:$sel_num" >> "$history_file" 2>/dev/null
+	local trimmed
+	trimmed=$(tail -n 1000 "$history_file" 2>/dev/null) \
+		&& print -r -- "$trimmed" >| "$history_file"
+
+	# Already here — nothing to do but say so.
+	if [[ -n $sel_wt && $sel_wt == $this_wt ]]; then
+		print -r -- "pr-recent: PR #$sel_num ($sel_branch) is checked out here already"
+		return 0
+	fi
+
+	# Checked out in another worktree: cd there. git will not allow the same
+	# branch in two worktrees, so this is the only reachable action.
+	if [[ -n $sel_wt ]]; then
+		if [[ ! -d $sel_wt ]]; then
+			print -u2 "pr-recent: worktree for '$sel_branch' is gone: $sel_wt"
+			return 1
+		fi
+		print -r -- "pr-recent: PR #$sel_num ($sel_branch) -> ${sel_wt/#$HOME/~}"
+		cd -- "$sel_wt"
+		return 0
+	fi
+
+	# No worktree holds it: switch THIS checkout to the PR's branch. Refuse
+	# on a dirty tree — `gh pr checkout` would carry the changes onto the
+	# PR's branch, quietly mixing unrelated work into it.
+	if [[ -n $(git status --porcelain 2>/dev/null) ]]; then
+		print -u2 "pr-recent: working tree has uncommitted changes; refusing to switch to '$sel_branch'."
+		print -u2 "pr-recent: commit or stash first, or use 'pr-worktree' to get a separate worktree."
+		return 1
+	fi
+
+	print -r -- "pr-recent: checking out PR #$sel_num ($sel_branch)${cur_branch:+ — leaving $cur_branch}"
+	gh pr checkout "$sel_num" || {
+		print -u2 "pr-recent: gh pr checkout $sel_num failed"
+		return 1
+	}
+}
+alias pr-recent='rlm-pr-recent'
+
 # Run pre-commit on files changed in the current branch since its fork point from the base
 # branch (default: main). Usage: rlm-pre-commit-pr [base-branch]    alias: pcpr
 rlm-pre-commit-pr() {

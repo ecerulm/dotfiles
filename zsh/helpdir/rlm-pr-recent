@@ -1,0 +1,93 @@
+rlm-pr-recent [-w|--weeks N] [-a|--author LOGIN]
+
+List pull requests in the CURRENT repository in an fzf picker, then
+jump to the one you pick. The list is every OPEN PR, however old, plus
+every other PR (merged, closed) updated in the last N weeks (default
+4) -- all states and all authors.
+
+Open PRs are deliberately exempt from the date cutoff. An open PR is
+unfinished work no matter how long it has been quiet, and a PR that
+has gone untouched for months is the one you are most likely to have
+forgotten about -- precisely the one a date filter would hide. The
+cutoff exists only to bound the closed/merged tail.
+
+Selecting a PR does one of two things, decided per PR:
+
+  1. Its head branch is already checked out in some worktree of this
+     repo -- cd there. This is also the only correct action: git
+     refuses to have one branch checked out in two worktrees, so a
+     checkout here would fail regardless.
+  2. No worktree holds the branch -- run `gh pr checkout <N>` in the
+     current worktree, switching this checkout to the PR's branch. gh
+     configures tracking correctly for fork PRs too, which a plain
+     `git checkout` does not.
+
+Case 2 REFUSES when the working tree has uncommitted changes, rather
+than carrying them onto the PR's branch (which is what git would do,
+quietly mixing unrelated work into it). Commit or stash first, or use
+rlm-pr-worktree to get a separate worktree for the PR.
+
+Rows are `<mark> #NUM STATE AUTHOR AGE TITLE`, color-coded by state
+(open green, draft grey, merged magenta, closed red).
+
+The AUTHOR column shows `login (Real Name)` -- the name comes from
+GitHub, which returns it alongside the login at no extra cost. Bots
+have no name and show the bare login. Typing part of either half
+finds the PR, so `marcin` reaches storytel-siudzinskim (Marcin
+Siudzinski) without having to remember the handle.
+
+The author's canonical email is also matched, though never displayed:
+it is read from the mailmap (`mailmap.file`, else the repo's own
+.mailmap) and keyed on the name GitHub reports. That is what lets a
+plain-ascii query find a name carrying diacritics -- `siudzinski`
+matches `Marcin Siudzinski` through marcin.siudzinski@storytel.com.
+Authors absent from the mailmap simply lose that extra search term;
+login and name still match. The mark column
+is `*` when the PR's branch is checked out in the current worktree,
+`>` when another worktree holds it, blank otherwise. The preview pane
+shows `gh pr view` for the focused PR.
+
+Rows are ordered by activity, newest first: the PR updated or
+commented on most recently is the top row, the least recently touched
+is the last. GitHub's updatedAt advances on every comment, so a PR
+that only received a review comment still sorts to the top. Ordering
+is by recency alone -- picking a PR does not float it up on the next
+run, so the top of the list always means "newest activity" rather
+than "what you last looked at".
+
+The list is fetched live on every call (about a second for ~80 PRs)
+and deliberately not cached: the state column is the reason to run
+this, and a cached "open" for a PR that merged an hour ago is worse
+than a one-second wait.
+
+Related: rlm-pr-list prints a table of the PR for the branch currently
+checked out across one repo or one collection dir; rlm-pr-find scans a
+whole directory tree and jumps to an existing checkout. This command
+starts from the repository's PRs instead, so it reaches a PR whose
+branch is not on disk anywhere.
+
+ARGUMENTS
+  -w, --weeks N     How far back to look for CLOSED and MERGED PRs,
+                    in weeks (default 4). Open PRs are always listed
+                    regardless of age, so this does not affect them.
+  -a, --author LOGIN
+                    Only PRs authored by LOGIN. Omit for all authors.
+  -h, --help        Print a usage line and exit.
+
+KEYS
+  Enter             Jump to the PR (cd to its worktree, or
+                    check it out).
+  Shift-Up/Down     Scroll the preview pane.
+  Alt-Up/Down       Scroll the preview pane by half a page.
+  Ctrl-T / Ctrl-E   Jump to the first / last row.
+  Ctrl-P            Cycle the preview pane size (70% / 40% / hidden).
+  Ctrl-G            Abort.
+
+FILES
+  ~/.cache/rlm-pr-recent/history.txt
+                    Most-recently-used PRs, as <repo>:<number> lines,
+                    capped at 1000. Recorded on selection but not used
+                    for ordering; the picker sorts by recency alone.
+
+REQUIRES
+  gh, git, jq, fzf

@@ -8,6 +8,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `rlm-pr-recent`: always list open PRs, sort by recency, and show real names.
+
+  Three changes to the same picker.
+
+  **Open PRs no longer age out.** The single `--search "updated:>=<date>"` applied the cutoff to *every* state, so an open PR that had gone quiet simply disappeared — `infra-gcp` #2977 (open, last touched 203 days ago) was invisible. That is backwards: an open PR is unfinished work however long it has sat, and being forgotten is exactly why it needs surfacing. It is now two queries — `--state open` unfiltered, plus `--state all` with the date filter — merged with `jq -s 'add | unique_by(.number)'`. Keeping them separate also stops a busy repo's recent traffic from crowding open PRs out of the 200-row cap, which `infra-gcp` already hits. Default window 3 → 4 weeks.
+
+  **Ordering is now recency alone**, newest activity first; the MRU rank no longer participates. `updatedAt` already advances on comments (checked against the API: it matched the last comment's timestamp on 7 of 8 sampled PRs), so one key covers "updated or commented on". History is still recorded on selection but no longer reorders — verified by seeding the *oldest* PR as most-recently-picked and confirming it stays at 201/201, where before it would have been row 1.
+
+  **The author column shows `login (Real Name)`.** `gh` returns `author.name` alongside the login for free, so this costs no extra API call; bots have no name and show the bare login. The author's mailmap email is folded into a search-only field — never displayed — which is what lets a plain-ascii query reach a name carrying diacritics: `siudzinski` finds `Marcin Siudziński` via `marcin.siudzinski@storytel.com`.
+
+  The mailmap cannot resolve a GitHub login directly — it keys on git identities — so the bridge is the name `gh` reports. Login-keyed lookup resolved only 10 of 21 real authors against `~/git/work/.mailmap`; name-keyed resolved 14. Coverage is partial either way, so the email is strictly additive: an author absent from the mailmap still matches on login and name.
+
+  Matching deliberately spans both the author and the title, so fzf's fuzzy search does turn up unrelated rows for a name query. Ranking absorbs it in practice — where an author has PRs in the repo they come out on top (`capitanu`, `Calin`, `charalambous` all rank correctly); the noise only shows when the searched author has nothing there.
+
+  Also here: `extended_glob` is now set in the function, because the mailmap name trim uses the `#` closure operator that `emulate -L zsh` switches off — without it every key keeps a trailing space and never matches. Selection moved to `--accept-nth`, and the preview/`--with-nth`/parse indices were corrected as columns shifted.
+
 - `_rlm-gar-version-cache`: prune `resolved.txt` and `children.tsv` against the listing on every refresh.
 
   `forget` only prunes digests this tool deleted, but versions also vanish on their own — the repo's cleanup policy deletes untagged versions on a timer. Nothing pruned those, so the attribution files accumulated rows for versions that no longer exist: `ingress-dbt`'s `resolved.txt` held 25 rows of which **24 named deleted versions**, against 3 live ones.
