@@ -119,6 +119,24 @@ in the reference chain covers that, and also survives the 75-name
 chunking, because any prefix of a parents-first list is itself
 parents-first.
 
+REPOSITORIES THAT DELETE ON THEIR OWN
+
+A repository can carry cleanup policies that delete versions on a
+timer. Where one is active, versions picked here may be removed by
+the registry between the listing and the confirmation.
+
+That matters because versions:batchDelete is all-or-nothing per
+request: a single name that no longer exists aborts the whole chunk
+and every valid digest in it survives, and the API does not report
+which name was missing. The selection is therefore re-listed just
+before the confirmation and already-deleted versions are dropped
+with a note; if a chunk still fails, it is retried one version at a
+time so the valid digests are deleted and each failure is named.
+
+The preview lists the repository's active DELETE policies above the
+version details, so a package that is already being pruned on a
+schedule is obvious before anything is selected.
+
 WHAT THE REGISTRY WILL REFUSE
 
 Some selections cannot succeed no matter how they are ordered. These

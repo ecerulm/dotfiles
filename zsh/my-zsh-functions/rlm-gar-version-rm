@@ -412,6 +412,56 @@ _gvrm_round() {
   # Stage 3 — confirm and delete
   # ---------------------------------------------------------------------------
 
+  # Drop digests that are already gone. The picker can be showing a cached
+  # listing (10-minute TTL) that still contains versions deleted since it was
+  # written — and batchDelete is ALL-OR-NOTHING per chunk, so one stale name
+  # aborts the request and every valid digest in it survives. The API does not
+  # identify the offender either: metadata.failedVersions is populated only
+  # when every name is bad, and comes back empty for exactly the mixed batch
+  # that needs it. Cheaper and clearer to re-list once here than to explain a
+  # bare "Requested entity was not found." afterwards.
+  local live_json=''
+  live_json=$(gcloud artifacts docker images list "$image" \
+                --include-tags --format=json --project="$proj" 2>/dev/null)
+  if [[ -n $live_json && $live_json != '[]' ]]; then
+    local -a live_digests=()
+    live_digests=(${(f)"$(print -r -- "$live_json" | jq -r '.[].version // empty')"})
+    if (( ${#live_digests} )); then
+      local -A live_set=()
+      local ld=''
+      for ld in "${live_digests[@]}"; do live_set[$ld]=1; done
+      local -a kept=() vanished=()
+      local sd=''
+      for sd in "${digests[@]}"; do
+        if [[ -n ${live_set[$sd]} ]]; then kept+=("$sd"); else vanished+=("$sd"); fi
+      done
+      if (( ${#vanished} )); then
+        print -r -- ""
+        print -r -- "  ${dim}${#vanished} selected version(s) are already gone; skipping them.${reset}"
+        local vd=''
+        local -i shown_v=0
+        for vd in "${vanished[@]}"; do
+          (( shown_v >= 3 )) && { print -r -- "    ${dim}… and $(( ${#vanished} - 3 )) more${reset}"; break }
+          print -r -- "    ${dim}${vd[1,26]}…${reset}"
+          (( shown_v++ ))
+        done
+        digests=("${kept[@]}")
+        # The listing is now provably stale. Drop it here rather than only on
+        # the delete path: declining the confirmation must not send the next
+        # round back to the same cache to re-offer the same ghosts.
+        _rlm-gar-version-cache invalidate "$image"
+        _rlm-gar-version-cache forget "$image" "${vanished[@]}"
+      fi
+    fi
+  fi
+
+  if (( ${#digests} == 0 )); then
+    print -r -- ""
+    print -r -- "  Every selected version was already deleted; nothing to do."
+    _rlm-gar-version-cache invalidate "$image"
+    return 130
+  fi
+
   local -i n=${#digests}
   # versions:batchDelete caps at 75 per request; the helper chunks accordingly.
   local -i batches=$(( (n + 74) / 75 ))
@@ -580,7 +630,9 @@ _gvrm_round() {
     print -r -- ""
     print -r -- "gar-version-rm: ${deleted} deleted before the failure"
     _rlm-gar-version-cache invalidate "$image"
-    (( deleted > 0 )) && _rlm-gar-version-cache forget "$image" "${digests[@]}"
+    # Only the first $deleted digests were removed; forgetting the whole
+    # selection would drop attribution for versions that still exist.
+    (( deleted > 0 )) && _rlm-gar-version-cache forget "$image" "${digests[@]:0:$deleted}"
     return 1
   fi
 

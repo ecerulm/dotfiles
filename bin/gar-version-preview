@@ -63,6 +63,58 @@ _gar_version_preview_main() {
   printf '\e]8;;%s\e\\Open in GCP console\e]8;;\e\\' "$console_url"; printf '\n'
   printf '\n'
 
+  # Active cleanup policies. A repo that already deletes untagged versions on
+  # a timer will remove things out from under a manual selection — the digest
+  # you picked can be gone by the time you confirm, and batchDelete then fails
+  # the whole chunk. Worth knowing BEFORE deleting, so it sits up here.
+  # Cached for 1h alongside package.json: a preview re-runs per keystroke.
+  local repo_cache_dir='' repo_key=''
+  repo_key=$(printf '%s' "$image" | md5 2>/dev/null | tr -d ' -')
+  [[ -n $repo_key ]] && repo_cache_dir="$HOME/.cache/gar-version/${repo_key}"
+  local pol_cache="${repo_cache_dir:+${repo_cache_dir}/repo.json}"
+  local repo_json=''
+  if [[ -n $pol_cache && -s $pol_cache ]]; then
+    local rmt=0 rnow=0
+    rmt=$(stat -f %m "$pol_cache" 2>/dev/null || stat -c %Y "$pol_cache" 2>/dev/null || printf 0)
+    rnow=$(date +%s)
+    (( rmt > 0 && (rnow - rmt) < 3600 )) && repo_json=$(cat "$pol_cache" 2>/dev/null)
+  fi
+  if [[ -z $repo_json ]]; then
+    local rtok=''
+    rtok=$("$HOME/bin/gcloud-token-cached" 2>/dev/null)
+    if [[ -n $rtok ]]; then
+      repo_json=$(curl -s -H "Authorization: Bearer ${rtok}" \
+        "https://artifactregistry.googleapis.com/v1/projects/${proj}/locations/${location_slug}/repositories/${repo}" 2>/dev/null)
+      # Only cache a real answer, so a transient 403 is not pinned for an hour.
+      if [[ -n $repo_json ]] && printf '%s' "$repo_json" | jq -e '.name' >/dev/null 2>&1; then
+        [[ -n $repo_cache_dir ]] && mkdir -p "$repo_cache_dir" 2>/dev/null \
+          && printf '%s' "$repo_json" >| "$pol_cache" 2>/dev/null
+      fi
+    fi
+  fi
+  if [[ -n $repo_json ]]; then
+    local pol_lines=''
+    pol_lines=$(printf '%s' "$repo_json" | jq -r '
+      (.cleanupPolicies // {}) | to_entries
+      | map(select(.value.action == "DELETE"))
+      | .[]
+      | . as $p
+      | ($p.value.condition // {}) as $c
+      | ($c.olderThan // "" | if . == "" then "" else
+          (rtrimstr("s") | tonumber / 86400 | floor | "older than \(.)d") end) as $age
+      | [ $c.tagState // "ANY", $age,
+          (if ($c.tagPrefixes // []) | length > 0
+             then "tags " + (($c.tagPrefixes|join(","))) else "" end) ]
+        | map(select(. != "")) | join(", ")
+        | "  \($p.key): \(.)"
+    ' 2>/dev/null)
+    if [[ -n $pol_lines ]]; then
+      printf '%sActive cleanup policies (this repo deletes on its own):%s\n' "$yellow$bold" "$reset"
+      printf '%s\n' "$pol_lines"
+      printf '\n'
+    fi
+  fi
+
   local json=""
   if [[ -n $GAR_VERSION_CACHE && -s $GAR_VERSION_CACHE ]]; then
     json=$(cat "$GAR_VERSION_CACHE")

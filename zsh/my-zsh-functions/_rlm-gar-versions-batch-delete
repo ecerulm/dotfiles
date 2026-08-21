@@ -82,8 +82,65 @@ local body_file resp_file
 body_file=$(mktemp) || return 1
 resp_file=$(mktemp) || { rm -f "$body_file"; return 1; }
 
+# batchDelete is all-or-nothing per chunk: ONE name that no longer exists
+# aborts the whole request and every valid digest in it survives. The API
+# does not say which name was at fault in that case — metadata.failedVersions
+# is populated only when EVERY name is bad, and is empty for the mixed
+# valid+missing batch that actually needs it (probed against the live API).
+# So on a failure, re-send the chunk one name at a time: the valid digests
+# still get deleted and the bad ones are named locally.
+_gvbd_retry_individually() {
+  local -a names=("$@")
+  local -i ok=0
+  local nm='' one_body='' one_resp='' one_http=0 one_op='' one_err=''
+  one_body=$(mktemp) || return 1
+  one_resp=$(mktemp) || { rm -f "$one_body"; return 1; }
+  for nm in "${names[@]}"; do
+    printf '%s\n' "$nm" \
+      | VO="$validate_only" PARENT="$parent" jq -R -s '
+          (env.PARENT) as $p
+          | { validateOnly: (env.VO == "1"),
+              names: (split("\n") | map(select(length > 0))
+                      | map($p + "/versions/" + .)) }
+        ' >| "$one_body"
+    one_http=$(curl -sS -o "$one_resp" -w '%{http_code}' -X POST \
+                 -H "Authorization: Bearer ${token}" \
+                 -H 'Content-Type: application/json' \
+                 --data @"$one_body" "$url" 2>/dev/null) || one_http=0
+    if (( one_http < 200 || one_http >= 300 )); then
+      print -u2 "    ${nm}: HTTP ${one_http}"
+      continue
+    fi
+    one_op=$(jq -r '.name // empty' "$one_resp" 2>/dev/null)
+    one_err=''
+    if [[ -n $one_op ]]; then
+      local -i w=0
+      while (( w < 60 )); do
+        local r=''
+        r=$(curl -sS -H "Authorization: Bearer ${token}" "${base}/${one_op}" 2>/dev/null)
+        [[ -z $r ]] && break
+        if [[ $(print -r -- "$r" | jq -r '.done // false' 2>/dev/null) == true ]]; then
+          one_err=$(print -r -- "$r" | jq -r '.error.message // empty' 2>/dev/null)
+          break
+        fi
+        sleep 1
+        (( w++ ))
+      done
+    fi
+    if [[ -n $one_err ]]; then
+      print -u2 "    ${nm}: ${one_err}"
+    else
+      (( ok++ ))
+    fi
+  done
+  rm -f "$one_body" "$one_resp"
+  print -r -- "$ok"
+  return 0
+}
+
 while (( idx <= n )); do
   (( chunk_no++ ))
+  local -i retried=0
   local -a chunk=()
   local -i taken=0
   while (( idx <= n && taken < cap )); do
@@ -121,9 +178,17 @@ while (( idx <= n )); do
     local msg=''
     msg=$(jq -r '.error.message // empty' "$resp_file" 2>/dev/null)
     [[ -n $msg ]] && print -u2 "  ${msg}" || head -c 400 "$resp_file" >&2
-    print -r -- "deleted=${deleted}"
-    rm -f "$body_file" "$resp_file"
-    return 1
+    print -u2 "  retrying the chunk one version at a time …"
+    local -i got_h=0
+    got_h=$(_gvbd_retry_individually "${chunk[@]}")
+    (( deleted += got_h ))
+    print -u2 "  ${got_h}/${#chunk} deleted individually"
+    if (( got_h < ${#chunk} )); then
+      print -r -- "deleted=${deleted}"
+      rm -f "$body_file" "$resp_file"
+      return 1
+    fi
+    continue
   fi
 
   local op=''
@@ -142,9 +207,19 @@ while (( idx <= n )); do
         operr=$(print -r -- "$opresp" | jq -r '.error.message // empty' 2>/dev/null)
         if [[ -n $operr ]]; then
           print -u2 "${label}: chunk ${chunk_no} operation failed: ${operr}"
-          print -r -- "deleted=${deleted}"
-          rm -f "$body_file" "$resp_file"
-          return 1
+          print -u2 "  retrying the chunk one version at a time …"
+          local -i got=0
+          got=$(_gvbd_retry_individually "${chunk[@]}")
+          (( deleted += got ))
+          print -u2 "  ${got}/${#chunk} deleted individually"
+          if (( got < ${#chunk} )); then
+            print -r -- "deleted=${deleted}"
+            rm -f "$body_file" "$resp_file"
+            return 1
+          fi
+          # Already counted per name above; skip the blanket chunk increment.
+          retried=1
+          break
         fi
         break
       fi
@@ -156,7 +231,7 @@ while (( idx <= n )); do
     fi
   fi
 
-  (( deleted += ${#chunk} ))
+  (( retried )) || (( deleted += ${#chunk} ))
 done
 
 rm -f "$body_file" "$resp_file"

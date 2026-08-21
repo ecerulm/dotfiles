@@ -8,6 +8,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `rlm-gar-version-rm`: survive a repository that deletes versions on its own.
+
+  `eu.gcr.io` in `storytel-data-platform-dev` runs a `delete-untagged` cleanup policy (untagged, older than 7 days). Untagged versions selected in the picker can therefore be removed by the registry between the listing and the confirmation — and `versions:batchDelete` is **all-or-nothing per chunk**, so one already-deleted name aborts the request and every valid digest in that chunk survives. Probed against the live API: a live canary batched with one bogus name came back `Requested entity was not found.` with the canary still at HTTP 200.
+
+  The error does not say *which* name was at fault. `metadata.failedVersions` is populated only when **every** name is bad and comes back empty for the mixed batch that actually needs it, so the offender has to be identified locally.
+
+  Three changes: the selection is re-listed against the registry immediately before the confirmation and already-gone digests are dropped with a note (exiting early if nothing is left); a chunk failure now retries the chunk **one name at a time**, so the valid digests still delete and each failure is named; and detecting staleness invalidates the cached listing there and then, so declining the confirmation cannot send the next round back to the same cache to re-offer the same ghosts.
+
+  A partial failure now forgets only the digests actually deleted (`${digests[@]:0:$deleted}`) rather than the whole selection, which was dropping index attribution for versions that still exist.
+
+- `bin/gar-version-preview`: list the repository's active DELETE cleanup policies above the version details.
+
+  A repo that deletes on a timer will remove things out from under a manual selection, so this belongs before the decision, not in a postmortem. Rendered as e.g. `delete-untagged: UNTAGGED, older than 7d`. Cached as `repo.json` for 1h next to `package.json`, and only a response carrying `.name` is cached so a transient 403 is not pinned; no measurable change to preview latency.
+
 - `rlm-gar-version-rm`: `?` shows the full key list in the preview pane.
 
   The header had grown to 76 of its 80 display columns while still omitting `TAB` and `Enter`, and each new binding made the trade worse — every key that fits crowds out the next one. `?` moves the complete list into the preview pane, which lets the header shrink to the five keys worth advertising (`TAB pick • Enter delete • ^A/^D all/none • ^G abort • ? keys`, 60 columns) without hiding anything.
