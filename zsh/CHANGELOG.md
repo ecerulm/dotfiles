@@ -8,6 +8,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `rlm-gar-version-rm`: versions tagged `*latest*` are excluded from the selection unless `--force`.
+
+  A floating release tag is what a deployment resolves, so deleting one breaks whatever pulls it. Any version carrying a tag **containing** `latest` is now marked `[protected]` in the picker and dropped from the selection with a note naming the refs. Matching on *contains* rather than the `latest` prefix is deliberate: this repo's own `keep-tagged` policy protects `latest`, `dbt-1.11-latest`, `dbt-1.12-latest` and `dbt-2.0-latest`, and three of those only end in it — a prefix test would guard one tag out of four.
+
+  `-f`/`--force` re-admits them behind a second gate: the exact `<repo>/<package>:<tag>` has to be typed, and anything else aborts the whole delete. y/N is muscle memory; retyping the ref is not.
+
+  fzf has no per-row selectability, so the picker cannot literally refuse the TAB — the row is marked and the selection is filtered on the way out instead. The guarantee is the same (a protected version is never deleted without `--force`), just enforced a step later.
+
 - `rlm-gar-version-rm`: survive a repository that deletes versions on its own.
 
   `eu.gcr.io` in `storytel-data-platform-dev` runs a `delete-untagged` cleanup policy (untagged, older than 7 days). Untagged versions selected in the picker can therefore be removed by the registry between the listing and the confirmation — and `versions:batchDelete` is **all-or-nothing per chunk**, so one already-deleted name aborts the request and every valid digest in that chunk survives. Probed against the live API: a live canary batched with one bogus name came back `Requested entity was not found.` with the canary still at HTTP 200.

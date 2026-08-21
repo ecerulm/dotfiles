@@ -6,13 +6,14 @@ autoload -Uz _rlm-gar-preflight _rlm-gar-pick-package _rlm-gar-history \
              _rlm-gar-index-children _rlm-gar-version-cache \
              _rlm-gar-versions-batch-delete
 
-local dry_run=0 force_refresh=0
+local dry_run=0 force_refresh=0 allow_protected=0
 while (( $# )); do
   case $1 in
     -n|--dry-run) dry_run=1; shift ;;
     -r|--refresh) force_refresh=1; shift ;;
+    -f|--force) allow_protected=1; shift ;;
     -h|--help)
-      print -r -- "Usage: gar-version-rm [-n|--dry-run] [-r|--refresh]"
+      print -r -- "Usage: gar-version-rm [-n|--dry-run] [-r|--refresh] [-f|--force]"
       print -r -- ""
       print -r -- "Pick a GAR <repo>/<package> in an fzf picker, then"
       print -r -- "multi-select individual versions inside it to delete."
@@ -27,6 +28,8 @@ while (( $# )); do
       print -r -- ""
       print -r -- "  -n, --dry-run  show what would run, delete nothing"
       print -r -- "  -r, --refresh  bypass the cached listing and refetch"
+      print -r -- "  -f, --force    allow versions tagged *latest* to be selected;"
+      print -r -- "                 each one needs its full ref typed to confirm"
       return 0
       ;;
     *)
@@ -161,12 +164,12 @@ _gvrm_round() {
   # can order them numerically without a custom key spec.
   local rows=''
   rows=$(print -r -- "$versions_json" \
-    | GAR_VR_COLORS="${cyan}|${dim}|${yellow}|${reset}|${green}" \
+    | GAR_VR_COLORS="${cyan}|${dim}|${yellow}|${reset}|${green}|${red}" \
       GAR_VR_CHILDREN="$child_map" python3 -c '
   import sys, json, os
   from datetime import datetime, timezone
 
-  cyan, dim, yellow, reset, green = os.environ["GAR_VR_COLORS"].split("|")
+  cyan, dim, yellow, reset, green, red = os.environ["GAR_VR_COLORS"].split("|")
 
   # child digest -> (parent digest, platform, parent tags)
   children = {}
@@ -256,8 +259,14 @@ _gvrm_round() {
           tag_disp = f"{green}└─ {label}{reset} {dim}of {owner}{reset}"
       else:
           tag_disp = f"{dim}(untagged){reset}"
+      # A tag containing "latest" is a floating release pointer — the thing a
+      # deployment resolves. These are excluded from the selection unless
+      # --force, so mark the row rather than re-deriving it from the display.
+      protected = "1" if any("latest" in t for t in tags) else ""
+      if protected:
+          tag_disp += f" {red}[protected]{reset}"
       display = f"{when}  {size:>8}  {short}…  {tag_disp}"
-      print(f"{sort_key}\t{display}\t{digest}")
+      print(f"{sort_key}\t{display}\t{digest}\t{protected}")
   ')
 
   if [[ -z $rows ]]; then
@@ -289,7 +298,7 @@ _gvrm_round() {
   # Esc) restores the version preview. Safe to steal from the query line —
   # a Docker tag cannot contain '?' and a digest is hex.
   local keys_help=''
-  keys_help=$'KEYS\n\n  TAB          toggle one version\n  Ctrl-A       select all matched rows\n  Ctrl-D       deselect all\n  Ctrl-T       first row\n  Ctrl-E       last row\n  Enter        delete the selection\n  Ctrl-G       abort (back to the package picker)\n\n  Shift-Up/Dn  scroll preview by a line\n  Alt-Up/Dn    scroll preview by half a page\n  Ctrl-P       cycle preview size\n  ?            this list (move the cursor or Esc to restore)\n\nRow 1 reloads the cached version listing for this package.\nCtrl-A tags that row too; selecting it refreshes instead of deleting.'
+  keys_help=$'KEYS\n\n  TAB          toggle one version\n  Ctrl-A       select all matched rows\n  Ctrl-D       deselect all\n  Ctrl-T       first row\n  Ctrl-E       last row\n  Enter        delete the selection\n  Ctrl-G       abort (back to the package picker)\n\n  Shift-Up/Dn  scroll preview by a line\n  Alt-Up/Dn    scroll preview by half a page\n  Ctrl-P       cycle preview size\n  ?            this list (move the cursor or Esc to restore)\n\nRow 1 reloads the cached version listing for this package.\nCtrl-A tags that row too; selecting it refreshes instead of deleting.\n\nRows marked [protected] carry a *latest* tag and are skipped\nunless the command was run with --force.'
 
   local selection=''
   selection=$(
@@ -330,7 +339,7 @@ _gvrm_round() {
   break
   done
 
-  local -a sel_lines digests
+  local -a sel_lines digests protected_digests
   sel_lines=("${(@f)selection}")
   sel_lines=("${(@)sel_lines:#}")
   local line
@@ -339,8 +348,38 @@ _gvrm_round() {
     # `IFS=$'\t' read` would collapse it, shifting the digest out of place.
     local -a f=()
     f=("${(@s:	:)line}")
-    [[ -n ${f[6]} ]] && digests+=("${f[6]}")
+    [[ -z ${f[6]} ]] && continue
+    # Field 7 marks a floating release tag. fzf cannot make a row
+    # unselectable, so the row is only *marked* in the picker and the
+    # selection is filtered here — same guarantee, one step later.
+    if [[ -n ${f[7]} ]]; then
+      protected_digests+=("${f[6]}")
+      (( allow_protected )) || continue
+    fi
+    digests+=("${f[6]}")
   done
+
+  if (( ${#protected_digests} )); then
+    local -a prot_tags=()
+    prot_tags=(${(f)"$(print -r -- "$versions_json" \
+      | jq -r --argjson d "$(printf '%s\n' "${protected_digests[@]}" | jq -R -s 'split("\n")|map(select(length>0))')" '
+          .[] | select(.version as $v | $d | index($v))
+          | (.tags // [])[] | select(contains("latest"))' 2>/dev/null)"})
+    print -r -- ""
+    if (( allow_protected )); then
+      print -r -- "  ${red}${bold}--force: ${#protected_digests} protected version(s) are INCLUDED.${reset}"
+    else
+      print -r -- "  ${yellow}${bold}${#protected_digests} selected version(s) carry a floating release tag${reset}"
+      print -r -- "  ${yellow}and were skipped. Re-run with --force to delete them.${reset}"
+    fi
+    local pt=''
+    local -i shown_p=0
+    for pt in "${prot_tags[@]}"; do
+      (( shown_p >= 5 )) && { print -r -- "    ${dim}… and more${reset}"; break }
+      print -r -- "    ${cyan}${pkg_path}:${pt}${reset}"
+      (( shown_p++ ))
+    done
+  fi
 
   if (( ${#digests} == 0 )); then
     return 130
@@ -605,6 +644,33 @@ _gvrm_round() {
     print -r -- "  ${yellow}This is every version in the package.${reset} The package itself will"
     print -r -- "  be left in place (empty); use gar-rm to remove the package too."
     print -r -- ""
+  fi
+
+  # A protected version in the batch gets its own gate: type the exact ref.
+  # y/N is muscle memory; retyping "<repo>/<pkg>:<tag>" is not.
+  if (( allow_protected && ${#protected_digests} )); then
+    local -a force_tags=()
+    force_tags=(${(f)"$(print -r -- "$versions_json" \
+      | jq -r --argjson d "$(printf '%s\n' "${protected_digests[@]}" | jq -R -s 'split("\n")|map(select(length>0))')" '
+          .[] | select(.version as $v | $d | index($v))
+          | (.tags // [])[] | select(contains("latest"))' 2>/dev/null)"})
+    local want=''
+    if (( ${#force_tags} )); then
+      want="${repo}/${pkg_path}:${force_tags[1]}"
+    else
+      want="${repo}/${pkg_path}"
+    fi
+    print -r -- ""
+    print -r -- "  ${red}${bold}This deletes a floating release tag.${reset}"
+    print -r -- "  ${yellow}Type the full ref to confirm (anything else aborts):${reset}"
+    print -r -- "    ${cyan}${want}${reset}"
+    local typed=''
+    print -rn -- "  > "
+    if ! read -r typed || [[ $typed != "$want" ]]; then
+      print -r -- ""
+      print -r -- "  ${dim}ref did not match; aborted${reset}"
+      return 130
+    fi
   fi
 
   local reply_ans

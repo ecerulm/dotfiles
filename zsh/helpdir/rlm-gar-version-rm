@@ -119,6 +119,20 @@ in the reference chain covers that, and also survives the 75-name
 chunking, because any prefix of a parents-first list is itself
 parents-first.
 
+FLOATING RELEASE TAGS ARE PROTECTED
+
+A version whose tags contain "latest" is a floating release pointer
+— the thing a deployment resolves — so deleting it breaks whatever
+pulls that tag. Such versions are marked [protected] in the picker
+and dropped from the selection, with the refs named.
+
+The match is on "latest" anywhere in the tag, not just at the front:
+tags like dbt-1.11-latest and dbt-2.0-latest are release pointers
+too, and a prefix test would miss them.
+
+--force re-admits them, but each delete then requires typing the
+full <repo>/<package>:<tag> exactly; anything else aborts.
+
 REPOSITORIES THAT DELETE ON THEIR OWN
 
 A repository can carry cleanup policies that delete versions on a
@@ -209,6 +223,10 @@ OPTIONS
   -n, --dry-run
               Show both pickers, the selection summary, and the exact
               commands, but run no deletes and ask no confirmation.
+
+  -f, --force
+              Allow versions tagged *latest* to be selected. Each
+              one must then be confirmed by typing its full ref.
 
   -r, --refresh
               Ignore the cached listing and refetch it, regardless of
