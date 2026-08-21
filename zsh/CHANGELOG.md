@@ -4,6 +4,22 @@ All notable changes to the zsh configuration are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2026-08-21]
+
+### Added
+
+- `rlm-gar-version-rm`: select-all/none (`Ctrl-A`/`Ctrl-D`) and jump-to-first/last (`Ctrl-T`/`Ctrl-E`) in the version picker.
+
+  fzf's built-in `Alt-<`/`Alt->` are unusable here. `ghostty.conf` sets `macos-option-as-alt = left`, so right-Option sends no Alt at all and the terminal emits a bare `Escape` followed by `>`; fzf reads the lone `Escape` as **abort**, the picker returns 130, and 130 is the code that deliberately reopens the *package* picker — so reaching for "jump to end" silently threw away the whole selection and bounced a level up. `Ctrl-T`/`Ctrl-E` avoid the Alt encoding entirely, matching the reason `ctrl-g:abort` is already mandatory.
+
+  `Ctrl-E` overrides fzf's default `end-of-line` on the query line. That is the intended trade: this picker is fuzzy-searched, not line-edited, and there is no other Alt-free way to reach the end of a list that can run to thousands of versions.
+
+  `Ctrl-A`/`Ctrl-D` follow the pair already used by `rlm-afw-deploy`. Note `select-all` takes the **currently matched** rows, so with an empty query it selects every version in the package — narrow with a query first. The existing safety net is unchanged: parents still sort before children, members whose index is outside the selection are still listed before the confirmation, and Stage 4 still re-lists to establish what actually got deleted.
+
+  The header was rewritten to fit: it now drops `TAB multi` and `Enter delete` (both implied) to make room, measuring 76 display columns against the 80-column cap — the arrows and `•` are multibyte, so it was measured rather than eyeballed.
+
+  `AGENTS.md` gains two fzf-convention bullets (list navigation, select-all), since the Alt-key finding applies to every picker in the repo and would otherwise be rediscovered.
+
 ## [2026-08-20]
 
 ### Added

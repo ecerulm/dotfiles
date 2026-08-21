@@ -273,12 +273,14 @@ _gvrm_round() {
         --height=80% --reverse \
         --no-mouse --ansi \
         --delimiter=$'\t' --with-nth=5 \
-        --header='TAB multi • Enter delete • Shift/Alt-↑↓ scroll • Ctrl-P size • Ctrl-G abort' \
+        --header='^A/^D all/none • ^T/^E first/last • Shift/Alt-↑↓ scroll • ^P size • ^G abort' \
         --preview="GAR_VERSION_CACHE=${(q)version_cache} GAR_VERSION_CHILDREN=${(q)child_map} \"\$HOME/bin/gar-version-preview\" ${(q)image} {6}" \
         --preview-window=bottom:60%:wrap \
         --bind='ctrl-p:change-preview-window(bottom:80%:wrap|bottom:60%:wrap|hidden)' \
         --bind='shift-up:preview-up' --bind='shift-down:preview-down' \
         --bind='alt-up:preview-half-page-up' --bind='alt-down:preview-half-page-down' \
+        --bind='ctrl-a:select-all' --bind='ctrl-d:deselect-all' \
+        --bind='ctrl-t:first' --bind='ctrl-e:last' \
         --bind='ctrl-g:abort'
   )
   local fzf_rc=$?

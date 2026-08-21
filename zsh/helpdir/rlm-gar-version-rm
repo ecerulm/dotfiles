@@ -22,6 +22,27 @@ create/build times, platform, and any other scalar metadata the API
 returns. A digest carrying more than one tag is called out
 explicitly, since deleting it removes all of them.
 
+VERSION PICKER KEYS
+
+  TAB         Toggle one version.
+  Ctrl-A      Select all CURRENTLY MATCHED versions; with an empty
+              query that is every version in the package, so narrow
+              with a query first.
+  Ctrl-D      Deselect all.
+  Ctrl-T      Jump to the first row.
+  Ctrl-E      Jump to the last row.
+  Shift-Up/Down, Alt-Up/Down
+              Scroll the preview (line / half page).
+  Ctrl-P      Cycle preview size.
+  Ctrl-G      Abort — goes back to the package picker.
+
+fzf's own Alt-< and Alt-> do not work here. With Option mapped to Alt
+on the left key only, the right Option sends a bare Escape followed by
+the character, and fzf reads the lone Escape as abort — which returns
+to the package picker and discards the selection. Ctrl-T and Ctrl-E
+sidestep the Alt encoding. Ctrl-E consequently replaces fzf's default
+end-of-line on the query line.
+
 MULTI-ARCH IMAGES
 
 The per-architecture images behind a multi-arch tag appear in the
