@@ -207,7 +207,10 @@ for co in "${checkouts[@]}"; do
     # so skip rather than querying with an empty --head (which would
     # return the repo's most recent PR and mislabel it).
     if [[ -n $branch ]]; then
-      payload=$(cd -- "$co" 2>/dev/null \
+      # chpwd_functions=() or direnv runs the .envrc: an `op read` in one
+      # blocks on a prompt no backgrounded subshell can answer (hangs `wait`).
+      payload=$(chpwd_functions=() \
+        && cd -- "$co" 2>/dev/null \
         && gh pr list --head "$branch" --state all --limit 1 \
              --json number,state,isDraft,updatedAt,title 2>/dev/null \
         | jq -r "$jq_prog" 2>/dev/null) || payload=''

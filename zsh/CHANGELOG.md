@@ -4,6 +4,14 @@ All notable changes to the zsh configuration are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2026-08-24]
+
+### Fixed
+
+- **`rlm-pr-find --refresh` hung indefinitely under `~/git/work` — not slow, deadlocked.** The scan fan-out `cd`s into each checkout inside a backgrounded subshell, which fires `chpwd_functions` → `_direnv_hook`, and the hook *runs* the `.envrc`. Two checkouts there (`looker-mcp`, `pulumi-sandbox-rubenlaguna-20251127`) have an `.envrc` that shells out to `op read`; 1Password tries to prompt, a backgrounded subshell has no one to prompt, and `op` blocks on `read()` forever. The batch `wait` then blocks the entire scan behind it. `chpwd_functions=()` in the subshell fixes it — safe because it is a child shell, so the caller keeps its hook.
+
+  The tell is a stall with **zero** worker processes alive: `pgrep 'gh pr'` returned 0 while the shell sat for 10+ minutes, and `sample` showed the stack ending in `execfor → cd → callhookfunc → getoutput → read()`. Measured `~/git/work`, 121 checkouts: non-interactive (no chpwd hooks) 6.6s, interactive unbounded; after the fix 6-8s interactive, stable at 19 PRs over 5 runs. A bare `cd` into either `.envrc` dir timed out at 45s, while the third `.envrc` checkout (no `op`) took 0.34s. Ruled out along the way: API rate limits (4999/5000 remaining), `gh` itself (~0.5s/call, and `gh pr view` measured the same as `gh pr list`), `fd` discovery (0.2s), `git branch --show-current` (0.18s worst case).
+
 ## [2026-08-21]
 
 ### Added

@@ -146,9 +146,22 @@ Three patterns silently fail (exit 0, no error):
 
 Symptom card: an awk pipeline producing zero output despite healthy upstream → suspect (1) a `-` after a possibly-empty mktemp file, or (2) `-v var=$(cmd_emitting_newlines)`. Producing exactly **one** record from many → suspect (3).
 
-### direnv chatter from `$(cd … && cmd)` subshells
+### direnv in `$(cd … && cmd)` subshells — chatter, or a deadlock
 
 `$(cd "$dir" && cmd)` leaks `direnv: loading/unloading` when `$dir` is outside the current direnv scope (the chpwd hook fires in the subshell). Fix: scope the redirect to `cd` only — `$(cd "$dir" 2>/dev/null && cmd)`. Do **not** redirect the whole subshell (`$(…) 2>/dev/null`) — that also swallows the inner command's diagnostics. No env-var override exists (`DIRENV_LOG_FORMAT` is not a thing; only `direnv.toml`'s `log_format = "-"` globally, or the per-call redirect). Already applied in the shared dbt helpers.
+
+**In a backgrounded fan-out this is not cosmetic — it hangs.** The hook also
+*runs* the `.envrc`, and an `.envrc` that shells out to an interactive
+credential helper (`op read`, `vault login`, a GPG pinentry) blocks on a
+prompt that a backgrounded subshell can never answer. The batch `wait` then
+blocks behind it forever. `rlm-pr-find` scanning `~/git/work` went from 7s to
+unbounded on two checkouts whose `.envrc` calls `op read`; the tell is a stall
+with **zero** worker processes alive (`pgrep gh` → 0) and a stack ending in
+`cd → callhookfunc → getoutput → read()`. Redirecting stderr does nothing —
+the process is waiting on stdin, not writing. Clear the hook in the subshell
+instead: `$(chpwd_functions=() && cd -- "$dir" 2>/dev/null && cmd)`. Safe
+because it is a child shell; the caller keeps its hook. Applied in
+`_rlm-pr-find-cache`.
 
 ### `IFS=$'\t' read` collapses empty fields — use `"${(@s:<tab>:)line}"`
 
