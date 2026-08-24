@@ -216,7 +216,9 @@ for wt in "${worktrees[@]}"; do
     local name=${wt:t} branch='' payload=''
     branch=$(git -C "$wt" branch --show-current 2>/dev/null)
     if [[ -n $branch ]]; then
-      payload=$(cd -- "$wt" 2>/dev/null \
+      # chpwd_functions=() or direnv runs the .envrc: an `op read` in one
+      # blocks on a prompt no backgrounded subshell can answer (hangs `wait`).
+      payload=$(chpwd_functions=() && cd -- "$wt" 2>/dev/null \
         && gh pr list --head "$branch" --state all --limit 1 \
              --json number,state,isDraft,statusCheckRollup,reviewDecision,updatedAt,title,url 2>/dev/null \
         | jq -r "$jq_prog" 2>/dev/null) || payload=''
@@ -343,7 +345,7 @@ if (( interactive )); then
     print -u2 "pr-list: no PR for that branch"
     return 1
   fi
-  (cd -- "$sel_wt" 2>/dev/null && gh pr view --web "$sel_url")
+  (chpwd_functions=() && cd -- "$sel_wt" 2>/dev/null && gh pr view --web "$sel_url")
   return $?
 fi
 

@@ -57,7 +57,8 @@ fi
 # 2. GitHub PR title for the current branch
 if [[ -z $key ]] && command -v gh >/dev/null 2>&1; then
   local pr_title
-  pr_title=$(cd -- "$repo_root" && gh pr view --json title --jq .title 2>/dev/null)
+  pr_title=$(chpwd_functions=() && cd -- "$repo_root" 2>/dev/null \
+    && gh pr view --json title --jq .title 2>/dev/null)
   if [[ -n $pr_title ]]; then
     local match
     match=$(print -- "$pr_title" | grep -oE "$jira_search_re" | head -1)

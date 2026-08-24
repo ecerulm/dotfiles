@@ -291,7 +291,7 @@ if [[ -n $commit_sha ]]; then
       # gh has no -C/--cwd; it resolves the repo from the cwd. Tabs in a
       # PR title would corrupt the cache record, so strip them.
       local api_row=''
-      api_row=$(cd -- "$repo_root" 2>/dev/null \
+      api_row=$(chpwd_functions=() && cd -- "$repo_root" 2>/dev/null \
                   && gh api "repos/{owner}/{repo}/commits/${commit_sha}/pulls" \
                        --jq '.[0] | select(.) | [(.number|tostring), (.title|gsub("\t";" ")), .html_url] | @tsv' \
                        2>/dev/null) || api_row=''

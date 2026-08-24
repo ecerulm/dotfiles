@@ -51,7 +51,8 @@ default_branch=${default_branch#origin/}
 
 # 1. GitHub API — works for squash-merged PRs.
 local url
-url=$(cd -- "$repo_root" && gh api "repos/{owner}/{repo}/commits/${sha}/pulls" \
+url=$(chpwd_functions=() && cd -- "$repo_root" 2>/dev/null \
+        && gh api "repos/{owner}/{repo}/commits/${sha}/pulls" \
         --jq '.[0].html_url' 2>/dev/null)
 if [[ -n $url && $url != "null" ]]; then
   print -- "$url"

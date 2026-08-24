@@ -154,7 +154,7 @@ fi
 local -a members
 local subdir='' top=''
 for subdir in "$target"/*(N/); do
-  top=$(cd "$subdir" 2>/dev/null && git rev-parse --show-toplevel 2>/dev/null) || continue
+  top=$(git -C "$subdir" rev-parse --show-toplevel 2>/dev/null) || continue
   [[ -z $top ]] && continue
   [[ ${top:A} != ${subdir:A} ]] && continue
   members+=("${subdir:A}")
@@ -163,7 +163,7 @@ done
 # Fall back to the target itself when it is a repo with no repo children,
 # so `git-status` works from inside a single worktree too.
 if (( ${#members} == 0 )); then
-  top=$(cd "$target" 2>/dev/null && git rev-parse --show-toplevel 2>/dev/null)
+  top=$(git -C "$target" rev-parse --show-toplevel 2>/dev/null)
   if [[ -n $top ]]; then
     members=("${top:A}")
   else
@@ -352,7 +352,10 @@ for m in "${members[@]}"; do
     local pr_num='' pr_state='' pr_url='' pr_draft='' pr_review='' pr_comments='' pr_activity=''
     if (( want_pr )) && [[ $branch != '(detached'* ]]; then
       local pr_json=''
-      pr_json=$(cd "$repo" 2>/dev/null && gh pr list --state all --head "$branch" --limit 1 \
+      # chpwd_functions=() or direnv runs the .envrc: an `op read` in one
+      # blocks on a prompt no backgrounded subshell can answer (hangs `wait`).
+      pr_json=$(chpwd_functions=() && cd "$repo" 2>/dev/null \
+                  && gh pr list --state all --head "$branch" --limit 1 \
                   --json number,url,state,isDraft,updatedAt,comments,reviews,reviewDecision \
                   2>/dev/null)
       if [[ -n $pr_json && $pr_json != '[]' ]]; then

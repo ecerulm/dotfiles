@@ -160,8 +160,16 @@ with **zero** worker processes alive (`pgrep gh` → 0) and a stack ending in
 `cd → callhookfunc → getoutput → read()`. Redirecting stderr does nothing —
 the process is waiting on stdin, not writing. Clear the hook in the subshell
 instead: `$(chpwd_functions=() && cd -- "$dir" 2>/dev/null && cmd)`. Safe
-because it is a child shell; the caller keeps its hook. Applied in
-`_rlm-pr-find-cache`.
+because it is a child shell; the caller keeps its hook. Better still, when
+the command has a no-cd form — `git -C <dir>` — use that and never fire the
+hook at all. `gh` has no `-C`, so the guard is the fix there.
+
+Applied in `_rlm-pr-find-cache`, `rlm-git-status`, `rlm-pr-list`,
+`rlm-pr-worktree`, `rlm-pr-worktree-rm-merged-closed`, `rlm-jira-open`,
+`rlm-pr-for-commit`, `bin/wt-preview`, `bin/fe-preview`; `rlm-git-status` and
+`rlm-git-update` dropped the `cd` for `git -C`. **Not** applied to the
+dbt/poetry/uv/pyenv helpers — those `cd` into the project you are working in,
+where running the `.envrc` is the point.
 
 ### `IFS=$'\t' read` collapses empty fields — use `"${(@s:<tab>:)line}"`
 

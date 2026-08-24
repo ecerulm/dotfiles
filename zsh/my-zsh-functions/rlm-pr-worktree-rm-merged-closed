@@ -289,7 +289,7 @@ _prwtrmc_collect_repo() {
     while (( start <= ${#query_branches} )); do
       local -a chunk=("${(@)query_branches[start,start+batch-1]}")
       search_q="${(j: :)${(@)chunk/#/head:}}"
-      pr_json=$(cd -- "$repo_root" 2>/dev/null \
+      pr_json=$(chpwd_functions=() && cd -- "$repo_root" 2>/dev/null \
         && gh pr list --state all --limit 200 \
              --json number,state,headRefName \
              --search "$search_q" 2>/dev/null) \
@@ -355,7 +355,7 @@ _prwtrmc_collect_repo() {
       fi
       if [[ -z $entry ]] && (( ${ahead_probe:-0} > 0 )); then
         local pr_check
-        pr_check=$(cd -- "$repo_root" 2>/dev/null \
+        pr_check=$(chpwd_functions=() && cd -- "$repo_root" 2>/dev/null \
           && gh pr view "$branch" --json number,state 2>/dev/null) \
           || pr_check=''
         if [[ -n $pr_check && $pr_check != '[]' ]]; then

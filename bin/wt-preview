@@ -169,7 +169,8 @@ if [[ -n $branch ]] && command -v gh >/dev/null 2>&1; then
   local pr_json pr_num pr_title pr_url pr_state
   # gh has no -C/--cwd; it resolves the repo from the current directory.
   # cd in a subshell so the rest of this script keeps $abs_path / $PWD intact.
-  pr_json=$(cd -- "$abs_path" && gh pr list --state all --head "$branch" --limit 1 \
+  pr_json=$(chpwd_functions=() && cd -- "$abs_path" 2>/dev/null \
+              && gh pr list --state all --head "$branch" --limit 1 \
               --json number,title,url,state 2>/dev/null)
   if [[ -n $pr_json && $pr_json != '[]' ]]; then
     pr_num=$(  print -r -- "$pr_json" | jq -r '.[0].number // empty' 2>/dev/null)
