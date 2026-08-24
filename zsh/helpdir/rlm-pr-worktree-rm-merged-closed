@@ -55,6 +55,15 @@ single-repo mode you see just one of its worktrees while the dir still
 holds the other repos', so no aggregate is offered and the worktree is
 listed as an ordinary row.
 
+NON-WORKTREE CONTENTS. A collection dir often picks up things that are
+not worktrees -- a `plan/` dir of notes, a scratch file. Those are NEVER
+deleted, and they do not stop the aggregate row from appearing: the
+"is this collection covered in full?" test counts only worktree children.
+They are warned about instead, on the aggregate row, in its preview, and
+once more before the y/N confirm, because they make the closing rmdir
+refuse and so the collection dir itself survives the delete. That is
+reported afterwards as a normal "kept dir", not as a failure.
+
 Deletable rows ([merged]/[closed]/[no-pr/no-diff]) sort to the top. TAB
 multi-selects, ENTER deletes the selection (after a y/N confirm), Ctrl-G
 aborts (deletes nothing). The preview pane is the shared ~/bin/wt-preview

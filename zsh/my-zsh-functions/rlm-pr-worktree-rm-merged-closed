@@ -52,6 +52,17 @@
 # deletable (and so sorts to the top, dragging its members with it) only when
 # every member is deletable.
 #
+# NON-WORKTREE CONTENTS. A collection dir often accumulates things that
+# aren't worktrees -- a `plan/` dir of notes, a scratch file. Those are
+# NEVER deleted. They also don't affect whether the aggregate row appears:
+# the "does this run cover the whole collection?" test counts only worktree
+# children, because one unrelated dir used to suppress the aggregate for a
+# fully-covered set and scatter its members as flat standalone rows. Instead
+# they're warned about, in three places -- on the aggregate row, in its
+# preview, and again before the y/N -- since they make the closing rmdir
+# refuse and the collection dir survive. That outcome is reported as a
+# normal "kept dir", not a failure.
+#
 # Deletable rows ([merged]/[closed]/[no-pr/no-diff]) are sorted to the top.
 # TAB multi-selects, ENTER deletes the selection, Ctrl-G aborts (deletes
 # nothing). Preview pane is the shared ~/bin/wt-preview (aggregates preview
@@ -149,6 +160,32 @@ _prwtrmc_collection_of() {
   local wt_parent=${wt_abs:h}
   [[ $wt_parent == "$parent" ]] && return 0     # plain sibling worktree
   [[ ${wt_parent:h} == "${parent:h}" ]] && print -r -- "$wt_parent"
+  return 0
+}
+
+# ----- non-worktree children of a collection dir --------------------------
+# _prwtrmc_collection_extras <coll_dir>
+#   Print, one per line, the names of children of a collection dir that are
+#   NOT git worktrees (a `plan/` notes dir, a scratch file, a stray venv).
+#
+#   Two callers depend on this. The aggregate-row guard counts only worktree
+#   children when deciding whether this run covers the whole collection —
+#   counting every child made a single unrelated dir suppress the aggregate
+#   entirely, scattering the members as flat standalone rows. And the picker
+#   warns about what it found, because those extras are exactly what will
+#   make the closing `rmdir` refuse.
+#
+#   Nothing here ever deletes them; they are reported, never touched.
+_prwtrmc_collection_extras() {
+  local coll=$1
+  [[ -d $coll ]] || return 0
+  local child
+  for child in "$coll"/*(N) "$coll"/.*(N); do
+    local base=${child:t}
+    [[ $base == . || $base == .. || $base == .DS_Store ]] && continue
+    [[ -e $child/.git ]] && continue
+    print -r -- "$base"
+  done
   return 0
 }
 
@@ -566,7 +603,7 @@ _prwtrmc_progress_done
 # Aggregate row layout mirrors a worktree row but marks col4 (the path fzf
 # previews and the deletion loop consumes) empty and carries the collection
 # path in col7 — the deletion loop branches on that.
-local -A coll_total coll_deletable coll_flags
+local -A coll_total coll_deletable coll_flags coll_extras
 local r_coll r_del r_flag
 local rrow
 for rrow in "${rows[@]}"; do
@@ -597,10 +634,29 @@ for ckey in "${(@k)coll_total}"; do
   # collection and then fail the rmdir, since the dir isn't empty. Compare
   # against what's on disk rather than against ${#repos}: a collection may
   # predate a repo being added to (or removed from) the parent dir.
+  #
+  # Count only WORKTREE children. Counting every child made one unrelated
+  # `plan/` notes dir suppress the aggregate for a fully-covered 7-worktree
+  # collection, scattering its members as flat standalone rows. Extras don't
+  # mean the run is partial — they mean the rmdir will refuse, which is a
+  # warning (see coll_extras below), not a reason to hide the group.
   local on_disk=0                                  # explicit init: see loop-local note below
-  on_disk=$(ls -1 -- "$ckey" 2>/dev/null | grep -cv '^\.' 2>/dev/null) || on_disk=0
+  local ondisk_child=''
+  for ondisk_child in "$ckey"/*(N); do
+    [[ -e $ondisk_child/.git ]] && on_disk=$(( on_disk + 1 ))
+  done
   if (( total < on_disk )); then
     continue
+  fi
+
+  # Non-worktree leftovers. Recorded per collection so the picker row, the
+  # preview, and the pre-delete confirmation can all warn about them. They
+  # are never deleted — rmdir refuses while they exist, which is the point.
+  local -a extras=()
+  extras=("${(@f)$(_prwtrmc_collection_extras "$ckey")}")
+  extras=("${(@)extras:#}")
+  if (( ${#extras} )); then
+    coll_extras[$ckey]="${(j:,:)extras}"
   fi
 
   # Count each distinct member state. The summary lists states in a FIXED
@@ -642,8 +698,19 @@ for ckey in "${(@k)coll_total}"; do
   # re-declaration of an already-declared name switches typeset into reporting
   # mode and PRINTS "x=<value>" to stdout on every iteration after the first,
   # which lands straight in the picker's input.
+  #
+  # Non-worktree extras are appended AFTER the padded path, not folded into
+  # the bracketed flag: the flag column is fixed-width so members line up
+  # under it, and the count of stale worktrees is what you scan for. The
+  # warning rides along on the same row because it changes the outcome —
+  # the dir survives the delete.
+  local agg_warn=''
+  if [[ -n ${coll_extras[$ckey]:-} ]]; then
+    local -a xs=("${(@s:,:)coll_extras[$ckey]}")
+    agg_warn="  ⚠ ${#xs} non-worktree item(s) kept: ${(j:, :)xs}"
+  fi
   local agg_display=''
-  agg_display=$(printf '%-18s %s' "$agg_flag" "${ckey:t}/")
+  agg_display=$(printf '%-18s %s%s' "$agg_flag" "${ckey:t}/" "$agg_warn")
   agg_rows+=("$(printf '%s\t%s\t%s\t%s\t%d\t%s\t%s\t%s' \
     "$agg_display" "<collection>" "${ckey:t}/" "" "$agg_del" "" "$ckey" "$agg_flag")")
 done
@@ -768,7 +835,14 @@ else
                 echo "Selecting this row deletes EVERY worktree below and then"
                 echo "removes the collection directory itself."
                 echo ""
-                ls -1 "{7}" 2>/dev/null | sed "s/^/  /"
+                for c in "{7}"/*; do
+                  [ -e "$c" ] || continue
+                  if [ -e "$c/.git" ]; then
+                    printf "  %s\n" "${c##*/}"
+                  else
+                    printf "  %s   <- not a worktree, KEPT (dir survives)\n" "${c##*/}"
+                  fi
+                done
               fi
             ' \
             --preview-window=bottom:40%:wrap \
@@ -837,7 +911,18 @@ if (( ${#del_paths} )); then
   if (( ${#del_colls} )); then
     print "…and remove ${#del_colls} collection dir(s):"
     local cshow
-    for cshow in "${del_colls[@]}"; do print "  ${cshow:t}/"; done
+    for cshow in "${del_colls[@]}"; do
+      print "  ${cshow:t}/"
+      # Say plainly, before the y/N, that these survive and take the dir with
+      # them. rmdir refuses while they exist, so the dir is KEPT — better to
+      # state that up front than to have it show up as a failure afterwards.
+      if [[ -n ${coll_extras[$cshow]:-} ]]; then
+        local -a cx=("${(@s:,:)coll_extras[$cshow]}")
+        print "    ⚠ dir will be KEPT — ${#cx} non-worktree item(s), never deleted:"
+        local cxi
+        for cxi in "${cx[@]}"; do print "        $cxi"; done
+      fi
+    done
   fi
   print -n "Proceed? [y/N] "
   local reply
@@ -916,11 +1001,19 @@ if (( ${#del_paths} )); then
       if rmdir -- "$cdir" 2>/dev/null; then
         print "removed dir: ${cdir:t}/"
       else
-        print -u2 "kept dir (not empty): $cdir"
+        # Known non-worktree contents are not a failure — they were reported
+        # before the confirmation and are deliberately preserved. Only an
+        # unexpected leftover (a worktree that wouldn't remove) counts.
         local leftover=''                          # explicit init: see loop-local note above
         leftover=$(ls -A -- "$cdir" 2>/dev/null | head -5)
-        [[ -n $leftover ]] && print -u2 "$leftover" | sed 's/^/  /' >&2
-        failed=$(( failed + 1 ))
+        if [[ -n ${coll_extras[$cdir]:-} ]]; then
+          print "kept dir (non-worktree contents preserved): ${cdir:t}/"
+          [[ -n $leftover ]] && print "$leftover" | sed 's/^/  /'
+        else
+          print -u2 "kept dir (not empty): $cdir"
+          [[ -n $leftover ]] && print -u2 "$leftover" | sed 's/^/  /' >&2
+          failed=$(( failed + 1 ))
+        fi
       fi
     done
   else

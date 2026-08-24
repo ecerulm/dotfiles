@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [2026-08-24]
 
+### Fixed
+
+- **`rlm-pr-worktree-rm-merged-closed`: one non-worktree dir suppressed a collection's aggregate row, scattering its members as flat rows.** `~/git/work/StorytelDataPlatform_20260821_DATA-2815-scan-bytes-table/` holds 7 worktrees plus a `plan/` dir of notes. The "does this run cover the whole collection?" guard counted **every** non-dot child (`ls -1 | grep -cv '^\.'` → 8) against the 7 members the scan found, concluded the run was partial, and skipped the aggregate. The follow-up pass for aggregate-less collections then re-rendered each member as a standalone full-path row — the reported symptom, seven `…_DATA-2815-…/data-platform-*` lines with no group above them.
+
+  The guard now counts only children that are actually worktrees (`[[ -e $child/.git ]]`), so 7 == 7 and the aggregate appears. Extras are not a signal that the scope is partial; they are a signal that the closing `rmdir` will refuse.
+
+  So they are warned about instead, and never deleted. New `_prwtrmc_collection_extras <coll_dir>` lists non-worktree children (skipping `.`/`..`/`.DS_Store`), recorded per collection in `coll_extras` and surfaced in three places: the aggregate row (`⚠ 1 non-worktree item(s) kept: plan` — appended after the padded path, not folded into the bracketed flag, so members stay aligned under a fixed-width column), the aggregate preview (each child listed, extras tagged `<- not a worktree, KEPT (dir survives)`), and the pre-delete confirmation, which states before the y/N that the dir will be **KEPT** and names each item. The closing `rmdir` is unchanged — it already refused rather than destroying anything — but a refusal whose cause is a known extra now prints as `kept dir (non-worktree contents preserved)` on stdout instead of counting toward `failed`.
+
 ### Changed
 
 - **`rlm-pr-worktree` PR rows now show whether a worktree already exists, and land in the repo's own layout.** A `*` after `[ready]`/`[draft]` marks a PR whose head branch is already checked out somewhere; the preview names that worktree's path, or says `none yet`. Selecting an already-checked-out PR still just `cd`s there and pulls — git forbids one branch in two worktrees — but you can now see which it will be before pressing Enter. Suffix and dirname prompts are unchanged, so the proposed name stays editable like the JIRA and CUSTOM flows.
