@@ -4,8 +4,12 @@ Pick a GitHub PR or JIRA issue via fzf and create a sibling git
 worktree for it. With no argument, an fzf picker is shown listing,
 in this order:
 
-  1. GitHub PRs in the current repo that involve you (opened,
-     commented, reviewed, assigned, mentioned).
+  1. Open PRs in the current repo updated in the last 2 weeks,
+     newest first; the ones you authored are shown in green. A "*"
+     after the [ready]/[draft] marker means a worktree already has
+     that PR's head branch checked out. The preview pane names that
+     worktree's path (or says "none yet"), so you can see before
+     pressing Enter whether you are jumping or creating.
   2. JIRA issues that matter to you, served off the shared
      ~/.cache/rlm-jira/items.tsv cache (assigned -> reporter ->
      watching -> DATA-only, with previously-picked tickets floating
@@ -30,9 +34,22 @@ in this order:
      refresh can be triggered without navigating to the sentinel
      by pressing Ctrl-R from any row.
 
-Selecting a PR creates a worktree at  ../<repo>-pr-<N>  on the PR
-branch. Selecting a JIRA issue first prompts (vared, editable) for
-an optional free-form suffix:
+Selecting a PR whose head branch is already checked out in some
+worktree just cd's there and pulls — no duplicate is created (git
+forbids one branch in two worktrees anyway). Otherwise a new worktree
+is created, in whichever layout the repo already uses:
+
+  - Collection repos (the repo's parent already holds worktrees named
+    <parent>_<tail>/<repo>/, as multi-repo mode creates) get
+    <work>/<collection>_<date>_pr-<N>/<repo>/, so rlm-wts and
+    wt-collection-preview handle the result identically.
+  - Standalone repos keep the flat sibling ../<repo>-<date>-pr-<N>.
+
+The suffix and dirname prompts are shown first, as for the other
+flows, so the proposed name is always editable.
+
+Selecting a JIRA issue first prompts (vared, editable) for an
+optional free-form suffix:
 
   - Empty input: worktree  ../<repo>-<KEY>  on a new branch named
     <KEY>/feat/<key_lowercased>  off origin/<default-branch>, e.g.

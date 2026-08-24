@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [2026-08-24]
 
+### Changed
+
+- **`rlm-pr-worktree` PR rows now show whether a worktree already exists, and land in the repo's own layout.** A `*` after `[ready]`/`[draft]` marks a PR whose head branch is already checked out somewhere; the preview names that worktree's path, or says `none yet`. Selecting an already-checked-out PR still just `cd`s there and pulls — git forbids one branch in two worktrees — but you can now see which it will be before pressing Enter. Suffix and dirname prompts are unchanged, so the proposed name stays editable like the JIRA and CUSTOM flows.
+
+  New worktrees follow whichever layout the repo already uses. A repo whose parent holds worktrees shaped `<parent>_<tail>/<repo>/` (what multi-repo mode creates) gets `<work>/<collection>_<date>_pr-<N>/<repo>/`, so `rlm-wts` and `wt-collection-preview` treat the result like any other collection; every other repo keeps the flat `../<repo>-<date>-pr-<N>`. The guard is not optional — applying the collection shape unconditionally makes `~/git/work/storytelhomepage` target `~/git/work_<date>_pr-N/` (a sibling of the whole work tree) and `~/dotfiles` target `/Users/<user>_<date>_pr-N/`, a sibling of `$HOME`. "Does the parent contain other repos" is **not** a usable test either: `~/git/work` holds dozens and `$HOME` holds several, so it calls everything a collection and reintroduces the same bug.
+
+  PR listing moved from `gh search prs` to `gh pr list` because only the latter returns `headRefName`, which is what the worktree match keys on (`gh search prs` rejects the field outright). The 14-day cutoff therefore moves client-side into jq. The picker's field layout is unchanged: the branch is carried as a trailing column and dropped after annotation, so `column -t` and the author-coloring pass still see the same five fields — read as `$NF`, never `$6`, since a PR title may contain a literal tab and shift the columns.
+
+  The preview reads a temp side table (`<pr>\t<branch>\t<worktree>`) built from the listing already in hand rather than calling the API. An fzf preview re-runs on every keystroke, and `gh pr view --json headRefName` measured 0.55s on top of the 1.38s `gh pr view` already costs. Both temp files are created and the EXIT trap armed before either is written, so no path leaks one; in zsh such a trap fires on function return, which also covers the recursive re-entry the REFRESH sentinel performs.
+
 ### Fixed
 
 - **Same direnv deadlock swept out of the rest of the `rlm-*` surface.** `rlm-git-status` hung identically (reproduced: TIMEOUT at 90s in `~/git/work`, stack `execfor → getoutput → bin_cd → callhookfunc → getoutput`); it now completes in **7.3s / 42 rows**. `rlm-git-status` and `rlm-git-update` drop the `cd` entirely for `git -C`, which cannot fire a chpwd hook — verified identical on non-repos, repos, and linked worktrees. The `gh` call sites, which have no `-C` equivalent, take the `chpwd_functions=()` guard: `rlm-pr-list`, `rlm-pr-worktree`, `rlm-pr-worktree-rm-merged-closed`, `rlm-jira-open`, `rlm-pr-for-commit`, `bin/wt-preview`, `bin/fe-preview`.

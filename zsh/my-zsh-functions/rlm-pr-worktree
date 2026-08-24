@@ -22,7 +22,10 @@
 # Sources (current repo only), shown in this order in the picker:
 #   1. All open PRs in the repo updated in the last 2 weeks, sorted by
 #      updatedAt desc. Rows authored by you are highlighted in green so
-#      they stand out from teammates' PRs.
+#      they stand out from teammates' PRs. A "*" after the [ready]/[draft]
+#      marker means a worktree already holds that PR's head branch; the
+#      preview pane names the path, and Enter jumps there instead of
+#      creating a second worktree.
 #   2. JIRA issues that matter to you, via the shared
 #      ~/.cache/rlm-jira/ cache (assigned -> reporter -> watching ->
 #      DATA-only, with previously-picked tickets floating to the top).
@@ -38,7 +41,14 @@
 #      re-runs `_rlm-jira-cache refresh` and re-opens the picker with
 #      the fresh JIRA rows.
 #
-# Selecting a PR     -> worktree at ../<repo>-pr-<N>      on the PR branch.
+# Selecting a PR     -> if a worktree already has the PR's head branch
+#                       checked out, cd there and pull. Otherwise create a
+#                       new one, in whichever layout this repo already
+#                       uses: <work>/<collection>_<date>_pr-<N>/<repo>/
+#                       when the repo lives in a collection (matching
+#                       multi-repo mode, so rlm-wts / wt-collection-preview
+#                       see it the same way), else the flat sibling
+#                       ../<repo>-<date>-pr-<N>.
 # Selecting CUSTOM   -> worktree at ../<repo>-<slug>      branch <slug>.
 # Selecting an issue -> prompts (vared) for an optional suffix:
 #   * empty   -> worktree ../<repo>-<KEY>            branch <KEY>/feat/<key_lowercased>
@@ -169,6 +179,32 @@ _prwt_worktree_for_branch() {
       '
 }
 
+# True when this repo already has at least one worktree laid out as
+#   <collection>_<tail>/<repo-name>/
+# i.e. a sibling of the repo's parent, named "<parent>_…", containing a
+# directory of the repo's own name. That is the shape multi-repo mode
+# creates, so its presence is direct evidence the user works with this
+# repo in collections — and its absence means they don't.
+#
+# Counting sibling repos does NOT work as a test: ~/git/work holds dozens
+# of unrelated repos and $HOME holds several, so a "does the parent
+# contain other repos" predicate calls every directory a collection and
+# reintroduces the ~/git/work_<date>_pr-N bug it was meant to prevent.
+#
+# $1 = repo parent (candidate collection root), $2 = main repo root.
+_prwt_has_collection_worktrees() {
+  local collection_root=$1 self=$2
+  local repo_leaf=${self:t} collection_leaf=${collection_root:t}
+  local wt
+  for wt in ${(f)"$(git -C "$self" worktree list --porcelain 2>/dev/null \
+      | awk '/^worktree /{print substr($0, 10)}')"}; do
+    [[ -z $wt || $wt == $self ]] && continue
+    [[ ${wt:t} == $repo_leaf ]] || continue
+    [[ ${wt:h:t} == ${collection_leaf}_* ]] && return 0
+  done
+  return 1
+}
+
 _prwt_make_pr_worktree() {
   local pr_number=$1
 
@@ -200,13 +236,38 @@ _prwt_make_pr_worktree() {
   _prwt_prompt_suffix "PR #$pr_number"
   local today
   today=$(date +%Y%m%d)
-  local default_dirname=${repo_name}-${today}-pr-${pr_number}
-  [[ -n $_prwt_suffix_out ]] && default_dirname=${default_dirname}-${_prwt_suffix_out}
-  _prwt_prompt_dirname "$default_dirname" || {
+
+  # Two layouts, chosen by whether this repo actually lives inside a
+  # collection directory (a dir holding SEVERAL sibling repos, e.g.
+  # StorytelDataPlatform/{data-platform-contracts,data-platform-dbt,…}):
+  #
+  #   collection  <work>/<collection>_<date>_pr-<N>/<repo>/
+  #   standalone  <parent>/<repo>-<date>-pr-<N>
+  #
+  # The collection form matches what multi-repo mode produces, so rlm-wts
+  # and wt-collection-preview treat the result identically. It must NOT be
+  # applied unconditionally: for a standalone repo the "collection" would
+  # be its plain parent, so ~/git/work/storytelhomepage would try to
+  # create ~/git/work_<date>_pr-N/ — a sibling of the whole work tree —
+  # and ~/dotfiles would target a sibling of $HOME. Hence the guard.
+  local collection_root=${main_root:h}
+  local default_dirname worktree_parent worktree_leaf
+  if _prwt_has_collection_worktrees "$collection_root" "$main_root"; then
+    default_dirname=${collection_root:t}_${today}_pr-${pr_number}
+    [[ -n $_prwt_suffix_out ]] && default_dirname=${default_dirname}_${_prwt_suffix_out}
+    worktree_parent=${collection_root:h}
+    worktree_leaf=/${repo_name}
+  else
+    default_dirname=${repo_name}-${today}-pr-${pr_number}
+    [[ -n $_prwt_suffix_out ]] && default_dirname=${default_dirname}-${_prwt_suffix_out}
+    worktree_parent=$collection_root
+    worktree_leaf=''
+  fi
+  _prwt_prompt_dirname "$default_dirname" "$worktree_parent" || {
     print -u2 "pr-worktree: cancelled (empty worktree name)"
     return 1
   }
-  local worktree_path=${main_root:h}/${_prwt_dirname_out}
+  local worktree_path=${worktree_parent}/${_prwt_dirname_out}${worktree_leaf}
 
   if [[ -e $worktree_path ]]; then
     print "pr-worktree: $worktree_path already exists; entering it."
@@ -216,6 +277,10 @@ _prwt_make_pr_worktree() {
   fi
 
   print "pr-worktree: creating worktree at $worktree_path for PR #$pr_number ($pr_branch)"
+
+  # git worktree add will not create intermediate dirs; the collection
+  # dir is one level above the worktree itself.
+  mkdir -p "${worktree_path:h}" || return 1
 
   # Create an EMPTY worktree (only .git) on a detached HEAD, then let
   # `gh pr checkout` create and configure the branch inside it. This is
@@ -592,22 +657,108 @@ if [[ -z $multi_repo ]]; then
     cutoff_date=$(date -d '14 days ago' +%Y-%m-%d 2>/dev/null) || cutoff_date=""
   fi
 
-  # Single query: every open PR in this repo updated in the last 2 weeks.
-  # `gh search prs` accepts free-form qualifiers via positional args; we
-  # pass `updated:>YYYY-MM-DD` so the API does the date filtering server-
-  # side instead of pulling 200 PRs and trimming locally.
+  # Every open PR in this repo, trimmed to the last 2 weeks.
+  #
+  # `gh pr list`, not `gh search prs`: only pr list can return
+  # headRefName, and the head branch is what the worktree annotation
+  # below matches on. The cost is that pr list has no `updated:>`
+  # qualifier, so the 14-day cutoff moves client-side into jq — we pull
+  # up to 200 rows and drop the stale ones locally instead of having the
+  # search API do it. Measured at ~0.55s for this repo.
   pr_rows=$(
-    gh search prs \
+    gh pr list \
       --repo "$repo_slug" \
       --state=open \
       --limit=200 \
-      --json number,title,author,isDraft,updatedAt \
-      ${cutoff_date:+"updated:>$cutoff_date"} 2>/dev/null \
-    | jq -r '
-        sort_by(.updatedAt) | reverse | .[] |
-        "PR\t#\(.number)\t\(if .isDraft then "[draft]" else "[ready]" end)\t\(.title)\t[\(.author.login)]"
+      --json number,title,author,isDraft,updatedAt,headRefName 2>/dev/null \
+    | jq -r --arg cutoff "$cutoff_date" '
+        map(select($cutoff == "" or (.updatedAt[0:10]) >= $cutoff))
+        | sort_by(.updatedAt) | reverse | .[]
+        | "PR\t#\(.number)\t\(if .isDraft then "[draft]" else "[ready]" end)\t\(.title)\t[\(.author.login)]\t\(.headRefName)"
       ' 2>/dev/null
   )
+
+  # Annotate each PR row with whether a worktree already holds its head
+  # branch. Reads `git worktree list` ONCE into a map rather than calling
+  # _prwt_worktree_for_branch per row: that helper shells out to git for
+  # every PR, which is ~200 forks on a busy repo.
+  #
+  # The branch field is consumed here and dropped from the row so the
+  # picker's downstream field layout (and its awk author-coloring, which
+  # anchors on the trailing "[login]") is unchanged. What remains is a
+  # visible "*" marker in the status column.
+  if [[ -n $pr_rows ]]; then
+    # The branch->worktree map goes through a real file, never `awk -v`:
+    # it is inherently multi-line and BWK awk (macOS) rejects a -v value
+    # containing a newline with "awk: newline in string".
+    # Both temp files are created and the trap armed BEFORE either is
+    # written: a failing second mktemp would otherwise return past the
+    # trap and leak the first file.
+    typeset -g _prwt_wt_file _prwt_pr_index_file
+    _prwt_wt_file=$(mktemp -t prwt_wt) || return 1
+    _prwt_pr_index_file=$(mktemp -t prwt_idx) || {
+      rm -f "$_prwt_wt_file"
+      return 1
+    }
+    # The picker can leave via ~20 different `return`s (aborts, refresh
+    # re-entry, per-flow failures); an EXIT trap is the only cleanup that
+    # covers them all. In zsh an EXIT trap set inside a function fires on
+    # FUNCTION RETURN, not shell exit, and does not disturb the caller's
+    # own traps — so this cleans up per-invocation, including the
+    # recursive re-entry the REFRESH path performs.
+    trap 'rm -f "$_prwt_pr_index_file" "$_prwt_wt_file"; unset _prwt_pr_index_file _prwt_wt_file' EXIT INT TERM HUP
+
+    git -C "$repo_root" worktree list --porcelain 2>/dev/null \
+      | awk '
+          /^worktree / { wt = substr($0, 10); next }
+          /^branch refs\/heads\// { print substr($0, 19) "\t" wt }
+        ' >| "$_prwt_wt_file"
+    # Side table the fzf preview reads: "<pr_number>\t<branch>\t<worktree
+    # or empty>". The preview must not hit the network — an fzf preview
+    # re-runs on every keystroke, and `gh pr view --json headRefName`
+    # measured 0.55s on top of the 1.38s `gh pr view` already costs. Every
+    # value here is already in hand from the listing above, so the preview
+    # just greps this file.
+    print -r -- "$pr_rows" \
+      | awk -F'\t' -v OFS='\t' -v wtfile="$_prwt_wt_file" '
+          BEGIN {
+            while ((getline line < wtfile) > 0) {
+              if (split(line, kv, "\t") == 2) wt[kv[1]] = kv[2]
+            }
+            close(wtfile)
+          }
+          NF >= 6 {
+            # Branch is the LAST field, never $6: a PR title containing a
+            # literal tab (GitHub allows it) splits into extra fields and
+            # would otherwise make $6 the author.
+            branch = $NF
+            num = $2; sub(/^#/, "", num)
+            print num, branch, (branch in wt ? wt[branch] : "")
+          }
+        ' >| "$_prwt_pr_index_file"
+
+    pr_rows=$(
+      print -r -- "$pr_rows" \
+      | awk -F'\t' -v OFS='\t' -v wtfile="$_prwt_wt_file" '
+          BEGIN {
+            while ((getline line < wtfile) > 0) {
+              if (split(line, kv, "\t") == 2) have[kv[1]] = 1
+            }
+            close(wtfile)
+          }
+          NF >= 6 {
+            # Same last-field rule as above; drop just the branch column
+            # (NF - 1) instead of hardcoding 5, so a tabbed title keeps
+            # its author field intact for the coloring pass downstream.
+            branch = $NF
+            $3 = (branch in have) ? $3 " *" : $3 "  "
+            NF = NF - 1
+            print
+          }
+        '
+    )
+    rm -f "$_prwt_wt_file"
+  fi
 fi
 
 if command -v acli >/dev/null 2>&1 && acli jira auth status >/dev/null 2>&1; then
@@ -724,6 +875,17 @@ selection=$(
           kind=$(echo "$line" | awk "{print \$1}");
           if [ "$kind" = "PR" ]; then
             num=$(echo "$line" | sed -E "s/^PR[[:space:]]+#([0-9]+).*/\1/");
+            row=$(awk -F"\t" -v n="$num" "\$1 == n { print; exit }" "'"$_prwt_pr_index_file"'" 2>/dev/null);
+            branch=$(printf "%s" "$row" | cut -f2);
+            wt=$(printf "%s" "$row" | cut -f3);
+            if [ -n "$wt" ]; then
+              printf "worktree: %s\n" "$wt";
+              printf "          Enter jumps here (no new worktree)\n";
+            else
+              printf "worktree: none yet\n";
+              printf "          Enter creates one under '"${main_root:h:h}"'/\n";
+            fi;
+            printf "branch:   %s\n\n" "${branch:-?}";
             gh pr view "$num";
           elif [ "$kind" = "CUSTOM" ]; then
             echo "Pick this to be prompted for a free-form suffix.";
