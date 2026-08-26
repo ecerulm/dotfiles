@@ -125,9 +125,9 @@ airflow:
 
 jira / git:
 
-- `_rlm-jira-cache` — issue cache `~/.cache/rlm-jira/items.tsv` (7-field rows: `group\tKEY\tstatus\tsummary\tassignee\tupdated_epoch\tlast_commented_epoch`). `path` (keys `cache_path`/`history_path` — *not* `history`, which is read-only in zsh), `refresh` (parallel `acli` bulk search + per-issue view), `read`, `age`.
+- `_rlm-jira-cache` — issue cache `~/.cache/rlm-jira/items.tsv` (8-field rows: `group\tKEY\tstatus\tsummary\tassignee\tstatus_category\tupdated_epoch\tlast_commented_epoch`). `path` (keys `cache_path`/`history_path` — *not* `history`, which is read-only in zsh), `refresh` (parallel `acli` bulk search + per-issue view), `read`, `age`. Five groups: 1=assigned, 2=reporter, 3=watching, 4=DATA-only (all four gated on `resolved is EMPTY OR resolved >= -60d`, capped 100 each), 5=current sprint — **no** freshness gate and **no** status filter, capped 400, so closed tickets stay pickable for follow-up-fix PRs. `status_category` is the stable `To Do`/`In Progress`/`Done` enum (not the free-form status name, which varies per workflow); renderers dim `Done` rows. Two acli traps: `--fields key` alone returns an array of `null` of the right length with exit 0 — keep the field list wide; and `sprint IN openSprints()` spans every board in the project, so the sprint is resolved from board `$RLM_JIRA_SPRINT_BOARD` (default 525) via `acli jira board list-sprints --state active`.
 - `_rlm-jira-history` — MRU `~/.cache/rlm-jira/history.txt` (`epoch\tKEY`, cap 1000). `path`/`append`/`read`/`migrate-legacy`; auto-upgrades legacy single-column format.
-- `_rlm-jira-sorted-rows` — emit cache rows in composite-key DESC: `max(picked_at, updated_epoch, last_commented_epoch)`; 4-group priority is only a tiebreaker.
+- `_rlm-jira-sorted-rows` — emit cache rows in composite-key DESC: `max(picked_at, updated_epoch, last_commented_epoch)`; 5-group priority is only a tiebreaker.
 - `_rlm-git-changed-history` — per-repo MRU `~/.cache/rlm-git-changed/history.tsv` (`epoch\tcommand\trepo_key\tpath`, `repo_key` = md5 of git_root, deduped on `(repo_key,path)`, cap 500). `append`/`read`.
 
 ## zsh Gotchas
@@ -238,6 +238,33 @@ Loop *variables* (`local mrow` immediately before `for mrow in …`) are fine
 
 Symptom card: unexplained `somevar=somevalue` lines in a function's output,
 or per-group counters that grow monotonically across groups.
+
+### acli bulk search: a too-narrow `--fields` returns all-`null` rows
+
+`acli jira workitem search --fields key` returns a JSON array of the
+**correct length** filled with `null`, exit code 0, no error:
+
+```
+$ acli jira workitem search --jql 'sprint = 4302' --fields key --limit 5 --json
+[ null, null, null, null, null ]
+```
+
+Widen the list (`key,summary,status,assignee`) and the same query returns
+5 of 5 populated rows. It reproduces every time — it is not the empty-`[]`
+flake that `_rlm-jira-acli_search` already retries around.
+
+The failure mode is nastier than an empty response: a caller that counts
+rows sees the right count and concludes the query works, while a caller
+that extracts `.key` gets nothing. Measuring group sizes this way reported
+"35 rows" for queries that actually matched 73-89, and made a
+`comment ~ currentUser()` probe look like a parser crash rather than a
+field-list problem.
+
+Always request the full field list, and parse defensively —
+`[i for i in data if isinstance(i, dict) and i.get("key")]`.
+
+Symptom card: a JSON array of the expected length whose elements are all
+`null`, or a key-extraction that yields zero rows while `len()` looks right.
 
 ### jq: `as` binds looser than `//`
 

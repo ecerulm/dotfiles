@@ -6,7 +6,7 @@ emulate -L zsh
 #
 # where picked_at is the most-recent timestamp from history.txt for
 # the row's KEY (or 0 if the KEY has never been picked), and
-# updated_epoch / last_commented_epoch are fields 6 / 7 of the cache
+# updated_epoch / last_commented_epoch are fields 7 / 8 of the cache
 # row (populated by _rlm-jira-cache's phase B per-issue fetch).
 #
 # This gives a single global ordering: a freshly-commented ticket can
@@ -29,8 +29,8 @@ emulate -L zsh
 # Usage:
 #   _rlm-jira-sorted-rows
 #       Stdin: none.
-#       Stdout: one tab-delimited 7-field cache row per line
-#               (<group>\t<KEY>\t<status>\t<summary>\t<assignee>\t<updated_epoch>\t<last_commented_epoch>)
+#       Stdout: one tab-delimited 8-field cache row per line
+#               (<group>\t<KEY>\t<status>\t<summary>\t<assignee>\t<status_category>\t<updated_epoch>\t<last_commented_epoch>)
 #               in sort_key DESC order.
 #
 # Return codes:
@@ -84,7 +84,7 @@ with open(cache_path) as f:
         if not line:
             continue
         parts = line.split("\t")
-        if len(parts) < 7:
+        if len(parts) < 8:
             continue
         try:
             group_idx = int(parts[0])
@@ -92,11 +92,11 @@ with open(cache_path) as f:
             group_idx = 99
         key = parts[1]
         try:
-            updated_epoch = int(parts[5])
+            updated_epoch = int(parts[6])
         except ValueError:
             updated_epoch = 0
         try:
-            last_c_epoch = int(parts[6])
+            last_c_epoch = int(parts[7])
         except ValueError:
             last_c_epoch = 0
         sort_key = max(picked_at.get(key, 0), updated_epoch, last_c_epoch)

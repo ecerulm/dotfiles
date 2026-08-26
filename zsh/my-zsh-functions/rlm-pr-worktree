@@ -28,6 +28,8 @@
 #      creating a second worktree.
 #   2. JIRA issues that matter to you, via the shared
 #      ~/.cache/rlm-jira/ cache (assigned -> reporter -> watching ->
+#      DATA-only -> current sprint; the sprint group carries closed
+#      tickets too, dimmed, so a follow-up-fix PR can hang off one;
 #      DATA-only, with previously-picked tickets floating to the top).
 #      The cache is populated on first call to either rlm-jira-pick or
 #      rlm-pr-worktree; to force a refresh, pick the REFRESH sentinel
@@ -768,16 +770,25 @@ if command -v acli >/dev/null 2>&1 && acli jira auth status >/dev/null 2>&1; the
     _rlm-jira-cache refresh >/dev/null 2>&1 || true
   fi
   jira_cache_age=$(_rlm-jira-cache age 2>/dev/null)
-  # Reshape the helper's 7-field rows
-  #   <group>\t<KEY>\t<status>\t<summary>\t<assignee>\t<updated_epoch>\t<last_commented_epoch>
+  # Reshape the helper's 8-field rows
+  #   <group>\t<KEY>\t<status>\t<summary>\t<assignee>\t<status_category>\t<updated_epoch>\t<last_commented_epoch>
   # into pr-worktree's expected 5-field rows
   #   JIRA\t<KEY>\t[<status>]\t<summary>\t[<assignee>]
   # The two trailing epoch fields exist only for the composite-key
   # sort that _rlm-jira-sorted-rows applies upstream; they don't
   # surface in the picker's visible columns.
+  #
+  # Closed tickets (status_category == Done) stay in the list — a
+  # follow-up-fix PR often hangs off one — but the status cell is
+  # marked with a trailing NUL-safe sentinel char so the awk colorizer
+  # below can gray the whole row. The marker is stripped there, after
+  # `column -t` has aligned on the untagged width.
   jira_rows=$(
     _rlm-jira-sorted-rows 2>/dev/null \
-      | awk -F'\t' 'BEGIN{OFS="\t"} NF>=7 {print "JIRA", $2, "[" $3 "]", $4, "[" $5 "]"}'
+      | awk -F'\t' 'BEGIN{OFS="\t"} NF>=8 {
+          st = ($6 == "Done") ? "[" $3 "]\002" : "[" $3 "]"
+          print "JIRA", $2, st, $4, "[" $5 "]"
+        }'
   )
 fi
 
@@ -856,7 +867,14 @@ selection=$(
       # row, so injecting ANSI here does not skew widths. The author marker
       # is the trailing "[<login>]" field; matching it against me is enough
       # to identify the row regardless of how column padded the columns.
-      BEGIN { reset = "\033[0m"; green = "\033[32m" }
+      BEGIN { reset = "\033[0m"; green = "\033[32m"; gray = "\033[90m" }
+      # Closed-JIRA rows carry a \002 marker (added upstream, invisible to
+      # column -t widths). Strip it and gray the row.
+      /\002/ {
+        gsub(/\002/, "")
+        print gray $0 reset
+        next
+      }
       {
         if (me != "" && match($0, /\[[^][]+\][[:space:]]*$/)) {
           author = substr($0, RSTART + 1, RLENGTH - 2)

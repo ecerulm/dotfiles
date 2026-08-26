@@ -8,9 +8,13 @@ emulate -L zsh
 #       One issue per line, tab-delimited, raw machine-parseable fields
 #       (no ANSI, no rendered display column — each caller adds its own):
 #
-#         <group>\t<KEY>\t<status>\t<summary>\t<assignee>\t<updated_epoch>\t<last_commented_epoch>
+#         <group>\t<KEY>\t<status>\t<summary>\t<assignee>\t<status_category>\t<updated_epoch>\t<last_commented_epoch>
 #
-#       group: 1=assigned, 2=reporter, 3=watching, 4=DATA-only
+#       group: 1=assigned, 2=reporter, 3=watching, 4=DATA-only,
+#              5=current sprint
+#       status_category: To Do | In Progress | Done — the stable
+#         3-valued enum from statusCategory, NOT the free-form status
+#         name. Renderers dim/tag rows whose category is Done.
 #       Within each group rows are kept in JQL ORDER BY updated DESC.
 #       Across groups, dedupe by KEY in priority order so an "assigned"
 #       hit always wins over a "DATA-only" hit for the same ticket.
@@ -21,15 +25,23 @@ emulate -L zsh
 #         max(history_picked_at, updated_epoch, last_commented_epoch).
 #
 # Refresh runs in two phases:
-#   Phase A — four bulk JQL searches in parallel (`acli jira workitem
-#     search`) with the freshness gate `(resolved is EMPTY OR resolved
-#     >= -60d)` so tickets closed > ~2 months ago drop off. Per-group
-#     limit is 20 (so at most 4 * 20 = 80 raw rows before dedupe).
+#   Phase A — five bulk JQL searches in parallel (`acli jira workitem
+#     search`). Groups 1-4 carry the freshness gate `(resolved is EMPTY
+#     OR resolved >= -60d)` so tickets closed > ~2 months ago drop off,
+#     capped at 100 each. Group 5 (current sprint) carries NO gate and
+#     NO status filter — a closed ticket must stay pickable so a
+#     follow-up-fix PR can hang off it — capped at 400.
+#
+#     Two acli traps live here. (a) `--fields key` alone returns an
+#     array of `null` of the correct length with exit 0; the field list
+#     must stay wide (see $fields). (b) `sprint IN openSprints()` spans
+#     every board in the project, so the sprint is resolved from board
+#     $sprint_board's active sprint instead.
 #   Phase B — per-issue `acli jira workitem view <KEY> --fields
 #     key,updated,comment --json` for each deduped KEY, parallelized
 #     via xargs -P20. Each call's JSON is written to a per-key temp
 #     file, then a single Python pass parses all of them and merges
-#     with phase A's rows into the final 7-field items.tsv. The
+#     with phase A's rows into the final 8-field items.tsv. The
 #     `comment` field is NOT returned by the bulk search (`acli` rejects
 #     it with "fields 'updated, comment' are not allowed"), so the
 #     per-issue follow-up is the only way to obtain it.
@@ -46,7 +58,7 @@ emulate -L zsh
 #         `history` is a read-only variable in zsh.
 #
 #   _rlm-jira-cache refresh
-#       Re-fetch the four JQL groups in parallel (phase A), then
+#       Re-fetch the five JQL groups in parallel (phase A), then
 #       per-issue parallel-fetch comments (phase B), and atomically
 #       rewrite items.tsv. Stderr carries progress + a final timing
 #       line `jira-cache: refreshed N issues in <elapsed>s`.
@@ -61,7 +73,7 @@ emulate -L zsh
 #
 # Return codes:
 #   0 — success.
-#   1 — refresh failed (no usable issues in any of the four groups),
+#   1 — refresh failed (no usable issues in any of the five groups),
 #       read called with no cache, or unknown subcommand.
 
 setopt local_options no_monitor no_notify
@@ -130,11 +142,13 @@ case $subcmd in
 
     local t_start
     t_start=$(date +%s)
-    print -u2 -r -- "jira-cache: phase A — 4 bulk JQL queries…"
+    print -u2 -r -- "jira-cache: phase A — 5 bulk JQL queries…"
 
     # Hide issues resolved more than ~2 months ago. Unresolved issues
     # (resolved is EMPTY) always pass.
     local stale='(resolved is EMPTY OR resolved >= -60d)'
+    # Board whose active sprint defines "the current sprint" (group 5).
+    local sprint_board=${RLM_JIRA_SPRINT_BOARD:-525}
     # `jql_reporter` matches everything you reported, regardless of who is
     # assigned — overlap with `jql_assigned` (you reported and are assigned)
     # is resolved by the Python dedupe below, which keeps the lower-numbered
@@ -152,9 +166,39 @@ case $subcmd in
     local jql_watching="watcher = currentUser() AND ${not_me_assignee} AND ${not_me_reporter} AND ${stale} ORDER BY updated DESC"
     local jql_data="project = DATA AND ${not_me_assignee} AND ${not_me_reporter} AND (watcher != currentUser() OR watcher is EMPTY) AND ${stale} ORDER BY updated DESC"
 
+    # Group 5 — the current sprint, deliberately WITHOUT the ${stale}
+    # gate and without any status filter: you sometimes want to hang a
+    # follow-up-fix PR off an already-closed ticket, so Done/Archived
+    # rows must stay reachable. They are tagged for display (see the
+    # status_category column) and sink on their own under the
+    # activity-based sort, so they cost visibility, not correctness.
+    #
+    # Resolved from the board rather than `sprint IN openSprints()`:
+    # openSprints() spans every board in the project and matched 218+
+    # rows across several sprints. Board 525 is the same board the
+    # create-jira-ticket skill files against.
+    local sprint_id=''
+    sprint_id=$(acli jira board list-sprints --id "$sprint_board" --state active --json 2>/dev/null \
+      | python3 -c 'import json,sys
+try: d=json.load(sys.stdin) or {}
+except Exception: d={}
+sp=(d.get("sprints") or [])
+print(sp[0]["id"] if sp and isinstance(sp[0],dict) and sp[0].get("id") else "")' 2>/dev/null)
+    local jql_sprint=''
+    if [[ -n $sprint_id ]]; then
+      jql_sprint="sprint = ${sprint_id} ORDER BY updated DESC"
+    else
+      print -u2 -r -- "jira-cache: warning: no active sprint on board ${sprint_board}; skipping sprint group"
+    fi
+
     # `comment` and `updated` are rejected by acli's bulk-search
     # `--fields` flag ("Error: fields 'updated, comment' are not
     # allowed"), so they're fetched per-issue in phase B below.
+    # NOTE: do NOT trim this to `--fields key`. acli returns a JSON array
+    # of the correct length filled with `null` (exit 0, no error) when the
+    # field list is too narrow; the keys silently vanish. Measured: with
+    # `--fields key` alone, 5 of 5 rows were null; with this list, 5 of 5
+    # parsed. `statusCategory` arrives nested inside `status`.
     local fields="key,summary,status,assignee"
     # Per-group cap. Each of the four JQL queries returns at most this
     # many rows, so the upper bound on the cache is 4 * 20 = 80 raw
@@ -166,14 +210,23 @@ case $subcmd in
     #     -P20, so 80 keys ≈ 8s);
     #   - the upstream `column -t | fzf` pipe never gets large enough
     #     to risk the SIGPIPE-into-pipefail silent-exit class of bugs.
-    local limit=20
+    # Per-group cap for groups 1-4. Raised from 20 to 100: the underlying
+    # queries match 73/77/89 rows, so a cap of 20 was hiding two thirds of
+    # your own tickets — including everything the "involved in the last two
+    # weeks" rule was meant to surface (all 35 of those rows were already in
+    # groups 1-3, just below the old cap). Raising the cap covers that rule
+    # without a fifth redundant query.
+    local limit=100
+    # Group 5 is the whole sprint including carry-over history (~218 rows
+    # here), so it gets its own larger cap.
+    local sprint_limit=400
 
-    local tmp_a tmp_r tmp_w tmp_d tmp_phase_a tmp_views_dir tmp_out tmp_errs
-    tmp_a=$(mktemp) tmp_r=$(mktemp) tmp_w=$(mktemp) tmp_d=$(mktemp) tmp_phase_a=$(mktemp) tmp_out=$(mktemp)
+    local tmp_a tmp_r tmp_w tmp_d tmp_s tmp_phase_a tmp_views_dir tmp_out tmp_errs
+    tmp_a=$(mktemp) tmp_r=$(mktemp) tmp_w=$(mktemp) tmp_d=$(mktemp) tmp_s=$(mktemp) tmp_phase_a=$(mktemp) tmp_out=$(mktemp)
     tmp_views_dir=$(mktemp -d)
     tmp_errs=$(mktemp -d)
     # shellcheck disable=SC2064
-    trap "rm -rf '$tmp_a' '$tmp_r' '$tmp_w' '$tmp_d' '$tmp_phase_a' '$tmp_views_dir' '$tmp_out' '$tmp_errs'" EXIT
+    trap "rm -rf '$tmp_a' '$tmp_r' '$tmp_w' '$tmp_d' '$tmp_s' '$tmp_phase_a' '$tmp_views_dir' '$tmp_out' '$tmp_errs'" EXIT
 
     # acli bulk-search has been observed to occasionally return an empty
     # JSON array (`[]`) under parallel load — same JQL run sequentially a
@@ -184,9 +237,9 @@ case $subcmd in
     # parses as an empty list, and surface the stderr if both attempts come
     # back empty.
     _rlm_jira_acli_search() {
-      local jql=$1 out=$2 err=$3 label=$4 attempt
+      local jql=$1 out=$2 err=$3 label=$4 lim=${5:-$limit} attempt
       for attempt in 1 2; do
-        acli jira workitem search --jql "$jql" --fields "$fields" --limit "$limit" --json >"$out" 2>"$err"
+        acli jira workitem search --jql "$jql" --fields "$fields" --limit "$lim" --json >"$out" 2>"$err"
         # Empty `[]` (size 2-3 bytes) → most likely the flake. Any other
         # well-formed response — even one full of `null` placeholders from
         # missing --fields — is treated as success and left to the Python
@@ -209,14 +262,19 @@ case $subcmd in
     local pid_w=$!
     _rlm_jira_acli_search "$jql_data"     "$tmp_d" "$tmp_errs/d" "DATA-only" &
     local pid_d=$!
+    local pid_s=''
+    if [[ -n $jql_sprint ]]; then
+      _rlm_jira_acli_search "$jql_sprint" "$tmp_s" "$tmp_errs/s" "sprint" "$sprint_limit" &
+      pid_s=$!
+    fi
 
-    wait $pid_a $pid_r $pid_w $pid_d
+    wait $pid_a $pid_r $pid_w $pid_d ${pid_s:+$pid_s}
     unfunction _rlm_jira_acli_search 2>/dev/null
 
     # Phase A → 5-field TSV in $tmp_phase_a. Phase B reads the KEY
     # list via `cut -f2 "$tmp_phase_a"`, so phase A's stdout is
     # discarded (>/dev/null).
-    python3 - "$tmp_a" "$tmp_r" "$tmp_w" "$tmp_d" "$tmp_phase_a" >/dev/null <<'PY'
+    python3 - "$tmp_a" "$tmp_r" "$tmp_w" "$tmp_d" "$tmp_s" "$tmp_phase_a" >/dev/null <<'PY'
 import json, sys, os
 
 def load(path):
@@ -229,8 +287,8 @@ def load(path):
     except Exception:
         return []
 
-paths = sys.argv[1:5]
-phase_a_out = sys.argv[5]
+paths = sys.argv[1:6]
+phase_a_out = sys.argv[6]
 seen = set()
 keys = []
 with open(phase_a_out, "w") as fh:
@@ -245,16 +303,22 @@ with open(phase_a_out, "w") as fh:
             summary = (fields.get("summary") or "").replace("\t", " ").replace("\n", " ")
             status_obj = fields.get("status") or {}
             status = (status_obj.get("name") or "").replace("\t", " ")
+            # statusCategory, not the status name: category is a stable
+            # 3-valued enum (To Do / In Progress / Done) while names are
+            # per-workflow and get added over time. Renderers dim on
+            # category == "Done", which here covers both Done and Archived.
+            cat_obj = status_obj.get("statusCategory") or {}
+            status_category = (cat_obj.get("name") or "").replace("\t", " ")
             assignee_obj = fields.get("assignee") or {}
             assignee = (assignee_obj.get("displayName") or "unassigned").replace("\t", " ")
-            fh.write(f"{group_idx}\t{key}\t{status}\t{summary}\t{assignee}\n")
+            fh.write(f"{group_idx}\t{key}\t{status}\t{summary}\t{assignee}\t{status_category}\n")
 sys.exit(0 if keys else 1)
 PY
     local py_rc=$?
 
     if (( py_rc != 0 )) || [[ ! -s $tmp_phase_a ]]; then
       trap - EXIT
-      rm -rf "$tmp_a" "$tmp_r" "$tmp_w" "$tmp_d" "$tmp_phase_a" "$tmp_views_dir" "$tmp_out" "$tmp_errs"
+      rm -rf "$tmp_a" "$tmp_r" "$tmp_w" "$tmp_d" "$tmp_s" "$tmp_phase_a" "$tmp_views_dir" "$tmp_out" "$tmp_errs"
       print -u2 -r -- "jira-cache: refresh produced no rows"
       return 1
     fi
@@ -333,10 +397,12 @@ with open(phase_a_path) as f_in, open(out_path, "w") as f_out:
         if not line:
             continue
         parts = line.split("\t")
-        if len(parts) < 5:
+        if len(parts) < 6:
             continue
         key = parts[1]
         updated, last_c = ts_by_key.get(key, (0, 0))
+        # Final column order keeps the two epochs LAST (callers index
+        # them as the trailing pair), so status_category sits at [5].
         f_out.write(f"{line}\t{updated}\t{last_c}\n")
         emitted += 1
 sys.exit(0 if emitted > 0 else 1)
@@ -345,7 +411,7 @@ PY
 
     if (( merge_rc != 0 )) || [[ ! -s $tmp_out ]]; then
       trap - EXIT
-      rm -rf "$tmp_a" "$tmp_r" "$tmp_w" "$tmp_d" "$tmp_phase_a" "$tmp_views_dir" "$tmp_out" "$tmp_errs"
+      rm -rf "$tmp_a" "$tmp_r" "$tmp_w" "$tmp_d" "$tmp_s" "$tmp_phase_a" "$tmp_views_dir" "$tmp_out" "$tmp_errs"
       print -u2 -r -- "jira-cache: phase-B merge produced no rows"
       return 1
     fi
@@ -359,7 +425,7 @@ PY
     print -u2 -r -- "jira-cache: refreshed ${n_keys} issues in ${elapsed}s"
 
     trap - EXIT
-    rm -rf "$tmp_a" "$tmp_r" "$tmp_w" "$tmp_d" "$tmp_phase_a" "$tmp_views_dir" "$tmp_errs"
+    rm -rf "$tmp_a" "$tmp_r" "$tmp_w" "$tmp_d" "$tmp_s" "$tmp_phase_a" "$tmp_views_dir" "$tmp_errs"
     return 0
     ;;
 

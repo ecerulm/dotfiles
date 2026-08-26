@@ -4,6 +4,26 @@ All notable changes to the zsh configuration are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2026-08-26]
+
+### Added
+
+- **`_rlm-jira-cache`: a fifth group for the current sprint, carrying closed tickets on purpose.** The picker previously reached a ticket only through the four "involves me" groups (assigned/reporter/watching/DATA-only), all gated on `(resolved is EMPTY OR resolved >= -60d)`. Group 5 is `sprint = <active sprint>` with **no freshness gate and no status filter**: a follow-up fix often needs a PR against a ticket that is already Done, and the gate made exactly those unreachable. Measured against the live instance it adds 146 tickets no other group covers (218 in the sprint, 137 of them already claimed by groups 1-4 via dedupe).
+
+  The sprint is resolved from **board 525's active sprint** (`$RLM_JIRA_SPRINT_BOARD` overrides) via `acli jira board list-sprints --state active`, matching the board the `create-jira-ticket` skill files against. Not `sprint IN openSprints()`: that spans every board in the project and matched 218+ rows across several sprints, which is not "the current sprint" by any reading. A board with no active sprint warns and skips the group rather than failing the refresh.
+
+- **`status_category` column (field 6) on cache rows, so renderers can dim closed tickets.** Carries the stable `To Do`/`In Progress`/`Done` enum from `statusCategory`, **not** the free-form status name — this instance maps four distinct names onto `In Progress` (`Blocked`, `Refinement Ongoing`, `Reviewing / Testing`, `In Progress`) and two onto `Done` (`Done`, `Archived`), and workflow names get added over time, so a hardcoded name list would silently rot. Rows are now 8 fields; the two epochs stay last, so `_rlm-jira-sorted-rows` reads them at [6]/[7].
+
+  `rlm-jira-pick` renders group 5 with a `sprint` label and grays the whole row for `Done`. `rlm-pr-worktree` reshapes to its own 5-field row and so cannot carry the category as a column; it tags the status cell with a `\002` marker that survives `column -t` (invisible to width computation) and is stripped by the existing awk colorizer, which grays the row in the same pass that greens your own PRs. Verified: 207 markers in, 0 leaked to the display, and a key parsed off a dimmed row is still clean (`DATA-2638`).
+
+### Changed
+
+- **Per-group cap raised from 20 to 100 for groups 1-4.** The underlying queries match 73/77/89 rows, so a cap of 20 was hiding roughly two thirds of your own tickets. This subsumes a proposed sixth group ("anything I'm involved in, any status, updated in the last 2 weeks"): all 35 of its rows were already in groups 1-3, merely below the old cap, so raising the cap covers the intent without a redundant query. Group 5 gets its own cap of 400. Refresh now covers 273 issues in ~27s (was ~80 in ~8s); phase B is one `acli` call per deduped key at `-P20` and dominates.
+
+### Fixed
+
+- **`acli` bulk search returns all-`null` rows when `--fields` is too narrow.** `--fields key` alone yields a JSON array of the *correct length* filled with `null`, exit 0, no error; widening to `key,summary,status,assignee` returns populated rows for the same JQL. Reproducible, and distinct from the empty-`[]` flake `_rlm_jira_acli_search` already retries around. It is worse than an empty response: a row-counting caller sees the right count and concludes the query works while key extraction silently yields nothing — it made group sizes read as "35" for queries actually matching 73-89, and made a `comment ~ currentUser()` probe look like a parser crash. Documented in `AGENTS.md`; the field list carries a warning not to trim it.
+
 ## [2026-08-24]
 
 ### Fixed

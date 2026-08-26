@@ -64,7 +64,7 @@ refresh_sentinel="--- REFRESH CACHE (cached ${cache_age}) ---"
 # ---------------------------------------------------------------------------
 #
 # Cache rows from _rlm-jira-sorted-rows are tab-delimited:
-#   <group>\t<KEY>\t<status>\t<summary>\t<assignee>
+#   <group>\t<KEY>\t<status>\t<summary>\t<assignee>\t<status_category>\t<updated_epoch>\t<last_commented_epoch>
 # fzf expects:
 #   <group>\t<colored-display>\t<KEY>
 # A small python3 renderer prepends the colored display column. The
@@ -103,6 +103,7 @@ GROUP_LABEL = {
     2: f"{BOLD}{GREEN}reporter{RESET}",
     3: f"{BOLD}{CYAN}watching{RESET}",
     4: f"{BOLD}{MAGENTA}DATA    {RESET}",
+    5: f"{BOLD}{CYAN}sprint  {RESET}",
 }
 
 for line in sys.stdin:
@@ -110,16 +111,17 @@ for line in sys.stdin:
     if not line:
         continue
     parts = line.split("\t")
-    # Passthrough: already-rendered lines (group != 1..4, including
+    # Passthrough: already-rendered lines (group != 1..5, including
     # the refresh sentinel) carry the shape <group>\t<display>\t<KEY>
-    # (3 fields) and are emitted unchanged. Raw cache rows have 7
-    # fields total; the renderer uses only parts[0..3] (group, key,
-    # status, summary). Assignee + two epoch timestamps in parts[4..6]
-    # exist for the composite-key sort upstream, not for display.
-    if len(parts) < 7:
+    # (3 fields) and are emitted unchanged. Raw cache rows have 8
+    # fields total; the renderer uses parts[0..3] (group, key, status,
+    # summary) plus parts[5] (status_category, for dimming). Assignee
+    # and the two trailing epochs exist for the sort, not for display.
+    if len(parts) < 8:
         sys.stdout.write(line + "\n")
         continue
     group_str, key, status, summary = parts[0], parts[1], parts[2], parts[3]
+    status_category = parts[5]
     try:
         group_idx = int(group_str)
     except ValueError:
@@ -129,7 +131,13 @@ for line in sys.stdin:
         sys.stdout.write(line + "\n")
         continue
     label = GROUP_LABEL[group_idx]
-    display = f"{label}  {BOLD}{key:<14}{RESET} {GRAY}[{status}]{RESET} {summary}"
+    # Closed tickets stay pickable (you may want to hang a follow-up-fix
+    # PR off one) but render fully gray so an open ticket never gets
+    # mistaken for a closed one at a glance.
+    if status_category == "Done":
+        display = f"{label}  {GRAY}{key:<14} [{status}] {summary}{RESET}"
+    else:
+        display = f"{label}  {BOLD}{key:<14}{RESET} {GRAY}[{status}]{RESET} {summary}"
     sys.stdout.write(f"{group_idx}\t{display}\t{key}\n")
 ' \
   | fzf \
