@@ -29,7 +29,7 @@ For the plain-dbt path, rlm-dbt auto-injects:
 Examples:
   dbt run                  # delegates to rlm-dbt-run (fzf picker)
   dbt run -s tag:finance   # delegates to rlm-dbt-run with args
-  dbt compile -s my_model  # plain dbt compile, --project-dir + --defer/--state auto-injected
+  dbt show -s my_model     # plain dbt show, --project-dir + --defer/--state auto-injected
   dbt parse                # plain dbt parse, --project-dir auto-injected
   dbt deps                 # plain dbt deps (no defer — not a defer-aware subcommand)
   dbt --help               # plain dbt --help (no auto-injection without subcmd)"

@@ -1,0 +1,55 @@
+dbt-compile [-s SELECTOR] [-n] [-- EXTRA_ARGS...]
+
+Run `dbt compile` locally with --defer against the production
+ref-state manifest. Renders each selected model's SQL into
+target/compiled/ without executing it; upstream models are resolved
+from prod via --defer rather than being built locally.
+
+Omit -s to open an fzf picker over all dbt models. Recently selected
+models appear at the top with a "last used X ago" label, pooled across
+all rlm-dbt-* commands for this project. Select the REFRESH entry in
+the picker to re-run dbt ls and refresh the shared nodes cache.
+
+The picker also offers a "--- CUSTOM SELECT (type your own selector) ---"
+entry at the top: pick it to open an empty editor and type a free-form
+selector from scratch (e.g. tag:finance,config.materialized:incremental or
+state:modified+) without first picking a model.
+
+After picking, the selector opens in a one-line editor (zsh `vared`) so you
+can tack on graph operators (`my_model+`, `+my_model`, `my_model+1`) or
+switch to a tag/path selector before dbt runs. Press Enter to accept the
+picked value as-is, or Ctrl-C to abort.
+
+  -s SELECTOR   dbt node selector; skips the fzf picker
+  -n, --list    dry-run: show which nodes would compile locally vs be read
+                from prod (via --defer), then exit without running dbt
+  --            pass any additional arguments straight to dbt
+  -h, --help    show this help
+
+Unlike dbt-run / dbt-build / dbt-test, there is no cost estimate and no
+Proceed? prompt: `dbt compile` renders SQL without querying BigQuery, so
+the estimate would only duplicate the compile it is about to run and gate
+it behind a prompt for a cost that is always zero. Use dbt-run -n or the
+compiled SQL under target/compiled/ if you want to dry-run a query by hand.
+
+The ref-state manifest must exist at $DBT_STATE_DIR/manifest.json and be no
+older than 7 days. Run dbt-sync-state to refresh it.
+
+Before running, dbt-compile verifies that `poetry run dbt` (or `uv run dbt`
+in a uv-managed project) resolves to a binary inside the project's
+virtualenv, not a stray dbt on $PATH; the environment is installed
+automatically if not.
+
+ENVIRONMENT (all required, set in ~/.zshrc.thismachine)
+  DBT_STATE_DIR      path to dir containing the ref-state manifest.json
+  DBT_PROJECT_SUBDIR subdir of the git root containing dbt_project.yml
+  DBT_TARGET         dbt target name (e.g. local_dev)
+  DBT_DEV_PROJECT    GCP project ID used for local runs
+  DBT_DATASET_PREFIX BigQuery dataset name for locally-built models
+
+Examples:
+  dbt-compile
+  dbt-compile -s my_model
+  dbt-compile -s my_model+
+  dbt-compile -n -s tag:finance
+  dbt-compile -s my_model -- --full-refresh

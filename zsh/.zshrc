@@ -145,6 +145,7 @@ autoload -Uz rlm-git-squash-branch
 autoload -Uz rlm-git-squash-branch-old
 autoload -Uz rlm-dbt
 autoload -Uz rlm-dbt-build
+autoload -Uz rlm-dbt-compile
 autoload -Uz rlm-dbt-find-source-code
 autoload -Uz rlm-dbt-ls
 autoload -Uz rlm-dbt-run
@@ -246,6 +247,7 @@ alias pr-for-commit='rlm-pr-for-commit'
 alias afw-deploy='rlm-afw-deploy'
 alias dbt='rlm-dbt'
 alias dbt-build='rlm-dbt-build'
+alias dbt-compile='rlm-dbt-compile'
 alias dbt-find-source-code='rlm-dbt-find-source-code'
 alias dbt-ls='rlm-dbt-ls'
 alias dbt-run='rlm-dbt-run'

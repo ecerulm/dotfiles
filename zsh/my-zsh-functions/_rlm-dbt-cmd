@@ -17,7 +17,9 @@ emulate -L zsh
 #                         `dbt build` this is "model" (seeds don't dry-run
 #                         through bq). For `dbt test` it's "test" so the
 #                         estimate covers the test queries that actually
-#                         scan data.
+#                         scan data. Empty ("") skips the estimate and the
+#                         Proceed? prompt entirely — for `dbt compile`,
+#                         which renders SQL without querying BigQuery.
 #
 # All env / state / cache layout is identical to the original rlm-dbt-run;
 # the cache directory is keyed off the wrapper name (passed as $0 by zsh)
@@ -557,7 +559,7 @@ PYEOF
   print ""
 }
 
-if ! (( list_only )); then
+if ! (( list_only )) && [[ -n $cost_resource_types ]]; then
   _dbt_cmd_cost_estimate
   print -n "Proceed? [Y/n] "
   local answer

@@ -46,7 +46,7 @@ Underscore-prefixed = implementation detail called only by other `rlm-*` functio
 
 dbt:
 
-- `_rlm-dbt-cmd` — shared impl for `rlm-dbt-{run,build,test}`. Args: `<subcmd> <resource_types> <cost_resource_types>`.
+- `_rlm-dbt-cmd` — shared impl for `rlm-dbt-{run,build,test,compile}`. Args: `<subcmd> <resource_types> <cost_resource_types>`. An **empty** `cost_resource_types` skips the bq dry-run cost estimate and the `Proceed?` prompt — used by `rlm-dbt-compile`, since `dbt compile` renders SQL without querying BigQuery, so the estimate would only duplicate the compile it is about to run and gate it behind a confirmation for a cost that is always zero.
 - `_rlm-dbt-bin` — emit dbt command-prefix tokens (one/line): `dbtf` resolved path when `DBT_USE_FUSION=1`; `uv`/`run`/`dbt` when `DBT_USE_UV=1` or `uv.lock` found in `project_root`; else `poetry`/`run`/`dbt`. Validates+caches the Fusion path. Optional `project_root` arg enables uv auto-detection.
 - `_rlm-dbt-ensure-venv` — dispatcher: calls `_rlm-uv-ensure-venv` when `DBT_USE_UV=1` or `uv.lock` present, else `_rlm-poetry-ensure-venv`. `(project_root, expected_bin, label)`.
 - `_rlm-poetry-ensure-venv` — verify `poetry run <bin>` resolves inside the project venv (not a `$PATH` shadow); `poetry install` once on failure. `(project_root, expected_bin, label)`.

@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **`rlm-dbt-compile` (`dbt-compile`), a fourth `_rlm-dbt-cmd` wrapper — so `dbt compile` opens the fzf picker.** `rlm-dbt compile` previously fell through to the plain-dbt path (no `rlm-dbt-compile` existed to delegate to), so it demanded a hand-typed `-s`. It now gets the same model picker, pooled MRU history, `--- REFRESH NODES CACHE ---` / `--- CUSTOM SELECT ---` rows, `vared` selector edit, `-n` list view, deferred prod state, and venv check as `dbt-run` / `dbt-build` / `dbt-test`.
+
+  **No cost estimate and no `Proceed?` prompt**, unlike the other three: `dbt compile` renders SQL without executing it, so the `bq query --dry_run` pass would only duplicate the compile it is about to run — and gate it behind a confirmation for a cost that is always zero. `_rlm-dbt-cmd` gained the opt-out via an **empty** `cost_resource_types` (third positional), which keeps the helper's signature unchanged and leaves the existing three wrappers untouched — verified `dbt-run` still estimates and prompts.
+
+  `rlm-dbt`'s usage text used `dbt compile -s my_model` as its example of the plain-dbt path; that example is now wrong by construction, so it was switched to `dbt show`.
+
 - **`_rlm-jira-cache`: a fifth group for the current sprint, carrying closed tickets on purpose.** The picker previously reached a ticket only through the four "involves me" groups (assigned/reporter/watching/DATA-only), all gated on `(resolved is EMPTY OR resolved >= -60d)`. Group 5 is `sprint = <active sprint>` with **no freshness gate and no status filter**: a follow-up fix often needs a PR against a ticket that is already Done, and the gate made exactly those unreachable. Measured against the live instance it adds 146 tickets no other group covers (218 in the sprint, 137 of them already claimed by groups 1-4 via dedupe).
 
   The sprint is resolved from **board 525's active sprint** (`$RLM_JIRA_SPRINT_BOARD` overrides) via `acli jira board list-sprints --state active`, matching the board the `create-jira-ticket` skill files against. Not `sprint IN openSprints()`: that spans every board in the project and matched 218+ rows across several sprints, which is not "the current sprint" by any reading. A board with no active sprint warns and skips the group rather than failing the refresh.

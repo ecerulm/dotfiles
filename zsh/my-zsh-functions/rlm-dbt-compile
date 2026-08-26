@@ -1,0 +1,15 @@
+emulate -L zsh
+
+# Compile a dbt model locally using deferred state from production.
+# See `rlm-dbt-compile -h` (or `helpdir/rlm-dbt-compile`) for the full
+# description.
+#
+# Shared implementation lives in _rlm-dbt-cmd; this wrapper selects the
+# dbt subcommand (`compile`) and the resource type(s) to expose in the
+# picker (models). The cost_resource_types argument is empty: `dbt compile`
+# renders SQL without executing it, so the bq dry-run estimate would only
+# duplicate the compile it is about to run — and gate it behind a Proceed?
+# prompt for a cost that is always zero.
+
+autoload -Uz _rlm-dbt-cmd
+_rlm-dbt-cmd compile model '' "$@"
