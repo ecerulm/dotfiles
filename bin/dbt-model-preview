@@ -25,10 +25,19 @@
 #                        them (which otherwise renders as `?:?.alias`).
 #
 # Output:
-#   A plain-text block of `label : value` lines for fzf to render. No ANSI
-#   colors. The `bq_relation_source` line indicates which source supplied
-#   the database/schema/alias values (`local target`, `prod manifest`, or
-#   `mixed` when some fields are local and others come from the manifest).
+#   A block of `label : value` lines, then (when available) a `columns`
+#   section and the model's raw source. The `bq_relation_source` line
+#   indicates which source supplied the database/schema/alias values
+#   (`local target`, `prod manifest`, or `mixed` when some fields are local
+#   and others come from the manifest). ANSI is limited to the bq_relation
+#   hyperlink.
+#
+#   The `columns` section comes from the prod manifest's `.columns` and so
+#   needs prod_manifest_json; it lists only columns declared in a
+#   schema.yml, and is omitted entirely for undocumented models. The
+#   source section reads `original_file_path` from disk (raw Jinja, not
+#   the manifest's compiled_code) and is omitted when the file is absent
+#   locally, as for models that live in an installed package.
 emulate -L zsh
 set -o pipefail
 
@@ -96,8 +105,10 @@ local_alias=$(print -r -- "$node" | jq -r '.alias // ""')
 unique_id=$(print -r -- "$node" | jq -r '.unique_id // ""')
 
 local prod_db="" prod_sch="" prod_alias=""
+# Fetched once and reused by the columns section below — the manifest is
+# ~24MB, so a second jq pass would double the preview's cost per keystroke.
+local prod_node=""
 if [[ -n $prod_manifest && -f $prod_manifest && -n $unique_id ]]; then
-  local prod_node
   prod_node=$(jq -c --arg uid "$unique_id" '.nodes[$uid] // empty' "$prod_manifest" 2>/dev/null)
   if [[ -n $prod_node ]]; then
     prod_db=$(print -r -- "$prod_node" | jq -r '.database // ""')
@@ -243,3 +254,48 @@ print -r -- "bq_relation    : ${bq_relation_line}"
 print -r -- "bq_rel_source  : ${relation_source}"
 print -r -- "file_path      : ${abs_path:-—}"
 print -r -- "last_modified  : ${mtime_str:-—}"
+
+# ---------------------------------------------------------------------------
+# Columns (schema) — from the prod manifest's `.columns`
+# ---------------------------------------------------------------------------
+# `dbt ls --output json` does not emit column metadata at all, so this is
+# manifest-only and silently absent when no manifest was passed. Coverage is
+# partial by nature: only columns declared in a schema.yml appear (409 of
+# 1681 models in storytel-dbt), so the section is omitted rather than
+# rendered empty for undocumented models.
+#
+# Deliberately NOT read from BigQuery: an fzf preview re-runs on every
+# keystroke, and per AGENTS.md the hot path must stay local.
+if [[ -n $prod_node ]]; then
+  local columns_block
+  columns_block=$(print -r -- "$prod_node" | jq -r '
+    (.columns // {}) | to_entries
+    | if length == 0 then empty else
+        "",
+        "columns (\(length)):",
+        (.[] | "  \(.key)"
+                 + (if .value.data_type then "  \(.value.data_type | ascii_upcase)" else "" end)
+                 + (if (.value.description // "") != ""
+                      then "  — " + (.value.description | gsub("\n"; " ")
+                                     | if length > 100 then .[0:100] + " …" else . end)
+                      else "" end))
+      end
+  ' 2>/dev/null)
+  [[ -n $columns_block ]] && print -r -- "$columns_block"
+fi
+
+# ---------------------------------------------------------------------------
+# Source code — the raw .sql from disk
+# ---------------------------------------------------------------------------
+# Raw Jinja source rather than the manifest's `compiled_code`: this is the
+# file you would actually edit, and it tracks the working tree instead of
+# whatever prod last compiled. `$abs_path` may carry a " (missing)" suffix
+# from the mtime block above, so re-test the plain path.
+local src_path="${project_root%/}/${rel_path}"
+if [[ -n $rel_path && -f $src_path ]]; then
+  print -r -- ""
+  print -r -- "─── source: ${rel_path} ───"
+  # No syntax highlighting: `bat` is absent here and `pygmentize` is a pyenv
+  # shim whose Python startup would land on every keystroke.
+  cat -- "$src_path"
+fi

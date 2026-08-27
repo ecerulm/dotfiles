@@ -4,6 +4,18 @@ All notable changes to the zsh configuration are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2026-08-27]
+
+### Added
+
+- **`dbt-model-preview`: a columns (schema) section and the model's source code, so `rlm-dbt ls`'s preview shows what the model *is*, not just where it lives.** Both of `rlm-dbt-ls`'s pickers already passed the prod manifest, so neither picker needed a change — the two new sections appear in the Phase 1 selector picker and the Phase 4 results picker alike.
+
+  **Columns come from the prod manifest's `.columns`** (name, `data_type`, description), not from BigQuery: an fzf preview re-runs on every keystroke, and per AGENTS.md the hot path stays local. The manifest node was already being fetched for the `bq_relation` fallback, so it is now hoisted into a variable and reused rather than re-`jq`'d — one pass over the 24MB file, not two. Coverage is partial by nature (only what a `schema.yml` documents — 409 of 1681 models in storytel-dbt), so the section is **omitted rather than rendered empty** for undocumented models, and absent entirely when no manifest is available.
+
+  **Source is the raw Jinja read from `original_file_path` on disk**, not the manifest's `compiled_code`: it is the file you would actually edit, and it tracks the working tree instead of whatever prod last compiled. Omitted when the file is not present locally, which is the normal case for models belonging to an installed package (`model.elementary.*`). Rendered with plain `cat` — `bat` is not installed here, and `pygmentize` is a pyenv shim whose Python startup would be paid on every keystroke, the same cost `gar-rm-preview` was rewritten to avoid.
+
+  Measured at ~0.28-0.37s per render including both new sections, against ~0.2s for the manifest lookup that already dominated. The largest model in the project is 432 lines, and fzf only draws the visible window, so the unbounded `cat` is bounded in practice; the existing Shift/Alt-↑↓ bindings scroll it.
+
 ## [2026-08-26]
 
 ### Added
