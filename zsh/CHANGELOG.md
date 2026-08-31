@@ -4,6 +4,14 @@ All notable changes to the zsh configuration are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2026-08-31]
+
+### Added
+
+- `.zshrc`: export `SSH_SK_PROVIDER` (pointing at `~/.local/lib/sk-libfido2.dylib`) when that library is present.
+
+  macOS ssh has no built-in FIDO2/U2F support, so a hardware security key needs a middleware library built from openssh-portable. The export is guarded on the file existing, so machines without it are unaffected.
+
 ## [2026-08-27]
 
 ### Added

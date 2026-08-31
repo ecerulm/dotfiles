@@ -1459,3 +1459,10 @@ alias dbtf="$HOME/.local/bin/dbt"
 if [[ -n $GHOSTTY_RESOURCES_DIR ]]; then
   source "$GHOSTTY_RESOURCES_DIR"/shell-integration/zsh/ghostty-integration
 fi
+
+# FIDO2/U2F security-key support for ssh: build sk-libfido2.dylib from
+# openssh-portable and drop it at the path below.
+SSH_SK_PROVIDER=$HOME/.local/lib/sk-libfido2.dylib
+if [[ -f $SSH_SK_PROVIDER ]]; then
+  export SSH_SK_PROVIDER
+fi
