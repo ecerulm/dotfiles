@@ -159,7 +159,7 @@
 	cmd = "meld --auto-merge	\"$LOCAL\" \"$BASE\" \"$REMOTE\" --output \"$MERGED\" "
 	trustExitCode = false
 [gpg]
-	program = gpg
+	program = /opt/homebrew/bin/gpg
 [commit]
 	gpgsign = true
 [pull]
