@@ -160,6 +160,7 @@
 	trustExitCode = false
 [gpg]
 	program = /opt/homebrew/bin/gpg
+	format = ssh
 [commit]
 	gpgsign = true
 [pull]
@@ -213,6 +214,7 @@ path = ~/git/foss/.gitconfig
 	autoSquash = true
 [user]
 	name = Rubén Laguna
+	signingkey = ~/.ssh/id_ecdsa_sk_rk_signing.pub
 [blame]
 	showEmail = true
 	coloring = highlightRecent
@@ -233,3 +235,10 @@ path = ~/git/foss/.gitconfig
 [credential "https://gist.github.com"]
 	helper =
 	helper = !/opt/homebrew/bin/gh auth git-credential
+[gpg "ssh"]
+	allowedSignersFile = ~/.config/git/allowed_signers
+	program = ~/.local/bin/ssh-keygen-enclave
+	# ssh-keygen-enclave should be:
+	# #!/bin/sh
+  # export SSH_SK_PROVIDER=/usr/lib/ssh-keychain.dylib
+	# exec /usr/bin/ssh-keygen "$@"
