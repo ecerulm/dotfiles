@@ -3,6 +3,18 @@ Include /Users/rubenlaguna/.colima/ssh_config
 Include /Users/ecerulm/.colima/ssh_config
 
 Include ~/.ssh/config.thismachine
+# in .ssh/config.thismachine you can have configuration to use ssh keys configured in the Secure Enclave Processor (SEP)
+#   sc_auth create-ctk-identity -k p-256-ne -t bio -l 'My SSH Key'
+#   cd ~/.ssh; SSH_ASKPASS_REQUIRE=force SSH_ASKPASS=true ssh-keygen -w /usr/lib/ssh-keychain.dylib -K
+#
+# Host github.com
+#   HostName github.com
+#   User git
+#   IdentityFile ~/.ssh/id_ecdsa_sk_rk
+#   IdentitiesOnly yes # exclude the other identities  (other files)
+#   SecurityKeyProvider /usr/lib/ssh-keychain.dylib # this provider reads from Secure Enclave Processor (SEP)
+
+
 Host *
   UseKeyChain yes
   # VisualHostKey yes
