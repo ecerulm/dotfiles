@@ -1472,8 +1472,8 @@ if [[ -n $FLUTTER_HOME ]]; then
 fi
 
 # opencode
-if [[ -f "$HOME/.opencode/bin" ]]; then
-	set path+="$HOME/.opencode/bin"
+if [[ -d "$HOME/.opencode/bin" ]]; then
+	path+=($HOME/.opencode/bin)
 fi
 
 
