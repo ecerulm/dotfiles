@@ -8,4 +8,3 @@
 if builtin command -v fortune >/dev/null; then
   fortune -s
 fi
-

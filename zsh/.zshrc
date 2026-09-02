@@ -299,7 +299,6 @@ if builtin command -v fuck >/dev/null ;then
  eval $(thefuck --alias)
 fi
 
-[[ -f ~/.zshrc.thismachine ]] && source ~/.zshrc.thismachine
 
 # GPG_TTY — set here (not .zshenv) so we capture the interactive TTY.
 export GPG_TTY=$TTY
@@ -1466,3 +1465,16 @@ SSH_SK_PROVIDER=$HOME/.local/lib/sk-libfido2.dylib
 if [[ -f $SSH_SK_PROVIDER ]]; then
   export SSH_SK_PROVIDER
 fi
+
+FLUTTER_HOME="$HOME/develop/flutter"
+if [[ -n $FLUTTER_HOME ]]; then 
+  path+=($FLUTTER_HOME/bin)
+fi
+
+# opencode
+if [[ -f "$HOME/.opencode/bin" ]]; then
+	set path+="$HOME/.opencode/bin"
+fi
+
+
+[[ -f ~/.zshrc.thismachine ]] && source ~/.zshrc.thismachine
