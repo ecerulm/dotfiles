@@ -52,3 +52,7 @@ git submodule update
 # You can update all submodules with
 git submoudle update --recursive
 
+
+
+# Git config 
+You have setup the ssh keys with Secure Enclave
