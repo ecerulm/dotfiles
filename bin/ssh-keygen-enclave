@@ -1,0 +1,36 @@
+#!/bin/sh
+
+set -eu
+
+export SSH_SK_PROVIDER=/usr/lib/ssh-keychain.dylib
+
+# Git invokes this program with the commit contents on stdin and expects only
+# the SSH signature on stdout. Verify the signature before returning it so a
+# broken security-key/provider response cannot create a bad signed commit.
+if [ "$#" -ge 3 ] && [ "$1" = "-Y" ] && [ "$2" = "sign" ]; then
+  data_file=
+  for arg; do
+    data_file=$arg
+  done
+  signature_file="${data_file}.sig"
+
+  if ! /usr/bin/ssh-keygen "$@"; then
+    echo "git SSH signing failed" >&2
+    exit 1
+  fi
+
+  identity=$(git config --get user.email 2> /dev/null || true)
+  allowed_signers=$(git config --get --path gpg.ssh.allowedSignersFile 2> /dev/null || true)
+  if [ -z "$identity" ] || [ -z "$allowed_signers" ]; then
+    echo "git SSH signature cannot be verified: missing identity or allowed signers file" >&2
+    exit 1
+  fi
+  if ! /usr/bin/ssh-keygen -Y verify -f "$allowed_signers" -I "$identity" -n git -s "$signature_file" < "$data_file" >&2; then
+    echo "git SSH signature verification failed; refusing to sign commit" >&2
+    exit 1
+  fi
+
+  exit 0
+fi
+
+exec /usr/bin/ssh-keygen "$@"

@@ -29,6 +29,8 @@ ln -Tvfs ~/dotfiles/qtile ~/.config/qtile
 # bin
 mkdir -p ~/bin
 ls bin | xargs -n1 -I'{}' ln -Tvfs ~/dotfiles/bin/'{}' ~/bin/'{}'
+mkdir -p ~/.local/bin
+ln -Tvfs ~/dotfiles/bin/ssh-keygen-enclave ~/.local/bin/ssh-keygen-enclave
 
 #create system specific symlinks
 ln -Tvfs ~/dotfiles/.gitconfig_linux .gitconfig_platform_specific

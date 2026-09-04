@@ -41,6 +41,8 @@ ln -Fvhfs ~/dotfiles/kitty ~/.config/kitty
 #bin
 mkdir -p ~/bin
 ls bin | xargs -n1 -I'{}' ln -Fvhfs ~/dotfiles/bin/'{}' ~/bin/'{}'
+mkdir -p ~/.local/bin
+ln -Fvhfs ~/dotfiles/bin/ssh-keygen-enclave ~/.local/bin/ssh-keygen-enclave
 
 #create system specific symlinks
 ln -Fvhfs ~/dotfiles/.gitconfig_osx ~/.gitconfig_platform_specific
