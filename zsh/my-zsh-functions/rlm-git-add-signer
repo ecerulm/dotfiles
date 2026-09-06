@@ -1,0 +1,190 @@
+emulate -L zsh
+set -o pipefail
+
+# ---------------------------------------------------------------------------
+# rlm-git-add-signer — trust a GitHub user's SSH *signing* keys for git
+# commit signature verification.
+#
+# Fetches every SSH signing key from
+# https://api.github.com/users/<user>/ssh_signing_keys and appends it to
+# git's gpg.ssh.allowedSignersFile, once per principal, skipping any
+# (principal, key) pair already present.
+#
+# The signing-keys API is used, NOT https://github.com/<user>.keys — that
+# URL serves only *authentication* keys, which are a different set and are
+# not what signs commits. GitHub's own "Verified" badge checks the account's
+# signing-key list; this brings the local allowed_signers file in line with
+# it.
+#
+# The API carries no email, so two principals are trusted per key: the
+# user's <user>@users.noreply.github.com address and, when given or entered
+# at the prompt, their real commit email.
+#
+# Each entry is preceded by a full-line comment (the allowed_signers format
+# has no trailing-comment field) recording the date, the GitHub user, the
+# key's GitHub title and its fingerprint.
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# Precondition checks
+# ---------------------------------------------------------------------------
+
+for _cmd in git curl jq; do
+  if ! command -v "$_cmd" >/dev/null 2>&1; then
+    print -u2 -r -- "git-add-signer: '$_cmd' not found in PATH"
+    return 1
+  fi
+done
+unset _cmd
+
+# ---------------------------------------------------------------------------
+# Argument parsing
+# ---------------------------------------------------------------------------
+
+local user='' email=''
+
+while (( $# )); do
+  case $1 in
+    -h|--help)
+      print -r -- "rlm-git-add-signer <github-username> [<email>]"
+      print -r -- ""
+      print -r -- "Append the GitHub user's SSH signing keys to git's"
+      print -r -- "gpg.ssh.allowedSignersFile so their signed commits verify."
+      print -r -- "Source: api.github.com/users/<user>/ssh_signing_keys."
+      print -r -- "Trusts <user>@users.noreply.github.com and, if supplied, <email>."
+      return 0 ;;
+    --) shift; break ;;
+    -*)
+      print -u2 -r -- "git-add-signer: unknown option '$1'"
+      return 2 ;;
+    *)
+      if [[ -z $user ]]; then
+        user=$1
+      elif [[ -z $email ]]; then
+        email=$1
+      else
+        print -u2 -r -- "git-add-signer: unexpected extra argument '$1'"
+        return 2
+      fi
+      shift ;;
+  esac
+done
+
+if [[ -z $user ]]; then
+  print -u2 -r -- "git-add-signer: usage: rlm-git-add-signer <github-username> [<email>]"
+  return 2
+fi
+
+if [[ -z $email ]]; then
+  read -r "email?Commit email for GitHub user '$user' (optional, Enter to skip): "
+fi
+
+# ---------------------------------------------------------------------------
+# Resolve the allowed_signers file
+# ---------------------------------------------------------------------------
+
+local signers_file
+signers_file=$(git config --get gpg.ssh.allowedSignersFile 2>/dev/null)
+[[ -z $signers_file ]] && signers_file="$HOME/.config/git/allowed_signers"
+# git stores the path verbatim, so a leading ~ is literal until we expand it.
+signers_file=${signers_file/#\~\//$HOME/}
+
+if [[ ! -d ${signers_file:h} ]]; then
+  mkdir -p -- "${signers_file:h}" || {
+    print -u2 -r -- "git-add-signer: cannot create ${signers_file:h}"
+    return 1
+  }
+fi
+[[ -f $signers_file ]] || : >| "$signers_file"
+
+# ---------------------------------------------------------------------------
+# Fetch the signing keys
+#
+# jq emits one "<title>\t<keytype> <keyblob>" line per key. A missing title
+# is coalesced to "untitled" so neither field is ever empty — that keeps the
+# split below a plain %%/# on the first tab, sidestepping the way
+# `IFS=$'\t' read` collapses empty fields.
+# ---------------------------------------------------------------------------
+
+local api_url="https://api.github.com/users/${user}/ssh_signing_keys"
+local api_json
+if ! api_json=$(curl -fsSL -H 'Accept: application/vnd.github+json' "$api_url"); then
+  print -u2 -r -- "git-add-signer: failed to fetch $api_url"
+  return 1
+fi
+
+local keys
+if ! keys=$(print -r -- "$api_json" | jq -r '.[] | [(.title // "untitled"), .key] | @tsv'); then
+  print -u2 -r -- "git-add-signer: unexpected response from $api_url"
+  print -u2 -r -- "$api_json"
+  return 1
+fi
+if [[ -z ${keys//[[:space:]]/} ]]; then
+  print -u2 -r -- "git-add-signer: GitHub user '$user' has no SSH signing keys"
+  return 1
+fi
+
+# ---------------------------------------------------------------------------
+# Build the principal list and append missing entries
+# ---------------------------------------------------------------------------
+
+# Real email first so `git verify-commit` reports it rather than the
+# noreply address when both match a key (git returns the first principal
+# found and does not cross-check the committer identity).
+local -a principals=()
+[[ -n $email ]] && principals+=("$email")
+[[ $email != "${user}@users.noreply.github.com" ]] && \
+  principals+=("${user}@users.noreply.github.com")
+
+local today existing
+today=$(date +%Y-%m-%d)
+existing=$(<"$signers_file")
+
+local -a added=() skipped=()
+local kline title keytype keyblob fp principal entry comment
+
+while IFS= read -r kline; do
+  [[ -z ${kline//[[:space:]]/} ]] && continue
+
+  title=${kline%%$'\t'*}
+  keytype=${kline#*$'\t'}          # "<keytype> <keyblob>"
+  keyblob=${keytype#* }
+  keyblob=${keyblob%% *}
+  keytype=${keytype%% *}
+
+  fp=$(print -r -- "${keytype} ${keyblob}" | ssh-keygen -lf - 2>/dev/null | awk '{print $2}')
+
+  for principal in "${principals[@]}"; do
+    if print -r -- "$existing" | grep -F -- "$keyblob" | grep -qF -- "$principal"; then
+      skipped+=("${principal}  ${keytype}  ${fp:-already present}  (${title})")
+      continue
+    fi
+
+    comment="# ${today} github-signing:${user} ${title}${fp:+ ${fp}} (added by rlm-git-add-signer)"
+    entry="${principal} namespaces=\"git\" ${keytype} ${keyblob}"
+
+    print -r -- "$comment" >> "$signers_file"
+    print -r -- "$entry" >> "$signers_file"
+    existing+=$'\n'"$entry"
+    added+=("${principal}  ${keytype}  ${fp:-added}  (${title})")
+  done
+done <<< "$keys"
+
+# ---------------------------------------------------------------------------
+# Summary
+# ---------------------------------------------------------------------------
+
+print -r -- "allowed signers file: ${signers_file/#$HOME/~}"
+if (( ${#added} )); then
+  local noun=entries
+  (( ${#added} == 1 )) && noun=entry
+  print -r -- "added ${#added} ${noun}:"
+  printf '  %s\n' "${added[@]}"
+fi
+if (( ${#skipped} )); then
+  print -r -- "already present (${#skipped}):"
+  printf '  %s\n' "${skipped[@]}"
+fi
+(( ${#added} == 0 && ${#skipped} == 0 )) && print -r -- "nothing to do"
+
+return 0

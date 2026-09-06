@@ -4,6 +4,16 @@ All notable changes to the zsh configuration are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2026-09-06]
+
+### Added
+
+- **`rlm-git-add-signer` (`git-add-signer`) — add a GitHub user's SSH signing keys to git's `gpg.ssh.allowedSignersFile`.** Takes a GitHub username (and optionally a commit email), fetches every signing key, and appends `<principal> namespaces="git" <keytype> <keyblob>` lines, once per principal, skipping any `(principal, key)` pair already present. Each entry is preceded by a full-line `#` comment (the allowed_signers format has no trailing-comment field) with the date, GitHub user, key title and fingerprint. The target file comes from `git config gpg.ssh.allowedSignersFile` (fallback `~/.config/git/allowed_signers`), created if missing. Requires `git`, `curl`, `jq`; `ssh-keygen` for fingerprints.
+
+  **Source is `https://api.github.com/users/<user>/ssh_signing_keys`, not `https://github.com/<user>.keys`.** The `.keys` URL serves only *authentication* keys — a different set that does not sign commits — so keying off it added the wrong keys and still left `git verify-commit` reporting `Good signature … No principal matched` for commits signed on another machine. GitHub's own "Verified" badge checks the account's signing-key list; this brings the local file in line with it.
+
+  **Two principals are trusted per key**, real email first: `<email>` (prompted for when not passed) then `<user>@users.noreply.github.com`. Email first because `git verify-commit` reports the first principal `ssh-keygen -Y find-principals` returns for a key and does not cross-check the committer identity — with noreply first, a commit authored as the real address still verifies but prints the noreply one.
+
 ## [2026-08-31]
 
 ### Added

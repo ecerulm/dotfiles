@@ -1,0 +1,35 @@
+rlm-git-add-signer <github-username> [<email>]
+
+Trust a GitHub user's SSH signing keys for git commit signature
+verification. Fetches every signing key from
+https://api.github.com/users/<github-username>/ssh_signing_keys and
+appends it to git's gpg.ssh.allowedSignersFile, once per principal,
+skipping any (principal, key) pair already in the file.
+
+The signing-keys API is used deliberately, not
+https://github.com/<github-username>.keys: that URL serves only
+authentication keys, a different set that does not sign commits.
+GitHub's own "Verified" badge checks the account's signing-key list,
+so this brings the local allowed_signers file in line with it.
+
+The API returns no email, so two principals are trusted per key:
+<github-username>@users.noreply.github.com and, when passed as the
+second argument or entered at the prompt, the user's real commit
+email. Each appended entry carries the namespaces="git" option and is
+preceded by a full-line comment (the allowed_signers format has no
+trailing-comment field) recording the date, the GitHub user, the
+key's GitHub title and its fingerprint. Existing entries are never
+rewritten or removed.
+
+The target file is read from `git config gpg.ssh.allowedSignersFile`,
+falling back to ~/.config/git/allowed_signers; it and its parent
+directory are created if missing.
+
+ARGUMENTS
+  <github-username>   GitHub account whose signing keys to fetch (required).
+  <email>            Real commit email to also trust (optional; prompted
+                     for when omitted, Enter skips it).
+
+REQUIRES
+  git, curl, jq. ssh-keygen is used when present to record key
+  fingerprints in the comment lines.

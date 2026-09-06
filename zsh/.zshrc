@@ -136,6 +136,7 @@ autoload -Uz rlm-generatectags
 autoload -Uz rlm-pr-for-commit
 autoload -Uz rlm-afw-deploy
 autoload -Uz rlm-gh-permalink
+autoload -Uz rlm-git-add-signer
 autoload -Uz rlm-git-changed
 autoload -Uz rlm-git-diff-base
 autoload -Uz rlm-git-find-in-remotes
@@ -212,6 +213,7 @@ alias gh-fork='rlm-gh-fork'
 alias gh-repo-init='rlm-gh-repo-init'
 alias create-gh-repo='rlm-gh-repo-init'
 alias gh-permalink='rlm-gh-permalink'
+alias git-add-signer='rlm-git-add-signer'
 alias git-changed='rlm-git-changed'
 alias git-diff-base='rlm-git-diff-base'
 alias git-find-in-remotes='rlm-git-find-in-remotes'
@@ -1467,7 +1469,7 @@ if [[ -f $SSH_SK_PROVIDER ]]; then
 fi
 
 FLUTTER_HOME="$HOME/develop/flutter"
-if [[ -n $FLUTTER_HOME ]]; then 
+if [[ -n $FLUTTER_HOME ]]; then
   path+=($FLUTTER_HOME/bin)
 fi
 
