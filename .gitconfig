@@ -238,7 +238,10 @@ path = ~/git/foss/.gitconfig
 [gpg "ssh"]
 	allowedSignersFile = ~/.config/git/allowed_signers
 	program = ~/.local/bin/ssh-keygen-enclave
-	# ssh-keygen-enclave should be:
-	# #!/bin/sh
-  # export SSH_SK_PROVIDER=/usr/lib/ssh-keychain.dylib
-	# exec /usr/bin/ssh-keygen "$@"
+	# ssh-keygen-enclave sets SSH_SK_PROVIDER=/usr/lib/ssh-keychain.dylib and
+	# runs /usr/bin/ssh-keygen, THEN re-verifies its own -Y sign output with the
+	# public key and exits non-zero if it doesn't verify. Needed because when
+	# Touch ID is unavailable (lid closed / clamshell) Apple's ssh-keychain.dylib
+	# returns "success" with an all-zero ECDSA (r,s); plain ssh-keygen wraps that
+	# in valid SSHSIG armor and exits 0, so git would record an unverifiable
+	# commit. The self-check makes `git commit` abort instead.
