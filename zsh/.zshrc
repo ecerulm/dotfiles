@@ -84,15 +84,11 @@ alias gdw="git diff"
 alias gfa="git fetch --all"
 alias gb="git branch --sort=-committerdate"
 
-alias rlm-l="eza -l -s mod"
-alias rlm-t="eza -l -s mod -T --git-ignore"
 alias rlm-reuse-annotate="pipx run reuse annotate --year 2023 --copyright 'Ruben Laguna <ruben.laguna@gmail.com>' --license GPL-3.0-or-later"
 # alias imgcat="kitty +kitten icat"
 # alias icat="kitty +kitten icat"
 alias rlm-tp="terraform plan -out latest.tfplan"
 alias rlm-ta="terraform apply latest.tfplan"
-alias l="eza -l -s mod"
-alias t="eza -l -s mod -T --git-ignore"
 alias reuse-annotate="pipx run reuse annotate --year 2023 --copyright 'Ruben Laguna <ruben.laguna@gmail.com>' --license GPL-3.0-or-later"
 alias tp="terraform plan -out latest.tfplan"
 alias ta="terraform apply latest.tfplan"
@@ -272,7 +268,13 @@ alias randompassword="LC_ALL=C tr -cd '[:alnum:]' < /dev/urandom | fold -w30 |he
 
 
 if builtin command -v eza >/dev/null ;then
-  alias ls="eza -l --git --icons --time-style long-iso -snew"
+	# alias rlm-l="eza -l -s mod"
+	# alias rlm-t="eza -l -s mod -T --git-ignore"
+	# alias l="eza -l -s mod"
+	# alias t="eza -l -s mod -T --git-ignore"
+  alias ls="eza --header --long --all --git --icons --time-style long-iso -snew"
+	alias lt='eza --long --header --icons --time-style long-iso --color=auto -s mod --tree --level 2'
+
 fi
 
 # if builtin command -v bat >/dev/null ;then
