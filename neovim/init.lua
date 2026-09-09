@@ -526,7 +526,6 @@ end, { unique = true })
 
 -- nvim-lint
 require("lint").linters_by_ft = {
-	-- For python you better have mypy on the path already use pipx install mypy
 	python = { "mypy" }, -- https://github.com/mfussenegger/nvim-lint/blob/master/lua/lint/linters/mypy.lua
 }
 

@@ -1,0 +1,28 @@
+#!/bin/sh
+
+set -eu
+
+shim_path=${DOTFILES_MYPY_SHIM_PATH:-$HOME/.local/bin/mypy}
+if [ "${DOTFILES_MYPY_SHIM_ACTIVE:-}" = 1 ]; then
+	printf '%s\n' "mypy: refusing to re-enter the dotfiles shim" >&2
+	exit 127
+fi
+
+project_dir=$PWD
+while [ "$project_dir" != / ]; do
+	if [ -f "$project_dir/uv.lock" ]; then
+		exec env DOTFILES_MYPY_SHIM_ACTIVE=1 uv --directory "$project_dir" run --no-sync --frozen --no-progress --offline mypy "$@"
+	fi
+	project_dir=$(dirname "$project_dir")
+done
+
+while IFS= read -r candidate; do
+	if [ "$candidate" != "$shim_path" ] && [ "$candidate" != "$0" ] && [ -x "$candidate" ]; then
+		exec "$candidate" "$@"
+	fi
+done <<EOF
+$(which -a mypy 2>/dev/null || true)
+EOF
+
+printf '%s\n' "mypy: no uv project and no other mypy executable found in PATH" >&2
+exit 127

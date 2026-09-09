@@ -4,6 +4,10 @@ Guidance for coding agents working in this repo. `CLAUDE.md`/`GEMINI.md` symlink
 
 Personal macOS (+Linux) dotfiles, symlinked into place by `create_links_mac.sh` / `create_links_linux.sh` (run with `bash`). These also create `~/.config/` dirs and `brew install` required tools.
 
+## Git Workflow
+
+Commit directly to `main` in this repository. Do not create feature branches or pull requests.
+
 ## Git Hooks (lefthook)
 
 Configured in `lefthook.yml`; install once with `lefthook install`. `pre-commit` runs **strict** (warnings fail):

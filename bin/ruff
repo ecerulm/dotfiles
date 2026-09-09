@@ -1,0 +1,28 @@
+#!/bin/sh
+
+set -eu
+
+shim_path=${DOTFILES_RUFF_SHIM_PATH:-$HOME/.local/bin/ruff}
+if [ "${DOTFILES_RUFF_SHIM_ACTIVE:-}" = 1 ]; then
+	printf '%s\n' "ruff: refusing to re-enter the dotfiles shim" >&2
+	exit 127
+fi
+
+project_dir=$PWD
+while [ "$project_dir" != / ]; do
+	if [ -f "$project_dir/uv.lock" ]; then
+		exec env DOTFILES_RUFF_SHIM_ACTIVE=1 uv --directory "$project_dir" run --no-sync --frozen --no-progress --offline ruff "$@"
+	fi
+	project_dir=$(dirname "$project_dir")
+done
+
+while IFS= read -r candidate; do
+	if [ "$candidate" != "$shim_path" ] && [ "$candidate" != "$0" ] && [ -x "$candidate" ]; then
+		exec "$candidate" "$@"
+	fi
+done <<EOF
+$(which -a ruff 2>/dev/null || true)
+EOF
+
+printf '%s\n' "ruff: no uv project and no other ruff executable found in PATH" >&2
+exit 127
