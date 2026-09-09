@@ -111,5 +111,5 @@ brew install neovim tree-sitter tree-sitter-cli node wget go \
   ripgrep fd fzf gpg pinentry-mac zoxide lefthook shfmt shellcheck mdformat yq \
   gh pyenv gradle maven openjdk@21 node@18 node@22 yarn \
   direnv colima docker docker-compose mysql pkg-config uv \
-	git-delta
+	git-delta ykman yubico-piv-tool
 # :checkhealt lazy mason
