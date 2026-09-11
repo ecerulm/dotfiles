@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-09-11
+
+- Add JSONC Treesitter/LSP support and make dependency installation idempotent, including Prettier and uv-managed Python tools
+- Fix GUI-launched Neovim access to Homebrew Node and configure Prettier for JSONC formatting
+
 ## 2026-08-17
 
 - Add Zig support: `after/ftplugin/zig.lua` + `after/indent/zig.lua` (treesitter highlight, folds, indent) and add `zig` to the treesitter install list in `init.lua`, so `.zig` files get treesitter highlighting instead of falling back to `$VIMRUNTIME/syntax/zig.vim`

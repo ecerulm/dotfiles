@@ -7,6 +7,12 @@ if not ok then
 end
 thismachine.pre()
 
+-- Homebrew's Node binaries may not be on PATH when Neovim is launched from a GUI.
+local homebrew_node = "/opt/homebrew/opt/node/bin"
+if vim.uv.fs_stat(homebrew_node) then
+	vim.env.PATH = homebrew_node .. ":/opt/homebrew/bin:" .. vim.env.PATH
+end
+
 -- Local plugin: git-pr-review (~/git/personal/git-pr-review.nvim)
 vim.opt.rtp:prepend(vim.fn.expand("~/git/personal/git-pr-review.nvim"))
 
@@ -57,6 +63,13 @@ vim.lsp.enable("basedpyright")
 -- brew install gopls
 vim.lsp.enable("gopls")
 
+-- nvim-lspconfig LSP jsonls — supports JSON and JSON with comments (JSONC)
+-- brew install vscode-langservers-extracted
+vim.lsp.config("jsonls", {
+	cmd = { "vscode-json-language-server", "--stdio" },
+})
+vim.lsp.enable("jsonls")
+
 -- nvim-treesitter , provides syntax highlighting groups, folding and indentation based on treesitter queries
 -- https://github.com/nvim-treesitter/nvim-treesitter
 require("nvim-treesitter").setup({
@@ -105,6 +118,7 @@ require("conform").setup({
 		go = { "gofmt" }, -- go fmt comes with golang
 		markdown = { "markdownfmt" }, -- go install github.com/shurcooL/markdownfmt@latest, ~/go/bin/markdownfmt in the path
 		json = { "jq" }, -- https://github.com/stevearc/conform.nvim/blob/master/lua/conform/formatters/jq.lua
+		jsonc = { "prettier" }, -- prettier understands comments and trailing commas
 		c = { "clang-format" },
 		cpp = { "clang-format" },
 		make = { "bake" },
