@@ -319,9 +319,13 @@ alias ctags="ctags -R --fields=+zK"
 
 # Key bindings
 # Uncomment to force emacs-mode keymap so Ctrl-A / Ctrl-E (and other emacs
-# bindings) work. zsh picks viins when $EDITOR or $VISUAL matches *vi* —
+# bindings) work. zsh picks viins (VI INSert) when $EDITOR or $VISUAL matches *vi* —
 # our EDITOR='nvim' (.zshenv) triggers that, leaving ^A/^E as self-insert.
 # bindkey -e
+
+bindkey -e
+
+# magic-space, pressing space will autoexpand history. i.e `echo !!<space>` autoexpand to `echo xxxxx`
 bindkey ' ' magic-space
 
 # VS Code CLI
