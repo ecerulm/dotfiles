@@ -919,3 +919,6 @@ export PATH="$PATH:/Users/ecerulm/.lmstudio/bin"
 
 
 [[ "$TERM_PROGRAM" == "kiro" ]] && . "$(kiro --locate-shell-integration-path bash)"
+
+# opencode
+[ -d "$HOME/.opencode/bin" ] && export PATH="$HOME/.opencode/bin:$PATH"
