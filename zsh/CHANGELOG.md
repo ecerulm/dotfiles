@@ -4,6 +4,12 @@ All notable changes to the zsh configuration are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2026-09-24]
+
+### Added
+
+- **`rlm-yubikey-ssh-add` (`yubikey-ssh-add`) — load the YubiKey PIV keys into ssh-agent so the PIN is entered once per session instead of on every ssh connection.** Runs `ssh-add -s /usr/local/lib/libykcs11.dylib`, first removing any previous registration so it can be re-run after replugging the key. Uses a copy in `/usr/local/lib` because the macOS ssh-agent refuses PKCS#11 providers outside `/usr/lib`/`/usr/local/lib` (the Homebrew path fails with `agent refused operation`, even via symlink).
+
 ## [2026-09-06]
 
 ### Added

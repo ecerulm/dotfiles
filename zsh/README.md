@@ -151,6 +151,7 @@ are available in any interactive shell. Each function is also aliased to a short
 |---|---|---|
 | `rlm-mkpw [length]` | `mkpw` | Generate an alphanumeric password. Default length is 14 characters. |
 | `rlm-randompassword` | `randompassword` | Generate a 20-character password using alphanumeric chars plus `#`, `.`, `-`. |
+| `rlm-yubikey-ssh-add` | `yubikey-ssh-add` | Load the YubiKey PIV keys into ssh-agent via PKCS#11 (`/usr/local/lib/libykcs11.dylib`), entering the PIN once so later ssh connections don't prompt. Requires: `ssh-add`, `yubico-piv-tool`. |
 
 ### Shell / Command Discovery
 

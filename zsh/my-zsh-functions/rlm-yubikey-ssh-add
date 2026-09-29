@@ -1,0 +1,32 @@
+emulate -L zsh
+set -o pipefail
+
+# ---------------------------------------------------------------------------
+# Precondition checks
+# ---------------------------------------------------------------------------
+
+if ! command -v ssh-add >/dev/null 2>&1; then
+  print -u2 -r -- "yubikey-ssh-add: 'ssh-add' not found in PATH"
+  return 1
+fi
+
+# The macOS ssh-agent only loads PKCS#11 providers under /usr/lib or
+# /usr/local/lib (after resolving symlinks), so the Homebrew path is refused.
+local lib=/usr/local/lib/libykcs11.dylib
+
+if [[ ! -f $lib || -L $lib ]]; then
+  print -u2 -r -- "yubikey-ssh-add: $lib missing or a symlink; copy it with:"
+  print -u2 -r -- "  sudo mkdir -p /usr/local/lib && sudo cp \"\$(realpath /opt/homebrew/lib/libykcs11.dylib)\" $lib"
+  return 1
+fi
+
+# ---------------------------------------------------------------------------
+# Main logic
+# ---------------------------------------------------------------------------
+
+# Re-adding an already loaded provider is refused, and a replugged key leaves
+# a stale entry behind, so drop any previous registration first.
+ssh-add -e "$lib" >/dev/null 2>&1
+
+ssh-add -s "$lib" || return 1
+ssh-add -l

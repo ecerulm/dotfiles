@@ -1,0 +1,26 @@
+rlm-yubikey-ssh-add
+
+Load the YubiKey PIV keys (e.g. slot 9a, PIV AUTH) into the running
+ssh-agent via the PKCS#11 module, prompting for the PIN once. After
+that, ssh connections that use the key through the agent do not ask
+for the PIN again until the YubiKey is unplugged or the agent restarts.
+
+Any previous registration of the module is removed first, so it is
+safe to run again after replugging the key. The loaded keys are listed
+at the end.
+
+Uses /usr/local/lib/libykcs11.dylib because the macOS ssh-agent refuses
+PKCS#11 providers outside /usr/lib and /usr/local/lib (symlinks are
+resolved first). Copy the Homebrew library there once, and again after
+upgrading yubico-piv-tool:
+
+  sudo mkdir -p /usr/local/lib
+  sudo cp "$(realpath /opt/homebrew/lib/libykcs11.dylib)" \
+    /usr/local/lib/libykcs11.dylib
+
+For ssh to use the agent key instead of prompting on its own, the host
+entry should use IdentityFile <key>.pub with IdentitiesOnly yes and no
+PKCS11Provider line.
+
+REQUIRES
+  ssh-add, yubico-piv-tool (libykcs11.dylib)

@@ -151,6 +151,7 @@ autoload -Uz rlm-dbt-test
 autoload -Uz rlm-tfapply
 autoload -Uz rlm-tfplan
 autoload -Uz rlm-tsconv
+autoload -Uz rlm-yubikey-ssh-add
 # run-help: use the real autoloaded version (default is aliased to man)
 unalias run-help 2>/dev/null
 # Load the stock implementation under a second name so the wrapper below can
@@ -237,6 +238,7 @@ alias pubsub-open='rlm-pubsub-open'
 alias jira-open='rlm-jira-open'
 alias jira-pick='rlm-jira-pick'
 alias brew-unlock='rlm-brew-unlock'
+alias yubikey-ssh-add='rlm-yubikey-ssh-add'
 alias fcmd='rlm-fcmd'
 alias fe='rlm-fe'
 alias urldecode='rlm-urldecode'
