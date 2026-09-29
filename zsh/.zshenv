@@ -50,11 +50,8 @@ export NVM_DIR="${XDG_CONFIG_HOME:-$HOME}/nvm"
 export UV_KEYRING_PROVIDER=subprocess
 export UV_KEYRING_PROVIDER_COMMAND="$HOME/.local/bin/keyring"
 
-# kubectl: personal contexts in ~/.kube/config (FIRST, so its current-context
-# wins) reference clusters/OIDC users from the shared kubeconfig repo. Write
-# with `kubectl config --kubeconfig=$HOME/.kube/config ...` — with a merged
-# KUBECONFIG, set-context puts new contexts in the repo file instead.
-export KUBECONFIG="$HOME/.kube/config:$HOME/git/work/kubeconfig/jfa/ga-dev.yml"
+
+# KUBECONFIG overrides are in ~/.zshrc.thismachine
 
 # PATH additions that should be visible to non-interactive shells too
 # (scripts, make, editor subshells). Homebrew / Java / VS Code / Antigravity
