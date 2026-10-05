@@ -4,6 +4,13 @@ All notable changes to the zsh configuration are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2026-10-03]
+
+### Changed
+
+- **`rlm-yubikey-ssh-add` skips the PIN prompt when the key is already loaded.** It checks `ssh-add -T ~/.ssh/yubikey-9a.pub` first and returns early, so running it again doesn't remove and re-add the provider.
+- **`rlm-yubikey-ssh-add` does nothing when no YubiKey is plugged in.** It checks `ioreg -p IOUSB` for Yubico's vendor id (0x1050) first, because `ssh-add -s` otherwise prompts `Enter passphrase for PKCS#11:` and then fails. `-q` suppresses the "no YubiKey detected" notice for use from `~/.zshrc.thismachine`.
+
 ## [2026-09-24]
 
 ### Added

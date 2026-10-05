@@ -24,6 +24,22 @@ fi
 # Main logic
 # ---------------------------------------------------------------------------
 
+# Without a YubiKey plugged in, ssh-add -s still asks for the PIN and then
+# fails, so check the USB bus first. ioreg reports idVendor in decimal:
+# 4176 is Yubico's 0x1050. -q keeps this silent for shell startup.
+if ! ioreg -p IOUSB -l -w0 | grep -q '"idVendor" = 4176$'; then
+  [[ $1 == -q ]] || print -u2 -r -- "yubikey-ssh-add: no YubiKey detected, skipping"
+  return 0
+fi
+
+# Skip the PIN prompt when the agent can already sign with the YubiKey key.
+local pub=~/.ssh/yubikey-9a.pub
+if [[ -f $pub ]] && ssh-add -T "$pub" >/dev/null 2>&1; then
+  print -r -- "yubikey-ssh-add: key already loaded"
+  ssh-add -l
+  return 0
+fi
+
 # Re-adding an already loaded provider is refused, and a replugged key leaves
 # a stale entry behind, so drop any previous registration first.
 ssh-add -e "$lib" >/dev/null 2>&1

@@ -1,13 +1,17 @@
-rlm-yubikey-ssh-add
+rlm-yubikey-ssh-add [-q]
 
 Load the YubiKey PIV keys (e.g. slot 9a, PIV AUTH) into the running
 ssh-agent via the PKCS#11 module, prompting for the PIN once. After
 that, ssh connections that use the key through the agent do not ask
 for the PIN again until the YubiKey is unplugged or the agent restarts.
 
-Any previous registration of the module is removed first, so it is
-safe to run again after replugging the key. The loaded keys are listed
-at the end.
+If no YubiKey is plugged in (Yubico USB vendor id 0x1050 in ioreg)
+it returns 0 without prompting; -q suppresses the notice, for use in
+shell startup files. If the agent can already sign with
+~/.ssh/yubikey-9a.pub it does nothing and skips the PIN prompt.
+Otherwise any previous registration of the module is removed first, so
+it is safe to run again after replugging the key. The loaded keys are
+listed at the end.
 
 Uses /usr/local/lib/libykcs11.dylib because the macOS ssh-agent refuses
 PKCS#11 providers outside /usr/lib and /usr/local/lib (symlinks are
