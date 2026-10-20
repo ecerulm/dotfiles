@@ -1486,5 +1486,32 @@ if [[ -d "$HOME/.opencode/bin" ]]; then
 	path+=($HOME/.opencode/bin)
 fi
 
+# # Start new sessions with the model used by the most recently updated session.
+# # Explicit model and session-resume arguments always take precedence.
+# function opencode() {
+#   local has_model=false
+#   local resumes_session=false
+#   local arg
+#   for arg in "$@"; do
+#     case "$arg" in
+#       -m|--model|--model=*) has_model=true ;;
+#       -c|--continue|-s|--session|--session=*) resumes_session=true ;;
+#     esac
+#   done
+# 
+#   if [[ "$has_model" == false && "$resumes_session" == false ]]; then
+#     local last_model
+#     last_model=$(sqlite3 "$HOME/.local/share/opencode/opencode.db" \
+#       "SELECT json_extract(model, '\$.providerID') || '/' || json_extract(model, '\$.id') FROM session WHERE model IS NOT NULL ORDER BY time_updated DESC LIMIT 1;" \
+#       2>/dev/null)
+#     if [[ -n "$last_model" ]]; then
+#       command opencode --model "$last_model" "$@"
+#       return
+#     fi
+#   fi
+# 
+#   command opencode "$@"
+# }
+
 
 [[ -f ~/.zshrc.thismachine ]] && source ~/.zshrc.thismachine
