@@ -98,6 +98,7 @@ autoload -Uz rlm-hello
 autoload -Uz rlm-testterminal
 autoload -Uz rlm-dnsflush
 autoload -Uz rlm-openports
+autoload -Uz rlm-ollama-serve
 autoload -Uz rlm-pyclean
 autoload -Uz rlm-randompassword
 autoload -Uz rlm-mkpw
@@ -199,6 +200,7 @@ alias hello='rlm-hello'
 alias testterminal='rlm-testterminal'
 alias dnsflush='rlm-dnsflush'
 alias openports='rlm-openports'
+alias ollama-serve='rlm-ollama-serve'
 alias pyclean='rlm-pyclean'
 alias mkpw='rlm-mkpw'
 alias pr-list='rlm-pr-list'

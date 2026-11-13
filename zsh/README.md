@@ -168,6 +168,7 @@ are available in any interactive shell. Each function is also aliased to a short
 |---|---|---|
 | `rlm-brew-unlock` | `brew-unlock` | Remove a stale Homebrew update lock file. Checks whether the locking process is still running first; refuses to remove if the process is alive. |
 | `rlm-dnsflush` | `dnsflush` | Flush the macOS DNS cache (`dscacheutil -flushcache` + restart `mDNSResponder`). |
+| `rlm-ollama-serve` | `ollama-serve` | Run `ollama serve` in the foreground with `OLLAMA_FLASH_ATTENTION=1` and `OLLAMA_KV_CACHE_TYPE=q4_0`. Requires: `ollama`. |
 | `rlm-openports` | `openports` | List all TCP ports currently in LISTEN state (`lsof -iTCP -sTCP:LISTEN`). |
 | `rlm-generatectags` | `generatectags` | Run `ctags -R --fields=+zK` to generate tags for the current tree. |
 | `rlm-testterminal` | `testterminal` | Print all 256 terminal colours plus samples of bold, italic, underline, and strikethrough to verify terminal rendering. |

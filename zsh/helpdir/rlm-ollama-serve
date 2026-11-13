@@ -1,0 +1,11 @@
+rlm-ollama-serve [ARGUMENTS]
+
+Run `ollama serve` in the foreground with flash attention enabled and
+the KV cache quantized to q4_0, which cuts memory use for long
+contexts. Stop it with Ctrl-C.
+
+ARGUMENTS
+  Passed through to `ollama serve`.
+
+REQUIRES
+  /opt/homebrew/opt/ollama/bin/ollama (brew install ollama)

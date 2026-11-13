@@ -1,0 +1,9 @@
+emulate -L zsh
+
+local ollama_bin=/opt/homebrew/opt/ollama/bin/ollama
+if [[ ! -x $ollama_bin ]]; then
+  print -u2 -r -- "ollama-serve: '$ollama_bin' not found (brew install ollama)"
+  return 1
+fi
+
+OLLAMA_FLASH_ATTENTION=1 OLLAMA_KV_CACHE_TYPE=q4_0 "$ollama_bin" serve "$@"
